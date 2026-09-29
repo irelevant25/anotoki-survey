@@ -1,0 +1,19 @@
+@if (source(); as src) {
+    <img
+        [src]="src"
+        [attr.alt]="decorative() ? '' : image().alt"
+        [attr.width]="image().width"
+        [attr.height]="image().height"
+        loading="lazy"
+        decoding="async"
+        draggable="false"
+        (load)="loaded.set(true)"
+        (error)="broken.set(true)" />
+}
+@if (!source() || broken()) {
+    <span class="missing" [attr.role]="decorative() ? null : 'img'" [attr.aria-label]="decorative() ? null : 'The picture is missing'" [attr.title]="'The picture is missing'">
+        <app-icon name="imageOff" [size]="22" />
+    </span>
+} @else if (!loaded()) {
+    <span class="loading" aria-hidden="true"></span>
+}

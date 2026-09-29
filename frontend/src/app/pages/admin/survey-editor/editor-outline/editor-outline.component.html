@@ -1,0 +1,55 @@
+<section id="problems" class="panel problems" [class.is-ready]="problems().length === 0" aria-labelledby="problems-title">
+    @if (problems().length) {
+        <h2 id="problems-title" class="panel-title warn">
+            <app-icon name="alert" [size]="16" />
+            {{ problems().length }} to fix before it opens
+        </h2>
+        <ul class="problem-list">
+            @for (problem of problems(); track $index) {
+                <li>
+                    <button type="button" class="problem" (click)="goTo.emit(problem.target)">{{ problem.message }}</button>
+                </li>
+            }
+        </ul>
+    } @else {
+        <h2 id="problems-title" class="panel-title ready">
+            <app-icon name="checkCircle" [size]="16" />
+            Ready to open
+        </h2>
+    }
+</section>
+
+<nav class="panel outline" aria-labelledby="outline-title">
+    <h2 id="outline-title" class="panel-title">
+        <app-icon name="listOrdered" [size]="16" />
+        Outline
+    </h2>
+    <ol class="steps">
+        @if (survey().askAboutYou) {
+            <li class="step">
+                <span class="step-name">
+                    <span class="step-number">1</span>
+                    About you
+                </span>
+            </li>
+        }
+        @for (item of steps(); track item.step.id) {
+            <li class="step">
+                <button type="button" class="step-name" (click)="goTo.emit({ kind: 'step', stepId: item.step.id })">
+                    <span class="step-number">{{ item.number }}</span>
+                    {{ item.step.title || "Untitled step" }}
+                </button>
+                <ol class="questions">
+                    @for (entry of item.questions; track entry.question.id) {
+                        <li>
+                            <button type="button" class="question" (click)="goTo.emit({ kind: 'question', questionId: entry.question.id })">
+                                <span class="question-number">{{ entry.number }}.</span>
+                                <span class="question-text" [class.is-empty]="!entry.text">{{ entry.text || "No text yet" }}</span>
+                            </button>
+                        </li>
+                    }
+                </ol>
+            </li>
+        }
+    </ol>
+</nav>

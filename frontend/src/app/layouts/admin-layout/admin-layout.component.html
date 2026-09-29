@@ -1,0 +1,19 @@
+<!-- Focus is moved by hand: with <base href="/">, a bare #main would resolve to /#main and leave the page. -->
+<a class="skip-link" href="#main" (click)="$event.preventDefault(); main.focus()">Skip to the content</a>
+
+<app-top-bar area="admin" />
+
+<main #main id="main" class="content" tabindex="-1">
+    @if (auth.isStaff()) {
+        <router-outlet />
+    } @else {
+        <div class="no-access">
+            <app-empty-state
+                icon="lock"
+                heading="This part is for the people who write the surveys"
+                text="Your anotoki account has no editor role here. The site's administrator can give it to you in the anotoki account's admin console.">
+                <a appButton variant="primary" routerLink="/">See the open surveys</a>
+            </app-empty-state>
+        </div>
+    }
+</main>

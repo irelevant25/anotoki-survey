@@ -1,0 +1,90 @@
+<div class="survey-header">
+    <a class="back" routerLink="/admin">
+        <app-icon name="arrowLeft" [size]="16" />
+        All surveys
+    </a>
+
+    <div class="row">
+        <div class="titles">
+            <h1 id="page-title" tabindex="-1">{{ survey().title || "Untitled survey" }}</h1>
+            <p class="meta">
+                <app-badge [tone]="statusTone()" [dot]="true">{{ statusLabel() }}</app-badge>
+                <span class="address">
+                    <a class="address-link" [href]="link()" target="_blank" rel="noopener">{{ link() }}</a>
+                    <button type="button" class="copy" aria-label="Copy the link" title="Copy the link" (click)="copyLink()">
+                        <app-icon name="copy" [size]="14" />
+                    </button>
+                </span>
+                @if (status() === "open" && survey().closesOn) {
+                    <span class="muted">closes after {{ formatDay(survey().closesOn!) }}</span>
+                }
+                <span class="save" [attr.data-state]="save().state" role="status">
+                    @switch (save().state) {
+                        @case ("saved") {
+                            <app-icon name="check" [size]="14" />
+                            Saved
+                        }
+                        @case ("saving") {
+                            <app-spinner size="sm" [inline]="true" />
+                            Saving…
+                        }
+                        @case ("waiting") {
+                            <app-icon name="clock" [size]="14" />
+                            Saving…
+                        }
+                        @case ("conflict") {
+                            <app-icon name="alert" [size]="14" />
+                            Not saved: changed by somebody else
+                        }
+                        @default {
+                            <app-icon name="alert" [size]="14" />
+                            Not saved
+                        }
+                    }
+                </span>
+            </p>
+        </div>
+
+        <div class="actions">
+            <a appButton [routerLink]="['/preview', survey().id]">
+                <app-icon name="eye" [size]="16" />
+                Preview
+            </a>
+            @switch (status()) {
+                @case ("draft") {
+                    <button appButton variant="primary" [loading]="changing()" (click)="open()">
+                        <app-icon name="play" [size]="15" [filled]="true" />
+                        Open the survey
+                    </button>
+                }
+                @case ("open") {
+                    <button appButton [loading]="changing()" (click)="close()">
+                        <app-icon name="stopCircle" [size]="16" />
+                        Close the survey
+                    </button>
+                }
+                @case ("closed") {
+                    <button appButton [loading]="changing()" (click)="open()">
+                        <app-icon name="play" [size]="15" />
+                        Reopen
+                    </button>
+                }
+            }
+        </div>
+    </div>
+
+    <nav class="tabs" aria-label="This survey">
+        <a class="tab" [routerLink]="['/admin/surveys', survey().id, 'edit']" routerLinkActive="is-active" ariaCurrentWhenActive="page">
+            <app-icon name="pencil" [size]="16" />
+            Editor
+            @if (problems().length) {
+                <span class="count count-warn" [attr.title]="problems().length + ' to fix before it opens'">{{ problems().length }}</span>
+            }
+        </a>
+        <a class="tab" [routerLink]="['/admin/surveys', survey().id, 'results']" routerLinkActive="is-active" ariaCurrentWhenActive="page">
+            <app-icon name="chart" [size]="16" />
+            Results
+            <span class="count">{{ responses() }}</span>
+        </a>
+    </nav>
+</div>

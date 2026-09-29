@@ -1,0 +1,10 @@
+@for (image of images(); track image.id; let i = $index) {
+    <button
+        type="button"
+        class="strip-item"
+        [attr.aria-label]="'Show large: ' + label() + ', ' + (image.alt || 'picture ' + (i + 1))"
+        [title]="image.alt || 'Show large'"
+        (click)="lightbox.open(images(), i)">
+        <app-survey-image [image]="image" fit="cover" [decorative]="true" />
+    </button>
+}

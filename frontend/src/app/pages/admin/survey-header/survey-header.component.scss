@@ -1,0 +1,164 @@
+:host {
+  display: block;
+}
+
+.survey-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.back {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--text);
+  }
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.titles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1 1 24rem;
+
+  h1 {
+    font-size: 1.5rem;
+    overflow-wrap: anywhere;
+
+    &:focus {
+      outline: none;
+    }
+  }
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.address {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.address-link {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+// Whether the changes are on the server: quiet when they are, plain when they are not.
+.save {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--subtle);
+  font-size: 0.8125rem;
+
+  &[data-state="failed"],
+  &[data-state="conflict"] {
+    color: var(--danger);
+    font-weight: 650;
+  }
+}
+
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.65rem 0.9rem;
+  color: var(--muted);
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--text);
+  }
+
+  &.is-active {
+    color: var(--text);
+
+    &::after {
+      content: "";
+      position: absolute;
+      left: 0.6rem;
+      right: 0.6rem;
+      bottom: -1px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--primary);
+    }
+  }
+}
+
+.count {
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.count-warn {
+  background: var(--warning-soft);
+  color: var(--warning);
+}

@@ -1,0 +1,97 @@
+.people {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.person {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-3);
+
+    .chevron {
+      color: var(--text);
+    }
+  }
+}
+
+// A colour per person, from the name: the same in light and dark (white on a
+// mid tone), so a face in one list is found again in the next.
+.avatar {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: oklch(0.55 0.13 var(--hue, 250));
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.who {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.name {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.details {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.note {
+  margin-top: 0.3rem;
+  padding: 0.4rem 0.6rem;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 8px 8px 0;
+  background: var(--surface-2);
+  font-size: 0.875rem;
+  font-style: italic;
+  quotes: none;
+  overflow-wrap: anywhere;
+}
+
+.when {
+  flex: none;
+  padding-top: 0.15rem;
+  color: var(--subtle);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: none;
+  margin-top: 0.15rem;
+  color: var(--subtle);
+}
+
+.empty {
+  padding: 1.5rem 0.5rem;
+  color: var(--muted);
+  text-align: center;
+}

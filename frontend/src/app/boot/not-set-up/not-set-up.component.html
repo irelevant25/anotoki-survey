@@ -1,0 +1,13 @@
+<main class="boot">
+    <app-brand [size]="40" area="survey" />
+    <section class="card">
+        <span class="card-icon"><app-icon name="database" [size]="24" /></span>
+        <h1>The survey site is not set up yet</h1>
+        <p class="muted">It needs its database, and the address of the anotoki account people sign in with. The setup page asks for both and takes a minute.</p>
+        @if (auth.notSetUpDetail(); as detail) {
+            <p class="detail">{{ detail }}</p>
+        }
+        <a appButton variant="primary" href="/setup.php">Open the setup page</a>
+        <p class="muted small">When it is done, come back here and reload the page.</p>
+    </section>
+</main>

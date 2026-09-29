@@ -1,0 +1,56 @@
+<article class="card" [id]="'result-' + question().id">
+    <header class="head">
+        <span class="number">{{ number() }}</span>
+        <div class="text rich" [innerHTML]="question().text"></div>
+        <span class="kind" [title]="kind().label">
+            <app-icon [name]="kind().icon" [size]="15" />
+            <span class="kind-label">{{ kind().label }}</span>
+        </span>
+    </header>
+
+    @if (question().images.length) {
+        <app-image-strip class="question-images" [images]="question().images" [label]="'Question ' + number()" />
+    }
+
+    <p class="meta">
+        <span>
+            <strong>{{ summary().answered }}</strong>
+            answered
+        </span>
+        @if (summary().skipped) {
+            <span>{{ summary().skipped }} skipped</span>
+        }
+        @if (summary().averagePicked !== null) {
+            <span>{{ summary().averagePicked!.toFixed(1) }} chosen on average</span>
+        }
+        @if (!question().required) {
+            <span class="optional">optional</span>
+        }
+    </p>
+
+    @if (summary().answered) {
+        <app-bar-list [tallies]="summary().tallies" [filtered]="filtered()" [label]="'Question ' + number()" (select)="onSelect($event)" (narrow)="onNarrow($event)" />
+    } @else {
+        <p class="nobody">Nobody has answered it{{ summary().skipped ? " - everybody skipped it" : "" }}.</p>
+    }
+
+    @if (summary().others.length && otherOption(); as other) {
+        <div class="others">
+            <p class="others-title">
+                <app-icon name="message" [size]="14" />
+                “{{ other.label }}”, in their own words
+            </p>
+            <ul class="others-list">
+                @for (written of firstOthers(); track written.responseId) {
+                    <li>
+                        <q>{{ written.text }}</q>
+                        <button type="button" class="who" (click)="openResponse.emit(written.responseId)">{{ written.person.name }}</button>
+                    </li>
+                }
+            </ul>
+            @if (summary().others.length > firstOthers().length) {
+                <button type="button" class="more" (click)="select.emit(other.id)">All {{ summary().others.length }} of them</button>
+            }
+        </div>
+    }
+</article>

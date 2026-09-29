@@ -1,0 +1,26 @@
+{
+    "name": "anotoki/survey",
+    "description": "The anotoki survey site's API: PHP, Slim 4 and PostgreSQL.",
+    "type": "project",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.2",
+        "slim/psr7": "^1.8",
+        "slim/slim": "^4.15"
+    },
+    "config": {
+        "platform": {
+            "php": "8.2.0"
+        },
+        "sort-packages": true
+    },
+    "scripts": {
+        "start": [
+            "Composer\\Config::disableProcessTimeout",
+            "php -S localhost:8500 router.php"
+        ]
+    },
+    "scripts-descriptions": {
+        "start": "The API and setup.php on http://localhost:8500: PHP's built-in server, with router.php"
+    }
+}

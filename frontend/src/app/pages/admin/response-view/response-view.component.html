@@ -1,0 +1,73 @@
+@if (aboutYou().length) {
+    <section class="step">
+        <h3 class="step-title">
+            <span class="step-number">Step 1</span>
+            About you
+        </h3>
+        @for (item of aboutYou(); track item.question.id) {
+            <ng-container *ngTemplateOutlet="question; context: { $implicit: item }" />
+        }
+    </section>
+}
+
+@for (entry of steps(); track entry.step.id) {
+    <section class="step">
+        <h3 class="step-title">
+            <span class="step-number">Step {{ entry.number }}</span>
+            {{ entry.step.title }}
+        </h3>
+        @for (item of entry.items; track item.question.id) {
+            <ng-container *ngTemplateOutlet="question; context: { $implicit: item }" />
+        }
+    </section>
+}
+
+<ng-template #question let-item>
+    <div class="item" [class.is-skipped]="!answered(item)">
+        <div class="question">
+            @if (item.number !== null) {
+                <span class="number">{{ item.number }}</span>
+            }
+            <div class="text rich" [innerHTML]="item.question.text"></div>
+        </div>
+
+        @if (item.question.images.length) {
+            <app-image-strip class="question-images" [images]="item.question.images" [label]="item.number !== null ? 'Question ' + item.number : 'The question'" />
+        }
+
+        @if (isChoice(item.question)) {
+            <ul class="options">
+                @for (option of item.question.options; track option.id) {
+                    <li class="option" [class.is-chosen]="chosen(item, option.id)" [class.is-highlight]="isHighlight(item, option.id)">
+                        <span class="mark" [class.mark-round]="item.question.type === 'single'" aria-hidden="true">
+                            @if (chosen(item, option.id)) {
+                                <app-icon name="check" [size]="12" [strokeWidth]="3" />
+                            }
+                        </span>
+                        @if (option.images.length) {
+                            <app-survey-image class="option-thumb" [image]="option.images[0]" fit="cover" [decorative]="true" />
+                        }
+                        <span class="option-label">
+                            {{ option.label }}
+                            @if (chosen(item, option.id)) {
+                                <span class="visually-hidden">(chosen)</span>
+                            }
+                        </span>
+                        @if (option.other && chosen(item, option.id) && item.answer?.other) {
+                            <q class="other">{{ item.answer.other }}</q>
+                        }
+                    </li>
+                }
+            </ul>
+            @if (item.removed) {
+                <p class="note">and {{ item.removed }} {{ item.removed === 1 ? "option" : "options" }} since removed from the question</p>
+            }
+        } @else if (answered(item)) {
+            <blockquote class="written">{{ item.answer.text }}</blockquote>
+        }
+
+        @if (!answered(item)) {
+            <p class="skipped">Skipped</p>
+        }
+    </div>
+</ng-template>

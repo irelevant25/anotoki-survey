@@ -1,0 +1,141 @@
+<div class="question" [class.has-error]="!!error()" [attr.data-question]="question().id">
+    <div class="head">
+        @if (number() !== null) {
+            <span class="number" aria-hidden="true">{{ number() }}</span>
+        }
+        <div class="text rich" [id]="textId" [innerHTML]="question().text"></div>
+    </div>
+
+    @if (question().images.length) {
+        <div class="gallery" [attr.data-count]="galleryCount()">
+            @for (image of question().images; track image.id; let i = $index) {
+                <button type="button" class="gallery-item" [attr.aria-label]="'Show large: ' + (image.alt || 'picture ' + (i + 1))" (click)="lightbox.open(question().images, i)">
+                    <app-survey-image [image]="image" [fit]="galleryCount() === 1 ? 'contain' : 'cover'" [natural]="galleryCount() === 1" [decorative]="true" />
+                </button>
+            }
+        </div>
+    }
+
+    @if (rule() || !question().required) {
+        <p class="rule" [id]="ruleId">
+            @if (rule()) {
+                <span>{{ rule() }}</span>
+            }
+            @if (question().type === "multiple" && chosen().size > 0) {
+                <span class="count">{{ chosen().size }} chosen</span>
+            }
+            @if (!question().required) {
+                <span class="optional">Optional</span>
+            }
+        </p>
+    }
+
+    @if (question().type === "text") {
+        <div class="field-control text-control" [class.field-invalid]="!!error()">
+            @if (question().multiline) {
+                <textarea
+                    class="field-input"
+                    rows="4"
+                    [value]="answer()?.text ?? ''"
+                    [attr.maxlength]="maxLength()"
+                    [attr.placeholder]="question().placeholder || null"
+                    [attr.aria-labelledby]="textId"
+                    [attr.aria-describedby]="describedBy()"
+                    [attr.aria-invalid]="error() ? 'true' : null"
+                    (input)="setText($event)"></textarea>
+            } @else {
+                <input
+                    type="text"
+                    class="field-input"
+                    [value]="answer()?.text ?? ''"
+                    [attr.maxlength]="maxLength()"
+                    [attr.placeholder]="question().placeholder || null"
+                    [attr.aria-labelledby]="textId"
+                    [attr.aria-describedby]="describedBy()"
+                    [attr.aria-invalid]="error() ? 'true' : null"
+                    (input)="setText($event)" />
+            }
+        </div>
+        @if (maxLength(); as max) {
+            <p class="length" [class.is-near]="textLength() > max * 0.9">{{ textLength() }} / {{ max }}</p>
+        }
+    } @else {
+        <div
+            class="options"
+            [attr.data-layout]="media() ? 'media' : question().layout"
+            [attr.role]="single() ? 'radiogroup' : 'group'"
+            [attr.aria-labelledby]="textId"
+            [attr.aria-describedby]="describedBy()"
+            [attr.aria-required]="question().required && single() ? 'true' : null"
+            [attr.aria-invalid]="error() ? 'true' : null">
+            @for (option of question().options; track option.id) {
+                <div class="cell">
+                    <label class="option" [class.is-chosen]="chosen().has(option.id)" [class.is-waiting]="full() && !chosen().has(option.id)" (pointerdown)="pressed(option.id)">
+                        <input
+                            [type]="single() ? 'radio' : 'checkbox'"
+                            [name]="name"
+                            [value]="option.id"
+                            [checked]="chosen().has(option.id)"
+                            [disabled]="full() && !chosen().has(option.id)"
+                            (change)="choose(option.id, $any($event.target).checked)" />
+                        @if (media()) {
+                            <span class="media" [attr.data-count]="option.images.length > 3 ? 3 : option.images.length">
+                                @for (image of option.images.slice(0, 3); track image.id) {
+                                    <app-survey-image [image]="image" fit="contain" [decorative]="true" />
+                                } @empty {
+                                    <span class="no-media" aria-hidden="true"><app-icon [name]="option.other ? 'pencil' : 'image'" [size]="22" /></span>
+                                }
+                                @if (option.images.length > 3) {
+                                    <span class="more" aria-hidden="true">+{{ option.images.length - 3 }}</span>
+                                }
+                            </span>
+                        }
+                        <span class="caption">
+                            <span class="mark" [class.mark-radio]="single()" [class.mark-check]="!single()" aria-hidden="true">
+                                @if (!single()) {
+                                    <svg viewBox="0 0 16 16" width="12" height="12">
+                                        <path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                                    </svg>
+                                }
+                            </span>
+                            <span class="label">{{ option.label }}</span>
+                        </span>
+                    </label>
+                    @if (option.images.length) {
+                        <button type="button" class="zoom" [attr.aria-label]="'Show the picture of ' + option.label + ' large'" [title]="'Show large'" (click)="enlarge(option)">
+                            <app-icon name="zoomIn" [size]="16" />
+                        </button>
+                    }
+                </div>
+                @if (option.other && chosen().has(option.id)) {
+                    <div class="other">
+                        <app-icon name="cornerDownRight" [size]="16" />
+                        <div class="field-control" [class.field-invalid]="!!error() && !(answer()?.other ?? '').trim()">
+                            <input
+                                type="text"
+                                class="field-input"
+                                maxlength="200"
+                                placeholder="Your own answer"
+                                [attr.aria-label]="option.label + ': your own answer'"
+                                [attr.aria-invalid]="error() && !(answer()?.other ?? '').trim() ? 'true' : null"
+                                [attr.aria-describedby]="error() && !(answer()?.other ?? '').trim() ? errorId : null"
+                                [value]="answer()?.other ?? ''"
+                                [appAutofocus]="justChose() === option.id"
+                                (input)="setOther($event)" />
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+        @if (single() && !question().required && chosen().size > 0) {
+            <button type="button" class="clear" (click)="clear($event)">Clear my answer</button>
+        }
+    }
+
+    @if (error()) {
+        <p class="error" [id]="errorId" role="alert">
+            <app-icon name="alert" [size]="16" />
+            <span>{{ error() }}</span>
+        </p>
+    }
+</div>

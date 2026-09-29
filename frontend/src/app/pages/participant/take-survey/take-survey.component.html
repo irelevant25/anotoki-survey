@@ -1,0 +1,215 @@
+@if (survey(); as survey) {
+    @if (preview()) {
+        <div class="preview-bar" role="note">
+            <app-icon name="eye" [size]="18" />
+            <p class="preview-text">
+                <strong>Preview.</strong>
+                This is the survey as people will see it. Nothing you answer here is kept.
+            </p>
+            <div class="preview-actions">
+                <button appButton size="sm" variant="ghost" (click)="restartPreview()">
+                    <app-icon name="rotateCcw" [size]="15" />
+                    Start over
+                </button>
+                <a appButton size="sm" [routerLink]="['/admin/surveys', survey.id, 'edit']">
+                    <app-icon name="pencil" [size]="15" />
+                    Back to the editor
+                </a>
+            </div>
+        </div>
+    }
+
+    <article class="card">
+        <app-survey-hero [heading]="survey.title" [eyebrow]="preview() ? 'Preview' : 'Survey'" [current]="state() === 'take' && phase() === 'steps' ? pageIndex() + 1 : 0" [total]="pages().length" />
+
+        @switch (state()) {
+            @case ("not-open") {
+                <div class="body message">
+                    <span class="message-icon"><app-icon name="clock" [size]="24" /></span>
+                    <h2 class="message-heading">This survey is not open yet</h2>
+                    <p class="muted">It will open soon - come back then.</p>
+                </div>
+            }
+            @case ("closed") {
+                <div class="body message">
+                    <span class="message-icon"><app-icon name="lock" [size]="22" /></span>
+                    <h2 class="message-heading">This survey has closed</h2>
+                    <p class="muted">
+                        @if (survey.closedAt) {
+                            It closed on {{ formatDate(survey.closedAt) }}.
+                        }
+                        Thank you for wanting to help - look out for the next one.
+                    </p>
+                </div>
+            }
+            @case ("signed-out") {
+                <div class="body">
+                    <div class="intro rich" [innerHTML]="survey.intro"></div>
+                    <div class="sign-in">
+                        <span class="sign-in-icon"><app-icon name="logIn" [size]="20" /></span>
+                        <div class="sign-in-text">
+                            <p class="sign-in-heading">Sign in to take this survey</p>
+                            <p class="muted small">Your anotoki account makes sure everyone answers once. Your answers go to the people who run the anotoki sites, and nowhere else.</p>
+                        </div>
+                    </div>
+                    <div class="start">
+                        <button appButton variant="primary" size="lg" (click)="signIn()">
+                            <app-icon name="logIn" [size]="18" />
+                            Sign in with anotoki
+                        </button>
+                    </div>
+                </div>
+            }
+            @case ("answered") {
+                <div class="body message">
+                    <span class="message-icon message-icon-success"><app-icon name="check" [size]="26" [strokeWidth]="2.4" /></span>
+                    <h2 class="message-heading">You have taken this survey</h2>
+                    @if (answeredAt(); as sentAt) {
+                        <p class="muted">You sent your answers {{ timeAgo(sentAt) }}. Everyone can answer a survey once.</p>
+                    }
+                    <div class="rich thanks" [innerHTML]="survey.thanks"></div>
+                </div>
+            }
+            @case ("sent") {
+                <div class="body message">
+                    <span class="message-icon message-icon-success done-mark"><app-icon name="check" [size]="30" [strokeWidth]="2.6" /></span>
+                    <h2 class="message-heading done-heading" tabindex="-1">Thank you!</h2>
+                    <div class="rich thanks" [innerHTML]="survey.thanks"></div>
+                    @if (preview()) {
+                        <p class="muted small">This was the preview: nothing was kept.</p>
+                        <div class="message-actions">
+                            <button appButton (click)="restartPreview()">
+                                <app-icon name="rotateCcw" [size]="16" />
+                                Start the preview again
+                            </button>
+                            <a appButton variant="primary" [routerLink]="['/admin/surveys', survey.id, 'edit']">Back to the editor</a>
+                        </div>
+                    }
+                </div>
+            }
+            @case ("take") {
+                @if (phase() === "welcome") {
+                    <div class="body">
+                        <div class="intro rich" [innerHTML]="survey.intro"></div>
+
+                        @if (facts(); as facts) {
+                            <ul class="facts">
+                                <li>
+                                    <app-icon name="survey" [size]="16" />
+                                    {{ facts.questions }} {{ facts.questions === 1 ? "question" : "questions" }} in {{ facts.steps }} {{ facts.steps === 1 ? "step" : "steps" }}
+                                </li>
+                                <li>
+                                    <app-icon name="clock" [size]="16" />
+                                    About {{ facts.minutes }} {{ facts.minutes === 1 ? "minute" : "minutes" }}
+                                </li>
+                                @if (facts.closesOn) {
+                                    <li>
+                                        <app-icon name="calendar" [size]="16" />
+                                        Open until {{ formatDay(facts.closesOn) }}
+                                    </li>
+                                }
+                            </ul>
+                        }
+
+                        @if (!preview() && person(); as me) {
+                            <p class="who">
+                                <app-icon name="user" [size]="16" />
+                                <span>
+                                    Signed in as
+                                    <strong>{{ me.name }}</strong>
+                                    · everyone can take this survey once.
+                                </span>
+                            </p>
+                        }
+
+                        @if (draft(); as draft) {
+                            <app-alert tone="info" heading="Carry on where you stopped?">
+                                You started this survey {{ timeAgo(draft.savedAt) }} and got to step {{ draftStep() }} of {{ pages().length }}. Your answers so far are kept in this browser.
+                                <div alertActions>
+                                    <button appButton variant="primary" (click)="carryOn()">
+                                        Carry on
+                                        <app-icon name="arrowRight" [size]="16" />
+                                    </button>
+                                    <button appButton variant="ghost" (click)="startAgain()">Start again</button>
+                                </div>
+                            </app-alert>
+                        } @else {
+                            <div class="start">
+                                <button appButton variant="primary" size="lg" (click)="start()">
+                                    Start the survey
+                                    <app-icon name="arrowRight" [size]="18" />
+                                </button>
+                            </div>
+                        }
+                    </div>
+                } @else if (page(); as page) {
+                    <form class="body" novalidate (submit)="next($event)">
+                        @if (page.title) {
+                            <h2 class="step-heading" tabindex="-1">{{ page.title }}</h2>
+                        } @else {
+                            <h2 class="step-heading visually-hidden" tabindex="-1">Step {{ pageIndex() + 1 }} of {{ pages().length }}</h2>
+                        }
+
+                        @for (current of [page]; track current.key) {
+                            <div class="questions">
+                                @for (item of current.questions; track item.question.id) {
+                                    <app-question-block
+                                        [question]="item.question"
+                                        [number]="item.number"
+                                        [answer]="answers()[item.question.id]"
+                                        [error]="tried() ? (problems().get(item.question.id) ?? null) : null"
+                                        (answerChange)="setAnswer(item.question.id, $event)" />
+                                }
+                            </div>
+                        }
+
+                        <footer class="step-actions">
+                            <button appButton variant="ghost" (click)="back()">
+                                <app-icon name="arrowLeft" [size]="17" />
+                                Back
+                            </button>
+                            <button appButton variant="primary" type="submit" [loading]="sending()">
+                                @if (isLast()) {
+                                    Send my answers
+                                    <app-icon name="send" [size]="16" />
+                                } @else {
+                                    Next
+                                    <app-icon name="arrowRight" [size]="17" />
+                                }
+                            </button>
+                        </footer>
+                    </form>
+                }
+            }
+        }
+    </article>
+} @else {
+    @switch (state()) {
+        @case ("loading") {
+            <div class="loading"><app-spinner label="Loading the survey" [showLabel]="true" /></div>
+        }
+        @case ("failed") {
+            <article class="card">
+                <div class="body message" role="alert">
+                    <span class="message-icon"><app-icon name="alert" [size]="22" /></span>
+                    <h1 class="message-heading">The survey could not be loaded</h1>
+                    <p class="muted">The site did not answer as it should. Try again in a moment.</p>
+                    <button appButton variant="primary" (click)="retry()">
+                        <app-icon name="refresh" [size]="16" />
+                        Try again
+                    </button>
+                </div>
+            </article>
+        }
+        @default {
+            <article class="card">
+                <div class="body message">
+                    <span class="message-icon"><app-icon name="search" [size]="22" /></span>
+                    <h1 class="message-heading">There is no survey here</h1>
+                    <p class="muted">The address may be mistyped, or the survey has been taken down.</p>
+                    <a appButton variant="primary" routerLink="/">See the open surveys</a>
+                </div>
+            </article>
+        }
+    }
+}

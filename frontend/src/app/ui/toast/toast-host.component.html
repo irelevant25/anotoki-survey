@@ -1,0 +1,11 @@
+<section class="toasts" role="status" aria-live="polite" aria-relevant="additions" aria-label="Notifications">
+    @for (toast of toasts.toasts(); track toast.id) {
+        <div class="toast" [attr.data-tone]="toast.tone">
+            <app-icon class="toast-icon" [name]="icons[toast.tone]" [size]="18" />
+            <p class="toast-message">{{ toast.message }}</p>
+            <button type="button" class="toast-close" aria-label="Dismiss" (click)="toasts.dismiss(toast.id)">
+                <app-icon name="x" [size]="16" />
+            </button>
+        </div>
+    }
+</section>

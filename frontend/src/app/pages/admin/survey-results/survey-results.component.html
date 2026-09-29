@@ -1,0 +1,286 @@
+@if (survey(); as survey) {
+    <div class="page">
+        <app-survey-header [survey]="survey" />
+
+        @if (responsesError(); as error) {
+            <div class="empty-card">
+                <app-empty-state icon="alert" heading="The answers could not be loaded" [text]="error.message">
+                    <button appButton variant="primary" (click)="reload()">
+                        <app-icon name="refresh" [size]="16" />
+                        Try again
+                    </button>
+                </app-empty-state>
+            </div>
+        } @else if (!responsesLoaded()) {
+            <div class="loading"><app-spinner label="Loading the answers" [showLabel]="true" /></div>
+        } @else if (all().length === 0) {
+            <div class="empty-card">
+                <app-empty-state
+                    icon="chart"
+                    heading="No answers yet"
+                    [text]="survey.status === 'open' ? 'The results appear here as people answer.' : 'Open the survey, and the results appear here as people answer.'" />
+            </div>
+        } @else {
+            <div class="facts">
+                <div class="fact">
+                    <span class="fact-value">
+                        {{ facts().shown }}
+                        @if (filters().length) {
+                            <span class="fact-of">of {{ facts().total }}</span>
+                        }
+                    </span>
+                    <span class="fact-label">{{ filters().length ? "match the filters" : facts().shown === 1 ? "answer" : "answers" }}</span>
+                </div>
+                <div class="fact">
+                    <span class="fact-value">{{ facts().median !== null ? formatDuration(facts().median!) : "–" }}</span>
+                    <span class="fact-label">median time to answer</span>
+                </div>
+                <div class="fact">
+                    <span class="fact-value fact-value-small">{{ facts().latest ? timeAgo(facts().latest!) : "–" }}</span>
+                    <span class="fact-label">latest answer</span>
+                </div>
+                <div class="fact">
+                    <span class="fact-value fact-value-small">{{ facts().earliest ? timeAgo(facts().earliest!) : "–" }}</span>
+                    <span class="fact-label">first answer</span>
+                </div>
+                <div class="fact-actions">
+                    <button appButton (click)="downloadCsv()" [disabled]="facts().shown === 0">
+                        <app-icon name="download" [size]="16" />
+                        Download CSV
+                    </button>
+                </div>
+            </div>
+
+            @if (chips().length) {
+                <div class="filters" role="region" aria-label="Filters">
+                    <span class="filters-lead">
+                        <app-icon name="filter" [size]="15" />
+                        Only the people who answered
+                    </span>
+                    <ul class="chips">
+                        @for (chip of chips(); track chip.filter.questionId + ":" + chip.filter.optionId) {
+                            <li class="chip">
+                                <span class="chip-question">{{ chip.question }}</span>
+                                <strong class="chip-answer">{{ chip.answer }}</strong>
+                                <button type="button" class="chip-remove" [attr.aria-label]="'Remove the filter ' + chip.answer" (click)="removeFilter(chip.filter)">
+                                    <app-icon name="x" [size]="14" />
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                    <button type="button" class="clear" (click)="clearFilters()">Show everybody</button>
+                </div>
+            }
+
+            <app-tabs label="Results" idPrefix="results" [tabs]="tabs()" [active]="activeTab()" (activeChange)="setTab($event)" />
+
+            @if (activeTab() === "summary") {
+                <div class="summary" role="tabpanel" id="results-panel-summary" aria-labelledby="results-tab-summary">
+                    @if (facts().shown === 0) {
+                        <div class="empty-card">
+                            <app-empty-state icon="filter" heading="Nobody matches all the filters" text="Take one of them away to see more people.">
+                                <button appButton (click)="clearFilters()">Show everybody</button>
+                            </app-empty-state>
+                        </div>
+                    } @else {
+                        @if (aboutYou(); as about) {
+                            <section class="step">
+                                <h2 class="step-title">
+                                    <span class="step-number">Step 1</span>
+                                    About them
+                                </h2>
+                                <div class="about">
+                                    <div class="about-part">
+                                        <h3 class="about-title">Gender</h3>
+                                        <app-bar-list
+                                            [tallies]="about.gender"
+                                            [filtered]="filteredKeys().get(genderId) ?? none"
+                                            label="Gender"
+                                            (select)="openChose(genderId, $event.key)"
+                                            (narrow)="narrow(genderId, $event.key)" />
+                                    </div>
+                                    <div class="about-part">
+                                        <h3 class="about-title">Age</h3>
+                                        <app-bar-list
+                                            [tallies]="about.age"
+                                            [filtered]="filteredKeys().get(ageId) ?? none"
+                                            label="Age"
+                                            (select)="openChose(ageId, $event.key)"
+                                            (narrow)="narrow(ageId, $event.key)" />
+                                    </div>
+                                </div>
+                            </section>
+                        }
+
+                        @for (section of sections(); track section.step.id) {
+                            <section class="step">
+                                <h2 class="step-title">
+                                    <span class="step-number">Step {{ section.number }}</span>
+                                    {{ section.step.title }}
+                                </h2>
+                                @for (item of section.items; track item.question.id) {
+                                    @if (item.choice; as summary) {
+                                        <app-choice-result
+                                            [question]="item.question"
+                                            [number]="item.number"
+                                            [summary]="summary"
+                                            [filtered]="filteredKeys().get(item.question.id) ?? none"
+                                            (select)="openChose(item.question.id, $event)"
+                                            (narrow)="narrow(item.question.id, $event)"
+                                            (openResponse)="openResponseAlone($event)" />
+                                    } @else {
+                                        <app-text-result
+                                            [question]="item.question"
+                                            [number]="item.number"
+                                            [answers]="item.texts ?? []"
+                                            [total]="facts().shown"
+                                            (openAll)="openWrote(item.question.id)"
+                                            (openResponse)="openResponseAlone($event)" />
+                                    }
+                                }
+                            </section>
+                        }
+                    }
+                </div>
+            } @else {
+                <div class="people-card" role="tabpanel" id="results-panel-people" aria-labelledby="results-tab-people">
+                    <div class="people-tools">
+                        <div class="field-control search">
+                            <span class="field-affix"><app-icon name="search" [size]="16" /></span>
+                            <input class="field-input" type="search" placeholder="Find a person by name or address" aria-label="Find a person" [value]="search()" (input)="onSearch($event)" />
+                        </div>
+                        <p class="muted small">{{ people().length }} of {{ facts().shown }}</p>
+                    </div>
+                    <div class="table-scroll">
+                        <table class="table table-stack">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Person</th>
+                                    @if (survey.askAboutYou) {
+                                        <th scope="col">Gender</th>
+                                        <th scope="col">Age</th>
+                                    }
+                                    <th scope="col">Answered</th>
+                                    <th scope="col" class="cell-num">Took</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (response of people(); track response.id) {
+                                    <tr class="row-link" (click)="openResponseAlone(response.id)">
+                                        <td data-label="Person">
+                                            <button type="button" class="person" (click)="$event.stopPropagation(); openResponseAlone(response.id)">
+                                                <span class="avatar" [style.--hue]="hueOf(response.person.name)" aria-hidden="true">{{ response.person.name.charAt(0).toUpperCase() }}</span>
+                                                <span class="who">
+                                                    <span class="who-name">{{ response.person.name }}</span>
+                                                    <span class="who-email">{{ response.person.email }}</span>
+                                                </span>
+                                            </button>
+                                        </td>
+                                        @if (survey.askAboutYou) {
+                                            <td data-label="Gender">{{ response.aboutYou ? genderLabel(response.aboutYou.gender) : "–" }}</td>
+                                            <td data-label="Age">{{ response.aboutYou ? ageLabel(response.aboutYou.age) : "–" }}</td>
+                                        }
+                                        <td data-label="Answered" [title]="formatDateTime(response.submittedAt)">{{ timeAgo(response.submittedAt) }}</td>
+                                        <td data-label="Took" class="cell-num">{{ formatDuration(durationSeconds(response)) }}</td>
+                                    </tr>
+                                } @empty {
+                                    <tr>
+                                        <td [attr.colspan]="survey.askAboutYou ? 5 : 3" class="nobody">Nobody by that name.</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    @if (drawerOpen()) {
+        <app-drawer [heading]="drawerHeading()" [subheading]="drawerSubheading()" [backLabel]="responseView()?.back ?? null" (dismiss)="closeDrawer()" (back)="backToList()">
+            <div drawerActions class="drawer-actions">
+                @if (responseView(); as view) {
+                    @if (view.response; as response) {
+                        <div class="stepper">
+                            <button appButton size="sm" [iconOnly]="true" aria-label="The one before" title="The one before" [disabled]="!view.previous" (click)="openResponse(view.previous!)">
+                                <app-icon name="chevronLeft" [size]="16" />
+                            </button>
+                            @if (view.index >= 0) {
+                                <span class="stepper-count">{{ view.index + 1 }} of {{ view.count }}</span>
+                            }
+                            <button appButton size="sm" [iconOnly]="true" aria-label="The next one" title="The next one" [disabled]="!view.next" (click)="openResponse(view.next!)">
+                                <app-icon name="chevronRight" [size]="16" />
+                            </button>
+                        </div>
+                        <a appButton size="sm" variant="ghost" [routerLink]="['/admin/surveys', survey.id, 'responses', response.id]">
+                            <app-icon name="externalLink" [size]="15" />
+                            On a page of its own
+                        </a>
+                    }
+                } @else if (listView(); as view) {
+                    @if (view.filter && view.rows.length) {
+                        <button appButton size="sm" (click)="narrow(view.filter.questionId, view.filter.optionId)">
+                            <app-icon name="filter" [size]="15" />
+                            Show the results of only these {{ view.rows.length }}
+                        </button>
+                    }
+                }
+            </div>
+
+            @if (responseView(); as view) {
+                @if (view.response; as response) {
+                    <dl class="person-facts">
+                        @if (response.aboutYou; as about) {
+                            <div>
+                                <dt>Gender</dt>
+                                <dd>{{ genderLabel(about.gender) }}</dd>
+                            </div>
+                            <div>
+                                <dt>Age</dt>
+                                <dd>{{ ageLabel(about.age) }}</dd>
+                            </div>
+                        }
+                        <div>
+                            <dt>Answered</dt>
+                            <dd [title]="formatDateTime(response.submittedAt)">{{ timeAgo(response.submittedAt) }}</dd>
+                        </div>
+                        <div>
+                            <dt>Took</dt>
+                            <dd>{{ formatDuration(durationSeconds(response)) }}</dd>
+                        </div>
+                    </dl>
+                    <app-response-view [survey]="survey" [response]="response" [highlight]="view.highlight" />
+                    @if (auth.isAdmin()) {
+                        <div class="drawer-end">
+                            <button appButton size="sm" variant="ghost" class="delete" (click)="deleteResponse(response)">
+                                <app-icon name="trash" [size]="15" />
+                                Delete these answers
+                            </button>
+                        </div>
+                    }
+                } @else {
+                    <p class="muted">These answers are not here any more - they may have been deleted.</p>
+                }
+            } @else if (listView(); as view) {
+                <app-people-list [rows]="view.rows" (open)="openResponse($event)" />
+            }
+        </app-drawer>
+    }
+} @else if (loadError(); as error) {
+    <div class="empty-card">
+        @if (error.status === 404) {
+            <app-empty-state icon="search" heading="There is no such survey" text="It may have been deleted.">
+                <a appButton variant="primary" routerLink="/admin">All surveys</a>
+            </app-empty-state>
+        } @else {
+            <app-empty-state icon="alert" heading="The survey could not be loaded" [text]="error.message">
+                <button appButton variant="primary" (click)="reload()">
+                    <app-icon name="refresh" [size]="16" />
+                    Try again
+                </button>
+            </app-empty-state>
+        }
+    </div>
+} @else {
+    <div class="loading"><app-spinner label="Loading the survey" [showLabel]="true" /></div>
+}

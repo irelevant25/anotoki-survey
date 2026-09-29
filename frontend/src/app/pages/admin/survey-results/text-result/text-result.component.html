@@ -1,0 +1,60 @@
+<article class="card" [id]="'result-' + question().id">
+    <header class="head">
+        <span class="number">{{ number() }}</span>
+        <div class="text rich" [innerHTML]="question().text"></div>
+        <span class="kind" title="Own words">
+            <app-icon name="text" [size]="15" />
+            <span class="kind-label">Own words</span>
+        </span>
+    </header>
+
+    @if (question().images.length) {
+        <app-image-strip class="question-images" [images]="question().images" [label]="'Question ' + number()" />
+    }
+
+    <p class="meta">
+        <span>
+            <strong>{{ answers().length }}</strong>
+            wrote something
+        </span>
+        @if (skipped()) {
+            <span>{{ skipped() }} skipped</span>
+        }
+        @if (!question().required) {
+            <span class="optional">optional</span>
+        }
+    </p>
+
+    @if (common().length) {
+        <ul class="common" aria-label="The most common answers">
+            @for (entry of common(); track entry.text) {
+                <li class="chip">
+                    {{ entry.text }}
+                    <span class="times">× {{ entry.count }}</span>
+                </li>
+            }
+        </ul>
+    }
+
+    @if (answers().length) {
+        <ul class="answers">
+            @for (answer of shown(); track answer.responseId) {
+                <li class="answer">
+                    <q class="quote">{{ answer.text }}</q>
+                    <span class="by">
+                        <button type="button" class="who" (click)="openResponse.emit(answer.responseId)">{{ answer.person.name }}</button>
+                        · {{ timeAgo(answer.submittedAt) }}
+                    </span>
+                </li>
+            }
+        </ul>
+        @if (answers().length > shown().length) {
+            <button type="button" class="more" (click)="openAll.emit()">
+                All {{ answers().length }} answers
+                <app-icon name="arrowRight" [size]="14" />
+            </button>
+        }
+    } @else {
+        <p class="nobody">Nobody has written anything here yet.</p>
+    }
+</article>

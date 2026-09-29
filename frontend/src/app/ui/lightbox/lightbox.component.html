@@ -1,0 +1,40 @@
+<dialog
+    #dialog
+    class="lightbox"
+    aria-label="Picture, shown large"
+    (cancel)="onCancel($event)"
+    (keydown)="onKeydown($event)"
+    (click)="onClick($event)"
+    (pointerdown)="onPointerDown($event)"
+    (pointerup)="onPointerUp($event)"
+    (pointercancel)="onPointerCancel()">
+    <div class="stage">
+        <figure class="figure">
+            <app-survey-image class="picture" [image]="image()" fit="contain" [natural]="true" [style.--ratio]="ratio()" />
+            @if (caption()) {
+                <figcaption class="caption">{{ caption() }}</figcaption>
+            }
+        </figure>
+    </div>
+
+    <!-- What a screen reader hears on each move: where it is, and what the picture shows. -->
+    <p class="visually-hidden" aria-live="polite">{{ many() ? "Picture " + (view().index + 1) + " of " + view().images.length + (caption() ? ": " + caption() : "") : caption() }}</p>
+
+    <div class="bar">
+        @if (many()) {
+            <span class="count" aria-hidden="true">{{ view().index + 1 }} / {{ view().images.length }}</span>
+        }
+        <button #closeButton type="button" class="round close" aria-label="Close" (click)="dismiss.emit()">
+            <app-icon name="x" [size]="20" />
+        </button>
+    </div>
+
+    @if (many()) {
+        <button type="button" class="round nav prev" aria-label="The picture before" (click)="move.emit(-1)">
+            <app-icon name="chevronLeft" [size]="24" />
+        </button>
+        <button type="button" class="round nav next" aria-label="The next picture" (click)="move.emit(1)">
+            <app-icon name="chevronRight" [size]="24" />
+        </button>
+    }
+</dialog>

@@ -1,0 +1,38 @@
+<ul class="bars" [attr.aria-label]="label() || null">
+    @for (tally of tallies(); track tally.key) {
+        <li class="row" [class.is-top]="tally.count > 0 && tally.count === top()" [class.is-empty]="tally.count === 0" [class.is-filtered]="filtered().has(tally.key)">
+            <button
+                type="button"
+                class="bar-button"
+                [disabled]="tally.count === 0"
+                [attr.aria-label]="tally.label + ': ' + tally.count + (tally.count === 1 ? ' person, ' : ' people, ') + percent(tally) + '. Show who.'"
+                (click)="select.emit(tally)">
+                <span class="label">
+                    @if (tally.image) {
+                        <app-survey-image class="thumb" [image]="tally.image" fit="cover" [decorative]="true" />
+                    }
+                    <span class="label-text">
+                        {{ tally.label }}
+                        @if (tally.other) {
+                            <span class="other-tag">own words</span>
+                        }
+                    </span>
+                </span>
+                <span class="track" aria-hidden="true"><span class="fill" [style.width.%]="tally.share * 100"></span></span>
+                <span class="numbers" aria-hidden="true">
+                    <strong>{{ tally.count }}</strong>
+                    <span class="share">{{ percent(tally) }}</span>
+                </span>
+            </button>
+            <button
+                type="button"
+                class="narrow"
+                [disabled]="tally.count === 0 || filtered().has(tally.key)"
+                [attr.aria-label]="'Show the results of only the people who chose ' + tally.label"
+                [title]="filtered().has(tally.key) ? 'Already among the filters' : 'Only these people'"
+                (click)="narrow.emit(tally)">
+                <app-icon name="filter" [size]="14" />
+            </button>
+        </li>
+    }
+</ul>

@@ -1,0 +1,98 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9375rem;
+
+  app-icon {
+    color: var(--muted);
+  }
+}
+
+.address .prefix {
+  flex: none;
+  padding-left: 0.75rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.address .field-input {
+  padding-left: 0.1rem;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+}
+
+.suggest {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.dated {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+
+  .field-control {
+    flex: 1;
+  }
+}
+
+.dates {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.8125rem;
+
+  dt {
+    color: var(--muted);
+  }
+
+  dd {
+    margin: 0;
+  }
+}
+
+.saved {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--success);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.delete {
+  align-self: flex-start;
+  --btn-fg: var(--danger);
+  --btn-hover-bg: var(--danger-soft);
+}

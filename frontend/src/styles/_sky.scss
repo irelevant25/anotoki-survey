@@ -1,0 +1,116 @@
+// The night sky of the anotoki sign-in pages (the IAM's auth layout), for the
+// band at the top of a survey: a gradient, three layers of stars, and the
+// orbit swoosh of the logo. Night in both themes - the text on it is always
+// light (--night-text).
+//
+//   @use "sky";
+//   .band { @include sky.background; }
+//   <div class="stars stars-far"></div> … styled by @include sky.stars;
+
+// A star, as a gradient: `star(x, y, radius, strength)` draws one soft point
+// at x/y inside a tile. Layers of tiles in different sizes repeat out of step
+// with each other, which is enough to read as a sky rather than a pattern.
+@function star($x, $y, $r: 0.9px, $alpha: 80%, $color: var(--star)) {
+  @return radial-gradient(circle at $x $y, color-mix(in srgb, #{$color} #{$alpha}, transparent) 0 $r, transparent calc(#{$r} + 0.8px));
+}
+
+@mixin background {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  color: var(--night-text);
+  background:
+    radial-gradient(70% 60% at 12% 0%, var(--night-glow), transparent 70%), radial-gradient(55% 70% at 100% 100%, color-mix(in srgb, var(--star-blue) 14%, transparent), transparent 70%),
+    linear-gradient(160deg, var(--night-0) 0%, var(--night-1) 40%, var(--night-2) 78%, var(--night-3) 100%);
+}
+
+// The three star layers and the two orbit arcs, for elements with these
+// classes inside a `background` element.
+@mixin stars {
+  .stars {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-repeat: repeat;
+    pointer-events: none;
+  }
+
+  .stars-far {
+    background-image:
+      star(18px, 26px, 0.6px, 55%), star(71px, 118px, 0.6px, 45%), star(133px, 57px, 0.6px, 50%, var(--star-blue)), star(104px, 161px, 0.6px, 40%), star(162px, 14px, 0.6px, 45%),
+      star(43px, 92px, 0.6px, 35%, var(--star-blue));
+    background-size: 181px 181px;
+    opacity: 0.8;
+  }
+
+  .stars-near {
+    background-image:
+      star(40px, 60px, 0.9px, 75%), star(201px, 32px, 0.8px, 60%, var(--star-blue)), star(122px, 201px, 1px, 70%), star(262px, 150px, 0.8px, 55%), star(15px, 240px, 0.9px, 60%, var(--star-blue));
+    background-size: 293px 271px;
+  }
+
+  .stars-bright {
+    background-image: star(90px, 110px, 1.3px, 95%), star(330px, 60px, 1.1px, 85%, var(--star-blue)), star(250px, 330px, 1.4px, 90%), star(30px, 380px, 1.1px, 80%);
+    background-size: 409px 433px;
+    animation: sky-twinkle 7s ease-in-out infinite;
+  }
+
+  // Two arcs of an ellipse far wider than the band: the orbit swoosh of the
+  // logo, drawn large and faint behind everything.
+  .orbit {
+    position: absolute;
+    z-index: -1;
+    left: -30%;
+    right: -30%;
+    border-radius: 50%;
+    border: 1.5px solid transparent;
+    pointer-events: none;
+  }
+
+  .orbit-one {
+    top: 55%;
+    height: 90%;
+    border-top-color: color-mix(in srgb, var(--star-blue) 38%, transparent);
+    transform: rotate(-6deg);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--star-blue) 45%, transparent));
+  }
+
+  .orbit-two {
+    top: 68%;
+    height: 80%;
+    border-top-color: color-mix(in srgb, var(--star) 14%, transparent);
+    transform: rotate(-3deg);
+  }
+
+  .sparkle {
+    position: absolute;
+    z-index: -1;
+    display: inline-flex;
+    color: var(--star);
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--star-blue) 80%, transparent));
+    animation: sky-glimmer 9s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes sky-twinkle {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.55;
+    }
+  }
+
+  @keyframes sky-glimmer {
+    0%,
+    100% {
+      opacity: 0.9;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.45;
+      transform: scale(0.8);
+    }
+  }
+}

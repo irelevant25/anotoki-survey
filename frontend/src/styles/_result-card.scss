@@ -1,0 +1,105 @@
+// The card of one question on the results page - shared by the choice and the
+// text results, which differ only in what is under the question.
+
+:host {
+  display: block;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.1rem 1.2rem 1.15rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  scroll-margin-top: 6rem;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+
+.number {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  padding: 0 0.35rem;
+  border-radius: 7px;
+  background: var(--primary-soft);
+  color: var(--primary-soft-text);
+  font-size: 0.8125rem;
+  font-weight: 800;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.05rem;
+  font-weight: 650;
+}
+
+.kind {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.1rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-top: -0.2rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+
+  strong {
+    color: var(--text);
+  }
+}
+
+.optional {
+  font-style: italic;
+}
+
+.nobody {
+  padding: 0.5rem 0;
+  color: var(--subtle);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+@media (max-width: 560px) {
+  .card {
+    padding: 0.9rem 0.8rem 1rem;
+  }
+
+  .kind-label {
+    display: none;
+  }
+}
+
+// The question's pictures, lined up with its text (past the number).
+.question-images {
+  padding-left: 2.25rem;
+}
+
+@media (max-width: 560px) {
+  .question-images {
+    padding-left: 0;
+  }
+}

@@ -1,0 +1,25 @@
+<ul class="people">
+    @for (row of rows(); track row.response.id) {
+        <li>
+            <button type="button" class="person" (click)="open.emit(row.response.id)">
+                <span class="avatar" [style.--hue]="hueOf(row.response.person.name)" aria-hidden="true">{{ row.response.person.name.charAt(0).toUpperCase() }}</span>
+                <span class="who">
+                    <span class="name">{{ row.response.person.name }}</span>
+                    <span class="details">
+                        {{ row.response.person.email }}
+                        @if (row.response.aboutYou; as about) {
+                            · {{ genderLabel(about.gender) }} · {{ ageLabel(about.age) }}
+                        }
+                    </span>
+                    @if (row.note) {
+                        <q class="note">{{ row.note }}</q>
+                    }
+                </span>
+                <span class="when">{{ timeAgo(row.response.submittedAt) }}</span>
+                <app-icon class="chevron" name="chevronRight" [size]="16" />
+            </button>
+        </li>
+    } @empty {
+        <li class="empty">Nobody here.</li>
+    }
+</ul>

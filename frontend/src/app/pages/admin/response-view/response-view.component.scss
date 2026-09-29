@@ -1,0 +1,160 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.step-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+
+.step-number {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.question {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+}
+
+.number {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  padding: 0 0.3rem;
+  border-radius: 6px;
+  background: var(--primary-soft);
+  color: var(--primary-soft-text);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.9375rem;
+  font-weight: 650;
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0 0 0 2rem;
+  list-style: none;
+}
+
+.option {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.25rem 0.6rem 0.25rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--subtle);
+  font-size: 0.8125rem;
+}
+
+.option.is-chosen {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--text);
+  font-weight: 650;
+}
+
+.option.is-highlight {
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+.mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+}
+
+.mark-round {
+  border-radius: 50%;
+}
+
+.is-chosen .mark {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.other {
+  color: var(--text);
+  font-style: italic;
+  font-weight: 500;
+}
+
+.written {
+  margin: 0 0 0 2rem;
+  padding: 0.6rem 0.85rem;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface-2);
+  font-size: 0.9375rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.note,
+.skipped {
+  margin-left: 2rem;
+  color: var(--subtle);
+  font-size: 0.8125rem;
+  font-style: italic;
+}
+
+.is-skipped .text {
+  color: var(--muted);
+}
+
+.question-images {
+  padding-left: 2rem;
+}
+
+// An option's first picture, small, inside its chip.
+.option-thumb {
+  flex: none;
+  width: 1.9rem;
+  height: 1.4rem;
+  border-radius: 4px;
+}

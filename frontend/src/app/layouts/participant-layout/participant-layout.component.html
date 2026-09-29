@@ -1,0 +1,10 @@
+<!-- Focus is moved by hand: with <base href="/">, a bare #main would resolve to /#main and leave the page. -->
+<a class="skip-link" href="#main" (click)="$event.preventDefault(); main.focus()">Skip to the survey</a>
+
+<app-top-bar area="survey" width="narrow" />
+
+<div class="page">
+    <main #main id="main" class="main" tabindex="-1">
+        <router-outlet />
+    </main>
+</div>

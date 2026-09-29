@@ -1,0 +1,183 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.images {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.5rem;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius);
+  transition:
+    border-color var(--duration) var(--ease),
+    background-color var(--duration) var(--ease);
+
+  &.is-dropping {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+  }
+}
+
+.thumb {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 8.5rem;
+  margin: 0;
+}
+
+.thumb-frame {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface-2);
+}
+
+.thumb-pending .thumb-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumb-view {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+
+  // Inside the frame, which clips anything drawn outside it.
+  &:focus-visible {
+    outline-offset: -3px;
+  }
+
+  app-survey-image {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.thumb-actions {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  display: flex;
+  gap: 2px;
+}
+
+.thumb-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: 6px;
+  background: rgb(3 8 21 / 60%);
+  color: #ffffff;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: rgb(3 8 21 / 85%);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+}
+
+.thumb-remove:hover:not(:disabled) {
+  background: var(--danger);
+}
+
+.alt {
+  width: 100%;
+  height: 1.9rem;
+  padding: 0 0.45rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8125rem;
+  outline: none;
+
+  &::placeholder {
+    color: var(--subtle);
+  }
+
+  &:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--ring);
+  }
+}
+
+.add {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 8.5rem;
+  aspect-ratio: 4 / 3;
+  padding: 0.5rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--primary);
+    color: var(--primary-soft-text);
+    background: var(--primary-soft);
+  }
+}
+
+.add-text {
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.add-hint {
+  font-size: 0.72rem;
+}
+
+// Under an option: small, and no line of words.
+.images.is-compact {
+  gap: 0.35rem;
+  padding: 0.3rem;
+
+  .thumb,
+  .add {
+    width: 4.25rem;
+  }
+
+  .thumb-button {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+.problem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  color: var(--danger);
+  font-size: 0.8125rem;
+  font-weight: 600;
+
+  app-icon {
+    margin-top: 0.1rem;
+  }
+}

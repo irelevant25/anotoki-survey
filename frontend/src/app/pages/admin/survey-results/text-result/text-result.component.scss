@@ -1,0 +1,91 @@
+@use "result-card";
+
+.common {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--info-border);
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary-soft-text);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.times {
+  color: var(--muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.answers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.55rem 0.8rem;
+  border-left: 3px solid var(--border-strong);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  background: var(--surface-2);
+}
+
+.quote {
+  font-size: 0.9375rem;
+  quotes: none;
+  overflow-wrap: anywhere;
+}
+
+.by {
+  color: var(--subtle);
+  font-size: 0.75rem;
+}
+
+.who {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font-size: 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.more {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

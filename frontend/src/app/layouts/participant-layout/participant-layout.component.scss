@@ -1,0 +1,41 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(80% 45% at 50% -8%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 70%),
+    radial-gradient(45% 35% at 100% 100%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 70%), var(--bg);
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+
+  &:focus {
+    top: 0.75rem;
+  }
+}
+
+.page {
+  width: 100%;
+  max-width: 47rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 5.5rem;
+}
+
+.main:focus {
+  outline: none;
+}
+
+@media (max-width: 560px) {
+  .page {
+    padding: 0.9rem 0.6rem 5rem;
+  }
+}

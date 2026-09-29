@@ -1,0 +1,58 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  --topbar-height: 60px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -4rem;
+  z-index: 100;
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow);
+
+  &:focus {
+    top: 0.75rem;
+  }
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: 84rem;
+  margin: 0 auto;
+  padding: 1.75rem 1.25rem 5rem;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.no-access {
+  max-width: 36rem;
+  margin: 3rem auto 0;
+}
+
+@media (max-width: 560px) {
+  .content {
+    padding: 1.1rem 0.75rem 5rem;
+  }
+}
+
+// A response printed from its own page: the page, without the bar above it.
+@media print {
+  .skip-link {
+    display: none;
+  }
+
+  .content {
+    max-width: none;
+    padding: 0;
+  }
+}

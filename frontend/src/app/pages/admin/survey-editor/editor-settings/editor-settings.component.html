@@ -1,0 +1,81 @@
+<section class="panel" aria-labelledby="settings-title">
+    <h2 id="settings-title" class="panel-title">
+        <app-icon name="sliders" [size]="16" />
+        Settings
+    </h2>
+
+    <div class="field">
+        <label class="field-label" for="survey-slug">Address</label>
+        <div class="field-control address" [class.field-invalid]="problems().length > 0">
+            <span class="prefix">{{ host }}/</span>
+            <input
+                id="survey-slug"
+                class="field-input"
+                type="text"
+                spellcheck="false"
+                autocomplete="off"
+                maxlength="60"
+                [value]="survey().slug"
+                (input)="onSlugInput($event)"
+                (blur)="onSlugBlur($event)" />
+        </div>
+        @if (survey().status !== "draft") {
+            <p class="field-hint">People who have the old link will not find the survey at a new one.</p>
+        } @else if (survey().slug.startsWith("new-survey") && suggested() !== survey().slug) {
+            <button type="button" class="suggest" (click)="useSuggested()">
+                Use the title:
+                <span class="mono">{{ suggested() }}</span>
+            </button>
+        }
+        @for (problem of problems(); track problem) {
+            <p class="field-error">
+                <app-icon name="alert" [size]="15" />
+                <span>{{ problem }}</span>
+            </p>
+        }
+    </div>
+
+    <div class="field">
+        <label class="field-label" for="survey-closes">Closes after</label>
+        <div class="dated">
+            <div class="field-control">
+                <input id="survey-closes" class="field-input" type="date" [min]="today" [value]="survey().closesOn ?? ''" (change)="onClosesOn($event)" />
+            </div>
+            @if (survey().closesOn) {
+                <button appButton variant="ghost" size="sm" [iconOnly]="true" aria-label="No closing day" title="No closing day" (click)="patch.emit({ closesOn: null })">
+                    <app-icon name="x" [size]="16" />
+                </button>
+            }
+        </div>
+        <p class="field-hint">{{ survey().closesOn ? "An open survey closes by itself at the end of this day." : "Empty: it stays open until you close it." }}</p>
+    </div>
+
+    <app-switch [checked]="survey().askAboutYou" (checkedChange)="patch.emit({ askAboutYou: $event })" hint="A step of its own before the first: “About you”.">Ask for gender and age</app-switch>
+
+    <dl class="dates">
+        <dt>Created</dt>
+        <dd>{{ formatDateTime(survey().createdAt) }}</dd>
+        @if (survey().openedAt) {
+            <dt>Opened</dt>
+            <dd>{{ formatDateTime(survey().openedAt!) }}</dd>
+        }
+        @if (survey().closedAt) {
+            <dt>Closed</dt>
+            <dd>{{ formatDateTime(survey().closedAt!) }}</dd>
+        }
+        <dt>Changed</dt>
+        <dd>{{ formatDateTime(survey().updatedAt) }}</dd>
+    </dl>
+
+    <p class="saved">
+        <app-icon name="checkCircle" [size]="14" />
+        Every change is saved as you make it.
+    </p>
+
+    @if (canDelete()) {
+        <button appButton variant="ghost" size="sm" class="delete" (click)="deleteSurvey.emit()">
+            <app-icon name="trash" [size]="15" />
+            Delete this survey
+        </button>
+    }
+</section>

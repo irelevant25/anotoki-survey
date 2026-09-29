@@ -1,0 +1,16 @@
+@switch (auth.status()) {
+    @case ("not-set-up") {
+        <app-not-set-up />
+    }
+    @case ("error") {
+        <app-load-error />
+    }
+    @default {
+        <router-outlet />
+    }
+}
+<app-toast-host />
+<app-confirm-host />
+@if (lightbox.view(); as view) {
+    <app-lightbox [view]="view" (dismiss)="lightbox.close()" (move)="lightbox.move($event)" />
+}

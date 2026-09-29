@@ -1,0 +1,352 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20rem;
+  align-items: start;
+  gap: 1.5rem;
+}
+
+.builder {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+// The column runs the whole height of the builder, so that its sticky part
+// has room to stay in view all the way down.
+.side {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.side-sticky {
+  position: sticky;
+  top: calc(var(--topbar-height, 60px) + 1rem);
+  max-height: calc(100dvh - var(--topbar-height, 60px) - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The welcome and the thanks
+// ─────────────────────────────────────────────────────────────────────────────
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.1rem 1.2rem 1.25rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  scroll-margin-top: 6rem;
+}
+
+.block-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.block-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 10px;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.block-icon-success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.block-title {
+  font-size: 1.05rem;
+}
+
+.block-lead {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.title-input {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Steps: a lane each, the questions inside
+// ─────────────────────────────────────────────────────────────────────────────
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.85rem 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+  scroll-margin-top: 6rem;
+
+  &.has-problems {
+    border-color: var(--warning-border);
+  }
+}
+
+.step-fixed {
+  border-style: dashed;
+}
+
+.step-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.step-number {
+  flex: none;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--surface);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.step-title,
+.step-title-fixed {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.05rem;
+  font-weight: 750;
+}
+
+.step-title {
+  height: 2.3rem;
+  padding: 0 0.6rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  outline: none;
+
+  &::placeholder {
+    color: var(--subtle);
+    font-weight: 600;
+  }
+
+  &:hover {
+    border-color: var(--border);
+    background: var(--surface);
+  }
+
+  &:focus {
+    border-color: var(--primary);
+    background: var(--surface);
+    box-shadow: 0 0 0 3px var(--ring);
+  }
+}
+
+.step-actions {
+  flex: none;
+  display: flex;
+  gap: 1px;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+}
+
+.icon-button-danger:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.fixed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.65rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+  }
+
+  app-icon {
+    margin-top: 0.15rem;
+    color: var(--muted);
+  }
+}
+
+.fixed-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  font-size: 0.9rem;
+
+  .muted {
+    font-size: 0.8125rem;
+  }
+}
+
+.fixed-note {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.questions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-height: 3.25rem;
+}
+
+.drop-here {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  padding: 0.75rem;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+// While a question is dragged over an empty step, the note makes room for it.
+.cdk-drop-list-dragging .drop-here {
+  display: none;
+}
+
+.add-question {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.add-label {
+  margin-right: 0.25rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.add-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 3.5rem;
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--radius-xl);
+  background: transparent;
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--primary);
+    background: var(--primary-soft);
+    color: var(--primary-soft-text);
+  }
+}
+
+.missing {
+  padding: 3rem 1rem;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  padding: 4rem 0;
+}
+
+@media (max-width: 1100px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .side {
+    order: -1;
+    align-self: auto;
+  }
+
+  .side-sticky {
+    position: static;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 560px) {
+  .step {
+    padding: 0.7rem 0.55rem 0.85rem;
+  }
+
+  .step-head {
+    flex-wrap: wrap;
+  }
+}

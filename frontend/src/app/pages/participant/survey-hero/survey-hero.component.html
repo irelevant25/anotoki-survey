@@ -1,0 +1,43 @@
+<header class="hero">
+    <div class="stars stars-far" aria-hidden="true"></div>
+    <div class="stars stars-near" aria-hidden="true"></div>
+    <div class="stars stars-bright" aria-hidden="true"></div>
+    <div class="orbit orbit-one" aria-hidden="true"></div>
+    <div class="orbit orbit-two" aria-hidden="true"></div>
+    <span class="sparkle sparkle-1" aria-hidden="true"><app-icon name="sparkle" [filled]="true" [size]="18" /></span>
+    <span class="sparkle sparkle-2" aria-hidden="true"><app-icon name="sparkle" [filled]="true" [size]="11" /></span>
+    <span class="sparkle sparkle-3" aria-hidden="true"><app-icon name="sparkle" [filled]="true" [size]="8" /></span>
+
+    <div class="content">
+        <p class="eyebrow">{{ eyebrow() }}</p>
+        <h1 class="title">{{ heading() }}</h1>
+
+        @if (total() > 0 && current() > 0) {
+            <div class="progress">
+                <p class="where">
+                    <span>
+                        Step
+                        <strong>{{ current() }}</strong>
+                        of {{ total() }}
+                    </span>
+                    @if (stepTitle()) {
+                        <span class="sep" aria-hidden="true">·</span>
+                        <span class="step-title">{{ stepTitle() }}</span>
+                    }
+                </p>
+                <div
+                    class="segments"
+                    role="progressbar"
+                    aria-label="Your progress"
+                    aria-valuemin="1"
+                    [attr.aria-valuemax]="total()"
+                    [attr.aria-valuenow]="current()"
+                    [attr.aria-valuetext]="'Step ' + current() + ' of ' + total()">
+                    @for (n of segments(); track n) {
+                        <span class="segment" [class.is-done]="n < current()" [class.is-current]="n === current()"></span>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</header>

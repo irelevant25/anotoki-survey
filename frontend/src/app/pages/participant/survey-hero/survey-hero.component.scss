@@ -1,0 +1,108 @@
+@use "sky";
+
+:host {
+  display: block;
+}
+
+.hero {
+  @include sky.background;
+  padding: 1.75rem 2rem 1.6rem;
+}
+
+@include sky.stars;
+
+.sparkle-1 {
+  top: 18%;
+  right: 9%;
+}
+
+.sparkle-2 {
+  top: 58%;
+  right: 22%;
+  color: var(--star-blue);
+  animation-delay: -3s;
+}
+
+.sparkle-3 {
+  top: 14%;
+  right: 34%;
+  animation-delay: -5s;
+}
+
+.content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.eyebrow {
+  color: var(--night-muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.title {
+  max-width: 36rem;
+  color: var(--night-text);
+  font-size: clamp(1.35rem, 3.2vw, 1.75rem);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 1.1rem;
+}
+
+.where {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.5rem;
+  color: var(--night-muted);
+  font-size: 0.9rem;
+
+  strong {
+    color: var(--night-text);
+    font-weight: 800;
+  }
+}
+
+.step-title {
+  color: var(--night-text);
+  font-weight: 650;
+}
+
+.segments {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.segment {
+  flex: 1;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--night-text) 18%, transparent);
+  transition: background-color 300ms var(--ease);
+
+  &.is-done {
+    background: color-mix(in srgb, var(--star-blue) 75%, transparent);
+  }
+
+  &.is-current {
+    background: var(--star);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--star-blue) 80%, transparent);
+  }
+}
+
+@media (max-width: 560px) {
+  .hero {
+    padding: 1.35rem 1.15rem 1.25rem;
+  }
+}

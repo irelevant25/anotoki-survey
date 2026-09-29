@@ -1,0 +1,53 @@
+<section class="home">
+    <header class="intro">
+        <h1>Have your say</h1>
+        <p class="lead">From time to time the anotoki sites ask what you like and what you would change. These surveys are open now.</p>
+    </header>
+
+    @if (error(); as message) {
+        <app-alert tone="danger" heading="The surveys could not be loaded">
+            {{ message }}
+            <div alertActions>
+                <button appButton (click)="load()">
+                    <app-icon name="refresh" [size]="16" />
+                    Try again
+                </button>
+            </div>
+        </app-alert>
+    } @else if (loading()) {
+        <div class="loading"><app-spinner label="Loading the surveys" [showLabel]="true" /></div>
+    } @else {
+        <ul class="list">
+            @for (item of surveys(); track item.survey.id) {
+                <li>
+                    <a class="survey" [routerLink]="['/', item.survey.slug]">
+                        <span class="survey-icon" aria-hidden="true"><app-icon name="survey" [size]="22" /></span>
+                        <span class="survey-text">
+                            <span class="survey-title">{{ item.survey.title }}</span>
+                            <span class="survey-meta">
+                                {{ item.questions }} {{ item.questions === 1 ? "question" : "questions" }} · about {{ item.minutes }} min
+                                @if (item.survey.closesOn) {
+                                    · open until {{ formatDay(item.survey.closesOn) }}
+                                }
+                            </span>
+                        </span>
+                        <span class="survey-state">
+                            @if (item.taken) {
+                                <app-badge tone="success" [dot]="true">Taken</app-badge>
+                            } @else if (item.started) {
+                                <app-badge tone="warning" [dot]="true">Started</app-badge>
+                            } @else {
+                                <app-badge tone="primary">New</app-badge>
+                            }
+                            <app-icon name="chevronRight" [size]="18" />
+                        </span>
+                    </a>
+                </li>
+            } @empty {
+                <li class="empty">
+                    <app-empty-state icon="survey" heading="No survey is open right now" text="The sites ask when there is something new to ask about. Come back then!" />
+                </li>
+            }
+        </ul>
+    }
+</section>

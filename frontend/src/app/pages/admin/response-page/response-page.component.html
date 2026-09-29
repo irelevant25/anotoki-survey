@@ -1,0 +1,111 @@
+@if (survey(); as survey) {
+    <div class="page">
+        <div class="top">
+            <a class="back" [routerLink]="['/admin/surveys', survey.id, 'results']" [queryParams]="{ tab: 'people' }">
+                <app-icon name="arrowLeft" [size]="16" />
+                The results of “{{ survey.title }}”
+            </a>
+            @if (response() && index() >= 0) {
+                <div class="stepper">
+                    <a
+                        appButton
+                        size="sm"
+                        [iconOnly]="true"
+                        aria-label="The one before"
+                        title="The one before"
+                        [disabled]="!previous()"
+                        [routerLink]="['/admin/surveys', survey.id, 'responses', previous() ?? responseId()]">
+                        <app-icon name="chevronLeft" [size]="16" />
+                    </a>
+                    <span class="stepper-count">{{ index() + 1 }} of {{ all().length }}</span>
+                    <a
+                        appButton
+                        size="sm"
+                        [iconOnly]="true"
+                        aria-label="The next one"
+                        title="The next one"
+                        [disabled]="!next()"
+                        [routerLink]="['/admin/surveys', survey.id, 'responses', next() ?? responseId()]">
+                        <app-icon name="chevronRight" [size]="16" />
+                    </a>
+                </div>
+            }
+        </div>
+
+        @if (response(); as response) {
+            <article class="sheet">
+                <header class="sheet-head">
+                    <span class="avatar" [style.--hue]="hueOf(response.person.name)" aria-hidden="true">{{ response.person.name.charAt(0).toUpperCase() }}</span>
+                    <div class="who">
+                        <h1 id="page-title" tabindex="-1">{{ response.person.name }}</h1>
+                        <p class="muted">{{ response.person.email }}</p>
+                    </div>
+                    <div class="sheet-actions">
+                        <button appButton size="sm" variant="ghost" (click)="print()">
+                            <app-icon name="fileText" [size]="15" />
+                            Print
+                        </button>
+                        @if (auth.isAdmin()) {
+                            <button appButton size="sm" variant="ghost" class="delete" (click)="remove()">
+                                <app-icon name="trash" [size]="15" />
+                                Delete
+                            </button>
+                        }
+                    </div>
+                </header>
+
+                <dl class="person-facts">
+                    @if (response.aboutYou; as about) {
+                        <div>
+                            <dt>Gender</dt>
+                            <dd>{{ genderLabel(about.gender) }}</dd>
+                        </div>
+                        <div>
+                            <dt>Age</dt>
+                            <dd>{{ ageLabel(about.age) }}</dd>
+                        </div>
+                    }
+                    <div>
+                        <dt>Started</dt>
+                        <dd>{{ formatDateTime(response.startedAt) }}</dd>
+                    </div>
+                    <div>
+                        <dt>Sent</dt>
+                        <dd>{{ formatDateTime(response.submittedAt) }}</dd>
+                    </div>
+                    <div>
+                        <dt>Took</dt>
+                        <dd>{{ formatDuration(durationSeconds(response)) }}</dd>
+                    </div>
+                </dl>
+
+                <app-response-view [survey]="survey" [response]="response" />
+            </article>
+        } @else if (!responsesLoaded()) {
+            @if (responsesError(); as error) {
+                <div class="empty-card">
+                    <app-empty-state icon="alert" heading="The answers could not be loaded" [text]="error.message" />
+                </div>
+            } @else {
+                <div class="loading"><app-spinner label="Loading the answers" [showLabel]="true" /></div>
+            }
+        } @else {
+            <div class="empty-card">
+                <app-empty-state icon="search" heading="These answers are not here" text="They may have been deleted.">
+                    <a appButton variant="primary" [routerLink]="['/admin/surveys', survey.id, 'results']">The results</a>
+                </app-empty-state>
+            </div>
+        }
+    </div>
+} @else if (loadError(); as error) {
+    <div class="empty-card">
+        <app-empty-state
+            [icon]="error.status === 404 ? 'search' : 'alert'"
+            [heading]="error.status === 404 ? 'There is no such survey' : 'The survey could not be loaded'"
+            [text]="error.status === 404 ? 'It may have been deleted.' : error.message">
+            <a appButton variant="primary" routerLink="/admin">All surveys</a>
+        </app-empty-state>
+    </div>
+} @else {
+    <div class="loading"><app-spinner label="Loading the survey" [showLabel]="true" /></div>
+}

@@ -1,0 +1,203 @@
+<article class="card" [class.is-open]="expanded()" [class.has-problems]="problems().length > 0" [id]="'question-' + question().id">
+    <header class="head">
+        <span class="grip" cdkDragHandle title="Drag to move - to another step, too" aria-hidden="true"><app-icon name="grip" [size]="18" /></span>
+        <button type="button" class="summary" [attr.aria-expanded]="expanded()" [attr.aria-controls]="id + '-body'" (click)="toggle.emit()">
+            <span class="number">{{ number() }}</span>
+            <span class="kind" [title]="type().label"><app-icon [name]="type().icon" [size]="16" /></span>
+            <span class="text" [class.is-empty]="!summary()">{{ summary() || "No text yet" }}</span>
+            <span class="badges">
+                @if (!question().required) {
+                    <span class="badge">Optional</span>
+                }
+                @if (limitsLabel()) {
+                    <span class="badge">{{ limitsLabel() }}</span>
+                }
+                @if (hasOther() && choice()) {
+                    <span class="badge">+ Other</span>
+                }
+                @if (imageCount()) {
+                    <span class="badge" [title]="imageCount() + (imageCount() === 1 ? ' picture' : ' pictures')">
+                        <app-icon name="image" [size]="12" />
+                        {{ imageCount() }}
+                    </span>
+                }
+                @if (answered()) {
+                    <span class="badge badge-answers" [title]="answered() + ' answered it'">
+                        {{ answered() }}
+                        <app-icon name="users" [size]="12" />
+                    </span>
+                }
+                @if (problems().length) {
+                    <span class="badge badge-warn" [title]="problems().join(' ')">
+                        <app-icon name="alert" [size]="12" />
+                        {{ problems().length }}
+                    </span>
+                }
+            </span>
+            <app-icon class="chevron" [name]="expanded() ? 'chevronUp' : 'chevronDown'" [size]="18" />
+        </button>
+        <div class="head-actions">
+            <button type="button" class="icon-button" aria-label="Move up" title="Move up" [disabled]="isFirst()" (click)="move.emit(-1)">
+                <app-icon name="arrowUp" [size]="16" />
+            </button>
+            <button type="button" class="icon-button" aria-label="Move down" title="Move down" [disabled]="isLast()" (click)="move.emit(1)">
+                <app-icon name="arrowDown" [size]="16" />
+            </button>
+            <button type="button" class="icon-button" aria-label="Duplicate" title="Duplicate" (click)="duplicate.emit()">
+                <app-icon name="copy" [size]="16" />
+            </button>
+            <button type="button" class="icon-button icon-button-danger" aria-label="Remove the question" title="Remove" (click)="remove.emit()">
+                <app-icon name="trash" [size]="16" />
+            </button>
+        </div>
+    </header>
+
+    @if (expanded()) {
+        <div class="body" [id]="id + '-body'">
+            <div class="kinds" role="radiogroup" aria-label="Kind of question">
+                @for (item of types; track item.type) {
+                    <button type="button" role="radio" class="kind-button" [attr.aria-checked]="question().type === item.type" (click)="setType(item.type)">
+                        <app-icon [name]="item.icon" [size]="16" />
+                        {{ item.label }}
+                    </button>
+                }
+            </div>
+
+            <app-rich-text-editor
+                [value]="question().text"
+                (valueChange)="set({ text: $event })"
+                [label]="'Question ' + number()"
+                placeholder="Write the question…"
+                [autofocus]="focusText()"
+                [acceptImages]="true"
+                (pastedImages)="questionImages.addFiles($event)" />
+
+            <div class="section">
+                <p class="section-label">Pictures under the question</p>
+                <app-image-list-editor #questionImages [images]="question().images" [questionId]="question().id" [max]="maxImages" [label]="'Question ' + number()" />
+            </div>
+
+            @if (choice()) {
+                <div class="section">
+                    <p class="section-label">Options</p>
+                    <app-options-editor [options]="question().options" [type]="question().type" [counts]="counts()" [questionLabel]="'Question ' + number()" [questionId]="question().id" />
+                </div>
+
+                <div class="rules">
+                    <div class="rule">
+                        <p class="section-label">Laid out as</p>
+                        @if (optionsHaveImages()) {
+                            <p class="as-cards">
+                                <app-icon name="image" [size]="15" />
+                                Cards with their pictures, side by side
+                            </p>
+                        } @else {
+                            <div class="segmented" role="radiogroup" aria-label="Laid out as">
+                                @for (item of layouts; track item.layout) {
+                                    <button
+                                        type="button"
+                                        role="radio"
+                                        class="segment"
+                                        [attr.aria-checked]="question().layout === item.layout"
+                                        [title]="item.hint"
+                                        (click)="set({ layout: item.layout })">
+                                        <app-icon [name]="item.icon" [size]="15" />
+                                        {{ item.label }}
+                                    </button>
+                                }
+                            </div>
+                        }
+                    </div>
+
+                    @if (question().type === "multiple") {
+                        <div class="rule">
+                            <p class="section-label">How many to choose</p>
+                            <div class="limits">
+                                <label class="limit">
+                                    <span>At least</span>
+                                    <input
+                                        class="number-input"
+                                        type="number"
+                                        min="0"
+                                        [attr.max]="question().options.length"
+                                        placeholder="–"
+                                        [value]="question().minChoices ?? ''"
+                                        (change)="setNumber('minChoices', $event)" />
+                                </label>
+                                <label class="limit">
+                                    <span>At most</span>
+                                    <input
+                                        class="number-input"
+                                        type="number"
+                                        min="1"
+                                        [attr.max]="question().options.length"
+                                        placeholder="–"
+                                        [value]="question().maxChoices ?? ''"
+                                        (change)="setNumber('maxChoices', $event)" />
+                                </label>
+                            </div>
+                        </div>
+                    }
+                </div>
+                @if (rule()) {
+                    <p class="seen">
+                        <app-icon name="eye" [size]="14" />
+                        People read: “{{ rule() }}”
+                    </p>
+                }
+            } @else {
+                <div class="rules">
+                    <div class="rule">
+                        <p class="section-label">Answer</p>
+                        <div class="segmented" role="radiogroup" aria-label="Answer">
+                            <button type="button" role="radio" class="segment" [attr.aria-checked]="!question().multiline" (click)="set({ multiline: false })">One line</button>
+                            <button type="button" role="radio" class="segment" [attr.aria-checked]="question().multiline" (click)="set({ multiline: true })">A few sentences</button>
+                        </div>
+                    </div>
+                    <label class="rule">
+                        <span class="section-label">Longest answer</span>
+                        <span class="with-unit">
+                            <input class="number-input" type="number" min="1" placeholder="–" [value]="question().maxLength ?? ''" (change)="setNumber('maxLength', $event)" />
+                            characters
+                        </span>
+                    </label>
+                    <label class="rule rule-grow">
+                        <span class="section-label">Hint in the empty field</span>
+                        <input class="text-input" type="text" maxlength="120" placeholder="A few words are enough." [value]="question().placeholder" (input)="setText('placeholder', $event)" />
+                    </label>
+                </div>
+            }
+
+            <footer class="foot">
+                <app-switch
+                    [checked]="question().required"
+                    (checkedChange)="set({ required: $event })"
+                    [hint]="question().required ? 'People cannot go on without answering.' : 'People may leave it empty.'">
+                    Required
+                </app-switch>
+                @if (steps().length > 1) {
+                    <label class="move-to">
+                        <app-icon name="cornerDownRight" [size]="15" />
+                        <span class="visually-hidden">Move to</span>
+                        <select class="step-select" (change)="onMoveToStep($event)">
+                            @for (step of steps(); track step.id) {
+                                <option [value]="step.id" [selected]="step.id === stepId()">{{ step.id === stepId() ? "In " + step.label : "Move to " + step.label }}</option>
+                            }
+                        </select>
+                    </label>
+                }
+            </footer>
+
+            @if (problems().length) {
+                <ul class="problems">
+                    @for (problem of problems(); track problem) {
+                        <li>
+                            <app-icon name="alert" [size]="14" />
+                            {{ problem }}
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    }
+</article>
