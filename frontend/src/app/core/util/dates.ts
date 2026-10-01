@@ -26,9 +26,29 @@ export function formatDay(day: string): string {
   return Number.isNaN(value.getTime()) ? day : LONG_DATE.format(value);
 }
 
-/** "just now", "5 minutes ago", "yesterday", "4 days ago" - then the date. */
+/**
+ * How many midnights of the reader's clock lie between two moments: 0 within
+ * one day, 1 from any time yesterday to any time today. Rounded, so the 23-
+ * and the 25-hour day of a clock change are one day each.
+ */
+export function calendarDays(from: Date, to: Date): number {
+  const midnight = (date: Date): number => new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+  return Math.round((midnight(to) - midnight(from)) / 86_400_000);
+}
+
+/**
+ * "just now", "5 minutes ago", "yesterday", "4 days ago" - then the date.
+ *
+ * Up to a day it counts minutes and hours; from 24 hours on it names a day,
+ * and a day is a calendar day by the reader's clock: Monday evening is
+ * "yesterday" all Tuesday and "2 days ago" all Wednesday, however many hours
+ * that is. (Rounded hours said "yesterday" on Wednesday morning, and "2 days
+ * ago" on Tuesday evening of Monday morning.) The localDate pipe counts the
+ * same way (core/i18n/local-date.pipe.ts).
+ */
 export function timeAgo(iso: string, now = Date.now()): string {
-  const seconds = Math.round((now - Date.parse(iso)) / 1000);
+  const then = Date.parse(iso);
+  const seconds = Math.round((now - then) / 1000);
   if (!Number.isFinite(seconds)) {
     return iso;
   }
@@ -40,10 +60,11 @@ export function timeAgo(iso: string, now = Date.now()): string {
     return minutes === 1 ? 'a minute ago' : `${minutes} minutes ago`;
   }
   const hours = Math.round(minutes / 60);
-  if (hours < 24) {
+  const days = calendarDays(new Date(then), new Date(now));
+  // `days < 1`: the last half hour of the same day rounds to 24 hours, and is still today.
+  if (hours < 24 || days < 1) {
     return hours === 1 ? 'an hour ago' : `${hours} hours ago`;
   }
-  const days = Math.round(hours / 24);
   if (days < 2) {
     return 'yesterday';
   }

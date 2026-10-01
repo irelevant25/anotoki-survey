@@ -1,6 +1,8 @@
-<article class="card" [class.is-open]="expanded()" [class.has-problems]="problems().length > 0" [id]="'question-' + question().id">
-    <header class="head">
-        <span class="grip" cdkDragHandle title="Drag to move - to another step, too" aria-hidden="true"><app-icon name="grip" [size]="18" /></span>
+<article class="card" [class.is-open]="expanded()" [class.has-problems]="problems().length > 0 || missing() > 0" [id]="'question-' + question().id">
+    <header class="head" [class.is-locked]="translating()">
+        @if (!translating()) {
+            <span class="grip" cdkDragHandle title="Drag to move - to another step, too" aria-hidden="true"><app-icon name="grip" [size]="18" /></span>
+        }
         <button type="button" class="summary" [attr.aria-expanded]="expanded()" [attr.aria-controls]="id + '-body'" (click)="toggle.emit()">
             <span class="number">{{ number() }}</span>
             <span class="kind" [title]="type().label"><app-icon [name]="type().icon" [size]="16" /></span>
@@ -34,25 +36,79 @@
                     </span>
                 }
             </span>
+            @if (missing()) {
+                <!-- Outside the badges: those go on a narrow screen, and this one is what a translator looks for. -->
+                <span class="badge badge-warn to-translate" [title]="missingLabel()">
+                    {{ missing() }}
+                    <span class="to-translate-words">to translate</span>
+                </span>
+            }
             <app-icon class="chevron" [name]="expanded() ? 'chevronUp' : 'chevronDown'" [size]="18" />
         </button>
-        <div class="head-actions">
-            <button type="button" class="icon-button" aria-label="Move up" title="Move up" [disabled]="isFirst()" (click)="move.emit(-1)">
-                <app-icon name="arrowUp" [size]="16" />
-            </button>
-            <button type="button" class="icon-button" aria-label="Move down" title="Move down" [disabled]="isLast()" (click)="move.emit(1)">
-                <app-icon name="arrowDown" [size]="16" />
-            </button>
-            <button type="button" class="icon-button" aria-label="Duplicate" title="Duplicate" (click)="duplicate.emit()">
-                <app-icon name="copy" [size]="16" />
-            </button>
-            <button type="button" class="icon-button icon-button-danger" aria-label="Remove the question" title="Remove" (click)="remove.emit()">
-                <app-icon name="trash" [size]="16" />
-            </button>
-        </div>
+        @if (!translating()) {
+            <div class="head-actions">
+                <button type="button" class="icon-button" aria-label="Move up" title="Move up" [disabled]="isFirst()" (click)="move.emit(-1)">
+                    <app-icon name="arrowUp" [size]="16" />
+                </button>
+                <button type="button" class="icon-button" aria-label="Move down" title="Move down" [disabled]="isLast()" (click)="move.emit(1)">
+                    <app-icon name="arrowDown" [size]="16" />
+                </button>
+                <button type="button" class="icon-button" aria-label="Duplicate" title="Duplicate" (click)="duplicate.emit()">
+                    <app-icon name="copy" [size]="16" />
+                </button>
+                <button type="button" class="icon-button icon-button-danger" aria-label="Remove the question" title="Remove" (click)="remove.emit()">
+                    <app-icon name="trash" [size]="16" />
+                </button>
+            </div>
+        }
     </header>
 
-    @if (expanded()) {
+    @if (expanded() && translating()) {
+        <!-- A translation: the question's texts, each with its original; its kind, options, pictures and rules stay as they are. -->
+        <div class="body" [id]="id + '-body'">
+            <p class="locked">
+                <app-icon [name]="type().icon" [size]="15" />
+                {{ type().label }}{{ question().required ? "" : " · optional" }}{{ limitsLabel() ? " · " + limitsLabel() : "" }}
+            </p>
+
+            <app-translated-text [rich]="true" [place]="{ kind: 'text', questionId: question().id }" [original]="question().text" [label]="'Question ' + number()" />
+
+            @if (question().images.length) {
+                <div class="section">
+                    <p class="section-label">Pictures under the question: what they show</p>
+                    <app-image-list-editor [images]="question().images" [questionId]="question().id" [max]="maxImages" [label]="'Question ' + number()" />
+                </div>
+            }
+
+            @if (choice()) {
+                <div class="section">
+                    <p class="section-label">Options</p>
+                    <app-options-editor [options]="question().options" [type]="question().type" [questionLabel]="'Question ' + number()" [questionId]="question().id" />
+                </div>
+            } @else if (question().placeholder.trim() || translatedPlaceholder()) {
+                <div class="section">
+                    <p class="section-label">Hint in the empty field</p>
+                    <app-translated-text
+                        [compact]="true"
+                        [place]="{ kind: 'placeholder', questionId: question().id }"
+                        [original]="question().placeholder"
+                        [label]="'Question ' + number() + ', hint in the empty field'"
+                        [maxLength]="120" />
+                </div>
+            }
+
+            @if (problems().length) {
+                <ul class="problems">
+                    @for (problem of problems(); track problem) {
+                        <li>
+                            <app-icon name="alert" [size]="14" />
+                            {{ problem }}
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    } @else if (expanded()) {
         <div class="body" [id]="id + '-body'">
             <div class="kinds" role="radiogroup" aria-label="Kind of question">
                 @for (item of types; track item.type) {

@@ -1,0 +1,750 @@
+import { DOCUMENT, Injectable, computed, effect, inject, signal } from '@angular/core';
+import { ApiService } from '../api/api.service';
+import { AuthService } from '../auth/auth.service';
+import { readStorage, writeStorage } from '../util/storage';
+import { SiteLanguage, TranslationBundle } from './translation.model';
+
+/**
+ * What everything falls back to: the server merges English underneath every
+ * bundle, and the admin area is English whatever the person reads.
+ */
+export const FALLBACK_LANGUAGE = 'en';
+
+/**
+ * The chooser's choice (localStorage) and the `?lang=` of this tab
+ * (sessionStorage): the same name in two stores with two lifetimes.
+ */
+const LANGUAGE_KEY = 'anotoki-survey:language';
+/** The last bundle, so a returning reader is not shown keys while the request is out. */
+const CACHE_KEY = 'anotoki-survey:language-cache';
+
+/** A language code as the database keeps it - the same expression as languageCodeOk() in PHP. */
+const LANGUAGE_CODE = /^[a-z]{2}(-[a-z]{2})?$/;
+/** A placeholder in a string - the same expression as the server's check. */
+const PLACEHOLDER = /\{([A-Za-z][A-Za-z0-9_]*)\}/g;
+
+/**
+ * At the browser step only: a language nobody offers that reads another far
+ * more easily than English. Czech readers read Slovak. An exact match always
+ * wins - this counts only while no `cs` language is on offer.
+ */
+const BROWSER_ALIASES: Record<string, string> = { cs: 'sk' };
+
+/** What `Intl` is given: British English writes dates the way the rest of Europe reads them. */
+const LOCALES: Record<string, string> = { en: 'en-GB', sk: 'sk-SK' };
+
+/** How long a start with a cached bundle waits for the fresh one (a 304, usually). */
+export const CACHE_WAIT_MS = 1000;
+/** How long a start with no cache waits before it asks a second, last time for a bundle that did not come. */
+export const RETRY_WAIT_MS = 500;
+
+/** What fills a string's {placeholders}. */
+export type TranslationParams = Record<string, string | number | null | undefined>;
+
+/** A language somebody may want, and whether it is the browser that said so (only there do aliases count). */
+export interface LanguageCandidate {
+  code: string;
+  browser: boolean;
+}
+
+/** Where a wish for a language can come from, strongest first. */
+export interface LanguageSources {
+  /** `?lang=`, kept for this tab. */
+  tab?: string | null;
+  /** What the chooser remembered on this device. */
+  chosen?: string | null;
+  /** The `locale` claim of the IAM's token. */
+  token?: string | null;
+  /** `navigator.languages`. */
+  browser?: readonly (string | null | undefined)[];
+}
+
+/** The code, lower-cased, when it has the shape of one - anything else is nothing: never stored, never sent. */
+export function languageCode(raw: unknown): string | null {
+  const code = typeof raw === 'string' ? raw.toLowerCase() : '';
+  return LANGUAGE_CODE.test(code) ? code : null;
+}
+
+/**
+ * Every language the reader may want, in order: `?lang=` / this tab, the
+ * chooser's remembered choice, the token's `locale`, each browser tag and
+ * then its first subtag (`sk-SK` also asks for `sk`), and English.
+ */
+export function languageCandidates(sources: LanguageSources): LanguageCandidate[] {
+  const candidates: LanguageCandidate[] = [];
+  const add = (raw: unknown, browser: boolean): void => {
+    const code = languageCode(raw);
+    if (code && !candidates.some((candidate) => candidate.code === code && candidate.browser === browser)) {
+      candidates.push({ code, browser });
+    }
+  };
+  add(sources.tab, false);
+  add(sources.chosen, false);
+  add(sources.token, false);
+  for (const tag of sources.browser ?? []) {
+    add(tag, true);
+    add(typeof tag === 'string' ? tag.split('-')[0] : null, true);
+  }
+  add(FALLBACK_LANGUAGE, false);
+  return candidates;
+}
+
+/** The first candidate that is on offer - or, for a browser's wish, whose alias is - else English. */
+export function pickLanguage(candidates: readonly LanguageCandidate[], offered: readonly string[]): string {
+  for (const candidate of candidates) {
+    if (offered.includes(candidate.code)) {
+      return candidate.code;
+    }
+    if (candidate.browser && Object.hasOwn(BROWSER_ALIASES, candidate.code) && offered.includes(BROWSER_ALIASES[candidate.code])) {
+      return BROWSER_ALIASES[candidate.code];
+    }
+  }
+  return FALLBACK_LANGUAGE;
+}
+
+/**
+ * The site's own words: which language the pages are read in, and the strings
+ * for it. They live in the database (the admin area edits them) and arrive as
+ * one bundle - GET /api/translations/{code}.
+ *
+ * Only what a participant sees is translated. The admin area is English
+ * whatever is chosen: `effectiveLanguage` says `en` while the address is under
+ * /admin, and everything that words a string goes through it - so the pieces
+ * both areas share (the top bar, the UI kit, toasts) are English there too.
+ *
+ * A key with no string comes back as itself, on the page, and warns once: the
+ * owner wants to see which key is missing.
+ *
+ * Keys are never built from the address, from the IAM's answer or from
+ * anything a person typed - run-time keys come from closed sets, through a
+ * table with a fallback key (error-text.ts, dynamic-keys.ts). And state holds
+ * keys, kinds and ApiErrors, never a worded sentence: wording happens in a
+ * template (the pipes) or inside a computed() / effect() that calls t(), which
+ * reads signals and so runs again when the language changes.
+ *
+ * This service never injects the Router: the Router builds the title strategy,
+ * the strategy needs this service, and asking for the Router here would close
+ * the circle (NG0200 at start-up). The strategy says where the page is instead
+ * - noteAddress().
+ *
+ * Every load - the start, a choice, reload(), asking again - takes the next
+ * turn, and an answer is used only while its turn is still the last one: the
+ * load begun last wins, however late an earlier answer comes.
+ */
+@Injectable({ providedIn: 'root' })
+export class TranslationService {
+  private readonly _api = inject(ApiService);
+  private readonly _auth = inject(AuthService);
+  private readonly _document = inject(DOCUMENT);
+
+  private readonly _language = signal(FALLBACK_LANGUAGE);
+  private readonly _languages = signal<SiteLanguage[]>([]);
+  /** The chosen language's strings, English merged underneath. Null: no bundle yet. */
+  private readonly _values = signal<ReadonlyMap<string, string> | null>(null);
+  /** English itself - what the admin area reads. */
+  private readonly _english = signal<ReadonlyMap<string, string> | null>(null);
+  private readonly _inAdmin = signal(false);
+
+  /**
+   * The person's language. A plain signal: it changes only once the bundle of
+   * that language is in memory (init(), setLanguage()), never by itself when a
+   * token or the address changes - a page is never in a language it has no
+   * strings for.
+   */
+  readonly language = this._language.asReadonly();
+  /** The languages on offer, in the order the admin area set. */
+  readonly languages = this._languages.asReadonly();
+  /** A bundle is in memory - from the cache or from the server. */
+  readonly ready = computed(() => this._values() !== null);
+  /** The address is in the admin area, which is English. */
+  readonly inAdmin = this._inAdmin.asReadonly();
+  /** The language actually on the page: English in the admin area, the person's everywhere else. */
+  readonly effectiveLanguage = computed(() => (this._inAdmin() ? FALLBACK_LANGUAGE : this._language()));
+  /** What `Intl` is given for dates and numbers in the language on the page. */
+  readonly locale = computed(() => {
+    const code = this.effectiveLanguage();
+    return Object.hasOwn(LOCALES, code) ? LOCALES[code] : code;
+  });
+
+  /** The strings of the language on the page. Maps, so `has('constructor')` is false. */
+  private readonly _strings = computed<ReadonlyMap<string, string>>(() => (this._inAdmin() ? this._english() : this._values()) ?? NO_STRINGS);
+
+  /** Keys already complained about, so one missing string is one warning. */
+  private readonly _warned = new Set<string>();
+  /** Counts the loads begun: an answer that arrives after a later load began is dropped. */
+  private _turn = 0;
+  /** The loads still out. While there is one, nothing asks again: never two in flight for the same thing. */
+  private _out = 0;
+  /** init() has decided the language at least once: only then is there something to ask again for. */
+  private _started = false;
+  /**
+   * What is in force came from the server since this page was loaded. False
+   * with no bundle at all, and with the cached one whose refresh has not come
+   * (or failed): then the next navigation asks again.
+   */
+  private _fresh = false;
+  /**
+   * The two wishes that are kept in storage, held here as well for as long as
+   * the page lives: `?lang=` of this tab, and what the chooser was told. A
+   * browser whose storage refuses writes still gets both, until it reloads.
+   */
+  private _tab: string | null = null;
+  private _chosen: string | null = null;
+  /** The token's `locale` as last seen: only a changed one is adopted. */
+  private _seenLocale: string | null = null;
+  private _watching = false;
+
+  constructor() {
+    // Honest for a screen reader: the admin area says `en` whatever the person reads.
+    effect(() => {
+      this._document.documentElement.lang = this.effectiveLanguage();
+    });
+  }
+
+  // ── Reading ────────────────────────────────────────────────────────────────
+
+  /**
+   * The string for a key in the language on the page, its {placeholders}
+   * filled in one pass: a parameter's own text is never scanned again, and a
+   * placeholder with no parameter stays as written.
+   *
+   * An unknown key comes back as itself - on purpose visible - and warns once.
+   */
+  t(key: string, params?: TranslationParams): string {
+    const value = this._strings().get(key);
+    return value === undefined ? this._missing(key) : fill(value, params);
+  }
+
+  /**
+   * One of a plural family - `key.one`, `key.few`, `key.other` - by the rules
+   * of the language on the page (Slovak: 1 -> one, 2-4 -> few, 0 and 5+ ->
+   * other). Inside a family the number is always `{count}`, whatever the code
+   * calls it.
+   */
+  plural(key: string, count: number, params?: TranslationParams): string {
+    const form = `${key}.${pluralRules(this.effectiveLanguage()).select(count)}`;
+    return this.t(this.has(form) ? form : `${key}.other`, { ...params, count });
+  }
+
+  /**
+   * A sentence cut at one placeholder, for markup inside it:
+   * `{{ before }}<strong>{{ name }}</strong>{{ after }}`. The stored string is
+   * cut first and each half filled after, so nothing a parameter holds can
+   * move the cut.
+   *
+   * The third answer says whether the cut was made. It is not when the key
+   * has no string, and not when the string leaves the placeholder out - which
+   * a language other than English may: then the whole sentence (or the key)
+   * is the first half, and the page must not draw the marked-up value at all,
+   * or it would be glued onto a sentence that does not name it.
+   */
+  around(key: string, placeholder: string, params?: TranslationParams): [before: string, after: string, found: boolean] {
+    const value = this._strings().get(key);
+    if (value === undefined) {
+      return [this._missing(key), '', false];
+    }
+    const mark = `{${placeholder}}`;
+    const at = value.indexOf(mark);
+    return at < 0 ? [fill(value, params), '', false] : [fill(value.slice(0, at), params), fill(value.slice(at + mark.length), params), true];
+  }
+
+  /** Whether a key has a string - for the boot pages, which word themselves when there is no bundle. */
+  has(key: string): boolean {
+    return this._strings().has(key);
+  }
+
+  // ── Choosing ───────────────────────────────────────────────────────────────
+
+  /**
+   * The chooser's choice: loads that language's bundle, then switches and
+   * remembers it on this device. Never rejects - false when the strings could
+   * not be had, and the page stays as it is.
+   *
+   * `remember: false` is for a language that was not chosen here (the token's
+   * `locale`): used, not stored - only the chooser writes the choice.
+   *
+   * The last choice wins: a choice takes its turn even when it needs no
+   * request (the language already on the page), so a slower, earlier choice
+   * still on its way is dropped when it comes - and that one answers false.
+   */
+  async setLanguage(code: string, remember = true): Promise<boolean> {
+    const wanted = languageCode(code);
+    if (!wanted) {
+      return false;
+    }
+    const turn = ++this._turn;
+    if (wanted !== this._language() || !this.ready()) {
+      const bundle = await this._counted(this._request(wanted));
+      if (turn !== this._turn) {
+        return false;
+      }
+      if (!bundle || bundle.language !== wanted) {
+        // Switched off a moment ago: the server answered in English. The page
+        // stays in its language; the chooser stops offering the one that went.
+        if (bundle?.languages.some((language) => language.code === this._language())) {
+          this._languages.set(bundle.languages);
+        }
+        return false;
+      }
+      this._use(bundle);
+    }
+    if (remember) {
+      // In memory too: storage may refuse the write, and the choice must hold for this page all the same.
+      this._chosen = wanted;
+      writeStorage(LANGUAGE_KEY, wanted);
+      // A choice made here is stronger than the `?lang=` this tab came with.
+      this._tab = null;
+      writeTab(LANGUAGE_KEY, null);
+    }
+    return true;
+  }
+
+  /**
+   * The strings again, from the server: for whoever has just changed them, or
+   * the languages on offer (the admin area's Translations and Languages pages,
+   * after a save). Asks for the bundle of the language the person reads and
+   * settles against the list that comes with it - so a language hidden or
+   * offered a moment ago is followed - then puts the answer in force and in
+   * the cache. Never rejects; when the server cannot be had, the page stays as
+   * it is - and, being known to be behind, asks again at the next navigation.
+   *
+   * Not init(): that one is the start - it takes `?lang=` out of the address
+   * and starts from the cache.
+   */
+  async reload(): Promise<void> {
+    try {
+      // What is in memory is no longer known to be what the server has.
+      this._fresh = false;
+      await this._again();
+    } catch (error) {
+      console.error('[i18n] the strings could not be read again', error);
+    }
+  }
+
+  /**
+   * Where the page is, said by the title strategy after every navigation: the
+   * admin area is `/admin` and everything under it, query and hash aside.
+   *
+   * A navigation is also when a page that started without its strings asks
+   * for them once more: while no bundle is in memory (the first request
+   * failed - the page is in keys), or while the cached one is in force because
+   * its refresh failed. One load a navigation, and none while another is out -
+   * so such a page heals by itself at the next click, and a server that stays
+   * down is asked no more often than somebody clicks.
+   */
+  noteAddress(url: string): void {
+    this._place(url);
+    if (this._started && !this._fresh && this._out === 0 && this._auth.status() === 'ready') {
+      void this._again().catch((error: unknown) => console.error('[i18n] the strings could not be asked for again', error));
+    }
+  }
+
+  private _place(url: string): void {
+    const path = url.split(/[?#]/)[0];
+    this._inAdmin.set(path === '/admin' || path.startsWith('/admin/'));
+  }
+
+  // ── Starting ───────────────────────────────────────────────────────────────
+
+  /**
+   * Once as the site starts, after the sign-in (which, back from the IAM, has
+   * put the address back): decides the language and gets its strings before
+   * the first page is drawn. Never rejects, and may be called again (the load
+   * error page's retry).
+   *
+   * While the site cannot run (`auth.status()` is not `ready`) nothing is
+   * requested: the cached bundle is taken when there is one - in whatever
+   * language it is in - and the boot pages word themselves otherwise.
+   */
+  async init(): Promise<void> {
+    try {
+      await this._start();
+    } catch (error) {
+      console.error('[i18n] the language could not be set up', error);
+    }
+  }
+
+  private async _start(): Promise<void> {
+    const location = this._document.location;
+    this._place(location?.pathname ?? '/');
+    this._takeAddressLanguage();
+    this._watchToken();
+    this._started = true;
+
+    // Whether the site can run decides what a cache is worth. While it cannot,
+    // nobody is signed in and nothing can be asked: the language the cache is
+    // in is the best there is - a reader whose language comes from the token
+    // would otherwise lose the strings exactly when they are all there is.
+    const running = this._auth.status() === 'ready';
+    const candidates = this._candidates();
+    const cached = this._cachedBundle(candidates, running);
+    if (cached) {
+      this._use(cached, false);
+    }
+    if (!running) {
+      return;
+    }
+
+    const turn = ++this._turn;
+    const first = cached ? cached.language : candidates[0].code;
+    if (cached) {
+      // With a cache the page may start from it, but not at once: a release adds
+      // strings, and a returning reader would see their keys. The fresh bundle is
+      // a 304 most of the time - worth a second's wait; it replaces the cache
+      // whenever it comes.
+      await Promise.race([this._counted(this._refresh(turn, candidates, first)), wait(CACHE_WAIT_MS)]);
+      return;
+    }
+    await this._counted(this._firstLoad(turn, candidates, first));
+  }
+
+  /**
+   * The start with no cache: the page waits for its strings, and a request
+   * that fails is made once more after a moment - one lost answer should not
+   * leave a first visit in keys. After that the page is drawn as it is, and
+   * asks again at each navigation (noteAddress()).
+   */
+  private async _firstLoad(turn: number, candidates: readonly LanguageCandidate[], first: string): Promise<void> {
+    if ((await this._refresh(turn, candidates, first)) || turn !== this._turn) {
+      return;
+    }
+    await wait(RETRY_WAIT_MS);
+    if (turn === this._turn) {
+      await this._refresh(turn, candidates, first);
+    }
+  }
+
+  /**
+   * The strings once more, for the wishes as they are now: what reload() does,
+   * and what a navigation does for a page that has none from the server. It
+   * asks first for the language in force - its bundle names the languages on
+   * offer now - and takes the next turn, so it is the load that counts.
+   */
+  private _again(): Promise<boolean> {
+    const turn = ++this._turn;
+    const candidates = this._candidates();
+    return this._counted(this._refresh(turn, candidates, this.ready() ? this._language() : candidates[0].code));
+  }
+
+  /**
+   * One load, put in force when it came and is still the last one begun.
+   * False: the server could not be had - or a later load has taken over.
+   */
+  private async _refresh(turn: number, candidates: readonly LanguageCandidate[], first: string): Promise<boolean> {
+    const bundle = await this._load(candidates, first);
+    if (!bundle || turn !== this._turn) {
+      return false;
+    }
+    this._use(bundle);
+    return true;
+  }
+
+  /** Counted while it is out, whichever way it ends. */
+  private async _counted<T>(work: Promise<T>): Promise<T> {
+    this._out++;
+    try {
+      return await work;
+    } finally {
+      this._out--;
+    }
+  }
+
+  /**
+   * The bundle for the language the candidates settle on. The list of offered
+   * languages arrives with the bundle itself, so: ask for `first`, settle
+   * against the list that came - whatever answered - and fetch that bundle if
+   * it is another language than the one in hand. One request when `first` is
+   * what the wishes settle on (the usual case: the server answers a regional
+   * code like `sk-sk` with its base language); two at most - on a first visit
+   * whose first wish is not on offer, or when the offered languages have
+   * changed since the cached bundle was made (a language hidden, offered
+   * again, or added: the reader is moved to it now, not one visit late).
+   *
+   * When the second request fails the first answer is what there is: a page in
+   * English rather than in keys.
+   */
+  private async _load(candidates: readonly LanguageCandidate[], first: string): Promise<TranslationBundle | null> {
+    const answer = await this._request(first);
+    if (!answer) {
+      return null;
+    }
+    const settled = pickLanguage(
+      candidates,
+      answer.languages.map((language) => language.code),
+    );
+    return settled === answer.language ? answer : ((await this._request(settled)) ?? answer);
+  }
+
+  /** One bundle from the server, checked - or null: out of reach, or not what a bundle is. */
+  private async _request(code: string): Promise<TranslationBundle | null> {
+    try {
+      return bundleFrom(await this.fetchBundle(code));
+    } catch {
+      // Offline, or the API is down. The cache - or the keys themselves - is
+      // what the page shows then; it is not worth stopping the site over.
+      return null;
+    }
+  }
+
+  /** GET /api/translations/{code}. On its own so the tests' stand-in answers without HTTP. */
+  protected fetchBundle(code: string): Promise<unknown> {
+    return this._api.translations(code);
+  }
+
+  /**
+   * Puts a bundle in force as the one a spec runs with (the tests' stand-in):
+   * it counts as the server's - nothing asks for it again - and is kept nowhere.
+   */
+  protected use(bundle: TranslationBundle): void {
+    this._use(bundle, false);
+    this._fresh = true;
+  }
+
+  /**
+   * Puts a checked bundle in force - strings first, then the language they are
+   * in. The server's is kept for the next visit; the kept one (`keep: false`)
+   * is only in force until the server's comes.
+   */
+  private _use(bundle: TranslationBundle, keep = true): void {
+    const values = new Map(Object.entries(bundle.values));
+    this._values.set(values);
+    this._english.set(bundle.language === FALLBACK_LANGUAGE || !bundle.english ? values : new Map(Object.entries(bundle.english)));
+    this._languages.set(bundle.languages);
+    this._language.set(bundle.language);
+    this._fresh = keep;
+    if (keep) {
+      writeStorage(CACHE_KEY, JSON.stringify(bundle));
+    }
+  }
+
+  private _candidates(): LanguageCandidate[] {
+    const navigator = this._document.defaultView?.navigator;
+    return languageCandidates({
+      tab: this._tabWish(),
+      chosen: this._chosenWish(),
+      token: this._tokenLocale(),
+      browser: navigator?.languages?.length ? navigator.languages : [navigator?.language],
+    });
+  }
+
+  /** `?lang=` of this tab: what this page took from its address, else what the tab kept. */
+  private _tabWish(): string | null {
+    return this._tab ?? readTab(LANGUAGE_KEY);
+  }
+
+  /** The chooser's choice: what was chosen on this page, else what the device kept. */
+  private _chosenWish(): string | null {
+    return this._chosen ?? readStorage(LANGUAGE_KEY);
+  }
+
+  /**
+   * `?lang=` holds for this tab: kept in sessionStorage - it survives the
+   * round trip to the IAM and the navigation inside the app - and taken out of
+   * the address before the router reads it. Never written to localStorage:
+   * a link somebody followed is not a choice they made. Kept in memory too,
+   * because the parameter is gone from the address either way: where
+   * sessionStorage refuses the write, the link still works for this page.
+   */
+  private _takeAddressLanguage(): void {
+    const view = this._document.defaultView;
+    const location = this._document.location;
+    const parts = (location?.search ?? '').replace(/^\?/, '').split('&');
+    const given = parts.filter((part) => part.split('=')[0] === 'lang');
+    if (!view || !location || !given.length) {
+      return;
+    }
+    let value = '';
+    try {
+      value = decodeURIComponent(given[0].split('=')[1] ?? '');
+    } catch {
+      // Not an address anybody wrote by hand; not a language either.
+    }
+    const code = languageCode(value);
+    if (code) {
+      this._tab = code;
+      writeTab(LANGUAGE_KEY, code);
+    }
+    // The other parameters stay byte for byte as they came.
+    const rest = parts.filter((part) => part !== '' && part.split('=')[0] !== 'lang').join('&');
+    try {
+      view.history.replaceState(view.history.state, '', location.pathname + (rest ? `?${rest}` : '') + location.hash);
+    } catch {
+      // A browser that refuses: the parameter stays, and does no harm.
+    }
+  }
+
+  /**
+   * The token's `locale` is used, not stored: a change made on the IAM's
+   * account page arrives with the next token. While nothing is stored here -
+   * no choice, no `?lang=` - a changed one is adopted when it comes.
+   */
+  private _watchToken(): void {
+    this._seenLocale = this._tokenLocale();
+    if (this._watching) {
+      return;
+    }
+    this._watching = true;
+    this._auth.onAuthChange(() => {
+      const locale = this._tokenLocale();
+      if (locale === this._seenLocale) {
+        return;
+      }
+      this._seenLocale = locale;
+      const stored = languageCode(this._tabWish()) ?? languageCode(this._chosenWish());
+      if (locale && !stored && locale !== this._language() && this._languages().some((language) => language.code === locale)) {
+        void this.setLanguage(locale, false);
+      }
+    });
+  }
+
+  private _tokenLocale(): string | null {
+    return this._auth.signedIn() ? languageCode(this._auth.user()?.locale) : null;
+  }
+
+  /**
+   * The cached bundle, only when it is one - it parses, has the shape, and
+   * (`settle`) is in the language the candidates settle on now. Anything else
+   * is removed: a corrupt or outdated cache is no cache.
+   *
+   * Without `settle` - the site cannot run - the language is not asked about:
+   * the wishes are not all known then (nobody is signed in, so the token says
+   * nothing), and a cache in another language is still the reader's own words
+   * from their last visit. It is used, and left where it is.
+   */
+  private _cachedBundle(candidates: readonly LanguageCandidate[], settle: boolean): TranslationBundle | null {
+    const raw = readStorage(CACHE_KEY);
+    if (raw === null) {
+      return null;
+    }
+    let bundle: TranslationBundle | null = null;
+    try {
+      bundle = bundleFrom(JSON.parse(raw));
+    } catch {
+      bundle = null;
+    }
+    if (
+      bundle &&
+      (!settle ||
+        bundle.language ===
+          pickLanguage(
+            candidates,
+            bundle.languages.map((language) => language.code),
+          ))
+    ) {
+      return bundle;
+    }
+    writeStorage(CACHE_KEY, null);
+    return null;
+  }
+
+  private _missing(key: string): string {
+    if (!this._warned.has(key)) {
+      this._warned.add(key);
+      console.warn(`[i18n] no string for '${key}'`);
+    }
+    return key;
+  }
+}
+
+const NO_STRINGS: ReadonlyMap<string, string> = new Map();
+
+const PLURAL_RULES = new Map<string, Intl.PluralRules>();
+
+/** The plural rules of a language: only ever asked with a code that passed the pattern. */
+function pluralRules(language: string): Intl.PluralRules {
+  let rules = PLURAL_RULES.get(language);
+  if (!rules) {
+    rules = new Intl.PluralRules(language);
+    PLURAL_RULES.set(language, rules);
+  }
+  return rules;
+}
+
+function fill(value: string, params?: TranslationParams): string {
+  if (!params) {
+    return value;
+  }
+  return value.replace(PLACEHOLDER, (whole, name: string) => {
+    const given = Object.hasOwn(params, name) ? params[name] : undefined;
+    return given === undefined || given === null ? whole : String(given);
+  });
+}
+
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((done) => setTimeout(done, milliseconds));
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** A flat {key: text} map, copied - or null when it is anything else. */
+function stringsFrom(raw: unknown): Record<string, string> | null {
+  if (!isPlainObject(raw)) {
+    return null;
+  }
+  const strings: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value !== 'string') {
+      return null;
+    }
+    strings[key] = value;
+  }
+  return strings;
+}
+
+/**
+ * A bundle, from the server or from the cache, only when it is one: a language
+ * code, the offered languages (strings, and the bundle's own among them),
+ * a flat map of strings - and English beside it for every other language.
+ */
+function bundleFrom(raw: unknown): TranslationBundle | null {
+  if (!isPlainObject(raw) || !Array.isArray(raw['languages'])) {
+    return null;
+  }
+  const language = raw['language'];
+  if (typeof language !== 'string' || !LANGUAGE_CODE.test(language)) {
+    return null;
+  }
+  const languages: SiteLanguage[] = [];
+  for (const entry of raw['languages']) {
+    if (!isPlainObject(entry)) {
+      return null;
+    }
+    const { code, name, nativeName } = entry;
+    if (typeof code !== 'string' || !LANGUAGE_CODE.test(code) || typeof name !== 'string' || typeof nativeName !== 'string') {
+      return null;
+    }
+    languages.push({ code, name, nativeName });
+  }
+  const values = stringsFrom(raw['values']);
+  if (!values || !languages.some((entry) => entry.code === language)) {
+    return null;
+  }
+  if (language === FALLBACK_LANGUAGE) {
+    return { language, languages, values };
+  }
+  const english = stringsFrom(raw['english']);
+  return english ? { language, languages, values, english } : null;
+}
+
+/** sessionStorage that never throws - what core/util/storage.ts is for localStorage. */
+function readTab(key: string): string | null {
+  try {
+    return globalThis.sessionStorage?.getItem(key) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeTab(key: string, value: string | null): void {
+  try {
+    if (value === null) {
+      globalThis.sessionStorage?.removeItem(key);
+    } else {
+      globalThis.sessionStorage?.setItem(key, value);
+    }
+  } catch {
+    // Nothing to do: the language just will not hold for the tab.
+  }
+}

@@ -7,6 +7,7 @@ import { LightboxService } from '../../../../ui/lightbox/lightbox.service';
 import { SpinnerComponent } from '../../../../ui/spinner/spinner.component';
 import { SurveyImageComponent } from '../../../../ui/survey-image/survey-image.component';
 import { SurveyEditing } from '../survey-editing.service';
+import { TranslatedTextComponent } from '../translated-text/translated-text.component';
 
 /**
  * The pictures of a question or an option, in the editor: a row of
@@ -26,10 +27,16 @@ import { SurveyEditing } from '../survey-editing.service';
  * goes straight to the survey (SurveyEditing), to the question or option it
  * was made for - so pictures still getting ready arrive even if this row is
  * gone by then (its question folded, or moved to another step).
+ *
+ * On a translation's tab (SurveyEditing.language) the pictures are the
+ * survey's own and stay as they are - none added, moved or removed. Under a
+ * question each picture is a row with the field for what it shows in that
+ * language (the same picture twice is one row: it has one description);
+ * under an option they are only shown.
  */
 @Component({
   selector: 'app-image-list-editor',
-  imports: [IconComponent, SpinnerComponent, SurveyImageComponent],
+  imports: [IconComponent, SpinnerComponent, SurveyImageComponent, TranslatedTextComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.is-empty]': 'compact() && !images().length && !preparing() && !problems().length' },
   templateUrl: './image-list-editor.component.html',
@@ -53,6 +60,19 @@ export class ImageListEditorComponent {
   private readonly _host = inject<ElementRef<HTMLElement>>(ElementRef);
   protected readonly lightbox = inject(LightboxService);
   protected readonly accept = IMAGE_TYPES.join(',');
+  /** A translation is being edited: the pictures cannot be changed, only described in its language. */
+  protected readonly translating = computed(() => this._editing.language() !== null);
+  /** Each picture once, with its place in the list - a picture used twice shares one translated description. */
+  protected readonly distinct = computed(() => {
+    const seen = new Set<string>();
+    return this.images().flatMap((image, index) => {
+      if (seen.has(image.id)) {
+        return [];
+      }
+      seen.add(image.id);
+      return [{ image, index }];
+    });
+  });
   /** Pictures still being made ready and sent: a place is held for each. */
   protected readonly preparing = signal(0);
   protected readonly placeholders = computed(() => Array.from({ length: this.preparing() }, (_, i) => i));
@@ -65,12 +85,15 @@ export class ImageListEditorComponent {
 
   /** Opens the file picker - from a click, which a browser requires for it. */
   pick(): void {
-    this._fileInput().nativeElement.click();
+    if (!this.translating()) {
+      this._fileInput().nativeElement.click();
+    }
   }
 
   /** Takes pictures in: each made ready in turn; the ones that fail say why, the rest are added. */
   async addFiles(files: readonly File[]): Promise<void> {
-    if (!files.length) {
+    // Pictures are the survey's own: a translation's tab adds none.
+    if (!files.length || this.translating()) {
       return;
     }
     // Where they go is settled now, before anything can move.
@@ -170,7 +193,9 @@ export class ImageListEditorComponent {
   }
 
   private _change(change: (images: SurveyImage[]) => SurveyImage[]): void {
-    this._editing.updateImages(this._editing.target(this.questionId(), this.optionId()), change);
+    if (!this.translating()) {
+      this._editing.updateImages(this._editing.target(this.questionId(), this.optionId()), change);
+    }
   }
 
   private _focusLater(selector: string): void {

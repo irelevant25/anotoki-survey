@@ -1,0 +1,154 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.languages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding: 0.35rem 0.5rem 0.35rem 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+// Many languages scroll sideways inside the row; the page never does.
+.tabs {
+  display: flex;
+  gap: 0.2rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tab {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.4rem;
+  padding: 0 0.8rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+
+  // Inside the row, which clips what is drawn outside it.
+  &:focus-visible {
+    outline-offset: -2px;
+  }
+
+  &.is-active {
+    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+    background: var(--primary-soft);
+    color: var(--primary-soft-text);
+  }
+}
+
+.tag {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.tag-warn {
+  border-color: var(--warning-border);
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.progress {
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--warning-border);
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+
+  &.is-done {
+    border-color: var(--success-border);
+    background: var(--success-soft);
+    color: var(--success);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding-left: 0.6rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--muted);
+
+  &:hover {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+
+  &:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--ring);
+  }
+}
+
+.add-select {
+  height: calc(var(--control-height-sm) - 2px);
+  max-width: 12rem;
+  padding: 0 0.4rem 0 0.1rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.875rem;
+  font-weight: 650;
+  outline: none;
+  cursor: pointer;
+
+  option {
+    background: var(--surface);
+    color: var(--text);
+  }
+}
+
+.remove {
+  --btn-fg: var(--danger);
+  --btn-hover-bg: var(--danger-soft);
+}
+
+// A phone: two tabs no longer fit side by side once one says more than its
+// count ("7 / 8 shown in English"), and what it says would be cut off at the
+// row's edge. The tabs go under one another there; only a single tab wider
+// than the row still scrolls inside it.
+@media (max-width: 560px) {
+  .tabs {
+    flex-wrap: wrap;
+  }
+}

@@ -1,0 +1,123 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+// The original, and under it the field for the translation.
+.pair {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  min-height: 1.35rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+// Read-only, and looking it: no field's border, a quieter ground.
+.original {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.nothing {
+  color: var(--subtle);
+  font-style: italic;
+}
+
+.slot {
+  border-radius: var(--radius);
+}
+
+.is-missing .slot {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.05rem 0.45rem;
+  border: 1px solid var(--warning-border);
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+// In a row of a list there is no caption to stand beside: the mark sits at the end of the field.
+.mark-inline {
+  flex: none;
+  margin-right: 0.45rem;
+  padding: 0.2rem;
+  border-radius: 50%;
+}
+
+.note,
+.untranslated {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.untranslated {
+  font-style: italic;
+}
+
+// A row of a list: a line and a field, both smaller.
+.is-compact {
+  gap: 0.3rem;
+
+  .original {
+    padding: 0.45rem 0.7rem;
+    font-size: 0.9375rem;
+    line-height: 1.4;
+  }
+
+  .field-control {
+    min-height: 2.4rem;
+  }
+
+  .field-input {
+    height: calc(2.4rem - 2px);
+    padding: 0 0.7rem;
+  }
+}
+
+// Wide enough for both: the original beside its translation.
+@media (min-width: 900px) {
+  .pair {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .is-compact {
+    gap: 0.5rem;
+    align-items: start;
+  }
+}

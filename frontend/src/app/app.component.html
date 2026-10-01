@@ -1,12 +1,12 @@
-@switch (auth.status()) {
+@switch (drawn()) {
+    @case ("site") {
+        <router-outlet />
+    }
     @case ("not-set-up") {
         <app-not-set-up />
     }
-    @case ("error") {
+    @case ("load-error") {
         <app-load-error />
-    }
-    @default {
-        <router-outlet />
     }
 }
 <app-toast-host />

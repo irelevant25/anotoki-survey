@@ -7,7 +7,8 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
-  scroll-margin-top: 8rem;
+  // More on a translation's tab, where a bar stays in view above (the editor sets the variable).
+  scroll-margin-top: calc(var(--editor-scroll-margin, 6rem) + 2rem);
   transition:
     border-color var(--duration) var(--ease),
     box-shadow var(--duration) var(--ease);
@@ -136,6 +137,27 @@
 .chevron {
   flex: none;
   color: var(--muted);
+}
+
+// On a translation's tab: no handle before the summary, so it gets the handle's room.
+.head.is-locked {
+  padding-left: 0.4rem;
+}
+
+// How many texts are still to translate: kept on a narrow screen, as a number alone.
+.to-translate {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+// What the question is, where its kind and rules cannot be changed.
+.locked {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .head-actions {
@@ -366,6 +388,10 @@
 
 @media (max-width: 720px) {
   .badges {
+    display: none;
+  }
+
+  .to-translate-words {
     display: none;
   }
 

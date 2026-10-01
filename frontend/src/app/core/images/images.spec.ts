@@ -44,7 +44,7 @@ describe('the files a survey takes as pictures', () => {
 describe('pictures in surveys', () => {
   it('shares the pictures of a copied question, never the ids of its options', () => {
     const question = { ...newQuestion('single'), images: [picture('p1')], options: [{ ...newOption('A'), images: [picture('p2')] }, newOption('B')] };
-    const copy = copyQuestion(question);
+    const copy = copyQuestion(question).question;
     expect(copy.images).toEqual(question.images);
     expect(copy.images).not.toBe(question.images);
     expect(copy.options[0].images).toEqual([picture('p2')]);

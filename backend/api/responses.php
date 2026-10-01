@@ -12,6 +12,12 @@ declare(strict_types=1);
  * question as the page checked them (answerProblem), kept as cleanAnswer
  * would keep them.
  *
+ * `language` in the body is the language the survey's texts were shown in
+ * when the answers were sent. It is kept when it is the survey's own or one
+ * the survey is translated into, and left out (NULL) when it is anything
+ * else. It is a note for whoever reads the results, never a reason to refuse
+ * somebody's answers.
+ *
  *   201  {id, submittedAt}
  *   404  no such survey
  *   409  not_open           it is not taking answers (closed, or its last day is over)
@@ -37,7 +43,7 @@ function responseSubmit(SiteUser $user, string $slug, mixed $body): array
     if (!is_array($body) || array_is_list($body)) {
         throw new ApiError(422, 'invalid_answer', 'Send the answers as an object.');
     }
-    $survey = surveyJson($row);
+    $survey = surveyContent($row);
 
     $gender = null;
     $age = null;
@@ -87,10 +93,19 @@ function responseSubmit(SiteUser $user, string $slug, mixed $body): array
         $startedAt = $opened;
     }
 
+    $language = $body['language'] ?? null;
+    if (!languageCodeOk($language) || ($language !== $survey['language'] && !array_key_exists($language, $survey['translations']))) {
+        $language = null;
+    }
+
     try {
+        // The language through a look at the languages there are: one deleted
+        // in this very moment is no language (NULL), not a broken reference.
         $saved = dbOne(
-            'INSERT INTO responses (survey_id, user_id, gender, age, answers, started_at) VALUES (?, ?, ?, ?, ?::jsonb, ?) RETURNING id, submitted_at',
-            [$row['id'], $user->id, $gender, $age, jsonText($kept === [] ? new stdClass() : $kept), $startedAt->format('Y-m-d H:i:s.uP')]
+            'INSERT INTO responses (survey_id, user_id, gender, age, answers, started_at, language)
+             VALUES (?, ?, ?, ?, ?::jsonb, ?, (SELECT code FROM languages WHERE code = ?))
+             RETURNING id, submitted_at',
+            [$row['id'], $user->id, $gender, $age, jsonText($kept === [] ? new stdClass() : $kept), $startedAt->format('Y-m-d H:i:s.uP'), $language]
         );
     } catch (PDOException $e) {
         // Sent twice at once: the second one finds the first.
@@ -110,7 +125,7 @@ function responsesOf(string $surveyId): array
         throw surveyNotFound();
     }
     $rows = dbAll(
-        'SELECT r.id, r.survey_id, r.user_id, u.preferred_username, u.email, r.gender, r.age, r.answers, r.started_at, r.submitted_at
+        'SELECT r.id, r.survey_id, r.user_id, u.preferred_username, u.email, r.gender, r.age, r.answers, r.language, r.started_at, r.submitted_at
            FROM responses r
            JOIN users u ON u.id = r.user_id
           WHERE r.survey_id = ?
@@ -132,6 +147,8 @@ function responsesOf(string $surveyId): array
             ],
             'aboutYou' => $row['gender'] !== null && $row['age'] !== null ? ['gender' => $row['gender'], 'age' => $row['age']] : null,
             'answers' => $answers === [] ? new stdClass() : $answers,
+            // The language the survey was read in; null when nobody said, or said one the survey is not in.
+            'language' => $row['language'],
             'startedAt' => isoTime($row['started_at']),
             'submittedAt' => isoTime($row['submitted_at']),
         ];

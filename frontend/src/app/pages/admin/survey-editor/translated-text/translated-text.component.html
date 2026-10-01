@@ -1,0 +1,54 @@
+@if (hasOriginal() || hasValue()) {
+    <div class="pair" [class.is-compact]="compact()" [class.is-missing]="missing()">
+        <div class="side">
+            @if (!compact()) {
+                <p class="caption">{{ editing.mainName() }}</p>
+            }
+            @if (!hasOriginal()) {
+                <p class="original nothing">Nothing in {{ editing.mainName() }}</p>
+            } @else if (rich()) {
+                <div class="original rich" [attr.lang]="editing.mainLanguage()" [innerHTML]="original()"></div>
+            } @else {
+                <p class="original" [attr.lang]="editing.mainLanguage()">{{ original() }}</p>
+            }
+        </div>
+        <div class="side">
+            @if (!compact()) {
+                <p class="caption">
+                    {{ editing.languageName() }}
+                    @if (missing()) {
+                        <span class="mark">
+                            <app-icon name="alert" [size]="12" />
+                            Not translated yet
+                        </span>
+                    }
+                </p>
+            }
+            @if (rich()) {
+                <div class="slot" [attr.data-place]="key()" [attr.lang]="editing.language()">
+                    <app-rich-text-editor [value]="value()" (valueChange)="write($event)" [label]="fieldLabel()" [headings]="headings()" />
+                </div>
+            } @else {
+                <div class="slot field-control">
+                    <input
+                        class="field-input"
+                        type="text"
+                        [attr.data-place]="key()"
+                        [attr.lang]="editing.language()"
+                        [attr.maxlength]="maxLength()"
+                        [attr.aria-label]="fieldLabel() + (missing() ? ' (not translated yet)' : '')"
+                        [value]="value()"
+                        (input)="onInput($event)" />
+                    @if (compact() && missing()) {
+                        <span class="mark mark-inline" title="Not translated yet" aria-hidden="true"><app-icon name="alert" [size]="14" /></span>
+                    }
+                </div>
+            }
+            @if (leftOver()) {
+                <p class="note">{{ editing.mainName() }} has no text here any more: empty this one too, or people reading {{ editing.languageName() }} still see it.</p>
+            }
+        </div>
+    </div>
+} @else {
+    <p class="untranslated">{{ label() }}: nothing to translate - it is empty in {{ editing.mainName() }}.</p>
+}

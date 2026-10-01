@@ -169,6 +169,41 @@
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// A translation: the pictures as they are
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Under an option: only shown - nothing can be dropped on them, so no dashed edge.
+.images.is-locked {
+  padding: 0;
+  border: 0;
+}
+
+// Under a question: each picture with the field for what it shows.
+.described {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.described-image {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+
+  .thumb-frame {
+    flex: none;
+    width: 4.25rem;
+  }
+}
+
+.described-text {
+  flex: 1;
+}
+
 .problem {
   display: flex;
   align-items: flex-start;

@@ -11,7 +11,7 @@
                     <app-icon name="rotateCcw" [size]="15" />
                     Start over
                 </button>
-                <a appButton size="sm" [routerLink]="['/admin/surveys', survey.id, 'edit']">
+                <a appButton size="sm" [routerLink]="['/admin/surveys', survey.id, 'edit']" [queryParams]="editorQuery()">
                     <app-icon name="pencil" [size]="15" />
                     Back to the editor
                 </a>
@@ -20,42 +20,47 @@
     }
 
     <article class="card">
-        <app-survey-hero [heading]="survey.title" [eyebrow]="preview() ? 'Preview' : 'Survey'" [current]="state() === 'take' && phase() === 'steps' ? pageIndex() + 1 : 0" [total]="pages().length" />
+        <app-survey-hero
+            [heading]="survey.title"
+            [lang]="surveyLang()"
+            [eyebrow]="preview() ? 'Preview' : ('take.eyebrow' | translate)"
+            [current]="state() === 'take' && phase() === 'steps' ? pageIndex() + 1 : 0"
+            [total]="pages().length" />
 
         @switch (state()) {
             @case ("not-open") {
                 <div class="body message">
                     <span class="message-icon"><app-icon name="clock" [size]="24" /></span>
-                    <h2 class="message-heading">This survey is not open yet</h2>
-                    <p class="muted">It will open soon - come back then.</p>
+                    <h2 class="message-heading">{{ "take.notOpen.heading" | translate }}</h2>
+                    <p class="muted">{{ "take.notOpen.text" | translate }}</p>
                 </div>
             }
             @case ("closed") {
                 <div class="body message">
                     <span class="message-icon"><app-icon name="lock" [size]="22" /></span>
-                    <h2 class="message-heading">This survey has closed</h2>
+                    <h2 class="message-heading">{{ "take.closed.heading" | translate }}</h2>
                     <p class="muted">
                         @if (survey.closedAt) {
-                            It closed on {{ formatDate(survey.closedAt) }}.
+                            {{ "take.closed.on" | translate: { date: (survey.closedAt | localDate: "date") } }}
                         }
-                        Thank you for wanting to help - look out for the next one.
+                        {{ "take.closed.thanks" | translate }}
                     </p>
                 </div>
             }
             @case ("signed-out") {
                 <div class="body">
-                    <div class="intro rich" [innerHTML]="survey.intro"></div>
+                    <div class="intro rich" [attr.lang]="surveyLang()" [innerHTML]="survey.intro"></div>
                     <div class="sign-in">
                         <span class="sign-in-icon"><app-icon name="logIn" [size]="20" /></span>
                         <div class="sign-in-text">
-                            <p class="sign-in-heading">Sign in to take this survey</p>
-                            <p class="muted small">Your anotoki account makes sure everyone answers once. Your answers go to the people who run the anotoki sites, and nowhere else.</p>
+                            <p class="sign-in-heading">{{ "take.signIn.heading" | translate }}</p>
+                            <p class="muted small">{{ "take.signIn.text" | translate }}</p>
                         </div>
                     </div>
                     <div class="start">
                         <button appButton variant="primary" size="lg" (click)="signIn()">
                             <app-icon name="logIn" [size]="18" />
-                            Sign in with anotoki
+                            {{ "take.signIn.button" | translate }}
                         </button>
                     </div>
                 </div>
@@ -63,18 +68,18 @@
             @case ("answered") {
                 <div class="body message">
                     <span class="message-icon message-icon-success"><app-icon name="check" [size]="26" [strokeWidth]="2.4" /></span>
-                    <h2 class="message-heading">You have taken this survey</h2>
+                    <h2 class="message-heading">{{ "take.answered.heading" | translate }}</h2>
                     @if (answeredAt(); as sentAt) {
-                        <p class="muted">You sent your answers {{ timeAgo(sentAt) }}. Everyone can answer a survey once.</p>
+                        <p class="muted">{{ "take.answered.text" | translate: { when: (sentAt | localDate: "ago") } }}</p>
                     }
-                    <div class="rich thanks" [innerHTML]="survey.thanks"></div>
+                    <div class="rich thanks" [attr.lang]="surveyLang()" [innerHTML]="survey.thanks"></div>
                 </div>
             }
             @case ("sent") {
                 <div class="body message">
                     <span class="message-icon message-icon-success done-mark"><app-icon name="check" [size]="30" [strokeWidth]="2.6" /></span>
-                    <h2 class="message-heading done-heading" tabindex="-1">Thank you!</h2>
-                    <div class="rich thanks" [innerHTML]="survey.thanks"></div>
+                    <h2 class="message-heading done-heading" tabindex="-1">{{ "take.sent.heading" | translate }}</h2>
+                    <div class="rich thanks" [attr.lang]="surveyLang()" [innerHTML]="survey.thanks"></div>
                     @if (preview()) {
                         <p class="muted small">This was the preview: nothing was kept.</p>
                         <div class="message-actions">
@@ -82,7 +87,7 @@
                                 <app-icon name="rotateCcw" [size]="16" />
                                 Start the preview again
                             </button>
-                            <a appButton variant="primary" [routerLink]="['/admin/surveys', survey.id, 'edit']">Back to the editor</a>
+                            <a appButton variant="primary" [routerLink]="['/admin/surveys', survey.id, 'edit']" [queryParams]="editorQuery()">Back to the editor</a>
                         </div>
                     }
                 </div>
@@ -90,22 +95,34 @@
             @case ("take") {
                 @if (phase() === "welcome") {
                     <div class="body">
-                        <div class="intro rich" [innerHTML]="survey.intro"></div>
+                        <div class="intro rich" [attr.lang]="surveyLang()" [innerHTML]="survey.intro"></div>
 
                         @if (facts(); as facts) {
                             <ul class="facts">
                                 <li>
                                     <app-icon name="survey" [size]="16" />
-                                    {{ facts.questions }} {{ facts.questions === 1 ? "question" : "questions" }} in {{ facts.steps }} {{ facts.steps === 1 ? "step" : "steps" }}
+                                    {{ "take.size" | translate: { questions: ("take.questions" | translatePlural: facts.questions), steps: ("take.steps" | translatePlural: facts.steps) } }}
                                 </li>
                                 <li>
                                     <app-icon name="clock" [size]="16" />
-                                    About {{ facts.minutes }} {{ facts.minutes === 1 ? "minute" : "minutes" }}
+                                    {{ "take.minutes" | translatePlural: facts.minutes }}
                                 </li>
                                 @if (facts.closesOn) {
                                     <li>
                                         <app-icon name="calendar" [size]="16" />
-                                        Open until {{ formatDay(facts.closesOn) }}
+                                        {{ "take.openUntil" | translate: { day: (facts.closesOn | localDate: "day") } }}
+                                    </li>
+                                }
+                                @if (facts.language; as language) {
+                                    <li class="fact-language">
+                                        <app-icon name="globe" [size]="16" />
+                                        <span>
+                                            <span>{{ inLanguage()[0] }}</span>
+                                            @if (inLanguage()[2]) {
+                                                <span [attr.lang]="language.nameLang">{{ language.name }}</span>
+                                            }
+                                            <span>{{ inLanguage()[1] }}</span>
+                                        </span>
                                     </li>
                                 }
                             </ul>
@@ -115,28 +132,30 @@
                             <p class="who">
                                 <app-icon name="user" [size]="16" />
                                 <span>
-                                    Signed in as
-                                    <strong>{{ me.name }}</strong>
-                                    · everyone can take this survey once.
+                                    <span>{{ signedInAs()[0] }}</span>
+                                    @if (signedInAs()[2]) {
+                                        <strong>{{ me.name }}</strong>
+                                    }
+                                    <span>{{ signedInAs()[1] }}</span>
                                 </span>
                             </p>
                         }
 
                         @if (draft(); as draft) {
-                            <app-alert tone="info" heading="Carry on where you stopped?">
-                                You started this survey {{ timeAgo(draft.savedAt) }} and got to step {{ draftStep() }} of {{ pages().length }}. Your answers so far are kept in this browser.
+                            <app-alert tone="info" [heading]="'take.carryOn.heading' | translate">
+                                {{ "take.carryOn.text" | translate: { when: (draft.startedAt | localDate: "ago"), step: draftStep(), steps: pages().length } }}
                                 <div alertActions>
                                     <button appButton variant="primary" (click)="carryOn()">
-                                        Carry on
+                                        {{ "take.carryOn.button" | translate }}
                                         <app-icon name="arrowRight" [size]="16" />
                                     </button>
-                                    <button appButton variant="ghost" (click)="startAgain()">Start again</button>
+                                    <button appButton variant="ghost" (click)="startAgain()">{{ "take.startAgain" | translate }}</button>
                                 </div>
                             </app-alert>
                         } @else {
                             <div class="start">
                                 <button appButton variant="primary" size="lg" (click)="start()">
-                                    Start the survey
+                                    {{ "take.start" | translate }}
                                     <app-icon name="arrowRight" [size]="18" />
                                 </button>
                             </div>
@@ -145,9 +164,9 @@
                 } @else if (page(); as page) {
                     <form class="body" novalidate (submit)="next($event)">
                         @if (page.title) {
-                            <h2 class="step-heading" tabindex="-1">{{ page.title }}</h2>
+                            <h2 class="step-heading" tabindex="-1" [attr.lang]="page.lang">{{ page.title }}</h2>
                         } @else {
-                            <h2 class="step-heading visually-hidden" tabindex="-1">Step {{ pageIndex() + 1 }} of {{ pages().length }}</h2>
+                            <h2 class="step-heading visually-hidden" tabindex="-1">{{ "take.stepSpoken" | translate: { n: pageIndex() + 1, m: pages().length } }}</h2>
                         }
 
                         @for (current of [page]; track current.key) {
@@ -156,6 +175,7 @@
                                     <app-question-block
                                         [question]="item.question"
                                         [number]="item.number"
+                                        [lang]="current.lang"
                                         [answer]="answers()[item.question.id]"
                                         [error]="tried() ? (problems().get(item.question.id) ?? null) : null"
                                         (answerChange)="setAnswer(item.question.id, $event)" />
@@ -166,14 +186,14 @@
                         <footer class="step-actions">
                             <button appButton variant="ghost" (click)="back()">
                                 <app-icon name="arrowLeft" [size]="17" />
-                                Back
+                                {{ "take.back" | translate }}
                             </button>
                             <button appButton variant="primary" type="submit" [loading]="sending()">
                                 @if (isLast()) {
-                                    Send my answers
+                                    {{ "take.send" | translate }}
                                     <app-icon name="send" [size]="16" />
                                 } @else {
-                                    Next
+                                    {{ "take.next" | translate }}
                                     <app-icon name="arrowRight" [size]="17" />
                                 }
                             </button>
@@ -186,17 +206,17 @@
 } @else {
     @switch (state()) {
         @case ("loading") {
-            <div class="loading"><app-spinner label="Loading the survey" [showLabel]="true" /></div>
+            <div class="loading"><app-spinner [label]="'take.loading' | translate" [showLabel]="true" /></div>
         }
         @case ("failed") {
             <article class="card">
                 <div class="body message" role="alert">
                     <span class="message-icon"><app-icon name="alert" [size]="22" /></span>
-                    <h1 class="message-heading">The survey could not be loaded</h1>
-                    <p class="muted">The site did not answer as it should. Try again in a moment.</p>
+                    <h1 class="message-heading">{{ "take.failed.heading" | translate }}</h1>
+                    <p class="muted">{{ "take.failed.text" | translate }}</p>
                     <button appButton variant="primary" (click)="retry()">
                         <app-icon name="refresh" [size]="16" />
-                        Try again
+                        {{ "common.tryAgain" | translate }}
                     </button>
                 </div>
             </article>
@@ -205,9 +225,9 @@
             <article class="card">
                 <div class="body message">
                     <span class="message-icon"><app-icon name="search" [size]="22" /></span>
-                    <h1 class="message-heading">There is no survey here</h1>
-                    <p class="muted">The address may be mistyped, or the survey has been taken down.</p>
-                    <a appButton variant="primary" routerLink="/">See the open surveys</a>
+                    <h1 class="message-heading">{{ "take.missing.heading" | translate }}</h1>
+                    <p class="muted">{{ "take.missing.text" | translate }}</p>
+                    <a appButton variant="primary" routerLink="/">{{ "take.missing.link" | translate }}</a>
                 </div>
             </article>
         }

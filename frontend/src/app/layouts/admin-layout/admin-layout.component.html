@@ -6,6 +6,14 @@
 <main #main id="main" class="content" tabindex="-1">
     @if (auth.isStaff()) {
         <router-outlet />
+    } @else if (!auth.signedIn()) {
+        <!-- No button here: signing in is the top bar's, and it is on the page whenever nobody is signed in. -->
+        <div class="no-access">
+            <app-empty-state
+                icon="lock"
+                heading="You are signed out"
+                text="Your session has ended. Sign in again with the button at the top: what you typed on the Translations and Languages pages is kept in this tab, and will be in its boxes again. Changes to a survey that were not saved yet stay only while this page is open - sign in again in another tab to save them." />
+        </div>
     } @else {
         <div class="no-access">
             <app-empty-state

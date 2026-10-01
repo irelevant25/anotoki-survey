@@ -62,3 +62,4 @@ require_once __DIR__ . '/survey_rules.php';
 require_once __DIR__ . '/surveys.php';
 require_once __DIR__ . '/responses.php';
 require_once __DIR__ . '/images.php';
+require_once __DIR__ . '/translations.php';

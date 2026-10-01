@@ -10,29 +10,27 @@
 
     <div class="content">
         <p class="eyebrow">{{ eyebrow() }}</p>
-        <h1 class="title">{{ heading() }}</h1>
+        <h1 class="title" [attr.lang]="lang()">{{ heading() }}</h1>
 
         @if (total() > 0 && current() > 0) {
             <div class="progress">
                 <p class="where">
                     <span>
-                        Step
-                        <strong>{{ current() }}</strong>
-                        of {{ total() }}
+                        <span>{{ where()[0] }}</span>
+                        @if (where()[2]) {
+                            <strong>{{ current() }}</strong>
+                        }
+                        <span>{{ where()[1] }}</span>
                     </span>
-                    @if (stepTitle()) {
-                        <span class="sep" aria-hidden="true">·</span>
-                        <span class="step-title">{{ stepTitle() }}</span>
-                    }
                 </p>
                 <div
                     class="segments"
                     role="progressbar"
-                    aria-label="Your progress"
+                    [attr.aria-label]="'take.progress' | translate"
                     aria-valuemin="1"
                     [attr.aria-valuemax]="total()"
                     [attr.aria-valuenow]="current()"
-                    [attr.aria-valuetext]="'Step ' + current() + ' of ' + total()">
+                    [attr.aria-valuetext]="'take.stepSpoken' | translate: { n: current(), m: total() }">
                     @for (n of segments(); track n) {
                         <span class="segment" [class.is-done]="n < current()" [class.is-current]="n === current()"></span>
                     }

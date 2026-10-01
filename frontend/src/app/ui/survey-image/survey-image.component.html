@@ -11,7 +11,7 @@
         (error)="broken.set(true)" />
 }
 @if (!source() || broken()) {
-    <span class="missing" [attr.role]="decorative() ? null : 'img'" [attr.aria-label]="decorative() ? null : 'The picture is missing'" [attr.title]="'The picture is missing'">
+    <span class="missing" [attr.role]="decorative() ? null : 'img'" [attr.aria-label]="decorative() ? null : ('image.missing' | translate)" [attr.title]="'image.missing' | translate">
         <app-icon name="imageOff" [size]="22" />
     </span>
 } @else if (!loaded()) {

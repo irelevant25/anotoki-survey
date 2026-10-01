@@ -154,6 +154,46 @@
   color: var(--primary);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// A translation: the options as they are, each with the field for its label
+// ─────────────────────────────────────────────────────────────────────────────
+
+.translated {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.translated-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+
+  // Level with the first line of the pair.
+  .mark {
+    margin-top: 0.7rem;
+  }
+
+  .other-tag {
+    align-self: flex-start;
+  }
+}
+
+.translated-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.translated-images.is-empty {
+  display: none;
+}
+
 .adds {
   display: flex;
   flex-wrap: wrap;

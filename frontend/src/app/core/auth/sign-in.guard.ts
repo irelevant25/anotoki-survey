@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
+import { TranslationService } from '../i18n/translation.service';
 import { AuthService } from './auth.service';
 
 /**
@@ -18,6 +19,7 @@ export const signInGuard: CanActivateFn = () => {
     return true;
   }
   const navigation = inject(Router).currentNavigation();
-  auth.signIn(navigation ? navigation.extractedUrl.toString() : location.pathname + location.search);
+  // The IAM's pages in the language the person reads here - theirs, not the admin area's English.
+  auth.signIn(navigation ? navigation.extractedUrl.toString() : location.pathname + location.search, inject(TranslationService).language());
   return false;
 };

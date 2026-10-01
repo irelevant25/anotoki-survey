@@ -1,19 +1,15 @@
 <header class="topbar">
     <div class="topbar-inner" [class.is-narrow]="width() === 'narrow'">
         @if (area() === "admin") {
-            <app-brand [size]="32" [wordmark]="!tiny()" area="survey" link="/admin" linkLabel="anotoki survey: all surveys" />
+            <app-brand [size]="32" [wordmark]="!tiny()" [area]="'brand.area' | translate" link="/admin" [linkLabel]="'topbar.homeAdmin' | translate" />
         } @else {
-            <app-brand [size]="32" [wordmark]="!tiny()" area="survey" link="/" linkLabel="anotoki survey: the open surveys" />
+            <app-brand [size]="32" [wordmark]="!tiny()" [area]="'brand.area' | translate" link="/" [linkLabel]="'topbar.home' | translate" />
         }
 
         <div class="topbar-actions">
-            @if (area() === "survey" && auth.isStaff()) {
-                <a class="area-link" routerLink="/admin">
-                    <app-icon name="shield" [size]="16" />
-                    <span class="area-text">Admin</span>
-                </a>
+            @if (area() === "survey" && i18n.languages().length > 1) {
+                <app-language-switcher />
             }
-
             <app-theme-toggle [compact]="true" />
 
             @if (auth.person(); as me) {
@@ -25,7 +21,7 @@
                         aria-haspopup="menu"
                         [attr.aria-expanded]="menuOpen()"
                         aria-controls="user-menu"
-                        [attr.aria-label]="'Your menu: ' + me.name"
+                        [attr.aria-label]="'topbar.menuButton' | translate: { name: me.name }"
                         (click)="toggleMenu()">
                         <span class="avatar" aria-hidden="true">{{ initial() }}</span>
                         <span class="user-name">{{ me.name }}</span>
@@ -33,22 +29,22 @@
                     </button>
 
                     @if (menuOpen()) {
-                        <div #menu id="user-menu" class="menu" role="menu" aria-label="Your menu" (keydown)="onMenuKeydown($event)">
+                        <div #menu id="user-menu" class="menu" role="menu" [attr.aria-label]="'topbar.menu' | translate" (keydown)="onMenuKeydown($event)">
                             <div class="menu-head" role="none">
                                 <span class="menu-name">{{ me.name }}</span>
                                 @if (me.email) {
                                     <span class="menu-email">{{ me.email }}</span>
                                 }
                                 @if (auth.isAdmin()) {
-                                    <span class="menu-role">Administrator</span>
+                                    <span class="menu-role">{{ "topbar.roleAdmin" | translate }}</span>
                                 } @else if (auth.isStaff()) {
-                                    <span class="menu-role">Editor</span>
+                                    <span class="menu-role">{{ "topbar.roleEditor" | translate }}</span>
                                 }
                             </div>
                             @if (accountUrl(); as url) {
                                 <a role="menuitem" class="menu-item" [href]="url" target="_blank" rel="noopener" (click)="closeMenu(false)">
                                     <app-icon name="user" [size]="17" />
-                                    Your anotoki account
+                                    {{ "topbar.account" | translate }}
                                     <app-icon class="menu-external" name="externalLink" [size]="14" />
                                 </a>
                             }
@@ -56,12 +52,12 @@
                                 @if (area() === "admin") {
                                     <a role="menuitem" class="menu-item" routerLink="/" (click)="closeMenu(false)">
                                         <app-icon name="survey" [size]="17" />
-                                        The open surveys
+                                        {{ "topbar.openSurveys" | translate }}
                                     </a>
                                 } @else {
                                     <a role="menuitem" class="menu-item" routerLink="/admin" (click)="closeMenu(false)">
                                         <app-icon name="shield" [size]="17" />
-                                        Admin
+                                        {{ "topbar.admin" | translate }}
                                     </a>
                                 }
                             }
@@ -72,7 +68,7 @@
                                 } @else {
                                     <app-icon name="logOut" [size]="17" />
                                 }
-                                Sign out
+                                {{ "common.signOut" | translate }}
                             </button>
                         </div>
                     }
@@ -80,7 +76,7 @@
             } @else {
                 <button appButton size="sm" variant="primary" (click)="signIn()">
                     <app-icon name="logIn" [size]="16" />
-                    Sign in
+                    {{ "common.signIn" | translate }}
                 </button>
             }
         </div>

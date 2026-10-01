@@ -250,6 +250,8 @@ function genshinSurvey(now: number): Survey {
         }),
       ]),
     ],
+    language: 'en',
+    translations: {},
     createdAt: iso(opened - 2 * DAY),
     updatedAt: iso(opened - 20 * MINUTE),
     openedAt: iso(opened),
@@ -276,6 +278,8 @@ function japaneseSurvey(now: number): Survey {
       ]),
       step('j-s2', 'Your thoughts', [question('j-q3', 'text', '<p>What would help you learn faster?</p>', [], { required: false })]),
     ],
+    language: 'en',
+    translations: {},
     createdAt: iso(created),
     updatedAt: iso(created + 40 * MINUTE),
     openedAt: null,
@@ -303,6 +307,8 @@ function accountsSurvey(now: number): Survey {
       ]),
       step('a-s2', 'Anything else', [question('a-q3', 'text', '<p>Was anything confusing? Tell us about it.</p>', [], { required: false })]),
     ],
+    language: 'en',
+    translations: {},
     createdAt: iso(opened - 3 * DAY),
     updatedAt: iso(opened - 60 * MINUTE),
     openedAt: iso(opened),
@@ -473,6 +479,7 @@ function genshinResponses(random: Random, survey: Survey, people: Person[], now:
       person,
       aboutYou: aboutYouOf(random, [0.2, 0.42, 0.25, 0.08, 0.02, 0.03]),
       answers: a.byQuestion,
+      language: survey.language,
       startedAt: iso(submitted - seconds * 1000),
       submittedAt: iso(submitted),
     };
@@ -503,6 +510,8 @@ function accountsResponses(random: Random, survey: Survey, people: Person[]): Su
       person,
       aboutYou: aboutYouOf(random, [0.14, 0.38, 0.3, 0.12, 0.04, 0.02]),
       answers: a.byQuestion,
+      // Answered before surveys had languages: nobody recorded which one it was read in.
+      language: null,
       startedAt: iso(submitted - seconds * 1000),
       submittedAt: iso(submitted),
     };

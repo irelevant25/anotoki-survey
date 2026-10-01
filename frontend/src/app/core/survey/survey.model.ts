@@ -79,6 +79,46 @@ export interface Step {
   questions: Question[];
 }
 
+/** A step's title in another language. */
+export interface StepTranslation {
+  title: string;
+}
+
+/**
+ * A question's texts in another language. The options and the pictures under
+ * the question's text are found by their ids; an option's own pictures have
+ * no description, so nothing of theirs is here.
+ */
+export interface QuestionTranslation {
+  /** HTML, like the question's own text. */
+  text: string;
+  placeholder: string;
+  options: Record<string, { label: string }>;
+  /** What each picture under the question's text shows; the same picture twice shares one description. */
+  images: Record<string, { alt: string }>;
+}
+
+/**
+ * A survey's texts in one more language, each found by the id of what it
+ * belongs to - so the structure, the pictures and the limits stay the
+ * survey's own, and an answer means the same whichever language it was read
+ * in. A text that is not translated yet is empty (or has no entry).
+ *
+ * The maps are only ever read, and written by spreading into a new object
+ * (core/survey/localize.ts has the functions).
+ */
+export interface SurveyTranslation {
+  title: string;
+  /** The welcome screen: HTML. */
+  intro: string;
+  /** The thank-you screen: HTML. */
+  thanks: string;
+  /** By step id. */
+  steps: Record<string, StepTranslation>;
+  /** By question id. */
+  questions: Record<string, QuestionTranslation>;
+}
+
 export interface Survey {
   id: string;
   /** The survey's address: survey.anotoki.eu/{slug}. */
@@ -94,6 +134,10 @@ export interface Survey {
   /** An open survey closes by itself after this day (YYYY-MM-DD), if set. */
   closesOn: string | null;
   steps: Step[];
+  /** The language the survey is written in: the texts of the document itself. */
+  language: string;
+  /** The same texts in other languages, by language code. */
+  translations: Record<string, SurveyTranslation>;
   createdAt: string;
   updatedAt: string;
   openedAt: string | null;
@@ -154,6 +198,15 @@ export interface SurveyResponse {
   aboutYou: AboutYou | null;
   /** By question id. A question left unanswered has no entry. */
   answers: Record<string, Answer>;
+  /**
+   * The language the survey's texts were shown in when the answers were sent
+   * (what localizedSurvey() reported): the survey's own, or one of its
+   * translations. Always said: the page taking the survey sets it on the
+   * answers it puts together, and the server sends what it kept. Null when
+   * that is nothing - answers from before surveys had languages, or sent with
+   * a language the survey does not have.
+   */
+  language: string | null;
   startedAt: string;
   submittedAt: string;
 }

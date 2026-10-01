@@ -22,9 +22,26 @@ Working conventions:
 - A rule an answer or a survey must keep lives in two places in the same words:
   `frontend/src/app/core/survey/` and `backend/api/survey_rules.php`. Change
   both, and both sides' tests.
+- What the site says to somebody taking a survey is a key, not a sentence in a
+  template or in state: `'home.title' | translate` (`core/i18n/`), with the key,
+  its English and its formal Slovak string in a migration
+  (`003_site_strings.sql` is the pattern). A string is text, never HTML. The
+  admin area (`pages/admin`, `layouts/admin-layout`) is English, written in its
+  templates. `tests/unit/translations.test.php` fails on a key no migration
+  wrote, or one nothing uses.
+- A survey holds its texts in more than one language (`language`,
+  `translations`; `core/survey/localize.ts` and its twin in
+  `survey_rules.php`): a text people read on a survey has its place in the
+  translations on both sides, and a save always sends both fields.
 - The editor changes surveys only through `AdminStore.updateSurvey()` /
   `SurveyEditing` (by id). Saves carry a revision; conflicts are the editor's
   to settle, never overwritten.
+- What is typed and not saved in the admin area lives outside its page
+  (`AdminStore`, `LocalizationDrafts`): a session that ends takes the page away
+  with no navigation. A failure is said where the person is looking.
+- A check followed by a write holds a lock between them, inside the
+  transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
+  browser's `trim()`).
 - Who a request is comes only from the verified token; roles through
   `requireRole()`. Queries use `?` parameters; identifiers come from literals.
 - User HTML only through `richTextClean()`. Pictures are checked by their
@@ -41,5 +58,6 @@ Working conventions:
 - Never print or commit a password, token, or a path on anybody's machine.
 
 Finish with the skill's checks: `php tests/run.php`, `npm test`, `npm run build`,
-Prettier, the browser check for anything a page shows - and the knowledge base
+Prettier, the browser check for anything a page shows (it has a Slovak pass:
+look at those screenshots too) - and the knowledge base
 (`docs/`, the skill, `CLAUDE.md`, README, DEV.md) brought in step with the change.

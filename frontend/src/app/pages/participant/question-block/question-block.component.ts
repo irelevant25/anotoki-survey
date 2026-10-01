@@ -1,5 +1,9 @@
 import { ChangeDetectionStrategy, Component, Injector, afterNextRender, computed, inject, input, output, signal } from '@angular/core';
-import { choiceLimits, choiceRule, emptyAnswer, textLimit, withoutControls } from '../../../core/survey/answer-rules';
+import { problemText, ruleText } from '../../../core/i18n/answer-words';
+import { TranslatePluralPipe } from '../../../core/i18n/translate-plural.pipe';
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
+import { TranslationService } from '../../../core/i18n/translation.service';
+import { AnswerProblem, choiceLimits, choiceRule, emptyAnswer, textLimit, withoutControls } from '../../../core/survey/answer-rules';
 import { Answer, ChoiceOption, Question } from '../../../core/survey/survey.model';
 import { AutofocusDirective } from '../../../ui/autofocus.directive';
 import { IconComponent } from '../../../ui/icon/icon.component';
@@ -19,10 +23,22 @@ import { uniqueId } from '../../../ui/unique-id';
  *
  * With several choices, once the most allowed are picked the rest wait,
  * dimmed, until one is taken back - the limit is felt, not just reported.
+ *
+ * The rule and the problem arrive as a kind and its numbers
+ * (core/survey/answer-rules.ts) and are worded here, in the reader's language
+ * (core/i18n/answer-words.ts) - so they follow a change of language. The
+ * question's own text, its options and its pictures are the survey's - and in
+ * the survey's language, which `lang` names when it is not the page's: the
+ * text, each option's label and the large picture's words carry it; the site's
+ * own words around them (the rule, the problem, "Optional") do not. The hint
+ * of an own-words field carries none, on purpose: `lang` on a field is also
+ * the language of the answer typed into it - the spelling checker's
+ * dictionary and the voice that reads it back - and somebody shown a survey
+ * in its own language mostly answers in theirs.
  */
 @Component({
   selector: 'app-question-block',
-  imports: [IconComponent, AutofocusDirective, SurveyImageComponent],
+  imports: [IconComponent, AutofocusDirective, SurveyImageComponent, TranslatePipe, TranslatePluralPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './question-block.component.html',
   styleUrl: './question-block.component.scss',
@@ -32,12 +48,19 @@ export class QuestionBlockComponent {
   /** The number before the question; null for gender and age, which have none. */
   readonly number = input<number | null>(null);
   readonly answer = input<Answer | undefined>(undefined);
-  /** What is wrong with the answer, shown once the person has tried to go on. */
-  readonly error = input<string | null>(null);
+  /** What is wrong with the answer, shown once the person has tried to go on: a kind, not a sentence - it is worded here. */
+  readonly error = input<AnswerProblem | null>(null);
+  /**
+   * The language the question's own texts are in, when it is not the page's -
+   * a survey read in the language it was written in, on a page in another.
+   * Null: the page's own (and always for gender and age, which the site words).
+   */
+  readonly lang = input<string | null>(null);
 
   readonly answerChange = output<Answer>();
 
   private readonly _injector = inject(Injector);
+  private readonly _i18n = inject(TranslationService);
 
   protected readonly name = uniqueId('question');
   protected readonly textId = `${this.name}-text`;
@@ -50,7 +73,11 @@ export class QuestionBlockComponent {
     const known = new Set(this.question().options.map((option) => option.id));
     return new Set((this.answer()?.optionIds ?? []).filter((id) => known.has(id)));
   });
+  /** How many to choose; null for a question that has no such line. */
   protected readonly rule = computed(() => choiceRule(this.question()));
+  protected readonly ruleWords = computed(() => ruleText(this._i18n, this.rule()));
+  /** The problem in words - "Other" by the label this question shows. */
+  protected readonly errorWords = computed(() => problemText(this._i18n, this.error(), this.question()));
   protected readonly limits = computed(() => choiceLimits(this.question()));
   protected readonly full = computed(() => {
     const question = this.question();
@@ -101,7 +128,7 @@ export class QuestionBlockComponent {
 
   /** An option's pictures, large - beside the card, not on it, so looking closer does not choose it. */
   protected enlarge(option: ChoiceOption): void {
-    this.lightbox.open(option.images, 0, option.label);
+    this.lightbox.open(option.images, 0, option.label, this.lang());
   }
 
   protected setOther(event: Event): void {

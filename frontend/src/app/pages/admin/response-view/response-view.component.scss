@@ -4,6 +4,21 @@
   gap: 1.5rem;
 }
 
+// The language the person had the survey in; the questions below are in the survey's own.
+// One more fact about the answers: it stands with the facts above it (the
+// drawer's and the page's, both 1.25rem away from this component) - as far
+// from them as they are from each other, and a whole step's gap from the
+// first step below.
+.read-in {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: -0.75rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
 .step {
   display: flex;
   flex-direction: column;

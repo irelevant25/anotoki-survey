@@ -27,11 +27,12 @@ declare(strict_types=1);
  *   vendor/          Slim and its dependencies (the host cannot run composer)
  *   storage/         empty; PHP writes the IAM key cache, the setup token and lock
  *
- * Left out: every *.local.php (your settings), router.php, migration.php and
- * tools/ (for computers with a shell), the tests, and composer.json and
- * composer.lock - vendor/ loads itself, and in the web root they would hand
- * anybody the list of every dependency and its version. DEV.md ("Deploying")
- * has the rest.
+ * Left out: every *.local.php (your settings), router.php, migration.php,
+ * translations.php and tools/ (for computers with a shell), the tests, and
+ * composer.json and composer.lock - vendor/ loads itself, and in the web root
+ * they would hand anybody the list of every dependency and its version. What
+ * is copied is named below, one by one: a new file beside setup.php is left
+ * out until it is added there. DEV.md ("Deploying") has the rest.
  */
 
 if (PHP_SAPI !== 'cli') {

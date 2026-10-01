@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, afterNextRender, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { SpinnerComponent } from '../../ui/spinner/spinner.component';
 
 /**
@@ -11,7 +12,7 @@ import { SpinnerComponent } from '../../ui/spinner/spinner.component';
  */
 @Component({
   selector: 'app-auth-callback-page',
-  imports: [SpinnerComponent],
+  imports: [SpinnerComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './auth-callback-page.component.html',
   styleUrl: './auth-callback-page.component.scss',

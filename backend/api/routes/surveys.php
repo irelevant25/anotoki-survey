@@ -13,7 +13,9 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *
  *   GET  /api/surveys                    {surveys: [{survey, answeredAt}]}: the ones taking answers now
  *   GET  /api/surveys/{slug}             {survey, answeredAt}: open or closed, never a draft
- *   POST /api/surveys/{slug}/responses   {aboutYou, answers, startedAt} -> 201 {id, submittedAt}
+ *   POST /api/surveys/{slug}/responses   {aboutYou, answers, startedAt, language} -> 201 {id, submittedAt};
+ *                                        `language`: the one the survey was read in - kept when it is
+ *                                        one of the survey's, never a reason to refuse the answers
  *
  * @var \Slim\App $app
  */

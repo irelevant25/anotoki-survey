@@ -2,7 +2,7 @@
     @if (problems().length) {
         <h2 id="problems-title" class="panel-title warn">
             <app-icon name="alert" [size]="16" />
-            {{ problems().length }} to fix before it opens
+            {{ problemsTitle() }}
         </h2>
         <ul class="problem-list">
             @for (problem of problems(); track $index) {
@@ -14,7 +14,7 @@
     } @else {
         <h2 id="problems-title" class="panel-title ready">
             <app-icon name="checkCircle" [size]="16" />
-            Ready to open
+            {{ problemsTitle() }}
         </h2>
     }
 </section>
@@ -24,6 +24,16 @@
         <app-icon name="listOrdered" [size]="16" />
         Outline
     </h2>
+    @if (translating(); as language) {
+        <p class="legend">
+            @if (toTranslate()) {
+                <span class="todo" aria-hidden="true">{{ toTranslate() }}</span>
+                <span>{{ toTranslate() === 1 ? "text" : "texts" }} of the steps and questions still to translate into {{ language }}</span>
+            } @else {
+                No step or question has a text left to translate into {{ language }}.
+            }
+        </p>
+    }
     <ol class="steps">
         @if (survey().askAboutYou) {
             <li class="step">
@@ -35,16 +45,28 @@
         }
         @for (item of steps(); track item.step.id) {
             <li class="step">
-                <button type="button" class="step-name" (click)="goTo.emit({ kind: 'step', stepId: item.step.id })">
+                <button type="button" class="step-name" (click)="show.emit({ kind: 'step', stepId: item.step.id })">
                     <span class="step-number">{{ item.number }}</span>
-                    {{ item.step.title || "Untitled step" }}
+                    <span class="step-text">{{ item.step.title || "Untitled step" }}</span>
+                    @if (item.titleMissing) {
+                        <span class="todo" [attr.title]="'Its title is still to translate into ' + translating()">
+                            1
+                            <span class="visually-hidden">text to translate</span>
+                        </span>
+                    }
                 </button>
                 <ol class="questions">
                     @for (entry of item.questions; track entry.question.id) {
                         <li>
-                            <button type="button" class="question" (click)="goTo.emit({ kind: 'question', questionId: entry.question.id })">
+                            <button type="button" class="question" (click)="show.emit({ kind: 'question', questionId: entry.question.id })">
                                 <span class="question-number">{{ entry.number }}.</span>
                                 <span class="question-text" [class.is-empty]="!entry.text">{{ entry.text || "No text yet" }}</span>
+                                @if (entry.missing) {
+                                    <span class="todo" [attr.title]="(entry.missing === 1 ? '1 text' : entry.missing + ' texts') + ' still to translate into ' + translating()">
+                                        {{ entry.missing }}
+                                        <span class="visually-hidden">{{ entry.missing === 1 ? "text" : "texts" }} to translate</span>
+                                    </span>
+                                }
                             </button>
                         </li>
                     }

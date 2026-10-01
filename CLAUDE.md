@@ -47,11 +47,30 @@ file, the agents, `README.md` ("Current state"), `DEV.md`.
   area, `requireRole(ROLE_ADMIN)` for deleting. The frontend's `isStaff` /
   `isAdmin` only hide what the server refuses anyway.
 - **The rules are written twice, in the same words**: `frontend/src/app/core/survey/`
-  (`answer-rules.ts`, `survey-problems.ts`) and `backend/api/survey_rules.php`.
-  Change one, change the other, and their tests.
+  (`answer-rules.ts`, `survey-problems.ts`, `localize.ts`) and
+  `backend/api/survey_rules.php`. Change one, change the other, and their tests.
+  In the frontend an answer's rule and problem are a kind and its numbers:
+  `answerProblemText()` / `choiceRuleText()` say them in English - the server's
+  sentence, word for word, and what the admin area quotes - and the page a
+  person answers on words the kind in their language
+  (`core/i18n/answer-words.ts`), never with the server's sentence.
 - **A survey is one JSONB document** (`surveys.content`) checked on the way in
   (`surveyFromBody()`); texts are cleaned HTML (`api/rich_text.php`: the editor's
   elements only); pictures are ones the server has, sized and addressed by it.
+  It is written in one language (`language`) and holds the same texts in others
+  (`translations`, found by the ids of what they belong to): a save must send
+  both, and every map of a translation leaves PHP as a JSON object
+  (`surveyTranslationsJson()`). People read a translation only when it is whole
+  (`localizedSurvey()`, `core/survey/localize.ts`).
+- **The site's own words are in the database** (`languages`, `translation_keys`,
+  `translations`; `api/translations.php`), English and Slovak. Only what
+  somebody taking a survey sees is translated: those pages name a key
+  (`'home.title' | translate`, `core/i18n/`) and the admin area stays English,
+  written in its templates. Migrations write the keys and their first strings;
+  the admin area (`/admin/translations`, `/admin/languages`) only rewords them.
+  A key with no string shows as itself, on purpose. A string is text, never
+  HTML. Slovak here addresses the reader formally (Vy, capital V) - unlike the
+  other anotoki sites.
 - **Saves carry a revision.** The editor saves through `AdminStore.updateSurvey()`
   (in the editor, through `SurveyEditing`, by id); a save made to an old
   revision is a conflict the editor settles - never overwrite it silently, and
@@ -61,16 +80,27 @@ file, the agents, `README.md` ("Current state"), `DEV.md`.
   never changed, and deleted a day after no survey shows them.
 - **Migrations are the schema**: `backend/migrations/survey/NNN_name.sql`, the
   family's engine (`api/migration_runner.php`). Never edit an applied one.
-  Data-changing ones end with a `DO $$` gate that fails loudly.
+  Data-changing ones end with a `DO $$` gate that fails loudly. A string the
+  site gains, rewords or stops using is a migration too (`003_site_strings.sql`
+  is the pattern: a key, its English and its Slovak string, inserts that never
+  write over what was reworded in the admin area);
+  `tests/unit/translations.test.php` fails when the frontend uses a key no
+  migration wrote, or a migration wrote one nothing uses.
 - **PHP**: `declare(strict_types=1)`, functions by area (`survey*`, `response*`,
-  `image*`, `richText*`, `answer*`), `?` parameters in every query, identifiers
-  only from literals. `setup.php` stays parseable by PHP 7.4.
+  `image*`, `richText*`, `answer*`, `language*`, `translation*`), `?`
+  parameters in every query, identifiers only from literals. `setup.php` stays
+  parseable by PHP 7.4.
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. The UI kit is the IAM's (`src/app/ui/`);
   colours only from the tokens in `src/styles.scss`, light and dark; every page
-  works at 390 px (360 px for the top bar). English only; words are written in
-  the templates.
+  works at 390 px (360 px for the top bar). Words: what the site itself says
+  to somebody taking a survey (their pages, the top bar, the UI kit pieces
+  they meet) is a key, never a sentence in a template or in state - state holds
+  keys, kinds and `ApiError`s, and the wording happens in the template (the
+  pipes) or in a `computed()` / `effect()`. English in the templates: everything
+  under `pages/admin` and `layouts/admin-layout`, the preview's own chrome, and
+  the boot pages' fallback beside their keys (`boot/kept-word.ts`).
 - **No changelog** on this site (the owner's decision); the version is
   `frontend/package.json`'s.
 
@@ -80,14 +110,17 @@ file, the agents, `README.md` ("Current state"), `DEV.md`.
 # Backend (from backend/)
 composer start                          # php -S localhost:8500 router.php: the API and setup.php
 php tests/run.php                       # every PHP test, throwaway survey_test_* databases
+php tests/tools/testdb.php template --fresh   # after editing a migration the tests' template has applied
 php migration.php [--status|--dry-run]  # migrations for the configured database
+php translations.php --status           # the keys the frontend uses against the database's strings
+php translations.php --export sk [file] | --import sk file   # a language's strings as flat JSON
 php tools/build.php                     # the upload -> ../dist/ (builds the frontend too)
 
 # Frontend (from frontend/)
 npm install && npm start                # ng serve on :4700
 npm test                                # Vitest
 npm run build                           # production -> dist/survey/browser/
-npx prettier --check "src/**/*.{ts,html,scss}"
+npx prettier --check "src/**/*.{ts,html,scss}"   # a checkout with CRLF line endings: add --end-of-line crlf
 
 # The site in a browser, signed in through the stand-in IAM (from the root)
 node .claude/skills/check-in-browser/scripts/run.mjs [--no-build] [--keep]

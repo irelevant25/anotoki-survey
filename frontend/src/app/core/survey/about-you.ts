@@ -6,6 +6,14 @@
  * same in every survey and the results can be compared from one to the next.
  * Age is a range, not a number: enough to tell the groups apart without
  * asking anybody for more than that.
+ *
+ * The labels and the two questions here are English, for the admin area (the
+ * results, the CSV, a response's page). The person answering reads them in
+ * their own language: the keys below are the last segment of the translation
+ * keys `aboutYou.gender.<key>` and `aboutYou.age.<key>` (aboutYouQuestions()
+ * in about-you-questions.ts; the list in core/i18n/dynamic-keys.ts) - so a
+ * key added or renamed here needs its strings, and the same on the server
+ * (SURVEY_GENDERS, SURVEY_AGES).
  */
 
 export const GENDERS = [

@@ -8,6 +8,7 @@ import { ConfirmService } from '../../../../ui/confirm/confirm.service';
 import { IconComponent } from '../../../../ui/icon/icon.component';
 import { ImageListEditorComponent } from '../image-list-editor/image-list-editor.component';
 import { SurveyEditing } from '../survey-editing.service';
+import { TranslatedTextComponent } from '../translated-text/translated-text.component';
 
 /**
  * The options of a choice question, written as a list.
@@ -27,10 +28,15 @@ import { SurveyEditing } from '../survey-editing.service';
  * Every change names its option by id and is made to the options as the
  * survey holds them then (SurveyEditing) - a picture landing on one option
  * while another is being typed loses neither.
+ *
+ * On a translation's tab (SurveyEditing.language) the list is the survey's as
+ * it is: each option's label with the field for its translation, and none of
+ * the above - no adding, removing or moving, no Enter, Backspace or pasted
+ * list. A list pasted into a translation's field must never make options.
  */
 @Component({
   selector: 'app-options-editor',
-  imports: [CdkDropList, CdkDrag, CdkDragHandle, ButtonComponent, IconComponent, ImageListEditorComponent],
+  imports: [CdkDropList, CdkDrag, CdkDragHandle, ButtonComponent, IconComponent, ImageListEditorComponent, TranslatedTextComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './options-editor.component.html',
   styleUrl: './options-editor.component.scss',
@@ -50,12 +56,16 @@ export class OptionsEditorComponent {
   private readonly _host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly _imageLists = viewChildren(ImageListEditorComponent);
 
+  /** A translation is being edited: the options are listed with their translations, and cannot be changed. */
+  protected readonly translating = computed(() => this._editing.language() !== null);
   protected readonly hasOther = computed(() => this.options().some((option) => option.other));
   protected readonly maxImages = MAX_OPTION_IMAGES;
 
   /** The option's file picker, from its picture button. */
   protected pickImages(optionId: string): void {
-    this._imageList(optionId)?.pick();
+    if (!this.translating()) {
+      this._imageList(optionId)?.pick();
+    }
   }
 
   protected rename(optionId: string, event: Event): void {
@@ -145,7 +155,7 @@ export class OptionsEditorComponent {
   protected onKeydown(event: KeyboardEvent, optionId: string): void {
     // The Enter that ends a Japanese or Chinese input composition belongs to
     // the composition, not to the list (Chrome and Safari mark it 229).
-    if (event.isComposing || event.keyCode === 229) {
+    if (event.isComposing || event.keyCode === 229 || this.translating()) {
       return;
     }
     const input = event.target as HTMLInputElement;
@@ -170,6 +180,9 @@ export class OptionsEditorComponent {
    * line after it.
    */
   protected onPaste(event: ClipboardEvent, optionId: string): void {
+    if (this.translating()) {
+      return;
+    }
     const pictures = pastedPictures(event.clipboardData);
     if (pictures.length) {
       event.preventDefault();
@@ -203,8 +216,11 @@ export class OptionsEditorComponent {
     this._focus(added.at(-1)?.id ?? optionId);
   }
 
+  /** The options themselves - never from a translation's tab, whatever asked for it. */
   private _update(change: (options: ChoiceOption[]) => ChoiceOption[]): void {
-    this._editing.updateOptions(this.questionId(), change);
+    if (!this.translating()) {
+      this._editing.updateOptions(this.questionId(), change);
+    }
   }
 
   private _imageList(optionId: string): ImageListEditorComponent | undefined {

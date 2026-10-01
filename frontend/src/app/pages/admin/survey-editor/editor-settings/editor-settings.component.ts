@@ -1,15 +1,21 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { slugify, uniqueSlug } from '../../../../core/survey/survey-factory';
+import { translationCodes } from '../../../../core/survey/localize';
 import { Survey } from '../../../../core/survey/survey.model';
 import { formatDateTime, todayIsoDay } from '../../../../core/util/dates';
 import { ButtonComponent } from '../../../../ui/button/button.component';
 import { IconComponent } from '../../../../ui/icon/icon.component';
 import { SwitchComponent } from '../../../../ui/switch/switch.component';
+import { EditorLanguage, languageName, listOfNames } from '../translating';
 
 /**
- * A survey's settings: its address, the day it closes by itself, whether it
- * asks for gender and age - and, at the bottom, for an administrator, the way
- * to delete it.
+ * A survey's settings: its address, the language it is written in, the day it
+ * closes by itself, whether it asks for gender and age - and, at the bottom,
+ * for an administrator, the way to delete it.
+ *
+ * The language can be changed only while the survey has no translation: a
+ * translation is the same texts in another language, and would be left
+ * translating something else.
  */
 @Component({
   selector: 'app-editor-settings',
@@ -24,16 +30,30 @@ export class EditorSettingsComponent {
   readonly takenSlugs = input<string[]>([]);
   /** Problems with the settings (the title, the address). */
   readonly problems = input<string[]>([]);
+  /** Every language the site has, in its order; null while they have not come. */
+  readonly languages = input<readonly EditorLanguage[] | null>(null);
   /** Deleting is an administrator's; an editor does not get the button. */
   readonly canDelete = input(false);
 
   readonly patch = output<Partial<Survey>>();
+  /** Another language chosen as the one the survey is written in. */
+  readonly languageChange = output<string>();
   readonly deleteSurvey = output<void>();
 
   protected readonly host = globalThis.location?.host ?? 'survey.anotoki.eu';
   protected readonly today = todayIsoDay();
   protected readonly formatDateTime = formatDateTime;
   protected readonly suggested = computed(() => uniqueSlug(this.survey().title, this.takenSlugs()));
+
+  /** The languages to choose from - with the survey's own, even if the site no longer has it (by its code). */
+  protected readonly choices = computed<EditorLanguage[]>(() => {
+    const languages = this.languages() ?? [];
+    const own = this.survey().language;
+    return languages.some((language) => language.code === own) ? [...languages] : [{ code: own, name: own, enabled: true }, ...languages];
+  });
+  /** What the survey is translated into, by name: while there is any, its language stays. */
+  protected readonly translatedInto = computed(() => listOfNames(translationCodes(this.survey()).map((code) => languageName(this.languages(), code))));
+  protected readonly languageLocked = computed(() => this.translatedInto() !== '' || this.choices().length < 2);
 
   /**
    * While typing: small letters, digits and dashes, a dash for anything else -
@@ -65,6 +85,13 @@ export class EditorSettingsComponent {
 
   protected useSuggested(): void {
     this.patch.emit({ slug: this.suggested() });
+  }
+
+  protected onLanguage(event: Event): void {
+    const code = (event.target as HTMLSelectElement).value;
+    if (code && code !== this.survey().language && !this.languageLocked()) {
+      this.languageChange.emit(code);
+    }
   }
 
   protected onClosesOn(event: Event): void {

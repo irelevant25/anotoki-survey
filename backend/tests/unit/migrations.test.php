@@ -23,7 +23,7 @@ test('an empty database gets every migration, recorded once', function (): void 
     assert_same(['applied' => migrationFiles(), 'failed' => null, 'error' => null], $result);
     assert_same([], pendingMigrationsReadOnly($pdo));
     assert_same(['applied' => [], 'failed' => null, 'error' => null], applyPendingMigrations($pdo), 'a second run applies nothing');
-    foreach (['users', 'surveys', 'responses', 'images', 'survey_images'] as $table) {
+    foreach (['users', 'surveys', 'responses', 'images', 'survey_images', 'languages', 'translation_keys', 'translations'] as $table) {
         assert_true((bool) $pdo->query("SELECT to_regclass('$table') IS NOT NULL")->fetchColumn(), "the table $table");
     }
     $pdo = null;
@@ -41,6 +41,16 @@ test('the database itself keeps the rules: one answer per person, one live surve
     dbExec("INSERT INTO responses (survey_id, user_id, started_at) VALUES (?, 1, now())", [$a]);
     assert_throws(static fn() => dbExec("INSERT INTO responses (survey_id, user_id, started_at) VALUES (?, 1, now())", [$a]), '/duplicate key/');
     assert_throws(static fn() => dbExec("INSERT INTO responses (survey_id, user_id, gender, started_at) VALUES (?, 1, 'other', now())", [$a]), '/check/i');
+
+    // The language a survey was read in: a language the site has, or none - and none again when that language goes.
+    assert_same(null, dbValue('SELECT language FROM responses WHERE survey_id = ?', [$a]), 'answers from before surveys had languages');
+    dbExec("INSERT INTO users (id, preferred_username) VALUES (2, 'ben'), (3, 'cyd')");
+    dbExec("INSERT INTO languages (code, name, native_name) VALUES ('de', 'German', 'Deutsch')");
+    dbExec("INSERT INTO responses (survey_id, user_id, started_at, language) VALUES (?, 2, now(), 'de')", [$a]);
+    assert_throws(static fn() => dbExec("INSERT INTO responses (survey_id, user_id, started_at, language) VALUES (?, 3, now(), 'xx')", [$a]), '/foreign key/');
+    dbExec("INSERT INTO responses (survey_id, user_id, started_at, language) VALUES (?, 3, now(), (SELECT code FROM languages WHERE code = 'xx'))", [$a]);
+    dbExec("DELETE FROM languages WHERE code = 'de'");
+    assert_same([3, 0], [(int) dbValue('SELECT count(*) FROM responses'), (int) dbValue('SELECT count(*) FROM responses WHERE language IS NOT NULL')], 'the answers stay, without the note');
 
     dbExec('DELETE FROM surveys WHERE id = ?', [$a]);
     assert_same(0, (int) dbValue('SELECT count(*) FROM responses'), 'a survey\'s answers go with it');

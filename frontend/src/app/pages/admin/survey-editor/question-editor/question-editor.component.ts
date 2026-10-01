@@ -1,7 +1,7 @@
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, inject, input, output } from '@angular/core';
 import { MAX_QUESTION_IMAGES } from '../../../../core/images/prepare-image';
-import { choiceRule, isChoice } from '../../../../core/survey/answer-rules';
+import { choiceRule, choiceRuleText, isChoice } from '../../../../core/survey/answer-rules';
 import { plainText } from '../../../../core/survey/plain-text';
 import { ChoiceLayout, Question, QuestionType } from '../../../../core/survey/survey.model';
 import { IconComponent, IconName } from '../../../../ui/icon/icon.component';
@@ -11,6 +11,7 @@ import { uniqueId } from '../../../../ui/unique-id';
 import { ImageListEditorComponent } from '../image-list-editor/image-list-editor.component';
 import { OptionsEditorComponent } from '../options-editor/options-editor.component';
 import { SurveyEditing } from '../survey-editing.service';
+import { TranslatedTextComponent } from '../translated-text/translated-text.component';
 
 export const QUESTION_TYPES: { type: QuestionType; label: string; short: string; icon: IconName }[] = [
   { type: 'single', label: 'One choice', short: 'One choice', icon: 'radio' },
@@ -41,10 +42,15 @@ export interface StepChoice {
  *
  * Switching the kind keeps what there is: options survive a trip through
  * "own words" and back, so a wrong click costs nothing.
+ *
+ * On a translation's tab (SurveyEditing.language) it is the same card with
+ * its structure locked: no handle, no moving, copying or removing, no kind,
+ * layout, limits or "required" - only its texts, each with the original
+ * beside it, and how many of them are still to translate.
  */
 @Component({
   selector: 'app-question-editor',
-  imports: [CdkDragHandle, IconComponent, ImageListEditorComponent, OptionsEditorComponent, RichTextEditorComponent, SwitchComponent],
+  imports: [CdkDragHandle, IconComponent, ImageListEditorComponent, OptionsEditorComponent, RichTextEditorComponent, SwitchComponent, TranslatedTextComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './question-editor.component.html',
   styleUrl: './question-editor.component.scss',
@@ -62,6 +68,8 @@ export class QuestionEditorComponent {
   readonly stepId = input.required<string>();
   /** What must be fixed in it before the survey opens. */
   readonly problems = input<string[]>([]);
+  /** On a translation's tab: how many of its texts are still to translate. */
+  readonly missing = input(0);
   /** How many people chose each option, by option id; answers in all. */
   readonly counts = input<Record<string, number>>({});
   readonly answered = input(0);
@@ -78,10 +86,17 @@ export class QuestionEditorComponent {
   protected readonly layouts = LAYOUTS;
   protected readonly id = uniqueId('question-editor');
 
+  /** A translation is being edited: the question's structure is locked, its texts are pairs. */
+  protected readonly translating = computed(() => this._editing.language() !== null);
+  protected readonly missingLabel = computed(() => `${this.missing() === 1 ? '1 text' : `${this.missing()} texts`} to translate into ${this._editing.languageName()}`);
+  /** The hint's translation: shown for as long as it says something, even after the original was emptied. */
+  protected readonly translatedPlaceholder = computed(() => this._editing.text({ kind: 'placeholder', questionId: this.question().id }).trim());
+
   protected readonly type = computed(() => QUESTION_TYPES.find((item) => item.type === this.question().type) ?? QUESTION_TYPES[0]);
   protected readonly choice = computed(() => isChoice(this.question()));
   protected readonly summary = computed(() => plainText(this.question().text));
-  protected readonly rule = computed(() => choiceRule(this.question()));
+  /** The line people read under the question, quoted in English: the admin area is English. */
+  protected readonly rule = computed(() => choiceRuleText(choiceRule(this.question())));
   protected readonly hasOther = computed(() => this.question().options.some((option) => option.other));
   protected readonly maxImages = MAX_QUESTION_IMAGES;
   /** Options with pictures are always cards: the layout choice has nothing to choose then. */
@@ -108,7 +123,10 @@ export class QuestionEditorComponent {
 
   /** Only the fields changed, made to the question as the survey holds it now - never a copy of it as last drawn. */
   protected set(change: Partial<Question>): void {
-    this._editing.updateQuestion(this.question().id, (question) => ({ ...question, ...change }));
+    // Never from a translation's tab: there the question is as it is.
+    if (!this.translating()) {
+      this._editing.updateQuestion(this.question().id, (question) => ({ ...question, ...change }));
+    }
   }
 
   protected setType(type: QuestionType): void {

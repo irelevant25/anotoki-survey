@@ -1,3 +1,10 @@
+@if (readIn(); as language) {
+    <p class="read-in">
+        <app-icon name="globe" [size]="15" />
+        <span>Read in {{ language }}</span>
+    </p>
+}
+
 @if (aboutYou().length) {
     <section class="step">
         <h3 class="step-title">

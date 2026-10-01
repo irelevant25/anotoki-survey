@@ -1,71 +1,111 @@
-@if (!compact() || images().length || preparing()) {
-    <div class="images" [class.is-compact]="compact()" [class.is-dropping]="dropping()" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
-        @for (image of images(); track image.id; let i = $index, first = $first, last = $last) {
-            <figure class="thumb" [attr.data-image]="image.id">
-                <div class="thumb-frame">
-                    <button type="button" class="thumb-view" [attr.aria-label]="'Show large: ' + label() + ', picture ' + (i + 1)" (click)="lightbox.open(images(), i, caption())">
-                        <app-survey-image [image]="image" fit="cover" [decorative]="true" />
-                    </button>
-                    <div class="thumb-actions">
-                        @if (!compact() && images().length > 1) {
-                            <button
-                                type="button"
-                                class="thumb-button"
-                                data-move="left"
-                                [attr.aria-label]="'Move picture ' + (i + 1) + ' to the left'"
-                                title="Move left"
-                                [disabled]="first"
-                                (click)="move(image.id, -1)">
-                                <app-icon name="chevronLeft" [size]="14" />
-                            </button>
-                            <button
-                                type="button"
-                                class="thumb-button"
-                                data-move="right"
-                                [attr.aria-label]="'Move picture ' + (i + 1) + ' to the right'"
-                                title="Move right"
-                                [disabled]="last"
-                                (click)="move(image.id, 1)">
-                                <app-icon name="chevronRight" [size]="14" />
-                            </button>
-                        }
-                        <button type="button" class="thumb-button thumb-remove" [attr.aria-label]="'Remove picture ' + (i + 1) + ' of ' + label()" title="Remove" (click)="remove(image.id)">
-                            <app-icon name="x" [size]="14" />
+@if (translating()) {
+    <!-- A translation: the pictures are the survey's own. Under a question each one's description is translated; an option's have none. -->
+    @if (compact()) {
+        <div class="images is-compact is-locked">
+            @for (image of images(); track image.id; let i = $index) {
+                <figure class="thumb">
+                    <div class="thumb-frame">
+                        <button type="button" class="thumb-view" [attr.aria-label]="'Show large: ' + label() + ', picture ' + (i + 1)" (click)="lightbox.open(images(), i, caption())">
+                            <app-survey-image [image]="image" fit="cover" [decorative]="true" />
                         </button>
                     </div>
+                </figure>
+            }
+        </div>
+    } @else {
+        <ul class="described">
+            @for (entry of distinct(); track entry.image.id) {
+                <li class="described-image">
+                    <div class="thumb-frame">
+                        <button
+                            type="button"
+                            class="thumb-view"
+                            [attr.aria-label]="'Show large: ' + label() + ', picture ' + (entry.index + 1)"
+                            (click)="lightbox.open(images(), entry.index, caption())">
+                            <app-survey-image [image]="entry.image" fit="cover" [decorative]="true" />
+                        </button>
+                    </div>
+                    <app-translated-text
+                        class="described-text"
+                        [compact]="true"
+                        [place]="{ kind: 'image', questionId: questionId(), imageId: entry.image.id }"
+                        [original]="entry.image.alt"
+                        [label]="label() + ', picture ' + (entry.index + 1) + ': what it shows'"
+                        [maxLength]="200" />
+                </li>
+            }
+        </ul>
+    }
+} @else {
+    @if (!compact() || images().length || preparing()) {
+        <div class="images" [class.is-compact]="compact()" [class.is-dropping]="dropping()" (dragover)="onDragOver($event)" (dragleave)="onDragLeave($event)" (drop)="onDrop($event)">
+            @for (image of images(); track image.id; let i = $index, first = $first, last = $last) {
+                <figure class="thumb" [attr.data-image]="image.id">
+                    <div class="thumb-frame">
+                        <button type="button" class="thumb-view" [attr.aria-label]="'Show large: ' + label() + ', picture ' + (i + 1)" (click)="lightbox.open(images(), i, caption())">
+                            <app-survey-image [image]="image" fit="cover" [decorative]="true" />
+                        </button>
+                        <div class="thumb-actions">
+                            @if (!compact() && images().length > 1) {
+                                <button
+                                    type="button"
+                                    class="thumb-button"
+                                    data-move="left"
+                                    [attr.aria-label]="'Move picture ' + (i + 1) + ' to the left'"
+                                    title="Move left"
+                                    [disabled]="first"
+                                    (click)="move(image.id, -1)">
+                                    <app-icon name="chevronLeft" [size]="14" />
+                                </button>
+                                <button
+                                    type="button"
+                                    class="thumb-button"
+                                    data-move="right"
+                                    [attr.aria-label]="'Move picture ' + (i + 1) + ' to the right'"
+                                    title="Move right"
+                                    [disabled]="last"
+                                    (click)="move(image.id, 1)">
+                                    <app-icon name="chevronRight" [size]="14" />
+                                </button>
+                            }
+                            <button type="button" class="thumb-button thumb-remove" [attr.aria-label]="'Remove picture ' + (i + 1) + ' of ' + label()" title="Remove" (click)="remove(image.id)">
+                                <app-icon name="x" [size]="14" />
+                            </button>
+                        </div>
+                    </div>
+                    @if (!compact()) {
+                        <input
+                            class="alt"
+                            type="text"
+                            maxlength="200"
+                            placeholder="What does it show?"
+                            [attr.aria-label]="label() + ', picture ' + (i + 1) + ': what it shows'"
+                            [value]="image.alt"
+                            (input)="setAlt(image.id, $event)" />
+                    }
+                </figure>
+            }
+            @for (place of placeholders(); track place) {
+                <div class="thumb thumb-pending" aria-hidden="true">
+                    <div class="thumb-frame"><app-spinner size="sm" /></div>
                 </div>
-                @if (!compact()) {
-                    <input
-                        class="alt"
-                        type="text"
-                        maxlength="200"
-                        placeholder="What does it show?"
-                        [attr.aria-label]="label() + ', picture ' + (i + 1) + ': what it shows'"
-                        [value]="image.alt"
-                        (input)="setAlt(image.id, $event)" />
-                }
-            </figure>
-        }
-        @for (place of placeholders(); track place) {
-            <div class="thumb thumb-pending" aria-hidden="true">
-                <div class="thumb-frame"><app-spinner size="sm" /></div>
-            </div>
-        }
-        @if (room() > 0) {
-            <button type="button" class="add" [attr.aria-label]="'Add pictures to ' + label()" (click)="pick()">
-                <app-icon name="imagePlus" [size]="compact() ? 16 : 20" />
-                @if (!compact()) {
-                    <span class="add-text">Add pictures</span>
-                    <span class="add-hint">or drop or paste them</span>
-                }
-            </button>
-        }
-    </div>
-}
-@for (problem of problems(); track problem) {
-    <p class="problem">
-        <app-icon name="alert" [size]="14" />
-        {{ problem }}
-    </p>
+            }
+            @if (room() > 0) {
+                <button type="button" class="add" [attr.aria-label]="'Add pictures to ' + label()" (click)="pick()">
+                    <app-icon name="imagePlus" [size]="compact() ? 16 : 20" />
+                    @if (!compact()) {
+                        <span class="add-text">Add pictures</span>
+                        <span class="add-hint">or drop or paste them</span>
+                    }
+                </button>
+            }
+        </div>
+    }
+    @for (problem of problems(); track problem) {
+        <p class="problem">
+            <app-icon name="alert" [size]="14" />
+            {{ problem }}
+        </p>
+    }
 }
 <input #fileInput type="file" multiple hidden [accept]="accept" (change)="onFiles($event)" />

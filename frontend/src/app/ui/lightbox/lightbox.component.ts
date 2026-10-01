@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRender, computed, inject, input, output, viewChild } from '@angular/core';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { TranslationService } from '../../core/i18n/translation.service';
 import { IconComponent } from '../icon/icon.component';
 import { SurveyImageComponent } from '../survey-image/survey-image.component';
 import { LightboxView } from './lightbox.service';
@@ -14,7 +16,7 @@ import { LightboxView } from './lightbox.service';
  */
 @Component({
   selector: 'app-lightbox',
-  imports: [IconComponent, SurveyImageComponent],
+  imports: [IconComponent, SurveyImageComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './lightbox.component.html',
   styleUrl: './lightbox.component.scss',
@@ -25,10 +27,34 @@ export class LightboxComponent {
   readonly dismiss = output<void>();
   readonly move = output<number>();
 
+  private readonly _i18n = inject(TranslationService);
+
   protected readonly image = computed(() => this.view().images[this.view().index]);
   protected readonly many = computed(() => this.view().images.length > 1);
   protected readonly caption = computed(() => this.image().alt || this.view().caption || '');
   protected readonly ratio = computed(() => this.image().width / Math.max(1, this.image().height));
+  /** The language of what the picture shows - its description, the caption - when it is not the page's. */
+  protected readonly lang = computed(() => this.view().lang || null);
+  /**
+   * The language of the spoken line: the survey's when the line is only what
+   * the picture shows. Among several it is the site's own sentence with those
+   * words inside it, and a sentence is in one language - the page's.
+   */
+  protected readonly spokenLang = computed(() => (this.many() ? null : this.lang()));
+  /**
+   * What a screen reader hears on each move: where it is among the pictures,
+   * and what the picture shows - for one picture, only what it shows. Its own
+   * words, not the eye's: "2 / 5" is read "Picture 2 of 5". A whole sentence
+   * is one string, so there is one with the picture's words and one without.
+   */
+  protected readonly spoken = computed(() => {
+    const caption = this.caption();
+    if (!this.many()) {
+      return caption;
+    }
+    const place = { n: this.view().index + 1, m: this.view().images.length };
+    return caption ? this._i18n.t('lightbox.positionSpokenCaption', { ...place, caption }) : this._i18n.t('lightbox.positionSpoken', place);
+  });
 
   private readonly _dialog = viewChild.required<ElementRef<HTMLDialogElement>>('dialog');
   private readonly _close = viewChild.required<ElementRef<HTMLButtonElement>>('closeButton');

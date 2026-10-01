@@ -1,6 +1,6 @@
 ---
 name: survey-reviewer
-description: Reviews changes to the anotoki survey site against its conventions and the ways it has gone wrong before - who a request is and what role it has, the rules both sides must say alike, the survey document and its revision, rich text and pictures from users, queries, migrations, the frontend's saving, Angular style, tests and docs kept in step, and no secrets or machine paths committed. Read-only: it reports, it does not fix. Use after finishing a change and before telling the user it is done or committing it.
+description: Reviews changes to the anotoki survey site against its conventions and the ways it has gone wrong before - who a request is and what role it has, the rules both sides must say alike, the survey document, its translations and its revision, the site's strings and their keys, rich text and pictures from users, queries, migrations, the frontend's saving, Angular style, tests and docs kept in step, and no secrets or machine paths committed. Read-only: it reports, it does not fix. Use after finishing a change and before telling the user it is done or committing it.
 tools: Read, Grep, Glob, Bash
 model: inherit
 ---
@@ -33,17 +33,71 @@ Security and correctness first:
 - **Queries**: `?` parameters only; table and column names from literals;
   bytea as `PARAM_LOB`; transactions around multi-statement writes; a unique
   violation turned into an ApiError, not a 500.
+- **Two requests at the same moment**: a count or a look followed by a write
+  (a cap, "is it still used?", "does it still exist?") holds a lock between
+  them, in the transaction and as a statement of its own - a single statement
+  that waited goes on with what it saw before; rows are taken in one order (a
+  survey's row, then its languages; strings by key, then language). Its test
+  goes through the real server against a second connection, and fails with the
+  lock taken out.
 - **The two sides agree**: a changed rule in `core/survey/` has its twin in
   `api/survey_rules.php` (and the reverse), with the same sentence, and tests
-  on both sides.
+  on both sides. Blank is the same on both: PHP trims and collapses with
+  `TEXT_SPACE` (the browser's `trim()` set), never `\s` or `\p{Z}`; a PCRE
+  result is not cast to a string without asking what null would mean.
 - **Saving**: editor changes go through `AdminStore.updateSurvey()` /
   `SurveyEditing`; a save's answer never replaces the content; a 409 conflict
-  reaches the editor; revisions are sent.
+  reaches the editor; revisions are sent; a conflict settled "mine" keeps only
+  what this page changed (against `_server`), text by text for translations.
+  Nothing typed in the admin area lives only in a component (a session that
+  ends takes the page away without a navigation): `AdminStore`,
+  `LocalizationDrafts`. A failed save is said where the person is looking.
+- **A survey's translations**: a save sends `language` and `translations`, and
+  the server gives neither a default on the way in; a language the site does
+  not have is refused, not dropped; a translation is built by walking the
+  survey's own ids, never the maps that were sent; every map of a translation
+  leaves PHP as a JSON object (`surveyTranslationsJson()` - an empty one as
+  `{}`, ids like `"0"` kept); a new text people read has its place in
+  `localize.ts` and in `surveyTranslationFromBody()` / `surveyTranslationGaps()`
+  / `surveyTranslationsJson()`; people are sent only offered languages and
+  shown a translation only when it is whole; the frontend reads the maps with
+  `Object.hasOwn` and writes them by spreading.
+- **The site's strings**:
+  - a word the site says to somebody taking a survey is a key with its English
+    and formal Slovak string in a migration - not a sentence in a template, a
+    field initialiser, a constant or a signal; the admin area is English, in
+    its templates, with no `translate` pipe;
+  - a string is never drawn as HTML (`[innerHTML]` with `translate`, or a
+    string put into HTML without `escapeHtml()`); a value `around()` marks up
+    is drawn only when its third answer says the cut was made;
+  - no key built from an address, the IAM's answer, a server's code or what a
+    person typed: run-time keys come from a closed set listed in
+    `core/i18n/dynamic-keys.ts`, through a table with a fallback key, and are
+    put together only from a prefix declared there; a plural family is asked
+    for with `translatePlural` / `.plural()`, one string with `translate` /
+    `.t()` - a key that reaches the pipe through a variable or a table is
+    yours to check, the scan cannot;
+  - somebody taking a survey is never shown a server's or the IAM's English
+    sentence;
+  - a number a Slovak word agrees with is a plural family (`.one`, `.few`,
+    `.other`, `{count}`); those suffixes are used for nothing else;
+  - placeholders: the same ones in the template's parameters, the English
+    string and (at most those) the Slovak one;
+  - `TranslationService` does not inject the Router, `AuthService` does not
+    inject `TranslationService`;
+  - on the server: `languageCodeOk()` before any query with a code from an
+    address; `updated_by` from `currentUser()` only; every save of strings
+    through `translationsCheck()`; the public bundle takes no user middleware.
 - **Migrations**: a new file (never an edited applied one); data-changing ones
   end in a `DO $$` gate; names that do not clash; the tests' template picks it up.
+  String migrations: inserts that never write over a row that is there, one
+  string a line with `''` for an apostrophe and no other escape, a gate for
+  `en` and `sk`, a removed key deleted; a language they write strings for is
+  in `TRANSLATION_SEEDED_LANGUAGES`.
 - **Setup and hosting**: `setup.php` stays parseable by PHP 7.4; no new
   committed default for anything in `config/*.local.php`; `tools/build.php`
-  still leaves out settings, tests, tools and composer files; no new route
+  still leaves out settings, tests, tools, the command-line scripts
+  (`migration.php`, `translations.php`) and composer files; no new route
   named like a folder under the web root's `api/`.
 
 Then the house style:
@@ -53,7 +107,14 @@ Then the house style:
   logic duplicated from `core/` into a component.
 - PHP: `declare(strict_types=1)`, functions by area, comments that say why.
 - Tests: new rules, routes and refusals have tests (`backend/tests/`, `*.spec.ts`);
-  `php tests/run.php` and `npm test` pass - run them.
+  `php tests/run.php` and `npm test` pass - run them. A test must fail with
+  its fix taken out: one that derives what it expects from the output it
+  checks, or races with a single request pending, proves nothing. A changed
+  string or key: `tests/unit/translations.test.php` is what holds the
+  frontend's keys and the migrations' together.
+- Slovak: formal address (Vy, capital V only on its forms; the plural -li
+  past), „ “ quotes, no preposition before a number or a name that varies -
+  the rules are in `docs/decisions.md` (*Languages*).
 - Docs: `docs/`, the skill, `CLAUDE.md`, README and DEV.md say what the code
   now does.
 - Nothing git would publish holds a password, token, or a path on anybody's

@@ -16,6 +16,107 @@
   flex-direction: column;
   gap: 1rem;
   min-width: 0;
+
+  // On a translation's tab a bar stays in view at the top (.translating):
+  // whatever is scrolled to stops below it - the questions' cards too, which
+  // read the same variable.
+  &.is-translating {
+    --editor-scroll-margin: 10rem;
+  }
+}
+
+// How far the translation is, and the way to the next text it lacks: in view
+// all the way down the survey, under the top bar.
+.translating {
+  position: sticky;
+  top: calc(var(--topbar-height, 60px) + 0.5rem);
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 1rem;
+  min-height: 3rem;
+  padding: 0.45rem 0.6rem 0.45rem 0.9rem;
+  border: 1px solid var(--info-border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+}
+
+.translating-state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  min-width: 0;
+  font-size: 0.9375rem;
+
+  app-icon {
+    color: var(--muted);
+  }
+}
+
+.translating-count {
+  padding: 0.05rem 0.5rem;
+  border: 1px solid var(--warning-border);
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+
+  &.is-done {
+    border-color: var(--success-border);
+    background: var(--success-soft);
+    color: var(--success);
+  }
+}
+
+.translating-words {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+// On an open survey: what the people who read in this language get until the last text is translated.
+.translating-meanwhile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--warning);
+  font-size: 0.8125rem;
+  font-weight: 650;
+
+  app-icon {
+    color: inherit;
+  }
+}
+
+.translating-unsaved {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: var(--control-height-sm);
+  padding: 0 0.6rem;
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.translating-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: var(--control-height-sm);
+  color: var(--success);
+  font-size: 0.875rem;
+  font-weight: 650;
 }
 
 // The column runs the whole height of the builder, so that its sticky part
@@ -63,7 +164,7 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
-  scroll-margin-top: 6rem;
+  scroll-margin-top: var(--editor-scroll-margin, 6rem);
 }
 
 .block-head {
@@ -115,7 +216,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   background: var(--surface-2);
-  scroll-margin-top: 6rem;
+  scroll-margin-top: var(--editor-scroll-margin, 6rem);
 
   &.has-problems {
     border-color: var(--warning-border);
@@ -182,6 +283,19 @@
   flex: none;
   display: flex;
   gap: 1px;
+}
+
+// On a translation's tab: the step's number, and its title as a pair.
+.step-head-translated {
+  align-items: flex-start;
+
+  .step-number {
+    margin-top: 0.55rem;
+  }
+}
+
+.step-translation {
+  flex: 1;
 }
 
 .icon-button {
@@ -253,6 +367,14 @@
   gap: 0.35rem;
   color: var(--muted);
   font-size: 0.8125rem;
+
+  app-icon {
+    flex: none;
+  }
+
+  a {
+    color: var(--link);
+  }
 }
 
 .questions {
@@ -348,5 +470,13 @@
 
   .step-head {
     flex-wrap: wrap;
+  }
+
+  .step-translation {
+    flex-basis: 100%;
+  }
+
+  .translating-words {
+    display: none;
   }
 }

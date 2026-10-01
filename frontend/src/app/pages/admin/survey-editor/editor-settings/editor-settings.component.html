@@ -36,6 +36,24 @@
     </div>
 
     <div class="field">
+        <label class="field-label" for="survey-language">Written in</label>
+        <div class="field-control" [class.field-disabled]="languageLocked()">
+            <select id="survey-language" class="field-input" [disabled]="languageLocked()" (change)="onLanguage($event)">
+                @for (language of choices(); track language.code) {
+                    <option [value]="language.code" [selected]="language.code === survey().language">{{ language.name }}{{ language.enabled ? "" : " (hidden)" }}</option>
+                }
+            </select>
+        </div>
+        <p class="field-hint">
+            @if (translatedInto()) {
+                Translated into {{ translatedInto() }}: the language a survey is written in can be changed only while it has no translations.
+            } @else {
+                The language of the texts written here. It can be changed until the survey is translated.
+            }
+        </p>
+    </div>
+
+    <div class="field">
         <label class="field-label" for="survey-closes">Closes after</label>
         <div class="dated">
             <div class="field-control">

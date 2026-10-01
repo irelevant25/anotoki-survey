@@ -1,21 +1,21 @@
 <section class="home">
     <header class="intro">
-        <h1>Have your say</h1>
-        <p class="lead">From time to time the anotoki sites ask what you like and what you would change. These surveys are open now.</p>
+        <h1>{{ "home.title" | translate }}</h1>
+        <p class="lead">{{ "home.lead" | translate }}</p>
     </header>
 
-    @if (error(); as message) {
-        <app-alert tone="danger" heading="The surveys could not be loaded">
-            {{ message }}
+    @if (error(); as failure) {
+        <app-alert tone="danger" [heading]="'home.loadFailed' | translate">
+            {{ errorKey(failure) | translate: errorParams(failure) }}
             <div alertActions>
                 <button appButton (click)="load()">
                     <app-icon name="refresh" [size]="16" />
-                    Try again
+                    {{ "common.tryAgain" | translate }}
                 </button>
             </div>
         </app-alert>
     } @else if (loading()) {
-        <div class="loading"><app-spinner label="Loading the surveys" [showLabel]="true" /></div>
+        <div class="loading"><app-spinner [label]="'home.loading' | translate" [showLabel]="true" /></div>
     } @else {
         <ul class="list">
             @for (item of surveys(); track item.survey.id) {
@@ -23,21 +23,30 @@
                     <a class="survey" [routerLink]="['/', item.survey.slug]">
                         <span class="survey-icon" aria-hidden="true"><app-icon name="survey" [size]="22" /></span>
                         <span class="survey-text">
-                            <span class="survey-title">{{ item.survey.title }}</span>
+                            <span class="survey-title" [attr.lang]="item.language?.code">{{ item.survey.title }}</span>
                             <span class="survey-meta">
-                                {{ item.questions }} {{ item.questions === 1 ? "question" : "questions" }} · about {{ item.minutes }} min
+                                {{ "home.questions" | translatePlural: item.questions }} · {{ "home.minutes" | translatePlural: item.minutes }}
                                 @if (item.survey.closesOn) {
-                                    · open until {{ formatDay(item.survey.closesOn) }}
+                                    · {{ "home.openUntil" | translate: { day: (item.survey.closesOn | localDate: "day") } }}
                                 }
                             </span>
+                            @if (item.language; as language) {
+                                <span class="survey-language">
+                                    <span>{{ inLanguage()[0] }}</span>
+                                    @if (inLanguage()[2]) {
+                                        <span [attr.lang]="language.nameLang">{{ language.name }}</span>
+                                    }
+                                    <span>{{ inLanguage()[1] }}</span>
+                                </span>
+                            }
                         </span>
                         <span class="survey-state">
                             @if (item.taken) {
-                                <app-badge tone="success" [dot]="true">Taken</app-badge>
+                                <app-badge tone="success" [dot]="true">{{ "home.badge.taken" | translate }}</app-badge>
                             } @else if (item.started) {
-                                <app-badge tone="warning" [dot]="true">Started</app-badge>
+                                <app-badge tone="warning" [dot]="true">{{ "home.badge.started" | translate }}</app-badge>
                             } @else {
-                                <app-badge tone="primary">New</app-badge>
+                                <app-badge tone="primary">{{ "home.badge.new" | translate }}</app-badge>
                             }
                             <app-icon name="chevronRight" [size]="18" />
                         </span>
@@ -45,7 +54,7 @@
                 </li>
             } @empty {
                 <li class="empty">
-                    <app-empty-state icon="survey" heading="No survey is open right now" text="The sites ask when there is something new to ask about. Come back then!" />
+                    <app-empty-state icon="survey" [heading]="'home.empty.heading' | translate" [text]="'home.empty.text' | translate" />
                 </li>
             }
         </ul>

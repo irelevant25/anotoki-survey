@@ -5,6 +5,13 @@ import { Answer, Question } from './survey.model';
  * the survey checks before it moves to the next step, and the server checks
  * again before it keeps anything (backend/api/survey_rules.php: answerProblem,
  * answerClean - in the same words).
+ *
+ * A rule and a problem are a kind and its numbers here, not a sentence: the
+ * page a person answers on words them in that person's language
+ * (core/i18n/answer-words.ts). The English sentences are choiceRuleText() and
+ * answerProblemText(), for the admin area - and they are what keeps the pair
+ * with the server: answerProblemText(answerProblem(...)) says what PHP's
+ * answerProblem() says for the same case.
  */
 
 /** The most anybody may write into one text answer, whatever the question allows; into "Other", less. */
@@ -63,60 +70,127 @@ export function choiceLimits(question: Question): { min: number; max: number } {
   return { min, max };
 }
 
-/** The line under a question of several choices that says how many to pick. */
-export function choiceRule(question: Question): string {
+/** How many to pick, as the line under a question of several choices says it: a kind and its numbers. */
+export type ChoiceRule =
+  | { kind: 'any'; params: Record<string, never> }
+  | { kind: 'atLeast'; params: { min: number } }
+  | { kind: 'upTo'; params: { max: number } }
+  | { kind: 'exactly'; params: { count: number } }
+  | { kind: 'between'; params: { min: number; max: number } };
+
+/**
+ * Why an answer cannot be accepted: a kind and what its sentence names.
+ * `writeOther` carries the option's id - the page words it with the label it
+ * is showing - and the label as it was when the answer was checked.
+ */
+export type AnswerProblem =
+  | { kind: 'write'; params: Record<string, never> }
+  | { kind: 'choose'; params: Record<string, never> }
+  | { kind: 'chooseAtLeast'; params: { min: number } }
+  | { kind: 'tooLong'; params: { limit: number } }
+  | { kind: 'chooseOne'; params: Record<string, never> }
+  | { kind: 'chooseAtMost'; params: { max: number } }
+  | { kind: 'writeOther'; params: { optionId: string; label: string } };
+
+/** How many to pick, for a question of several choices - null for any other question, which has no such line. */
+export function choiceRule(question: Question): ChoiceRule | null {
   if (question.type !== 'multiple') {
-    return '';
+    return null;
   }
   const count = question.options.length;
   const { min, max } = choiceLimits(question);
   if (max >= count) {
-    return min <= 1 ? 'Choose any that apply.' : `Choose at least ${min}.`;
+    return min <= 1 ? { kind: 'any', params: {} } : { kind: 'atLeast', params: { min } };
   }
   if (min <= 1) {
-    return `Choose up to ${max}.`;
+    return { kind: 'upTo', params: { max } };
   }
-  return min === max ? `Choose ${min}.` : `Choose ${min} to ${max}.`;
+  return min === max ? { kind: 'exactly', params: { count: min } } : { kind: 'between', params: { min, max } };
 }
 
-/** Why an answer cannot be accepted, in words for the person answering - or null when it can. */
-export function answerProblem(question: Question, answer: Answer | undefined): string | null {
+/** The rule in English, as the editor quotes it ("People read: ...") - nothing for no rule. */
+export function choiceRuleText(rule: ChoiceRule | null): string {
+  if (!rule) {
+    return '';
+  }
+  switch (rule.kind) {
+    case 'any':
+      return 'Choose any that apply.';
+    case 'atLeast':
+      return `Choose at least ${rule.params.min}.`;
+    case 'upTo':
+      return `Choose up to ${rule.params.max}.`;
+    case 'exactly':
+      return `Choose ${rule.params.count}.`;
+    case 'between':
+      return `Choose ${rule.params.min} to ${rule.params.max}.`;
+  }
+}
+
+/** Why an answer cannot be accepted - or null when it can. */
+export function answerProblem(question: Question, answer: Answer | undefined): AnswerProblem | null {
   if (!isAnswered(question, answer)) {
     if (!question.required) {
       return null;
     }
     if (question.type === 'text') {
-      return 'Please write an answer.';
+      return { kind: 'write', params: {} };
     }
     const { min } = choiceLimits(question);
     if (min === 0) {
       return null;
     }
-    return question.type === 'single' || min <= 1 ? 'Please choose an answer.' : `Please choose at least ${min}.`;
+    return question.type === 'single' || min <= 1 ? { kind: 'choose', params: {} } : { kind: 'chooseAtLeast', params: { min } };
   }
 
   const given = answer as Answer;
   if (question.type === 'text') {
     const limit = Math.min(textLimit(question) ?? ANSWER_TEXT_MAX, ANSWER_TEXT_MAX);
-    return given.text.trim().length > limit ? `Please keep it under ${limit} characters.` : null;
+    return given.text.trim().length > limit ? { kind: 'tooLong', params: { limit } } : null;
   }
 
   const chosen = question.options.filter((option) => given.optionIds.includes(option.id));
   const { min, max } = choiceLimits(question);
   if (chosen.length < min) {
-    return `Please choose at least ${min}.`;
+    return { kind: 'chooseAtLeast', params: { min } };
   }
   if (chosen.length > max) {
-    return max === 1 ? 'Please choose only one.' : `Please choose at most ${max}.`;
+    return max === 1 ? { kind: 'chooseOne', params: {} } : { kind: 'chooseAtMost', params: { max } };
   }
   const other = chosen.find((option) => option.other);
   if (other && given.other.trim() === '') {
-    return `Please write what "${other.label}" is for you.`;
+    return { kind: 'writeOther', params: { optionId: other.id, label: other.label } };
   }
   if (other && given.other.trim().length > ANSWER_OTHER_MAX) {
-    return `Please keep it under ${ANSWER_OTHER_MAX} characters.`;
+    return { kind: 'tooLong', params: { limit: ANSWER_OTHER_MAX } };
   }
   return null;
+}
+
+/**
+ * The problem in English, in the server's own words (answerProblem() in
+ * backend/api/survey_rules.php) - or null for no problem.
+ */
+export function answerProblemText(problem: AnswerProblem | null): string | null {
+  if (!problem) {
+    return null;
+  }
+  switch (problem.kind) {
+    case 'write':
+      return 'Please write an answer.';
+    case 'choose':
+      return 'Please choose an answer.';
+    case 'chooseAtLeast':
+      return `Please choose at least ${problem.params.min}.`;
+    case 'tooLong':
+      return `Please keep it under ${problem.params.limit} characters.`;
+    case 'chooseOne':
+      return 'Please choose only one.';
+    case 'chooseAtMost':
+      return `Please choose at most ${problem.params.max}.`;
+    case 'writeOther':
+      return `Please write what "${problem.params.label}" is for you.`;
+  }
 }
 
 /**

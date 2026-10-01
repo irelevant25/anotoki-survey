@@ -1,12 +1,12 @@
 <main class="boot">
-    <app-brand [size]="40" area="survey" />
+    <app-brand [size]="40" [area]="area()" />
     <section class="card" role="alert">
         <span class="card-icon"><app-icon name="alert" [size]="24" /></span>
-        <h1>The survey site cannot be reached</h1>
-        <p class="muted">The server did not answer. It may be down for a moment, or the connection may be. Try again in a little while.</p>
+        <h1>{{ title() }}</h1>
+        <p class="muted">{{ text() }}</p>
         <button appButton variant="primary" [loading]="trying()" (click)="retry()">
             <app-icon name="refresh" [size]="16" />
-            Try again
+            {{ tryAgain() }}
         </button>
     </section>
 </main>

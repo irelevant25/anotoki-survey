@@ -165,12 +165,41 @@ function textLength(string $text): int
 }
 
 /**
- * The text without the spaces around it - every kind of space, as the
- * browser's trim() takes them away, not only the ASCII ones PHP's trim() knows.
+ * What the browser counts as a space - the characters String.prototype.trim()
+ * takes away and \s matches, character for character: tab, the line breaks,
+ * the space, the no-break space, the Unicode spaces, the line and paragraph
+ * separators and the byte-order mark. Written out rather than as \s and
+ * \p{Z}: those also take U+0085 and U+180E, which the browser does not, and
+ * then the two sides would disagree on whether a text is blank.
+ */
+const TEXT_SPACE = '[\t\n\x0B\f\r \x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}]';
+
+/**
+ * The text without the spaces around it - exactly the ones the browser's
+ * trim() takes away (TEXT_SPACE), not only the ASCII ones PHP's trim() knows.
+ *
+ * A text the expression cannot get through - a run of more than a million
+ * spaces inside it - comes back as it is, never as an empty one: whoever
+ * measures it next refuses it as too long, instead of taking it for nothing.
  */
 function textTrim(string $text): string
 {
-    return (string) preg_replace('/^[\s\p{Z}\x{FEFF}]+|[\s\p{Z}\x{FEFF}]+$/u', '', $text);
+    return preg_replace('/^' . TEXT_SPACE . '+|' . TEXT_SPACE . '+$/u', '', $text) ?? $text;
+}
+
+/**
+ * Is there nothing in the text to see? True when it has no character but
+ * white space, separators and format characters: a zero-width space, a word
+ * joiner or a soft hyphen alone shows as nothing at all, though trim() leaves
+ * each of them. Bytes that are not UTF-8 are nothing to read either.
+ *
+ * For the site's own strings and names, where a text nobody can see would be
+ * kept as a string and drawn as an empty place. A survey's texts and the
+ * answers keep the browser's rule (textTrim), so both sides agree on them.
+ */
+function textBlank(string $text): bool
+{
+    return preg_match('/[^\s\p{Z}\p{Cf}]/u', $text) !== 1;
 }
 
 /**

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, effect, input, signal, untracked } from '@angular/core';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { SurveyImage } from '../../core/survey/survey.model';
 import { IconComponent } from '../icon/icon.component';
 
@@ -9,7 +10,7 @@ import { IconComponent } from '../icon/icon.component';
  */
 @Component({
   selector: 'app-survey-image',
-  imports: [IconComponent],
+  imports: [IconComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'survey-image',

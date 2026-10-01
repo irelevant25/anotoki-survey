@@ -1,30 +1,75 @@
 @if (survey(); as survey) {
     <div class="page">
-        <app-survey-header [survey]="survey" />
+        <app-survey-header [survey]="survey" [previewLanguage]="language()" />
 
         @if (save().state === "conflict") {
-            <app-alert tone="danger" heading="Somebody else has saved this survey meanwhile">
-                Your latest changes are not saved: they were made to an older version. Take the survey as it is saved now - your changes since your last save go - or save yours over it.
-                <div alertActions>
-                    <button appButton variant="primary" (click)="takeTheirs()">Take the saved version</button>
-                    <button appButton (click)="keepMine()">Save mine over it</button>
-                </div>
-            </app-alert>
+            @if (conflictLanguages().length) {
+                <app-alert tone="danger" heading="Somebody changed this survey while you were translating">
+                    Your latest {{ conflictNames() }} texts are not saved: they were written for an older version. Keep them - the survey is taken as it is saved now, and the
+                    {{ conflictNames() }} texts you changed since your last save are put into it: every other text stays as it is saved there, and one of theirs is replaced only where you changed the
+                    same text - or take the saved version whole, and what you translated since your last save goes.
+                    @if (broughtBackNames(); as names) {
+                        Their version no longer has {{ names }}: keeping your texts puts
+                        {{ broughtBack().length === 1 ? "that translation back, as it is here" : "those translations back, as they are here" }}.
+                    }
+                    <div alertActions>
+                        <button appButton variant="primary" (click)="keepMyTranslations()">Keep my {{ conflictNames() }} texts</button>
+                        <button appButton (click)="takeTheirs()">Take the saved version</button>
+                    </div>
+                </app-alert>
+            } @else {
+                <app-alert tone="danger" heading="Somebody else has saved this survey meanwhile">
+                    Your latest changes are not saved: they were made to an older version.
+                    @if (mineOverTheirs() === "refused") {
+                        Take the survey as it is saved now - your changes since your last save go. Yours cannot be saved over it as it is: the saved version is written in {{ theirsName() }} and yours
+                        in {{ mainName() }}, and both have translations - the language a survey is written in changes only while it has no translations. Remove your translations first (with the button
+                        on each one's tab), and yours can be saved over it: everything they saved is then lost.
+                    } @else {
+                        Take the survey as it is saved now - your changes since your last save go - or save yours over it.
+                        @switch (mineOverTheirs()) {
+                            @case ("merged") {
+                                That loses their changes to the questions and the settings; their translations stay as they saved them, except the texts you changed here and the texts of what they
+                                removed or reworded, which stay as you have them.
+                                {{ removedSentence() }}
+                            }
+                            @case ("whole") {
+                                That loses everything they saved, their translations too: the two versions are written in different languages.
+                            }
+                        }
+                    }
+                    <div alertActions>
+                        <button appButton variant="primary" (click)="takeTheirs()">Take the saved version</button>
+                        @if (mineOverTheirs() !== "refused") {
+                            <button appButton (click)="keepMine()">Save mine over it</button>
+                        }
+                    </div>
+                </app-alert>
+            }
         } @else if (save().state === "failed") {
             <app-alert tone="danger" heading="The latest changes are not saved">
                 {{ save().message }}
-                <div alertActions>
-                    <button appButton (click)="retrySave()">
-                        <app-icon name="refresh" [size]="16" />
-                        Try again now
-                    </button>
-                </div>
+                @if (save().message === tooLarge) {
+                    Shorten a text, or remove a translation: the next change is sent again.
+                } @else {
+                    <div alertActions>
+                        <button appButton (click)="retrySave()">
+                            <app-icon name="refresh" [size]="16" />
+                            Try again now
+                        </button>
+                    </div>
+                }
             </app-alert>
         }
 
-        @if (survey.status === "open" && problems().length) {
+        @if (status() === "open" && problems().length) {
             <app-alert tone="danger" heading="This survey is open, and has problems">
-                People are taking it as it is now. A question nobody can answer is skipped for them, but fix what the list says soon.
+                People are taking it as it is now.
+                @if (hasOtherProblems()) {
+                    A question nobody can answer is skipped for them, but fix what the list says soon.
+                }
+                @if (untranslatedNames(); as names) {
+                    Until every text is translated, readers of {{ names }} see this survey in {{ mainName() }}.
+                }
             </app-alert>
         }
 
@@ -34,8 +79,65 @@
             </app-alert>
         }
 
-        <div class="layout">
-            <div class="builder">
+        <app-editor-languages [survey]="survey" [languages]="languages()" [language]="language()" (choose)="chooseLanguage($event)" (add)="addLanguage($event)" (remove)="removeLanguage($event)" />
+
+        @if (tab(); as tab) {
+            <app-alert tone="info" [heading]="'You are translating this survey into ' + tab.name">
+                Every text is shown in {{ mainName() }}, with the field for its {{ tab.name }} next to it. The questions themselves - their order, kinds, options, pictures and limits - and the
+                survey's settings are changed in {{ mainName() }}.
+                @if (tab.unknown) {
+                    The site no longer has this language, so the survey cannot be saved with it: remove the translation, or add the language again.
+                } @else if (tab.hidden) {
+                    {{ tab.name }} is a hidden language: people are not offered it, so it may stay unfinished.
+                } @else if (tab.readersGetMain) {
+                    This survey is open: until every text is translated, readers of {{ tab.name }} see it in {{ mainName() }}.
+                } @else if (tab.done < tab.total) {
+                    Until every text is translated the survey cannot be opened, and one that is open already is shown in {{ mainName() }}.
+                }
+            </app-alert>
+        }
+
+        <!-- Drawn anew for each language: no field carries what was typed, or its undo history, from one into another. -->
+        <div class="layout" id="survey-texts" role="tabpanel" [attr.aria-label]="'The survey in ' + (tab()?.name ?? mainName())" *appKeyed="language()">
+            <div class="builder" [class.is-translating]="language() !== null" (focusin)="onFocusIn($event)">
+                @if (tab(); as tab) {
+                    <div class="translating">
+                        <p class="translating-state">
+                            <app-icon name="globe" [size]="16" />
+                            <strong>{{ tab.name }}</strong>
+                            &ngsp;
+                            <span class="translating-count" [class.is-done]="tab.done === tab.total">{{ tab.done }} / {{ tab.total }}</span>
+                            &ngsp;
+                            <span class="translating-words">texts translated</span>
+                            @if (tab.readersGetMain) {
+                                <!-- The survey is open: the notice at the top says it whole, and a translator is seldom there. -->
+                                <span class="translating-meanwhile">
+                                    <app-icon name="alert" [size]="14" />
+                                    Readers see {{ mainName() }} until all are
+                                </span>
+                            }
+                        </p>
+                        @if (save().state === "conflict" || save().state === "failed") {
+                            <!-- The notice is at the top of the page, and a translator is seldom there. -->
+                            <button type="button" class="translating-unsaved" (click)="showSaveNotice()">
+                                <app-icon name="alert" [size]="14" />
+                                Not saved - see why
+                            </button>
+                        }
+                        @if (gaps().length) {
+                            <button appButton size="sm" variant="primary" (click)="nextMissing()">
+                                Next missing
+                                <app-icon name="arrowDown" [size]="15" />
+                            </button>
+                        } @else {
+                            <span class="translating-done">
+                                <app-icon name="checkCircle" [size]="16" />
+                                Nothing is missing
+                            </span>
+                        }
+                    </div>
+                }
+
                 <div class="toolbar">
                     <p class="muted small">{{ questionTotal() }} {{ questionTotal() === 1 ? "question" : "questions" }} in {{ stepTotal() }} {{ stepTotal() === 1 ? "step" : "steps" }}</p>
                     <div class="toolbar-actions">
@@ -59,27 +161,38 @@
                             <p class="block-lead">What people read before they start.</p>
                         </div>
                     </header>
-                    <div class="field">
-                        <label class="field-label" for="survey-title">Title</label>
-                        <div class="field-control" [class.field-invalid]="!survey.title.trim()">
-                            <input id="survey-title" class="field-input title-input" type="text" maxlength="120" [value]="survey.title" (input)="onTitle($event)" />
+                    @if (language()) {
+                        <div class="field">
+                            <span class="field-label">Title</span>
+                            <app-translated-text [place]="{ kind: 'title' }" [original]="survey.title" label="Title" [maxLength]="120" />
                         </div>
-                        @if (!survey.title.trim()) {
-                            <p class="field-error">
-                                <app-icon name="alert" [size]="15" />
-                                <span>The survey needs a title.</span>
-                            </p>
-                        }
-                    </div>
-                    <div class="field">
-                        <span class="field-label">Introduction</span>
-                        <app-rich-text-editor
-                            [value]="survey.intro"
-                            (valueChange)="patch({ intro: $event })"
-                            label="Introduction"
-                            placeholder="Why you ask, and how long it takes…"
-                            [headings]="true" />
-                    </div>
+                        <div class="field">
+                            <span class="field-label">Introduction</span>
+                            <app-translated-text [rich]="true" [headings]="true" [place]="{ kind: 'intro' }" [original]="survey.intro" label="Introduction" />
+                        </div>
+                    } @else {
+                        <div class="field">
+                            <label class="field-label" for="survey-title">Title</label>
+                            <div class="field-control" [class.field-invalid]="!survey.title.trim()">
+                                <input id="survey-title" class="field-input title-input" type="text" maxlength="120" [value]="survey.title" (input)="onTitle($event)" />
+                            </div>
+                            @if (!survey.title.trim()) {
+                                <p class="field-error">
+                                    <app-icon name="alert" [size]="15" />
+                                    <span>The survey needs a title.</span>
+                                </p>
+                            }
+                        </div>
+                        <div class="field">
+                            <span class="field-label">Introduction</span>
+                            <app-rich-text-editor
+                                [value]="survey.intro"
+                                (valueChange)="patch({ intro: $event })"
+                                label="Introduction"
+                                placeholder="Why you ask, and how long it takes…"
+                                [headings]="true" />
+                        </div>
+                    }
                 </section>
 
                 <!-- About you -->
@@ -88,10 +201,12 @@
                         <header class="step-head">
                             <span class="step-number">Step 1</span>
                             <h2 class="step-title-fixed">About you</h2>
-                            <button appButton size="sm" variant="ghost" (click)="patch({ askAboutYou: false })">
-                                <app-icon name="x" [size]="15" />
-                                Do not ask
-                            </button>
+                            @if (!language()) {
+                                <button appButton size="sm" variant="ghost" (click)="patch({ askAboutYou: false })">
+                                    <app-icon name="x" [size]="15" />
+                                    Do not ask
+                                </button>
+                            }
                         </header>
                         <ul class="fixed">
                             <li>
@@ -111,7 +226,15 @@
                         </ul>
                         <p class="fixed-note">
                             <app-icon name="lock" [size]="13" />
-                            The same in every survey, so results can be compared from one to the next.
+                            @if (language()) {
+                                <span>
+                                    The same in every survey. Its words are the site's own, not this survey's: the
+                                    <a routerLink="/admin/translations">Translations page</a>
+                                    has them, for every survey at once.
+                                </span>
+                            } @else {
+                                The same in every survey, so results can be compared from one to the next.
+                            }
                         </p>
                     </section>
                 }
@@ -119,34 +242,55 @@
                 <!-- The steps -->
                 @for (step of survey.steps; track step.id; let i = $index, firstStepOfAll = $first, lastStepOfAll = $last) {
                     <section class="step" [id]="'step-' + step.id" [class.has-problems]="stepProblems().has(step.id)">
-                        <header class="step-head">
-                            <span class="step-number">Step {{ i + firstStep() }}</span>
-                            <input
-                                class="step-title"
-                                type="text"
-                                maxlength="80"
-                                placeholder="A title for the step (optional)"
-                                [attr.aria-label]="'Title of step ' + (i + firstStep())"
-                                [value]="step.title"
-                                (input)="setStepTitle(step.id, $event)" />
-                            <div class="step-actions">
-                                <button type="button" class="icon-button" aria-label="Move the step up" title="Move the step up" [disabled]="firstStepOfAll" (click)="moveStep(i, -1)">
-                                    <app-icon name="arrowUp" [size]="16" />
-                                </button>
-                                <button type="button" class="icon-button" aria-label="Move the step down" title="Move the step down" [disabled]="lastStepOfAll" (click)="moveStep(i, 1)">
-                                    <app-icon name="arrowDown" [size]="16" />
-                                </button>
-                                <button type="button" class="icon-button icon-button-danger" aria-label="Remove the step" title="Remove the step" (click)="removeStep(step, i)">
-                                    <app-icon name="trash" [size]="16" />
-                                </button>
-                            </div>
-                        </header>
+                        @if (language()) {
+                            <header class="step-head step-head-translated">
+                                <span class="step-number">Step {{ i + firstStep() }}</span>
+                                <app-translated-text
+                                    class="step-translation"
+                                    [compact]="true"
+                                    [place]="{ kind: 'step', stepId: step.id }"
+                                    [original]="step.title"
+                                    [label]="'Title of step ' + (i + firstStep())"
+                                    [maxLength]="80" />
+                            </header>
+                        } @else {
+                            <header class="step-head">
+                                <span class="step-number">Step {{ i + firstStep() }}</span>
+                                <input
+                                    class="step-title"
+                                    type="text"
+                                    maxlength="80"
+                                    placeholder="A title for the step (optional)"
+                                    [attr.aria-label]="'Title of step ' + (i + firstStep())"
+                                    [value]="step.title"
+                                    (input)="setStepTitle(step.id, $event)" />
+                                <div class="step-actions">
+                                    <button type="button" class="icon-button" aria-label="Move the step up" title="Move the step up" [disabled]="firstStepOfAll" (click)="moveStep(i, -1)">
+                                        <app-icon name="arrowUp" [size]="16" />
+                                    </button>
+                                    <button type="button" class="icon-button" aria-label="Move the step down" title="Move the step down" [disabled]="lastStepOfAll" (click)="moveStep(i, 1)">
+                                        <app-icon name="arrowDown" [size]="16" />
+                                    </button>
+                                    <button type="button" class="icon-button icon-button-danger" aria-label="Remove the step" title="Remove the step" (click)="removeStep(step, i)">
+                                        <app-icon name="trash" [size]="16" />
+                                    </button>
+                                </div>
+                            </header>
+                        }
 
-                        <div class="questions" cdkDropList [id]="'step-list-' + step.id" [cdkDropListData]="step.id" [cdkDropListConnectedTo]="listIds()" (cdkDropListDropped)="drop($event)">
+                        <div
+                            class="questions"
+                            cdkDropList
+                            [id]="'step-list-' + step.id"
+                            [cdkDropListData]="step.id"
+                            [cdkDropListConnectedTo]="listIds()"
+                            [cdkDropListDisabled]="language() !== null"
+                            (cdkDropListDropped)="drop($event)">
                             @for (question of step.questions; track question.id; let qi = $index, firstQuestion = $first, lastQuestion = $last) {
                                 <app-question-editor
                                     cdkDrag
                                     [cdkDragData]="question.id"
+                                    [cdkDragDisabled]="language() !== null"
                                     (cdkDragStarted)="dragging(true)"
                                     (cdkDragEnded)="dragging(false)"
                                     [question]="question"
@@ -158,6 +302,7 @@
                                     [steps]="stepChoices()"
                                     [stepId]="step.id"
                                     [problems]="questionProblems().get(question.id) ?? []"
+                                    [missing]="questionGaps().get(question.id) ?? 0"
                                     [counts]="counts().get(question.id)?.byOption ?? {}"
                                     [answered]="counts().get(question.id)?.answered ?? 0"
                                     (toggle)="toggle(question.id)"
@@ -166,26 +311,34 @@
                                     (move)="moveQuestion(step.id, qi, $event)"
                                     (moveToStep)="moveQuestionToStep(question.id, step.id, $event)" />
                             } @empty {
-                                <p class="drop-here">No questions yet - add one below, or drag one here.</p>
+                                @if (language()) {
+                                    <p class="drop-here">No questions in this step.</p>
+                                } @else {
+                                    <p class="drop-here">No questions yet - add one below, or drag one here.</p>
+                                }
                             }
                         </div>
 
-                        <div class="add-question">
-                            <span class="add-label">Add a question</span>
-                            @for (type of types; track type.type) {
-                                <button appButton size="sm" variant="secondary" (click)="addQuestion(step.id, type.type)">
-                                    <app-icon [name]="type.icon" [size]="15" />
-                                    {{ type.label }}
-                                </button>
-                            }
-                        </div>
+                        @if (!language()) {
+                            <div class="add-question">
+                                <span class="add-label">Add a question</span>
+                                @for (type of types; track type.type) {
+                                    <button appButton size="sm" variant="secondary" (click)="addQuestion(step.id, type.type)">
+                                        <app-icon [name]="type.icon" [size]="15" />
+                                        {{ type.label }}
+                                    </button>
+                                }
+                            </div>
+                        }
                     </section>
                 }
 
-                <button id="add-step" type="button" class="add-step" (click)="addStep()">
-                    <app-icon name="plus" [size]="18" />
-                    Add a step
-                </button>
+                @if (!language()) {
+                    <button id="add-step" type="button" class="add-step" (click)="addStep()">
+                        <app-icon name="plus" [size]="18" />
+                        Add a step
+                    </button>
+                }
 
                 <!-- The thanks -->
                 <section class="block" id="thanks">
@@ -196,21 +349,38 @@
                             <p class="block-lead">What people read once their answers are sent.</p>
                         </div>
                     </header>
-                    <app-rich-text-editor [value]="survey.thanks" (valueChange)="patch({ thanks: $event })" label="Thank-you text" placeholder="Thank you for your answers…" [headings]="true" />
+                    @if (language()) {
+                        <app-translated-text [rich]="true" [headings]="true" [place]="{ kind: 'thanks' }" [original]="survey.thanks" label="Thank-you text" />
+                    } @else {
+                        <app-rich-text-editor [value]="survey.thanks" (valueChange)="patch({ thanks: $event })" label="Thank-you text" placeholder="Thank you for your answers…" [headings]="true" />
+                    }
                 </section>
             </div>
 
             <aside class="side">
-                <app-editor-settings
-                    [survey]="survey"
-                    [takenSlugs]="otherSlugs()"
-                    [problems]="addressProblems()"
-                    [canDelete]="auth.isAdmin()"
-                    (patch)="patch($event)"
-                    (deleteSurvey)="deleteSurvey()" />
+                <!-- The settings are the survey's own: on a translation's tab only the texts are changed. -->
+                @if (!language()) {
+                    <app-editor-settings
+                        [survey]="survey"
+                        [takenSlugs]="otherSlugs()"
+                        [problems]="addressProblems()"
+                        [languages]="languages()"
+                        [canDelete]="auth.isAdmin()"
+                        (patch)="patch($event)"
+                        (languageChange)="setMainLanguage($event)"
+                        (deleteSurvey)="deleteSurvey()" />
+                }
                 <!-- The settings scroll away with the page; what is left to fix, and the way around the survey, stay in view. -->
                 <div class="side-sticky">
-                    <app-editor-outline [survey]="survey" [problems]="problems()" [numbers]="numbers()" (goTo)="goTo($event)" />
+                    <app-editor-outline
+                        [survey]="survey"
+                        [problems]="problems()"
+                        [numbers]="numbers()"
+                        [translating]="tab()?.name ?? null"
+                        [questionGaps]="questionGaps()"
+                        [stepGaps]="stepGaps()"
+                        (goTo)="goTo($event)"
+                        (show)="show($event)" />
                 </div>
             </aside>
         </div>

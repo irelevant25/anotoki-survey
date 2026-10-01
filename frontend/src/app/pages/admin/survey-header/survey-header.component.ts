@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
-import { surveyProblems } from '../../../core/survey/survey-problems';
+import { problemsHeading, surveyProblems } from '../../../core/survey/survey-problems';
 import { currentStatus } from '../../../core/survey/survey-outline';
 import { Survey, SurveyStatus } from '../../../core/survey/survey.model';
 import { formatDay } from '../../../core/util/dates';
@@ -21,8 +21,15 @@ export const STATUS_TONE: Record<SurveyStatus, BadgeTone> = { draft: 'neutral', 
  * its changes are saved, the way to open or close it, the preview, and the
  * tabs between the editor and the results.
  *
+ * The preview opens in the language the editor is on: from a translation's
+ * tab its link carries `?language=<code>` - a parameter of the preview's own,
+ * which only the survey's texts follow (not `lang`, which is the whole site's
+ * language and is taken out of the address when a page loads).
+ *
  * A survey with problems (survey-problems.ts) does not open: the button says
- * why and sends the editor to the list of them. The server checks the same
+ * why and sends the editor to the list of them. The Editor tab counts them,
+ * in the words of the survey's state (a draft's keep it from opening, an open
+ * survey's are wrong with it now, a closed one's keep it from reopening). The server checks the same
  * again, on the survey as it has it - after the changes waiting here are saved.
  */
 @Component({
@@ -34,6 +41,8 @@ export const STATUS_TONE: Record<SurveyStatus, BadgeTone> = { draft: 'neutral', 
 })
 export class SurveyHeaderComponent {
   readonly survey = input.required<Survey>();
+  /** The translation the editor is on, by its code: the preview shows the survey's texts in it. Null: the survey's own language. */
+  readonly previewLanguage = input<string | null>(null);
 
   private readonly _store = inject(AdminStore);
   private readonly _confirm = inject(ConfirmService);
@@ -44,9 +53,15 @@ export class SurveyHeaderComponent {
   protected readonly statusLabel = computed(() => STATUS_LABEL[this.status()]);
   protected readonly statusTone = computed(() => STATUS_TONE[this.status()]);
   protected readonly responses = computed(() => this._store.responseCount(this.survey().id));
-  protected readonly problems = computed(() => surveyProblems(this.survey(), this._store.summaries() ?? []));
+  protected readonly problems = computed(() => surveyProblems(this.survey(), this._store.summaries() ?? [], this._store.languages() ?? []));
+  /** What the Editor tab's count means, in the words of the survey's state - the outline's heading. */
+  protected readonly problemsTitle = computed(() => problemsHeading(this.status(), this.problems().length));
   protected readonly save = computed(() => this._store.saveStatus(this.survey().id));
   protected readonly link = computed(() => `${globalThis.location?.origin ?? ''}/${this.survey().slug}`);
+  protected readonly previewParams = computed(() => {
+    const language = this.previewLanguage();
+    return language ? { language } : null;
+  });
   protected readonly changing = signal(false);
   protected readonly formatDay = formatDay;
 

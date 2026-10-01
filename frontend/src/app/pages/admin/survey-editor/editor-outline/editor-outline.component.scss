@@ -132,6 +132,39 @@ button.question {
   padding-left: 1.4rem;
 }
 
+.step-text {
+  flex: 1;
+  min-width: 0;
+}
+
+// On a translation's tab: how many texts a step or a question still has to translate.
+.todo {
+  flex: none;
+  min-width: 1.35rem;
+  margin-left: auto;
+  padding: 0 0.35rem;
+  border: 1px solid var(--warning-border);
+  border-radius: 999px;
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: 0.72rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.legend {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.8125rem;
+
+  .todo {
+    margin-left: 0;
+  }
+}
+
 .question {
   font-size: 0.8125rem;
 }

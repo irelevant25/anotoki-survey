@@ -1,0 +1,67 @@
+@if (shown()) {
+    <div class="languages">
+        <div class="tabs" role="tablist" aria-label="The language of the texts" (keydown)="onKeydown($event)">
+            <button
+                #tab
+                type="button"
+                role="tab"
+                aria-controls="survey-texts"
+                class="tab"
+                [class.is-active]="!current()"
+                [attr.aria-selected]="!current()"
+                [attr.tabindex]="current() ? -1 : 0"
+                (click)="choose.emit(null)">
+                <app-icon name="globe" [size]="15" />
+                {{ mainName() }}
+                <span class="tag">main</span>
+            </button>
+            @for (item of tabs(); track item.code) {
+                <button
+                    #tab
+                    type="button"
+                    role="tab"
+                    aria-controls="survey-texts"
+                    class="tab"
+                    [class.is-active]="item.code === current()?.code"
+                    [attr.aria-selected]="item.code === current()?.code"
+                    [attr.tabindex]="item.code === current()?.code ? 0 : -1"
+                    [attr.title]="hint(item)"
+                    (click)="choose.emit(item.code)">
+                    {{ item.name }}
+                    <span class="progress" [class.is-done]="item.done === item.total">{{ item.done }} / {{ item.total }}</span>
+                    @if (item.unknown) {
+                        &ngsp;
+                        <span class="tag tag-warn">not a language of the site</span>
+                    } @else if (item.hidden) {
+                        &ngsp;
+                        <span class="tag">hidden</span>
+                    } @else if (item.readersGetMain) {
+                        &ngsp;
+                        <span class="tag tag-warn">shown in {{ mainName() }}</span>
+                    }
+                </button>
+            }
+        </div>
+
+        <div class="actions">
+            @if (addable().length) {
+                <label class="add">
+                    <app-icon name="plus" [size]="15" />
+                    <span class="visually-hidden">Add a language</span>
+                    <select class="add-select" (change)="onAdd($event)">
+                        <option value="">Add a language…</option>
+                        @for (item of addable(); track item.code) {
+                            <option [value]="item.code">{{ item.name }}{{ item.enabled ? "" : " (hidden)" }}</option>
+                        }
+                    </select>
+                </label>
+            }
+            @if (current(); as tab) {
+                <button appButton size="sm" variant="ghost" class="remove" (click)="remove.emit(tab.code)">
+                    <app-icon name="trash" [size]="15" />
+                    Remove {{ tab.name }}
+                </button>
+            }
+        </div>
+    </div>
+}

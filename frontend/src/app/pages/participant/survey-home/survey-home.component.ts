@@ -1,25 +1,37 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { ApiService, ParticipantSurvey, toApiError } from '../../../core/api/api.service';
+import { ApiError, ApiService, ParticipantSurvey, toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { errorKey, errorParams } from '../../../core/i18n/error-text';
+import { LocalDatePipe } from '../../../core/i18n/local-date.pipe';
+import { TranslatePluralPipe } from '../../../core/i18n/translate-plural.pipe';
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
+import { TranslationService } from '../../../core/i18n/translation.service';
 import { readDraft } from '../../../core/survey/drafts';
+import { localizedSurvey } from '../../../core/survey/localize';
 import { currentStatus, estimatedMinutes, questionCount } from '../../../core/survey/survey-outline';
-import { formatDay } from '../../../core/util/dates';
 import { AlertComponent } from '../../../ui/alert/alert.component';
 import { BadgeComponent } from '../../../ui/badge/badge.component';
 import { ButtonComponent } from '../../../ui/button/button.component';
 import { EmptyStateComponent } from '../../../ui/empty-state/empty-state.component';
 import { IconComponent } from '../../../ui/icon/icon.component';
 import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
+import { otherLanguage } from '../shown-language';
 
 /**
  * The address without a survey in it: the surveys open now, and for each
  * whether this person has taken it, started it, or not yet. People mostly
  * arrive through a survey's own link; this is where they land without one.
+ *
+ * Every word of the page's own is a key, worded in the template - so the page
+ * follows the language when it is switched. A survey's title is the survey's:
+ * in the reader's language when the survey has all its texts in it, otherwise
+ * in the language it was written in - and then the line says which, and the
+ * title carries that language, so it is read as what it is.
  */
 @Component({
   selector: 'app-survey-home',
-  imports: [RouterLink, AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, IconComponent, SpinnerComponent],
+  imports: [RouterLink, AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, IconComponent, SpinnerComponent, LocalDatePipe, TranslatePipe, TranslatePluralPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './survey-home.component.html',
   styleUrl: './survey-home.component.scss',
@@ -27,25 +39,42 @@ import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
 export class SurveyHomeComponent {
   private readonly _api = inject(ApiService);
   private readonly _person = inject(AuthService).person;
+  private readonly _i18n = inject(TranslationService);
 
   private readonly _open = signal<ParticipantSurvey[] | null>(null);
-  protected readonly error = signal<string | null>(null);
+  /**
+   * What the load failed with - the error itself, not a sentence: the template
+   * words it in the reader's language (the server's sentence is English).
+   */
+  protected readonly error = signal<ApiError | null>(null);
   protected readonly loading = computed(() => this._open() === null && this.error() === null);
 
   protected readonly surveys = computed(() => {
     const person = this._person();
+    const reading = this._i18n.language();
     return (this._open() ?? [])
       .filter((item) => currentStatus(item.survey) === 'open')
-      .map(({ survey, answeredAt }) => ({
-        survey,
-        questions: questionCount(survey),
-        minutes: estimatedMinutes(survey),
-        taken: answeredAt !== null,
-        started: answeredAt === null && !!person && readDraft(survey.id, person.id) !== null,
-      }));
+      .map(({ survey, answeredAt }) => {
+        // Whole in the reader's language, or whole in its own: never a title
+        // in one language over questions in another.
+        const shown = localizedSurvey(survey, reading, 'complete');
+        return {
+          survey: shown.survey,
+          /** The language the title is in, when it is not the page's. */
+          language: otherLanguage(this._i18n, shown.language),
+          questions: questionCount(survey),
+          minutes: estimatedMinutes(survey),
+          taken: answeredAt !== null,
+          started: answeredAt === null && !!person && readDraft(survey.id, person.id) !== null,
+        };
+      });
   });
 
-  protected readonly formatDay = formatDay;
+  /** "Language: " and what follows the name: the note before and after the language, whose name is in a language of its own - drawn only when the string has a place for it. */
+  protected readonly inLanguage = computed(() => this._i18n.around('home.inLanguage', 'language'));
+
+  protected readonly errorKey = errorKey;
+  protected readonly errorParams = errorParams;
 
   constructor() {
     // Again when somebody signs in or out: whether each survey is taken is theirs.
@@ -60,7 +89,7 @@ export class SurveyHomeComponent {
     try {
       this._open.set(await this._api.openSurveys());
     } catch (error) {
-      this.error.set(toApiError(error).message);
+      this.error.set(toApiError(error));
     }
   }
 }

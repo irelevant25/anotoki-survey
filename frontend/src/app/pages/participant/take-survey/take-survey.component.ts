@@ -4,26 +4,38 @@ import { RouterLink } from '@angular/router';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { ApiError, ApiService, ParticipantSurvey, toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { LocalDatePipe } from '../../../core/i18n/local-date.pipe';
+import { TranslatePluralPipe } from '../../../core/i18n/translate-plural.pipe';
+import { TranslatePipe } from '../../../core/i18n/translate.pipe';
+import { TranslationService } from '../../../core/i18n/translation.service';
 import { AGE_ID, GENDER_ID, isAgeKey, isGenderKey } from '../../../core/survey/about-you';
-import { ABOUT_YOU_QUESTIONS } from '../../../core/survey/about-you-questions';
-import { answerProblem, cleanAnswer } from '../../../core/survey/answer-rules';
+import { aboutYouQuestions } from '../../../core/survey/about-you-questions';
+import { AnswerProblem, answerProblem, cleanAnswer } from '../../../core/survey/answer-rules';
 import { Draft, clearDraft, readDraft, writeDraft } from '../../../core/survey/drafts';
+import { LocalizedSurvey, localizedSurvey } from '../../../core/survey/localize';
 import { newId } from '../../../core/survey/survey-factory';
 import { currentStatus, estimatedMinutes, numberedQuestions, questionCount } from '../../../core/survey/survey-outline';
 import { AboutYou, Answer, Question, SurveyResponse } from '../../../core/survey/survey.model';
-import { formatDate, formatDay, timeAgo } from '../../../core/util/dates';
 import { AlertComponent } from '../../../ui/alert/alert.component';
 import { ButtonComponent } from '../../../ui/button/button.component';
 import { IconComponent } from '../../../ui/icon/icon.component';
 import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
 import { ToastService } from '../../../ui/toast/toast.service';
 import { QuestionBlockComponent } from '../question-block/question-block.component';
+import { otherLanguage } from '../shown-language';
 import { SurveyHeroComponent } from '../survey-hero/survey-hero.component';
+import { sendFailure, sendFailureText } from './send-failure';
 
 /** One page of the survey: "About you" (when asked), then each of the survey's steps. */
 interface Page {
   key: string;
   title: string;
+  /**
+   * The language the step's title and its questions' texts are in, when it is
+   * not the page's: the survey's, for the survey's own steps. Null for "About
+   * you", which the site words itself.
+   */
+  lang: string | null;
   questions: { question: Question; number: number | null }[];
 }
 
@@ -45,10 +57,38 @@ type State = 'loading' | 'failed' | 'missing' | 'not-open' | 'closed' | 'signed-
  * At /preview/{id} it is the editor's preview: any survey, open or not, and
  * nothing saved - not the draft, not the answers. It is read again whenever
  * its tab comes back into view, so it follows an editor in another tab.
+ *
+ * Every word of the page's own is a translation key, worded in the template
+ * or in a computed - so the page follows the language when it is switched, in
+ * the middle of a survey too: the answers are by id and stay. What is kept in
+ * state is never a sentence: a problem is a kind and its numbers, worded by
+ * the question block. Only a toast is a finished sentence when it is raised.
+ * The preview's own bar and buttons are an editor's tool and stay English.
+ *
+ * A survey's own texts are the survey's, and it may hold them in more than
+ * one language (core/survey/localize.ts). People read it in their language
+ * when the survey has every text in it, and otherwise whole in the language
+ * it was written in - never half and half. Then the welcome says which
+ * language that is, and everything that draws a text of the survey carries
+ * that language (`lang`), while the site's own words around it do not -
+ * except the hint inside an own-words field and the labels that quote a
+ * survey text inside a site sentence: an attribute has one language, and
+ * `lang` on the field would also name the language of what the person types.
+ * The language on the page when the answers are sent goes with them.
+ *
+ * The preview is for a translator too: it takes the language from its address
+ * (`?language=`) and shows it text by text, the original where the
+ * translation has nothing yet - only the survey's texts follow it, the site's
+ * words stay in the language of the page. An address that names no language
+ * shows the survey as it is written, whatever language the page is in: the
+ * editor left from the main language's tab, and that is what they are
+ * looking at. The preview marks the survey's texts as one language - the
+ * translation's - so an original shown in a gap carries the translation's
+ * `lang` too; a language per text is not kept.
  */
 @Component({
   selector: 'app-take-survey',
-  imports: [RouterLink, AlertComponent, ButtonComponent, IconComponent, QuestionBlockComponent, SpinnerComponent, SurveyHeroComponent],
+  imports: [RouterLink, AlertComponent, ButtonComponent, IconComponent, QuestionBlockComponent, SpinnerComponent, SurveyHeroComponent, LocalDatePipe, TranslatePipe, TranslatePluralPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './take-survey.component.html',
   styleUrl: './take-survey.component.scss',
@@ -60,10 +100,18 @@ export class TakeSurveyComponent {
   readonly surveyId = input<string | undefined>(undefined);
   /** Route data: this is the editor's preview. */
   readonly preview = input(false, { transform: booleanAttribute });
+  /**
+   * `?language=` at /preview/{surveyId}: the language to preview the survey's
+   * texts in. Its own parameter, not `lang` - that one is the whole tab's, and
+   * a translation may be in a language the site does not offer. (The router
+   * hands every address its query, so it is read for a preview only.)
+   */
+  readonly language = input<string | undefined>(undefined);
 
   private readonly _api = inject(ApiService);
   private readonly _admin = inject(AdminStore);
   private readonly _auth = inject(AuthService);
+  private readonly _i18n = inject(TranslationService);
   private readonly _title = inject(Title);
   private readonly _toast = inject(ToastService);
   private readonly _injector = inject(Injector);
@@ -73,7 +121,28 @@ export class TakeSurveyComponent {
   private readonly _loaded = signal<ParticipantSurvey | null>(null);
   private readonly _loadError = signal<ApiError | null>(null);
 
-  protected readonly survey = computed(() => (this.preview() ? this._admin.survey(this.surveyId() ?? '') : this._loaded()?.survey));
+  /** The survey as it is kept: the editor's own in a preview, otherwise what the server sent. */
+  private readonly _document = computed(() => (this.preview() ? this._admin.survey(this.surveyId() ?? '') : this._loaded()?.survey));
+  /**
+   * The survey as it is shown, and the language its texts are really in. For
+   * people: their language when nothing is missing from that translation,
+   * else the language it is written in. For a preview: the translation its
+   * address names, text by text - and with no language named, the survey as
+   * it is written: never the language the editor happens to read the site in.
+   */
+  private readonly _shown = computed<LocalizedSurvey | null>(() => {
+    const survey = this._document();
+    if (!survey) {
+      return null;
+    }
+    return this.preview() ? localizedSurvey(survey, this.language() ?? survey.language, 'partial') : localizedSurvey(survey, this._i18n.language(), 'complete');
+  });
+  /** What the page draws: the same survey - ids, questions, limits - with its texts in the language shown. */
+  protected readonly survey = computed(() => this._shown()?.survey);
+  /** The language the survey's texts are in, when it is not the page's: said on the welcome, and what `lang` on those texts is. */
+  protected readonly otherLanguage = computed(() => otherLanguage(this._i18n, this._shown()?.language));
+  /** That language's code for `lang` - nothing when the texts are in the page's own. */
+  protected readonly surveyLang = computed(() => this.otherLanguage()?.code ?? null);
   protected readonly person = this._auth.person;
   /** Who, by id alone: a refreshed token is the same person, and asks for nothing again. */
   private readonly _personId = computed(() => this.person()?.id ?? null);
@@ -98,10 +167,15 @@ export class TakeSurveyComponent {
     const numbers = new Map(numberedQuestions(survey).map((item) => [item.question.id, item.number]));
     const pages: Page[] = [];
     if (survey.askAboutYou) {
-      pages.push({ key: 'about-you', title: 'About you', questions: ABOUT_YOU_QUESTIONS.map((question) => ({ question, number: null })) });
+      // Worded here, inside the computed: t() reads the language, so a switch
+      // words the step again. Its ids and its options' ids do not change, so
+      // what was answered stays answered.
+      const word = (key: string): string => this._i18n.t(key);
+      pages.push({ key: 'about-you', title: word('aboutYou.title'), lang: null, questions: aboutYouQuestions(word).map((question) => ({ question, number: null })) });
     }
+    const lang = this.surveyLang();
     for (const step of survey.steps) {
-      pages.push({ key: step.id, title: step.title, questions: step.questions.map((question) => ({ question, number: numbers.get(question.id) ?? null })) });
+      pages.push({ key: step.id, title: step.title, lang, questions: step.questions.map((question) => ({ question, number: numbers.get(question.id) ?? null })) });
     }
     return pages;
   });
@@ -112,10 +186,10 @@ export class TakeSurveyComponent {
   });
   protected readonly isLast = computed(() => this.pageIndex() >= this.pages().length - 1);
 
-  /** What the current step still misses, by question id. */
+  /** What the current step still misses, by question id: kinds, which the question block words. */
   protected readonly problems = computed(() => {
     const answers = this.answers();
-    const problems = new Map<string, string>();
+    const problems = new Map<string, AnswerProblem>();
     for (const { question } of this.page()?.questions ?? []) {
       const problem = answerProblem(question, answers[question.id]);
       if (problem) {
@@ -155,7 +229,9 @@ export class TakeSurveyComponent {
 
   protected readonly facts = computed(() => {
     const survey = this.survey();
-    return survey ? { questions: questionCount(survey), steps: this.pages().length, minutes: estimatedMinutes(survey), closesOn: survey.status === 'open' ? survey.closesOn : null } : null;
+    return survey
+      ? { questions: questionCount(survey), steps: this.pages().length, minutes: estimatedMinutes(survey), closesOn: survey.status === 'open' ? survey.closesOn : null, language: this.otherLanguage() }
+      : null;
   });
 
   /** The step a draft got to, counted from 1 - within the steps the survey has now. */
@@ -164,15 +240,36 @@ export class TakeSurveyComponent {
   /** Which survey, as whom: when it changes the page starts over - but not when the editor changes the survey under a preview. */
   private readonly _who = computed(() => `${this.survey()?.id ?? ''}|${this._personId() ?? ''}|${this.preview()}`);
 
-  protected readonly formatDate = formatDate;
-  protected readonly formatDay = formatDay;
-  protected readonly timeAgo = timeAgo;
+  /** "Signed in as " and " · everyone can take this survey once.": the sentence before and after the name, which is set in bold - and drawn only when the string has a place for it. */
+  protected readonly signedInAs = computed(() => this._i18n.around('take.signedInAs', 'name'));
+  /** "Language: " and what follows the name: the welcome's note before and after the language, whose name is in a language of its own. */
+  protected readonly inLanguage = computed(() => this._i18n.around('home.inLanguage', 'language'));
+
+  /**
+   * What the preview's "Back to the editor" links add to the editor's
+   * address: the translation this preview shows, as `?language=`, so the
+   * editor opens that tab again. Nothing when the preview shows the survey as
+   * it is written - no language named, or one the survey has no translation in.
+   */
+  protected readonly editorQuery = computed(() => {
+    const shown = this._shown();
+    const written = this._document()?.language;
+    return this.preview() && shown && shown.language !== written ? { language: shown.language } : null;
+  });
 
   constructor() {
+    // The tab's title: this page is the only writer at its addresses (the
+    // routes have no title). It reads the language, so a switch renames the
+    // tab - with the survey's title as the page shows it.
     effect(() => {
       const survey = this.survey();
-      const state = this.state();
-      this._title.setTitle(survey ? `${this.preview() ? 'Preview: ' : ''}${survey.title}` : state === 'loading' ? 'anotoki survey' : 'Survey not found · anotoki survey');
+      if (survey) {
+        // "Preview: " is the editor's and stays English.
+        this._title.setTitle(`${this.preview() ? 'Preview: ' : ''}${survey.title}`);
+        return;
+      }
+      const site = this._i18n.t('brand.site');
+      this._title.setTitle(this.state() === 'loading' ? site : `${this._i18n.t('title.notFound')} · ${site}`);
     });
 
     // The survey, and whether this person has answered it: again for another address, or another person.
@@ -292,9 +389,9 @@ export class TakeSurveyComponent {
     this._showStep();
   }
 
-  /** To the IAM, and back to this survey. */
+  /** To the IAM - its pages in the language the person reads here - and back to this survey. */
   protected signIn(): void {
-    this._auth.signIn();
+    this._auth.signIn(undefined, this._i18n.language());
   }
 
   protected restartPreview(): void {
@@ -332,11 +429,14 @@ export class TakeSurveyComponent {
   }
 
   private async _send(): Promise<void> {
-    const survey = this.survey();
+    const shown = this._shown();
     const person = this.person();
-    if (!survey) {
+    if (!shown) {
       return;
     }
+    // The survey as the person reads it at this moment, and the language its
+    // texts are in: that language goes with the answers.
+    const { survey, language } = shown;
 
     // Every step again: find the first one with anything missing and go there.
     const pages = this.pages();
@@ -366,6 +466,7 @@ export class TakeSurveyComponent {
       person: person ?? { id: 'preview', name: 'Preview', email: '' },
       aboutYou,
       answers: kept,
+      language,
       startedAt: this.startedAt() ?? now,
       submittedAt: now,
     };
@@ -381,30 +482,43 @@ export class TakeSurveyComponent {
 
     this.sending.set(true);
     try {
-      const saved = await this._api.submit(survey.slug, { aboutYou, answers: kept, startedAt: response.startedAt });
+      const saved = await this._api.submit(survey.slug, { aboutYou, answers: kept, language, startedAt: response.startedAt });
       clearDraft(survey.id, person.id);
       this.sent.set({ ...response, id: saved.id, submittedAt: saved.submittedAt });
       this._loaded.update((loaded) => (loaded ? { ...loaded, answeredAt: saved.submittedAt } : loaded));
       this._showTop();
     } catch (failure) {
       const error = toApiError(failure);
-      if (error.code === 'already_answered') {
+      const reason = sendFailure(error);
+      // The page's own words, in the reader's language - never the server's
+      // sentence. A toast is a finished sentence when it is raised.
+      const text = sendFailureText(this._i18n, error, (questionId) => pages.flatMap((page) => page.questions).find((item) => item.question.id === questionId)?.number ?? null);
+      if (reason === 'already') {
         clearDraft(survey.id, person.id);
-        this._toast.info(error.message);
+        this._toast.info(text);
         void this._load(this.slug(), undefined, false);
-      } else if (error.code === 'not_open') {
-        this._toast.error(error.message + ' Sorry!');
+      } else if (reason === 'closed') {
+        this._toast.error(text);
         void this._load(this.slug(), undefined, false);
-      } else if (error.code === 'invalid_answer' && typeof error.body['questionId'] === 'string') {
-        // The survey changed under the person: back to what it says needs another look.
+      } else if (reason === 'answer' && typeof error.body['questionId'] === 'string') {
+        // The survey changed under the person: back to the step the server
+        // named, and the survey is read again - then the exact problem shows
+        // under the question, from this page's own answerProblem().
         const at = pages.findIndex((page) => page.questions.some(({ question }) => question.id === error.body['questionId']));
-        this._toast.error(error.message);
+        this._toast.error(text);
         this._showProblemOn(at >= 0 ? at : this.pageIndex());
         void this._load(this.slug(), undefined, false);
-      } else if (error.status === 401) {
-        this._toast.error('Your sign-in has run out. Sign in again - your answers are kept in this browser, and are still here when you come back.');
+      } else if (reason === 'gone') {
+        // Moved to another address, or deleted, while the person was in it:
+        // sending again can never work, so the page becomes "There is no
+        // survey here", with its way to the open surveys. The draft is not
+        // cleared - it is kept by the survey's id, so it is offered again at
+        // the address the survey has now.
+        this._toast.error(text);
+        this._loaded.set(null);
+        this._loadError.set(error);
       } else {
-        this._toast.error(`Your answers could not be sent: ${error.message} They are kept in this browser - try again.`);
+        this._toast.error(text);
       }
     } finally {
       this.sending.set(false);

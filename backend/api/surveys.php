@@ -11,6 +11,12 @@ declare(strict_types=1);
  * An editor sends back the revision their changes were made to; a survey saved
  * by somebody else in between is refused (409 conflict, with the version that
  * is there now) rather than overwritten.
+ *
+ * A survey is written in one language and may hold its texts in others
+ * (`language`, `translations` in its content). Inside PHP the translations
+ * are arrays; wherever a survey leaves PHP - into the database, to the editor,
+ * to the people taking it - every map of them is an object
+ * (surveyTranslationsJson()).
  */
 
 const SURVEY_COLUMNS = 's.id, s.slug, s.title, s.status, s.closes_on, s.content, s.revision, s.created_at, s.updated_at, s.opened_at, s.closed_at';
@@ -36,10 +42,39 @@ function surveyTakesAnswers(array $row): bool
     return new DateTimeImmutable('now', new DateTimeZone('UTC')) < $end;
 }
 
-/** A survey row as the frontend reads it. */
-function surveyJson(array $row): array
+/**
+ * A survey row's content, for PHP to work with: what the row holds, and for a
+ * survey kept before surveys had languages what that means - written in
+ * English, translated into nothing. (So no survey needed migrating.) The
+ * translations are arrays here.
+ */
+function surveyContent(array $row): array
 {
     $content = json_decode((string) $row['content'], true, 512, JSON_THROW_ON_ERROR);
+    $content['language'] = is_string($content['language'] ?? null) ? $content['language'] : SURVEY_LANGUAGE_DEFAULT;
+    $content['translations'] = is_array($content['translations'] ?? null) ? $content['translations'] : [];
+
+    return $content;
+}
+
+/** The content as it is written into the database: the translations' maps as objects. */
+function surveyContentJson(array $content): string
+{
+    return jsonText(['translations' => surveyTranslationsJson($content['translations'])] + $content);
+}
+
+/**
+ * A survey row as the frontend reads it. $offered: for the people taking it,
+ * the languages they are offered - a translation into any other language is
+ * left out (it is not theirs to read yet); null for the admin area, which
+ * gets them all.
+ *
+ * @param ?string[] $offered
+ */
+function surveyJson(array $row, ?array $offered = null): array
+{
+    $content = surveyContent($row);
+    $translations = $offered === null ? $content['translations'] : array_intersect_key($content['translations'], array_flip($offered));
 
     return [
         'id' => $row['id'],
@@ -51,6 +86,8 @@ function surveyJson(array $row): array
         'status' => $row['status'],
         'closesOn' => $row['closes_on'],
         'steps' => $content['steps'],
+        'language' => $content['language'],
+        'translations' => surveyTranslationsJson($translations),
         'createdAt' => isoTime($row['created_at']),
         'updatedAt' => isoTime($row['updated_at']),
         'openedAt' => isoTime($row['opened_at']),
@@ -82,8 +119,9 @@ function surveysOpen(?int $userId): array
           ORDER BY s.opened_at DESC NULLS LAST, s.created_at DESC',
         [$userId ?? 0]
     );
+    $offered = $rows === [] ? [] : languagesOffered();
 
-    return array_map(static fn(array $row): array => ['survey' => surveyJson($row), 'answeredAt' => isoTime($row['answered_at'])], $rows);
+    return array_map(static fn(array $row): array => ['survey' => surveyJson($row, $offered), 'answeredAt' => isoTime($row['answered_at'])], $rows);
 }
 
 /**
@@ -111,7 +149,7 @@ function surveyForParticipant(string $slug, ?int $userId): array
         throw surveyNotFound();
     }
 
-    return ['survey' => surveyJson($row), 'answeredAt' => isoTime($row['answered_at'])];
+    return ['survey' => surveyJson($row, languagesOffered()), 'answeredAt' => isoTime($row['answered_at'])];
 }
 
 // ── For the admin area ──────────────────────────────────────────────────────
@@ -233,16 +271,44 @@ function surveySlugTaken(string $slug): ApiError
     return new ApiError(409, 'slug_taken', "Another survey already lives at \"$slug\" - choose another address.");
 }
 
+/**
+ * Holds the languages a survey is about to be kept in - the one it is written
+ * in and every one it is translated into - until the save is done. The body
+ * was checked against the languages a moment ago, outside the transaction;
+ * without this, one of them could be deleted in that moment (languageDelete()
+ * counts the surveys that use a language, and cannot see a save that is not
+ * finished), and the survey would be left in a language the site no longer
+ * has. With it the two wait for each other on the language's row: a delete
+ * that comes second finds the survey, a save that comes second is refused
+ * here.
+ *
+ * Called inside the save's transaction - in surveySave() after the survey's
+ * own row is held, so everybody takes the two in the same order (a delete
+ * holds the language and only reads the surveys). FOR SHARE: saves do not
+ * wait for each other, nor for a save of the site's strings.
+ *
+ * @param array{language: string, translations: array<string, mixed>} $content from surveyFromBody()
+ */
+function surveyLanguagesLock(array $content): void
+{
+    $codes = array_map('strval', [$content['language'], ...array_keys($content['translations'])]);
+    $found = dbAll('SELECT code FROM languages WHERE code IN (' . implode(', ', array_fill(0, count($codes), '?')) . ') FOR SHARE', $codes);
+    if (count($found) !== count($codes)) {
+        throw surveyInvalid('A language of this survey has just been deleted from the site. Add the language again, or take it out of the survey.');
+    }
+}
+
 /** A new draft from what the editor sent. */
 function surveyCreate(SiteUser $user, mixed $body): array
 {
-    $survey = surveyFromBody($body);
+    $survey = surveyFromBody($body, languagesForSurveys());
 
     $row = dbTx(static function () use ($user, $survey): array {
+        surveyLanguagesLock($survey['content']);
         $content = surveyContentWithImages($survey);
         $id = (string) dbValue(
             'INSERT INTO surveys (slug, title, closes_on, content, created_by, updated_by) VALUES (?, ?, ?, ?::jsonb, ?, ?) RETURNING id',
-            [$survey['slug'], $survey['title'], $survey['closesOn'], jsonText($content), $user->id, $user->id]
+            [$survey['slug'], $survey['title'], $survey['closesOn'], surveyContentJson($content), $user->id, $user->id]
         );
         surveyImagesRecord($id, $survey['imageIds']);
 
@@ -255,13 +321,23 @@ function surveyCreate(SiteUser $user, mixed $body): array
 /**
  * Saves an editor's version of the survey, made to revision $revision. A
  * survey people can reach keeps an address they can reach it at.
+ *
+ * The language a survey is written in does not change while a translation is
+ * kept across the change: the texts of the document and those of the
+ * translation would swap meaning under whoever is translating. So it is
+ * refused when the language differs and both the survey as it is kept and the
+ * one sent hold translations. Removing the translations and changing the
+ * language in one save is taken - the revision says whoever sent it saw what
+ * they removed, and it is what two saves would do; so is a first translation
+ * that arrives together with a new language. (The editor asks for more: it
+ * locks "Written in" while the survey has any translation.)
  */
 function surveySave(SiteUser $user, string $id, mixed $revision, mixed $body): array
 {
     if (!is_int($revision)) {
         throw new ApiError(422, 'invalid_survey', 'Say which version of the survey the changes were made to (revision).');
     }
-    $survey = surveyFromBody($body);
+    $survey = surveyFromBody($body, languagesForSurveys());
 
     $row = dbTx(static function () use ($user, $id, $revision, $survey): array {
         $current = surveyRow($id, true);
@@ -271,18 +347,23 @@ function surveySave(SiteUser $user, string $id, mixed $revision, mixed $body): a
         if ((int) $current['revision'] !== $revision) {
             throw new ApiError(409, 'conflict', 'Somebody else has saved this survey since you opened it.', [], ['survey' => surveyJson($current)]);
         }
+        surveyLanguagesLock($survey['content']);
         if ($current['status'] !== 'draft') {
             $problem = surveyLiveSlugProblem($survey['slug']);
             if ($problem !== null) {
                 throw new ApiError(422, 'invalid_survey', $problem . ' People can reach this survey, so its address must work.');
             }
         }
+        $stored = surveyContent($current);
+        if ($survey['content']['language'] !== $stored['language'] && $stored['translations'] !== [] && $survey['content']['translations'] !== []) {
+            throw surveyInvalid('The language a survey is written in can be changed only while it has no translations. Remove them first.');
+        }
 
         $content = surveyContentWithImages($survey);
         try {
             dbExec(
                 'UPDATE surveys SET slug = ?, title = ?, closes_on = ?, content = ?::jsonb, revision = revision + 1, updated_at = now(), updated_by = ? WHERE id = ?',
-                [$survey['slug'], $survey['title'], $survey['closesOn'], jsonText($content), $user->id, $id]
+                [$survey['slug'], $survey['title'], $survey['closesOn'], surveyContentJson($content), $user->id, $id]
             );
         } catch (PDOException $e) {
             if (dbIsUniqueViolation($e, 'surveys_live_slug')) {
@@ -302,8 +383,9 @@ function surveySave(SiteUser $user, string $id, mixed $revision, mixed $body): a
 
 /**
  * Opens or closes a survey. Opening is refused while the survey has anything
- * to fix (surveyProblems); `closesOn`, when sent, is the last day it opens
- * with - the editor drops a day that has passed when it reopens a survey.
+ * to fix (surveyProblems) - an unfinished translation into a language people
+ * are offered too; `closesOn`, when sent, is the last day it opens with - the
+ * editor drops a day that has passed when it reopens a survey.
  *
  * Either way it is a new revision: the closing day is part of what an editor
  * saves, so an editor still holding the revision before must be told, not
@@ -336,9 +418,8 @@ function surveySetStatus(SiteUser $user, string $id, mixed $body): array
             return surveyRow($id);
         }
 
-        $survey = surveyJson($current);
         $others = dbAll('SELECT id, slug FROM surveys WHERE id <> ?', [$id]);
-        $problems = surveyProblems(['id' => $id, 'title' => $survey['title'], 'slug' => $survey['slug'], 'content' => $survey], $others);
+        $problems = surveyProblems(['id' => $id, 'title' => $current['title'], 'slug' => $current['slug'], 'content' => surveyContent($current)], $others, languagesForSurveys());
         if ($problems !== []) {
             throw new ApiError(422, 'survey_problems', 'Fix what the editor lists before the survey opens.', [], ['problems' => $problems]);
         }
@@ -351,7 +432,7 @@ function surveySetStatus(SiteUser $user, string $id, mixed $body): array
             );
         } catch (PDOException $e) {
             if (dbIsUniqueViolation($e, 'surveys_live_slug')) {
-                throw surveySlugTaken($survey['slug']);
+                throw surveySlugTaken($current['slug']);
             }
             throw $e;
         }

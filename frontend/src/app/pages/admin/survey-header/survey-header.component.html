@@ -46,7 +46,7 @@
         </div>
 
         <div class="actions">
-            <a appButton [routerLink]="['/preview', survey().id]">
+            <a appButton [routerLink]="['/preview', survey().id]" [queryParams]="previewParams()">
                 <app-icon name="eye" [size]="16" />
                 Preview
             </a>
@@ -78,7 +78,7 @@
             <app-icon name="pencil" [size]="16" />
             Editor
             @if (problems().length) {
-                <span class="count count-warn" [attr.title]="problems().length + ' to fix before it opens'">{{ problems().length }}</span>
+                <span class="count count-warn" [attr.title]="problemsTitle()">{{ problems().length }}</span>
             }
         </a>
         <a class="tab" [routerLink]="['/admin/surveys', survey().id, 'results']" routerLinkActive="is-active" ariaCurrentWhenActive="page">

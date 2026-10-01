@@ -62,10 +62,13 @@ Run the IAM (`../anotoki-iam`: its backend on `:8100`, its pages on
 `http://localhost:4300` - see its DEV.md). Its migration
 `005_survey_application.sql` registers this site as `survey` for
 `http://localhost:4700` (the callback `/auth/callback`, and `/` after signing
-out) with the roles **ADMIN** and **EDITOR**, and gives ADMIN to the IAM's own
-administrators; `php migration.php` in its `backend/` applies it to an IAM set
-up before. Anybody with an account may take surveys; the admin area needs
-EDITOR or ADMIN, given in the IAM's admin console (Users → the account → roles).
+out) with the roles **ADMIN** and **EDITOR**, and gives ADMIN to the IAM's
+administrators of the moment; `php migration.php` in its `backend/` (or its
+setup page, saved again) applies it to an IAM set up before. Anybody with an
+account may take surveys; the admin area needs EDITOR or ADMIN, given in the
+IAM's admin console (Users → the account → roles). An IAM installed from
+scratch has no accounts yet when its migrations run, so there its own
+administrators are given the site's ADMIN that way too.
 
 Without the IAM, the site shows everything a signed-out visitor sees, and the
 tests and the browser check (below) sign in through a stand-in instead.
@@ -82,12 +85,18 @@ tests and the browser check (below) sign in through a stand-in instead.
 | --- | --- |
 | `/` | the surveys open now, as people see them |
 | `/{address}` | a survey to take |
-| `/preview/{id}` | the editor's preview of any survey, open or not; nothing is kept |
+| `/preview/{id}` | the editor's preview of any survey, open or not; nothing is kept. `?language=sk` shows a translation, text by text; without `?language=` the survey as it is written, whatever language the page is in |
 | `/admin` | the surveys (EDITOR, ADMIN) |
 | `/admin/surveys/{id}/edit` | the editor |
 | `/admin/surveys/{id}/results` | the results - `?tab=people`, and the drill-down below |
 | `/admin/surveys/{id}/responses/{id}` | one person's answers on a page of its own |
+| `/admin/translations` | the site's own words: every key, a column a language |
+| `/admin/languages` | the languages: add, rename, reorder, offer or hide, delete (ADMIN) |
 | `/auth/callback` | where the IAM sends the browser back after signing in |
+
+`?lang=sk` on any address of the site reads it in that language for the tab
+(and is taken out of the address); the chooser in the top bar remembers a
+choice on the device. The admin area is English whichever it is.
 
 The results keep their state in the address, so Back steps out of it and every
 view can be linked: `?filter=question:option,…` narrows the page,
@@ -99,12 +108,39 @@ Command-line tools in `backend/`, all reading the same settings:
 
 ```bash
 php migration.php [--status|--dry-run]    # apply pending migrations (setup.php does too)
+php translations.php --status             # the keys the frontend uses against the database's strings
+php translations.php --export sk [file]   # a language's own strings as flat JSON (to the screen without a file)
+php translations.php --import sk file     # and back in, checked as a save in the admin area is
 php tools/build.php [--out=DIR]           # the upload (see Building and deploying)
 ```
 
 The database is `migrations/survey/NNN_name.sql`, applied in order by the same
 engine as the other anotoki sites' (`api/migration_runner.php`). Never edit an
 applied migration; add the next number.
+
+### The site's words
+
+What the site says to somebody taking a survey is not written in a template:
+the page names a key (`{{ 'home.title' | translate }}`) and the string comes
+from the database, in English and Slovak
+([docs/architecture.md](docs/architecture.md), *The site's own words*). The
+admin area is English, written in its templates. So a new sentence on a page
+people take surveys on is:
+
+1. the key in the template (or `i18n.t()` inside a `computed()`);
+2. a migration with the key, a description for whoever translates it, its
+   English and its Slovak string - `003_site_strings.sql` is the pattern, and
+   Slovak on this site addresses the reader formally
+   ([docs/decisions.md](docs/decisions.md), *Languages*);
+3. `php migration.php` for your own database (the site says it needs an
+   update until then). A key no migration has written yet shows on the page as
+   itself - which is how a missing string is meant to look.
+
+`php tests/run.php` fails when the frontend uses a key no migration wrote, or
+a migration wrote one nothing uses; `php translations.php --status` says the
+same about your database. A string can also be reworded in the admin area
+(`/admin/translations`) - that changes your database only, not what a
+migration gives the next one.
 
 ## Tests
 
@@ -113,9 +149,9 @@ cd backend
 php tests/run.php                  # every tests/unit and tests/api file, four at a time
 
 cd frontend
-npm test                           # the unit tests (Vitest): the rules, the checks, the results, the CSV, pictures
+npm test                           # the unit tests (Vitest): the rules, the checks, the results, the CSV, pictures, the languages
 npm run build                      # the production build
-npx prettier --check "src/**/*.{ts,html,scss}"
+npx prettier --check "src/**/*.{ts,html,scss}"   # on a checkout with CRLF line endings: --end-of-line crlf
 ```
 
 The backend tests start the real router under PHP's built-in server (and the
@@ -127,6 +163,29 @@ this machine's `config/database.local.php`, so run the setup once first. They
 sign their own tokens (the IAM verifier's test helpers) and never touch
 `anotoki_survey`.
 
+The template gets only the migrations it has not seen. While a migration is
+still being written - edited after the template applied it -
+`php tests/tools/testdb.php template --fresh` drops the template and builds it
+again from every migration (not while tests are running: they copy it).
+
+`tests/unit/translations.test.php` reads the frontend's sources: every key a
+page asks for must be in the database the migrations leave, with an English
+and a Slovak string, and every key there must be asked for.
+
+The same scan fails what would show a key although it "exists", each with its
+file and line: a plural family asked for as one string (`'home.questions' |
+translate`) or one string as a family (`translatePlural`, `.plural()`); a key
+put together from a prefix that `core/i18n/dynamic-keys.ts` does not declare
+(`'take.refused.' + kind`, or a template literal going on with `${…}`); and
+`innerHTML` given a translated string. `php translations.php --status` runs it
+against your own database and ends with 1 when it is not clean.
+
+Two requests at the same moment - a language deleted while a survey is saved
+in it, two people adding the last language the site keeps - are tested through
+the real server: `begin_as()` sends a request without waiting for it and
+`somebody_else()` is a second connection holding the other side
+(`tests/api/translations.test.php`).
+
 ### In a browser
 
 ```bash
@@ -135,10 +194,19 @@ node .claude/skills/check-in-browser/scripts/run.mjs [--no-build] [--keep]
 
 The whole site end to end in headless Chrome - the owner writes and opens a
 survey with a picture, somebody takes it once, the results, the roles, a phone
-width - signing in through the stand-in IAM (`backend/tests/tools/fake-iam.php`),
+width, and then the pages people take surveys on in Slovak (no key where a word
+should be, the admin area English all the same) - signing in through the
+stand-in IAM (`backend/tests/tools/fake-iam.php`),
 on a throwaway database, then everything stopped and dropped. The skill
 (`.claude/skills/check-in-browser/SKILL.md`) has the details, and how to click
 through the same throwaway copy by hand.
+
+It also walks the states a happy path never draws: a save of strings that
+fails, a session ending over boxes typed and not saved (they are back after
+signing in again), signing out over them, a language added hidden, an open
+survey with a text not translated yet, an author saving over a translator's
+save, and the site not set up or out of reach - with "Try again". It takes
+about six minutes after the build.
 
 ## Building and deploying
 
@@ -153,7 +221,8 @@ It builds the frontend (`npm ci` if needed, then `npm run build`) and puts
 together one folder whose contents go into the site's web root: the app, its
 `.htaccess` (routing, closed folders, security headers), `setup.php`, `api/`,
 `config/` (the loader only), `migrations/`, `vendor/` and an empty `storage/`.
-No settings file, no tests or tools, no composer files.
+No settings file, no tests or tools, no command-line scripts (`migration.php`,
+`translations.php`), no composer files.
 
 1. In the hosting panel: a PostgreSQL database and its user, and HTTPS for the
    site.
@@ -168,11 +237,16 @@ No settings file, no tests or tools, no composer files.
    [docs/operations.md](docs/operations.md) (*The IAM*).
 5. Sign in on the site.
 
-**Later versions**: build and upload again (the settings and the lock stay). A
+**Later versions**: build and upload again (the settings stay). A
 version with a new migration needs the setup page once more: delete
-`storage/installed.lock`, and open `/setup.php` (the upload carries it) with the
-same details - it applies what is missing and keeps every survey and answer.
-Until then the site says it needs an update.
+`storage/installed.lock` first, then build and upload, then open `/setup.php`
+(the upload carries it) with the same details - it applies what is missing and
+keeps every survey and answer. Opened while the lock is there, `setup.php`
+deletes itself - delete the lock and upload it again. Until then the site is
+closed ("not set up yet"). The site's strings on the host
+are reworded in its admin area and are never overwritten by a release; what a
+release with string migrations needs first, and how a language is added, is in
+[docs/operations.md](docs/operations.md) (*The site's words and languages*).
 
 If a whole site answers "500 Internal Server Error" after an upload, the host
 may not allow a line of `.htaccess` (`Options -Indexes` or `CGIPassAuth`):
@@ -185,9 +259,14 @@ remove that line.
 | "The survey site is not set up yet"; the API answers 503 `not_set_up` | The setup page has not run, a `config/*.local.php` is missing - or the database needs an update (`php migration.php`, or the setup page). |
 | The setup page asks for a token on this computer | It was not asked as `localhost` / `127.0.0.1` straight from PHP's built-in server: a LAN address, another name, or a proxy that adds forwarding headers makes it a real host's install. |
 | "The survey site cannot be reached" | The backend on :8500 is not running, or was started without `router.php`. |
-| Signing in bounces back with an error | The IAM does not know this address: use `http://localhost:4700`, which its migration 005 registers for `survey` (on an older IAM database: `php migration.php` there, or `php clients.php --dev`). |
+| Signing in stops at the IAM ("This site is not registered", "We cannot send you back"), or comes back saying it did not work | The IAM does not know this site or this address: use `http://localhost:4700`, which its migration 005 registers for `survey`. On an IAM database from before 005, `php migration.php` there (or its setup page, saved again) adds the site; `php clients.php --dev` there only puts back the development addresses of a site the database already has. |
 | "Your sign-in has run out" on every request | The issuer in `config/iam.local.php` is not exactly the IAM's address, or the backend cannot reach `{issuer}/.well-known/jwks.json`. |
 | The admin area says it is for the people who write the surveys | Your account has no EDITOR or ADMIN role for `survey`: the IAM's admin console gives it. |
 | "Not saved" beside a survey's name | The server refused the last change - the editor says why above the survey (often an address another live survey has). |
 | `tests/run.php` stops before any test | No `config/database.local.php` to borrow the PostgreSQL server from: run the setup first. |
+| A page shows `home.title` (a key) where a word should be | The database has no string for it: no migration writes that key yet. `php translations.php --status` lists what the frontend uses and the database lacks. |
+| `translations.test.php` fails on a key | The frontend uses a key no migration writes, or a migration writes one nothing uses any more. If the migration was edited just now, the tests' template still has the old one: `php tests/tools/testdb.php template --fresh`. |
+| `translations.test.php` fails with "is a plural family and is asked for as one string", "is asked for as a plural", or "a key is put together from '…', which core/i18n/dynamic-keys.ts does not declare" | The key is in the database, and the page would still show it as a key: ask for a family with `translatePlural` / `.plural()` and for one string with `translate` / `.t()`; declare the prefix and its tails in `dynamic-keys.ts`. |
+| The Languages page: a language just added is not in the chooser | It starts hidden: its row's switch offers it (or the form's "Offer it to readers right away", before adding). |
+| Prettier reports every file | The checkout has CRLF line endings (Windows, `core.autocrlf`): `npx prettier --check --end-of-line crlf "src/**/*.{ts,html,scss}"`. |
 | Port 4700 is busy | Another `ng serve` is still running (on Windows the child of `npx` can outlive its window). Find it with `netstat -ano \| findstr :4700` and end that process. |

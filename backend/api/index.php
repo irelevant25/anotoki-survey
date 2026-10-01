@@ -10,9 +10,11 @@ declare(strict_types=1);
  * Under PHP's built-in server router.php does the same. Slim routes on the
  * original path, so every route starts with /api/.
  *
- *   routes/public.php    GET /api/health, GET /api/auth/config, GET /api/images/{id}.{ext}
+ *   routes/public.php    GET /api/health, GET /api/auth/config, GET /api/images/{id}.{ext},
+ *                        GET /api/translations/{code}
  *   routes/surveys.php   the surveys for the people taking them, and their answers
- *   routes/admin.php     /api/admin/...: the surveys, the results, the pictures (EDITOR, ADMIN)
+ *   routes/admin.php     /api/admin/...: the surveys, the results, the pictures, the languages
+ *                        and the site's own strings (EDITOR, ADMIN)
  *
  * The middleware, outermost first: security headers -> the error handler ->
  * the setup gate (503 not_set_up without config/*.local.php, or with a

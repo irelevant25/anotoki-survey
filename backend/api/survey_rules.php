@@ -8,6 +8,7 @@ declare(strict_types=1);
  *
  *   frontend/src/app/core/survey/survey.model.ts     the shape
  *   frontend/src/app/core/survey/survey-problems.ts  surveyProblems()
+ *   frontend/src/app/core/survey/localize.ts         translationGaps(), pruneTranslations()
  *   frontend/src/app/core/survey/answer-rules.ts     answerProblem(), cleanAnswer()
  *   frontend/src/app/core/survey/about-you.ts        the gender and age keys
  *
@@ -33,6 +34,9 @@ const SURVEY_MAX_QUESTION_IMAGES = 10;
 const SURVEY_MAX_OPTION_IMAGES = 4;
 const SURVEY_TITLE_MAX = 200;
 const SURVEY_LABEL_MAX = 300;
+
+/** The language of a survey kept before surveys said theirs: the site was English then. */
+const SURVEY_LANGUAGE_DEFAULT = 'en';
 
 /** The most anybody may write into one text answer, whatever the question allows; into "Other", less. */
 const ANSWER_TEXT_MAX = 10000;
@@ -119,12 +123,39 @@ function surveyDay(mixed $value, string $what): ?string
  * measured. The status and times are not the editor's to send - they come from
  * the database and the status route.
  *
+ * $languages: every language the site has, offered or hidden -
+ * [code => ['name' => its name in English, 'enabled' => bool]]
+ * (languagesForSurveys()). The survey is written in one of them and may be
+ * translated into others; a language the site does not have is refused, never
+ * dropped - a save does not throw a whole language of work away.
+ *
+ * The translations come back as arrays ([code => [...]], the maps inside by
+ * id); surveyTranslationsJson() makes objects of them for JSON.
+ *
+ * @param array<string, array{name: string, enabled: bool}> $languages
  * @return array{title: string, slug: string, closesOn: ?string, content: array, imageIds: string[]}
  */
-function surveyFromBody(mixed $body): array
+function surveyFromBody(mixed $body, array $languages): array
 {
     if (!is_array($body) || array_is_list($body)) {
         throw surveyInvalid('Send the survey as an object.');
+    }
+    // Both must be said. Filling in "English, no translations" for a body
+    // without them would let a page from before surveys had languages save a
+    // survey - and delete every translation it has without a word. Such a
+    // page is the only thing in a browser that sends one, and its person is
+    // who reads the refusal: so it says what is wrong with the body first, and
+    // then what that person can do, which is not "try again".
+    $outdated = ' A page that was open before the site was updated can no longer save: copy what you changed since the last save, then reload the page.';
+    if (($body['language'] ?? null) === null) {
+        throw surveyInvalid('Say which language the survey is written in (language).' . $outdated);
+    }
+    if (($body['translations'] ?? null) === null) {
+        throw surveyInvalid('Send the translations, or an empty object (translations).' . $outdated);
+    }
+    $language = $body['language'];
+    if (!languageCodeOk($language) || !isset($languages[$language])) {
+        throw surveyInvalid('The language the survey is written in is not a language of this site.');
     }
 
     $title = surveyLine($body['title'] ?? null, SURVEY_TITLE_MAX, 'The title');
@@ -175,9 +206,252 @@ function surveyFromBody(mixed $body): array
         'title' => $title,
         'slug' => $slug,
         'closesOn' => $closesOn,
-        'content' => ['intro' => $intro, 'thanks' => $thanks, 'askAboutYou' => $askAboutYou, 'steps' => $steps],
+        'content' => [
+            'intro' => $intro,
+            'thanks' => $thanks,
+            'askAboutYou' => $askAboutYou,
+            'steps' => $steps,
+            'language' => $language,
+            'translations' => surveyTranslationsFromBody($body['translations'], $steps, $language, $languages),
+        ],
+        // A translation names no picture of its own: it only describes the survey's.
         'imageIds' => array_keys($imageIds),
     ];
+}
+
+/**
+ * An object of a translation as it came: a JSON object, or the empty array
+ * an empty one looks like once decoded. Anything else where a level of a
+ * translation should be is refused - a string there is not "no translation".
+ *
+ * $byId: the level is a map by id. Ids may be "0" and "1", and such a map is
+ * a list to PHP once decoded, so a list is taken there; where the keys are
+ * names (title, steps, label...) a list is not an object.
+ */
+function surveyMap(mixed $value, string $what, bool $byId = false): array
+{
+    if (!is_array($value) || (!$byId && $value !== [] && array_is_list($value))) {
+        throw surveyInvalid("$what is not an object.");
+    }
+
+    return $value;
+}
+
+/**
+ * The translations an editor sent, as they may be kept: [code => translation],
+ * each language one the site has and not the one the survey is written in.
+ *
+ * @param array $steps the survey's own steps, already checked
+ * @param array<string, array{name: string, enabled: bool}> $languages
+ */
+function surveyTranslationsFromBody(mixed $raw, array $steps, string $language, array $languages): array
+{
+    $raw = surveyMap($raw, 'What was sent as the translations');
+    if (count($raw) > count($languages)) {
+        throw surveyInvalid('The survey is translated into more languages than the site has.');
+    }
+
+    $translations = [];
+    foreach ($raw as $code => $rawTranslation) {
+        if (!languageCodeOk($code) || !isset($languages[$code])) {
+            throw surveyInvalid('The survey is translated into a language the site does not have' . (languageCodeOk($code) ? " (\"$code\")" : '') . '. Add the language, or remove the translation.');
+        }
+        if ($code === $language) {
+            throw surveyInvalid("The survey is written in {$languages[$code]['name']}, so it cannot be translated into it as well.");
+        }
+        $translations[$code] = surveyTranslationFromBody($rawTranslation, $steps, $languages[$code]['name']);
+    }
+
+    return $translations;
+}
+
+/**
+ * One translation: the survey's texts in another language, each found by the
+ * id of what it belongs to (SurveyTranslation in survey.model.ts).
+ *
+ * It is built by walking the survey's own steps, questions, options and
+ * pictures and asking what was sent for each - never by going through the
+ * maps that were sent. So words for an id the survey does not have are
+ * dropped without anybody looking at them (pruneTranslations() in
+ * localize.ts does the same in the editor), the work is bounded by what a
+ * survey may hold, and an id is never read back from an array key (PHP makes
+ * a number of a key like "12"). Every text is cleaned and measured exactly
+ * like the one it translates.
+ *
+ * @param array  $steps the survey's own steps, already checked
+ * @param string $name  the language's name in English, for the refusals ("Slovak")
+ * @return array{title: string, intro: string, thanks: string, steps: array, questions: array}
+ */
+function surveyTranslationFromBody(mixed $raw, array $steps, string $name): array
+{
+    $raw = surveyMap($raw, "The $name translation");
+    $rawSteps = surveyMap($raw['steps'] ?? [], "The map of step titles in $name", true);
+    $rawQuestions = surveyMap($raw['questions'] ?? [], "The map of questions in $name", true);
+
+    $translation = [
+        'title' => surveyLine($raw['title'] ?? '', SURVEY_TITLE_MAX, "The $name title"),
+        'intro' => richTextClean($raw['intro'] ?? '', "the $name welcome"),
+        'thanks' => richTextClean($raw['thanks'] ?? '', "the $name thanks"),
+        'steps' => [],
+        'questions' => [],
+    ];
+
+    $number = 0;
+    foreach ($steps as $s => $step) {
+        $rawStep = $rawSteps[$step['id']] ?? null;
+        if ($rawStep !== null) {
+            $stepName = "the $name title of step " . ($s + 1);
+            $translation['steps'][$step['id']] = ['title' => surveyLine(surveyMap($rawStep, ucfirst($stepName))['title'] ?? '', SURVEY_TITLE_MAX, ucfirst($stepName))];
+        }
+
+        foreach ($step['questions'] as $question) {
+            $number++;
+            $rawQuestion = $rawQuestions[$question['id']] ?? null;
+            if ($rawQuestion === null) {
+                continue;
+            }
+            $questionName = "question $number in $name";
+            $rawQuestion = surveyMap($rawQuestion, ucfirst($questionName));
+            $rawOptions = surveyMap($rawQuestion['options'] ?? [], "The map of options of $questionName", true);
+            $rawImages = surveyMap($rawQuestion['images'] ?? [], "The map of picture descriptions of $questionName", true);
+
+            $options = [];
+            foreach ($question['options'] as $o => $option) {
+                $rawOption = $rawOptions[$option['id']] ?? null;
+                if ($rawOption !== null) {
+                    $optionName = 'option ' . ($o + 1) . " of $questionName";
+                    $options[$option['id']] = ['label' => surveyLine(surveyMap($rawOption, ucfirst($optionName))['label'] ?? '', SURVEY_LABEL_MAX, "The label of $optionName")];
+                }
+            }
+            // The pictures under the question's text; the same one twice shares one description.
+            $images = [];
+            foreach ($question['images'] as $i => $image) {
+                $rawImage = $rawImages[$image['id']] ?? null;
+                if ($rawImage !== null && !isset($images[$image['id']])) {
+                    $imageName = 'picture ' . ($i + 1) . " of $questionName";
+                    $images[$image['id']] = ['alt' => surveyLine(surveyMap($rawImage, ucfirst($imageName))['alt'] ?? '', SURVEY_LABEL_MAX, "The description of $imageName")];
+                }
+            }
+
+            $translation['questions'][$question['id']] = [
+                'text' => richTextClean($rawQuestion['text'] ?? '', $questionName),
+                'placeholder' => surveyLine($rawQuestion['placeholder'] ?? '', SURVEY_LABEL_MAX, "The hint of $questionName"),
+                'options' => $options,
+                'images' => $images,
+            ];
+        }
+    }
+
+    return $translation;
+}
+
+/**
+ * A survey's translations as they go out as JSON - to the database, to the
+ * editor, to the people taking it: every map an object at all five levels
+ * (the translations, each one's steps and questions, each question's options
+ * and images), empty or not, whatever its ids look like. Left to itself PHP
+ * writes an empty map as [] and one with the ids "0" and "1" as a list - and
+ * an editor that got [] where a map should be would lose the next text it
+ * writes into it. Used wherever a survey leaves PHP; inside PHP the
+ * translations stay arrays.
+ *
+ * Shaped from what is there, so a translation kept with less than all of it
+ * goes out whole.
+ *
+ * @param array<string, mixed> $translations [code => translation], as surveyFromBody() or json_decode() gives them
+ */
+function surveyTranslationsJson(array $translations): object
+{
+    $text = static fn(mixed $value): string => is_string($value) ? $value : '';
+    $map = static fn(mixed $value): array => is_array($value) ? $value : [];
+
+    $out = [];
+    foreach ($translations as $code => $translation) {
+        $translation = $map($translation);
+        $questions = [];
+        foreach ($map($translation['questions'] ?? null) as $id => $question) {
+            $question = $map($question);
+            $questions[$id] = [
+                'text' => $text($question['text'] ?? null),
+                'placeholder' => $text($question['placeholder'] ?? null),
+                'options' => (object) $map($question['options'] ?? null),
+                'images' => (object) $map($question['images'] ?? null),
+            ];
+        }
+        $out[$code] = [
+            'title' => $text($translation['title'] ?? null),
+            'intro' => $text($translation['intro'] ?? null),
+            'thanks' => $text($translation['thanks'] ?? null),
+            'steps' => (object) $map($translation['steps'] ?? null),
+            'questions' => (object) $questions,
+        ];
+    }
+
+    return (object) $out;
+}
+
+/**
+ * The places where the survey has a text and its translation into $code has
+ * none - translationGaps() in localize.ts, in the same order: the title, the
+ * welcome, the thanks, then step by step its title and each question's text,
+ * hint, option labels and picture descriptions. A question counts what its
+ * type shows (a hint for "own words", options for a choice); the same picture
+ * twice is one description. Rich text is empty when it has no words, a line
+ * when it is only spaces.
+ *
+ * @param array{title: string, content: array} $survey
+ * @return array<array{kind: string, stepId?: string, questionId?: string, optionId?: string, imageId?: string}>
+ */
+function surveyTranslationGaps(array $survey, string $code): array
+{
+    $content = $survey['content'];
+    $translation = $content['translations'][$code] ?? [];
+    $line = static fn(mixed $value): bool => !is_string($value) || textTrim($value) === '';
+    $rich = static fn(mixed $value): bool => !is_string($value) || richTextIsBlank($value);
+
+    $gaps = [];
+    if (!$line($survey['title']) && $line($translation['title'] ?? null)) {
+        $gaps[] = ['kind' => 'title'];
+    }
+    if (!$rich($content['intro']) && $rich($translation['intro'] ?? null)) {
+        $gaps[] = ['kind' => 'intro'];
+    }
+    if (!$rich($content['thanks']) && $rich($translation['thanks'] ?? null)) {
+        $gaps[] = ['kind' => 'thanks'];
+    }
+
+    foreach ($content['steps'] as $step) {
+        if (!$line($step['title']) && $line($translation['steps'][$step['id']]['title'] ?? null)) {
+            $gaps[] = ['kind' => 'step', 'stepId' => $step['id']];
+        }
+        foreach ($step['questions'] as $question) {
+            $questionId = $question['id'];
+            $entry = $translation['questions'][$questionId] ?? [];
+            if (!$rich($question['text']) && $rich($entry['text'] ?? null)) {
+                $gaps[] = ['kind' => 'text', 'questionId' => $questionId];
+            }
+            if ($question['type'] !== 'text') {
+                foreach ($question['options'] as $option) {
+                    if (!$line($option['label']) && $line($entry['options'][$option['id']]['label'] ?? null)) {
+                        $gaps[] = ['kind' => 'option', 'questionId' => $questionId, 'optionId' => $option['id']];
+                    }
+                }
+            } elseif (!$line($question['placeholder']) && $line($entry['placeholder'] ?? null)) {
+                $gaps[] = ['kind' => 'placeholder', 'questionId' => $questionId];
+            }
+            $described = [];
+            foreach ($question['images'] as $image) {
+                if (!$line($image['alt']) && !isset($described[$image['id']])) {
+                    $described[$image['id']] = true;
+                    if ($line($entry['images'][$image['id']]['alt'] ?? null)) {
+                        $gaps[] = ['kind' => 'image', 'questionId' => $questionId, 'imageId' => $image['id']];
+                    }
+                }
+            }
+        }
+    }
+
+    return $gaps;
 }
 
 /** @param array<string, true> $imageIds the pictures found so far, added to */
@@ -260,14 +534,19 @@ function surveySlugOk(string $slug): bool
 
 /**
  * What must be fixed before people can take the survey - surveyProblems() in
- * survey-problems.ts, in the same words. $others: the other surveys' id and
- * slug.
+ * survey-problems.ts, in the same words and the same order. $others: the
+ * other surveys' id and slug. $languages: every language the site has, in its
+ * order ([code => ['name' => in English, 'enabled' => bool]]) - a translation
+ * into one people are offered must be whole, or they would be shown the
+ * survey in its own language without anybody having meant it; one into a
+ * hidden language may be as unfinished as it likes.
  *
  * @param array{title: string, slug: string, content: array} $survey
  * @param array<array{id: string, slug: string}> $others
+ * @param array<string, array{name: string, enabled: bool}> $languages
  * @return string[]
  */
-function surveyProblems(array $survey, array $others): array
+function surveyProblems(array $survey, array $others, array $languages = []): array
 {
     $problems = [];
     $content = $survey['content'];
@@ -353,6 +632,82 @@ function surveyProblems(array $survey, array $others): array
             }
             if ($min !== null && $min > count($options)) {
                 $problems[] = "$name asks for at least $min but has only " . count($options) . ' options.';
+            }
+        }
+    }
+
+    foreach ($languages as $code => $language) {
+        if ($language['enabled'] && $code !== ($content['language'] ?? SURVEY_LANGUAGE_DEFAULT) && isset($content['translations'][$code])) {
+            array_push($problems, ...surveyTranslationProblems($survey, (string) $code, $language['name'], $firstStep));
+        }
+    }
+
+    return $problems;
+}
+
+/**
+ * What a translation still lacks - translationProblems() in
+ * survey-problems.ts - in the order of the document: the title, the welcome,
+ * the thanks, then step by step its title and, question by question, how many
+ * of its texts are left (one problem a question, however many) and two
+ * options that would read the same.
+ *
+ * @param string $name the language's name in English
+ * @return string[]
+ */
+function surveyTranslationProblems(array $survey, string $code, string $name, int $firstStep): array
+{
+    $content = $survey['content'];
+    $translation = $content['translations'][$code] ?? [];
+
+    $missing = [];
+    $texts = [];
+    foreach (surveyTranslationGaps($survey, $code) as $gap) {
+        if (in_array($gap['kind'], ['title', 'intro', 'thanks'], true)) {
+            $missing[$gap['kind']] = true;
+        } elseif ($gap['kind'] === 'step') {
+            $missing['step ' . $gap['stepId']] = true;
+        } else {
+            // Counted by a key that is never a number to PHP, whatever the id looks like.
+            $texts['question ' . $gap['questionId']] = ($texts['question ' . $gap['questionId']] ?? 0) + 1;
+        }
+    }
+
+    $problems = [];
+    if (isset($missing['title'])) {
+        $problems[] = "$name: the title is missing.";
+    }
+    if (isset($missing['intro'])) {
+        $problems[] = "$name: the welcome text is missing.";
+    }
+    if (isset($missing['thanks'])) {
+        $problems[] = "$name: the thank-you text is missing.";
+    }
+
+    $number = 0;
+    foreach ($content['steps'] as $index => $step) {
+        if (isset($missing['step ' . $step['id']])) {
+            $problems[] = "$name: the title of step " . ($index + $firstStep) . ' is missing.';
+        }
+        foreach ($step['questions'] as $question) {
+            $number++;
+            $count = $texts['question ' . $question['id']] ?? 0;
+            if ($count > 0) {
+                $problems[] = "$name: question $number has " . ($count === 1 ? '1 text' : "$count texts") . ' to translate.';
+            }
+            if ($question['type'] === 'text') {
+                continue;
+            }
+            $seen = [];
+            foreach ($question['options'] as $option) {
+                $label = $translation['questions'][$question['id']]['options'][$option['id']]['label'] ?? '';
+                $label = is_string($label) ? textTrim($label) : '';
+                $key = textLower($label);
+                if ($key !== '' && isset($seen[$key])) {
+                    $problems[] = "$name: question $number has two options called \"$label\".";
+                    break;
+                }
+                $seen[$key] = true;
             }
         }
     }

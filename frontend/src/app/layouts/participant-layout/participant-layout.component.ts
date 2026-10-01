@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 
 /**
@@ -9,7 +10,7 @@ import { TopBarComponent } from '../top-bar/top-bar.component';
  */
 @Component({
   selector: 'app-participant-layout',
-  imports: [RouterOutlet, TopBarComponent],
+  imports: [RouterOutlet, TopBarComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './participant-layout.component.html',
   styleUrl: './participant-layout.component.scss',

@@ -6,13 +6,16 @@ import { AuthService } from './auth.service';
 /**
  * The access token on every call to this site's own API - refreshed before it
  * runs out, and once more after a 401 (the SDK's own fetch does the same; this
- * is it for HttpClient). The sign-in settings and the pictures need none.
- * Signed out, nothing is added: the API answers what anybody may see.
+ * is it for HttpClient). The sign-in settings, the pictures and the site's
+ * words (the same for everybody, and wanted before the first page - not after
+ * a token refresh) need none. Signed out, nothing is added: the API answers
+ * what anybody may see.
  */
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
   const auth = inject(AuthService);
 
-  if (!request.url.startsWith('/api/') || request.url === '/api/auth/config' || request.url.startsWith('/api/images/') || !auth.signedIn()) {
+  const forAnybody = request.url === '/api/auth/config' || request.url.startsWith('/api/images/') || request.url.startsWith('/api/translations/');
+  if (!request.url.startsWith('/api/') || forAnybody || !auth.signedIn()) {
     return next(request);
   }
 

@@ -29,3 +29,12 @@ export function plainText(html: string): string {
 export function isBlankHtml(html: string): boolean {
   return plainText(html) === '';
 }
+
+/**
+ * Words as HTML that shows exactly those words: for text that is not the
+ * editor's - a string of the site's own, worded in the reader's language - on
+ * its way into something drawn with `[innerHTML]`.
+ */
+export function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}

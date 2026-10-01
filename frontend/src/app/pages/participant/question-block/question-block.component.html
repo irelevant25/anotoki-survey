@@ -3,13 +3,17 @@
         @if (number() !== null) {
             <span class="number" aria-hidden="true">{{ number() }}</span>
         }
-        <div class="text rich" [id]="textId" [innerHTML]="question().text"></div>
+        <div class="text rich" [id]="textId" [attr.lang]="lang()" [innerHTML]="question().text"></div>
     </div>
 
     @if (question().images.length) {
         <div class="gallery" [attr.data-count]="galleryCount()">
             @for (image of question().images; track image.id; let i = $index) {
-                <button type="button" class="gallery-item" [attr.aria-label]="'Show large: ' + (image.alt || 'picture ' + (i + 1))" (click)="lightbox.open(question().images, i)">
+                <button
+                    type="button"
+                    class="gallery-item"
+                    [attr.aria-label]="image.alt ? ('question.showLarge' | translate: { label: image.alt }) : ('question.showLargeNumbered' | translate: { number: i + 1 })"
+                    (click)="lightbox.open(question().images, i, null, lang())">
                     <app-survey-image [image]="image" [fit]="galleryCount() === 1 ? 'contain' : 'cover'" [natural]="galleryCount() === 1" [decorative]="true" />
                 </button>
             }
@@ -19,13 +23,13 @@
     @if (rule() || !question().required) {
         <p class="rule" [id]="ruleId">
             @if (rule()) {
-                <span>{{ rule() }}</span>
+                <span>{{ ruleWords() }}</span>
             }
             @if (question().type === "multiple" && chosen().size > 0) {
-                <span class="count">{{ chosen().size }} chosen</span>
+                <span class="count">{{ "question.chosen" | translatePlural: chosen().size }}</span>
             }
             @if (!question().required) {
-                <span class="optional">Optional</span>
+                <span class="optional">{{ "question.optional" | translate }}</span>
             }
         </p>
     }
@@ -98,11 +102,16 @@
                                     </svg>
                                 }
                             </span>
-                            <span class="label">{{ option.label }}</span>
+                            <span class="label" [attr.lang]="lang()">{{ option.label }}</span>
                         </span>
                     </label>
                     @if (option.images.length) {
-                        <button type="button" class="zoom" [attr.aria-label]="'Show the picture of ' + option.label + ' large'" [title]="'Show large'" (click)="enlarge(option)">
+                        <button
+                            type="button"
+                            class="zoom"
+                            [attr.aria-label]="'question.showOptionLarge' | translate: { label: option.label }"
+                            [title]="'question.showLargeTitle' | translate"
+                            (click)="enlarge(option)">
                             <app-icon name="zoomIn" [size]="16" />
                         </button>
                     }
@@ -115,8 +124,8 @@
                                 type="text"
                                 class="field-input"
                                 maxlength="200"
-                                placeholder="Your own answer"
-                                [attr.aria-label]="option.label + ': your own answer'"
+                                [attr.placeholder]="'question.otherPlaceholder' | translate"
+                                [attr.aria-label]="'question.otherLabel' | translate: { label: option.label }"
                                 [attr.aria-invalid]="error() && !(answer()?.other ?? '').trim() ? 'true' : null"
                                 [attr.aria-describedby]="error() && !(answer()?.other ?? '').trim() ? errorId : null"
                                 [value]="answer()?.other ?? ''"
@@ -128,14 +137,14 @@
             }
         </div>
         @if (single() && !question().required && chosen().size > 0) {
-            <button type="button" class="clear" (click)="clear($event)">Clear my answer</button>
+            <button type="button" class="clear" (click)="clear($event)">{{ "question.clear" | translate }}</button>
         }
     }
 
     @if (error()) {
         <p class="error" [id]="errorId" role="alert">
             <app-icon name="alert" [size]="16" />
-            <span>{{ error() }}</span>
+            <span>{{ errorWords() }}</span>
         </p>
     }
 </div>

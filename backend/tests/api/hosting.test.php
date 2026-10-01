@@ -69,14 +69,16 @@ test('the build: exactly what to upload - no settings, no tools, no composer fil
     $top = array_values(array_unique(array_map(static fn(string $file): string => explode('/', $file)[0], $files)));
     sort($top);
     assert_same(['.htaccess', '.survey-build', 'api', 'config', 'index.html', 'main-TEST.js', 'media', 'migrations', 'setup.php', 'storage', 'styles-TEST.css', 'theme-boot.js', 'vendor'], $top);
-    foreach (['api/index.php', 'api/.htaccess', 'api/bootstrap.php', 'api/anotoki_iam.php', 'api/routes/admin.php', 'api/meddleware/setup.php',
+    foreach (['api/index.php', 'api/.htaccess', 'api/bootstrap.php', 'api/anotoki_iam.php', 'api/translations.php', 'api/routes/admin.php', 'api/meddleware/setup.php',
         'config/config.php', 'config/.htaccess', 'migrations/survey/001_initial_schema.sql', 'migrations/.htaccess', 'vendor/autoload.php',
         'vendor/slim/slim/Slim/App.php', 'vendor/.htaccess', 'storage/.htaccess', 'media/font-TEST.woff2'] as $file) {
         assert_true(in_array($file, $files, true), "$file is in the upload");
     }
     foreach ($files as $file) {
-        assert_false((bool) preg_match('~\.local\.php$|^tests/|^tools/|router\.php|migration\.php|^secret\.php|^\.htaccess.+|^composer\.(json|lock)$|package\.json~', $file), "$file should not be uploaded");
+        // ^translations\.php$ is the command line's, beside setup.php - anchored, because api/translations.php is the API's and must be there.
+        assert_false((bool) preg_match('~\.local\.php$|^tests/|^tools/|router\.php|migration\.php|^translations\.php$|^secret\.php|^\.htaccess.+|^composer\.(json|lock)$|package\.json~', $file), "$file should not be uploaded");
     }
+    assert_false(is_dir("$dist/tools"), 'tools/ - the build itself, the key scan - is for computers with a shell');
     assert_same(md5_file(TEST_BACKEND . '/api/anotoki_iam.php'), md5_file("$dist/api/anotoki_iam.php"), 'the IAM\'s verifier as it is');
     foreach (['config', 'migrations', 'vendor', 'storage'] as $folder) {
         assert_match('/Require all denied/', (string) file_get_contents("$dist/$folder/.htaccess"), "$folder/ is closed to the web");
@@ -129,7 +131,7 @@ test('the setup page on a real host: the token, the tests, the database - and th
 
     $done = site_form($site, '/setup.php', form($token, $database));
     assert_match('/<h1>Installed<\/h1>/', $done['raw']);
-    assert_match('/Made the tables \(001_initial_schema\.sql\)/', $done['raw']);
+    assert_match('/Made the tables \(001_initial_schema\.sql, 002_/', $done['raw']);
     assert_match('/The setup page has deleted itself/', $done['raw']);
     assert_same(['issuer' => 'https://iam.anotoki.eu', 'client_id' => 'survey', 'cache_dir' => 'storage/cache'], require "$dist/config/iam.local.php");
     assert_same($database, (require "$dist/config/database.local.php")['name']);

@@ -3,7 +3,8 @@
 // A survey's life through the real server: an editor writes it, opens it;
 // people take it - once each, only while it is open; the results show who
 // answered what; an administrator deletes. Pictures go up, come back, and go
-// when nothing shows them.
+// when nothing shows them. A survey is written in one language and may hold
+// its texts in others: what goes in, what comes out, and to whom.
 
 declare(strict_types=1);
 
@@ -38,13 +39,13 @@ function anonymous(string $method, string $url, mixed $body = null): array
     return call($GLOBALS['app']['base'], $method, $url, $body);
 }
 
-/** A survey as the editor makes it (newSurvey() in survey-factory.ts), with two questions and "About you". */
+/** A survey as the editor makes it (newSurvey() in survey-factory.ts), with two questions and "About you": in English, translated into nothing. */
 function draft(array $fields = []): array
 {
     return $fields + [
         'id' => 'ignored', 'slug' => 'genshin-1-0', 'title' => 'Genshin 1.0', 'status' => 'open',
         'intro' => '<p>Thank you for taking a few minutes.</p>', 'thanks' => '<p>Thank you!</p>',
-        'askAboutYou' => true, 'closesOn' => null,
+        'askAboutYou' => true, 'closesOn' => null, 'language' => 'en', 'translations' => new stdClass(),
         'steps' => [[
             'id' => 'step-1', 'title' => 'The patch',
             'questions' => [
@@ -64,6 +65,34 @@ function draft(array $fields = []): array
             ],
         ]],
     ];
+}
+
+/** draft()'s texts in Slovak, none left to translate - as the editor sends them: every map an object. */
+function slovak(array $fields = []): array
+{
+    return $fields + [
+        'title' => 'Genshin 1.0', 'intro' => '<p>Ďakujeme, že ste si našli pár minút.</p>', 'thanks' => '<p>Ďakujeme!</p>',
+        'steps' => ['step-1' => ['title' => 'Záplata']],
+        'questions' => [
+            'q-element' => [
+                'text' => '<p>Váš obľúbený živel?</p>', 'placeholder' => '',
+                'options' => ['o-anemo' => ['label' => 'Anemo'], 'o-geo' => ['label' => 'Geo'], 'o-other' => ['label' => 'Iný']], 'images' => new stdClass(),
+            ],
+            'q-words' => ['text' => '<p>Ešte niečo?</p>', 'placeholder' => '', 'options' => new stdClass(), 'images' => new stdClass()],
+        ],
+    ];
+}
+
+/** slovak() as it comes back, decoded: an empty map is an empty array to PHP. */
+function slovak_kept(array $fields = []): array
+{
+    $kept = slovak($fields);
+    foreach ($kept['questions'] as &$question) {
+        $question['options'] = (array) $question['options'];
+        $question['images'] = (array) $question['images'];
+    }
+
+    return $kept;
 }
 
 /** The smallest PNG there is: one pixel. */
@@ -99,7 +128,8 @@ test('an editor writes a draft: it is a draft whatever it says, and nobody else 
     assert_same('draft', $survey['status'], 'the status is not the editor\'s to send');
     assert_true(isUuid($survey['id']));
     assert_same(1, $survey['revision']);
-    assert_same(['id', 'slug', 'title', 'intro', 'thanks', 'askAboutYou', 'status', 'closesOn', 'steps', 'createdAt', 'updatedAt', 'openedAt', 'closedAt', 'revision'], array_keys($survey));
+    assert_same(['id', 'slug', 'title', 'intro', 'thanks', 'askAboutYou', 'status', 'closesOn', 'steps', 'language', 'translations', 'createdAt', 'updatedAt', 'openedAt', 'closedAt', 'revision'], array_keys($survey));
+    assert_same(['en', []], [$survey['language'], $survey['translations']]);
     assert_same('q-element', $survey['steps'][0]['questions'][0]['id'], 'the editor\'s own ids are kept');
     assert_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/', $survey['createdAt']);
 
@@ -291,6 +321,253 @@ test('pictures: up as bytes, checked by what they are, served for good, cleared 
     assert_same(200, anonymous('GET', $image['src'])['status'], 'the survey still shows this one');
     as_user(OWNER, 'DELETE', "/api/admin/surveys/{$survey['id']}");
     assert_same(404, anonymous('GET', $image['src'])['status'], 'the survey is gone, and with it the picture');
+});
+
+test('a survey says its language and holds its translations: neither is guessed, and no language is dropped', function (): void {
+    // What a page from before surveys had languages sends: refused, not filled in - or its next save would delete every translation.
+    $old = draft(['slug' => 'two-languages']);
+    unset($old['language'], $old['translations']);
+    // Its person is who reads the refusal: what is wrong with the body, and then what they can do about it.
+    $outdated = ' A page that was open before the site was updated can no longer save: copy what you changed since the last save, then reload the page.';
+    $refused = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => $old]);
+    assert_same([422, 'invalid_survey', 'Say which language the survey is written in (language).' . $outdated], [$refused['status'], $refused['body']['code'], $refused['body']['error']]);
+    $refused = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => $old + ['language' => 'en']]);
+    assert_same([422, 'invalid_survey', 'Send the translations, or an empty object (translations).' . $outdated], [$refused['status'], $refused['body']['code'], $refused['body']['error']]);
+
+    $refused = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => draft(['slug' => 'two-languages', 'language' => 'xx'])]);
+    assert_same([422, 'invalid_survey'], [$refused['status'], $refused['body']['code']], 'written in a language the site does not have');
+    $refused = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => draft(['slug' => 'two-languages', 'translations' => ['sk' => slovak(), 'fr' => slovak()]])]);
+    assert_same(422, $refused['status'], 'translated into a language the site does not have: refused, never dropped');
+    assert_match('/does not have \("fr"\)/', $refused['body']['error']);
+    $refused = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => draft(['slug' => 'two-languages', 'translations' => ['en' => slovak()]])]);
+    assert_match('/written in English, so it cannot be translated into it/', $refused['body']['error'] ?? '');
+    assert_same(0, (int) dbValue("SELECT count(*) FROM surveys WHERE slug = 'two-languages'"), 'nothing refused was kept');
+
+    // No translations: an object all the same, in the answer and in the database.
+    $made = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => draft(['slug' => 'two-languages'])]);
+    assert_same(201, $made['status'], test_show($made['body']));
+    assert_true(str_contains($made['raw'], '"language":"en","translations":{},'), $made['raw']);
+    $id = $made['body']['survey']['id'];
+    assert_same('object', dbValue("SELECT jsonb_typeof(content->'translations') FROM surveys WHERE id = ?", [$id]));
+
+    // A translation with nothing in it yet, and a question with no options or pictures in it: objects at every level.
+    $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => 1, 'survey' => ['translations' => ['sk' => ['questions' => ['q-words' => new stdClass()]]]] + $made['body']['survey']]);
+    assert_same(200, $saved['status'], test_show($saved['body']));
+    $whole = '"translations":{"sk":{"title":"","intro":"","thanks":"","steps":{},"questions":{"q-words":{"text":"","placeholder":"","options":{},"images":{}}}}}';
+    assert_true(str_contains($saved['raw'], $whole), $saved['raw']);
+    assert_true(str_contains(as_user(EDITH, 'GET', "/api/admin/surveys/$id")['raw'], $whole), 'and when it is read again');
+    assert_same(
+        ['object', 'object', 'object', 'object', 'object'],
+        array_values(dbOne(
+            "SELECT jsonb_typeof(content->'translations') AS a, jsonb_typeof(content#>'{translations,sk,steps}') AS b, jsonb_typeof(content#>'{translations,sk,questions}') AS c,
+                    jsonb_typeof(content#>'{translations,sk,questions,q-words,options}') AS d, jsonb_typeof(content#>'{translations,sk,questions,q-words,images}') AS e
+               FROM surveys WHERE id = ?",
+            [$id]
+        )),
+        'and in the database, all five levels'
+    );
+
+    // The whole translation - with words for things the survey does not have, which are dropped, and markup, which is cleaned.
+    $sent = slovak(['intro' => '<p onclick="x()">Ďakujeme<script>1</script></p>']);
+    $sent['steps']['gone'] = ['title' => 'Nikde'];
+    $sent['questions']['gone'] = ['text' => '<p>Nikde</p>'];
+    $sent['questions']['q-element']['options']['gone'] = ['label' => 'Nikde'];
+    $sent['questions']['q-element']['images'] = [newUuid() => ['alt' => 'Nikde']];
+    $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => 2, 'survey' => ['translations' => ['sk' => $sent]] + $made['body']['survey']]);
+    assert_same(200, $saved['status'], test_show($saved['body']));
+    assert_json_same(['sk' => slovak_kept(['intro' => '<p>Ďakujeme</p>'])], $saved['body']['survey']['translations']);
+    assert_true(str_contains($saved['raw'], '"options":{}') && str_contains($saved['raw'], '"images":{}'), $saved['raw']);
+
+    // Somebody else's save in between: the version that is there comes back with its maps as objects too.
+    $stale = as_user(OWNER, 'PUT', "/api/admin/surveys/$id", ['revision' => 2, 'survey' => $made['body']['survey']]);
+    assert_same([409, 'conflict'], [$stale['status'], $stale['body']['code']]);
+    assert_same('<p>Ďakujeme</p>', $stale['body']['survey']['translations']['sk']['intro']);
+    assert_true(str_contains($stale['raw'], '"options":{}') && str_contains($stale['raw'], '"images":{}'), $stale['raw']);
+    assert_same(3, (int) dbValue('SELECT revision FROM surveys WHERE id = ?', [$id]));
+    $GLOBALS['translated'] = $saved['body']['survey'];
+});
+
+test('steps, questions and options called "0" and "1" keep their translations: a map by id, never a list', function (): void {
+    $numbered = draft([
+        'slug' => 'numbered',
+        'steps' => [[
+            'id' => '0', 'title' => 'One',
+            'questions' => [
+                [
+                    'id' => '0', 'type' => 'single', 'text' => '<p>Yes or no?</p>', 'images' => [], 'required' => true,
+                    'options' => [['id' => '0', 'label' => 'Yes', 'other' => false, 'images' => []], ['id' => '1', 'label' => 'No', 'other' => false, 'images' => []]],
+                    'layout' => 'list', 'minChoices' => null, 'maxChoices' => null, 'multiline' => true, 'maxLength' => null, 'placeholder' => '',
+                ],
+                [
+                    'id' => '1', 'type' => 'text', 'text' => '<p>Why?</p>', 'images' => [], 'required' => false,
+                    'options' => [], 'layout' => 'list', 'minChoices' => null, 'maxChoices' => null, 'multiline' => true, 'maxLength' => null, 'placeholder' => '',
+                ],
+            ],
+        ]],
+        // As a browser writes them: objects whose keys are "0" and "1".
+        'translations' => ['sk' => [
+            'title' => 'Genshin 1.0',
+            'steps' => (object) ['0' => ['title' => 'Jeden']],
+            'questions' => (object) [
+                '0' => ['text' => '<p>Áno alebo nie?</p>', 'options' => (object) ['0' => ['label' => 'Áno'], '1' => ['label' => 'Nie']]],
+                '1' => ['text' => '<p>Prečo?</p>'],
+            ],
+        ]],
+    ]);
+    $made = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => $numbered]);
+    assert_same(201, $made['status'], test_show($made['body']));
+    $kept = '"translations":{"sk":{"title":"Genshin 1.0","intro":"","thanks":"","steps":{"0":{"title":"Jeden"}},"questions":{'
+        . '"0":{"text":"<p>Áno alebo nie?</p>","placeholder":"","options":{"0":{"label":"Áno"},"1":{"label":"Nie"}},"images":{}},'
+        . '"1":{"text":"<p>Prečo?</p>","placeholder":"","options":{},"images":{}}}}}';
+    assert_true(str_contains($made['raw'], $kept), $made['raw']);
+
+    // Saved again exactly as it came - what the editor does with every change - it is still the same.
+    $survey = json_decode($made['raw'])->survey;
+    $again = as_user(EDITH, 'PUT', "/api/admin/surveys/{$survey->id}", ['revision' => 1, 'survey' => $survey]);
+    assert_same(200, $again['status'], test_show($again['body']));
+    assert_true(str_contains($again['raw'], $kept), $again['raw']);
+    assert_same(204, as_user(OWNER, 'DELETE', "/api/admin/surveys/{$survey->id}")['status']);
+});
+
+test('the language a survey is written in does not change while a translation is kept across the change', function (): void {
+    $survey = $GLOBALS['translated'];
+    $id = $survey['id'];
+    $german = as_user(OWNER, 'POST', '/api/admin/languages', ['code' => 'de', 'name' => 'German', 'nativeName' => 'Deutsch']);
+    assert_same(201, $german['status'], test_show($german['body']));
+    $put = static fn(array $fields, int $revision): array => as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => $revision, 'survey' => $fields + $survey]);
+    // What the database holds: [revision, language, the languages it is translated into].
+    $kept = static function () use ($id): array {
+        $row = dbOne("SELECT revision, content->>'language' AS language, (SELECT string_agg(code, ',' ORDER BY code) FROM jsonb_object_keys(content->'translations') AS code) AS translations FROM surveys WHERE id = ?", [$id]);
+
+        return [(int) $row['revision'], $row['language'], $row['translations']];
+    };
+
+    // Translated into Slovak, and a translation stays in the save: the texts would swap meaning under whoever
+    // is translating. Its own Slovak kept, or another translation in its place - it stays written in English.
+    foreach ([['language' => 'de'], ['language' => 'sk', 'translations' => ['de' => slovak()]], ['language' => 'de', 'translations' => ['sk' => slovak(), 'en' => slovak()]]] as $fields) {
+        $refused = $put($fields, 3);
+        assert_same([422, 'invalid_survey'], [$refused['status'], $refused['body']['code']], test_show(array_keys($fields)));
+        assert_match('/only while it has no translations/', $refused['body']['error']);
+    }
+    assert_same([3, 'en', 'sk'], $kept(), 'nothing of it was kept');
+
+    // The translations removed and the language changed in one save: taken. Whoever sent it saw what they
+    // removed (the revision says so), and it is what two saves would do - refused, an editor whose save of
+    // the removal failed could never save again.
+    $changed = $put(['language' => 'de', 'translations' => new stdClass()], 3);
+    assert_same([200, 'de', []], [$changed['status'], $changed['body']['survey']['language'] ?? null, $changed['body']['survey']['translations'] ?? null], test_show($changed['body']));
+    assert_same([4, 'de', null], $kept());
+
+    // And a first translation that arrives with the new language, into a survey that has none.
+    $back = $put([], 4);
+    assert_same([200, 'en', ['sk']], [$back['status'], $back['body']['survey']['language'], array_keys($back['body']['survey']['translations'])], test_show($back['body']));
+    assert_same([5, 'en', 'sk'], $kept());
+    $GLOBALS['translated'] = $back['body']['survey'];
+});
+
+test('a translation people are offered must be whole before the survey opens; they are sent only the languages they are offered', function (): void {
+    $survey = $GLOBALS['translated'];
+    $id = $survey['id'];
+    $open = static fn(): array => as_user(EDITH, 'POST', "/api/admin/surveys/$id/status", ['status' => 'open']);
+
+    // Slovak with two holes, German with nothing in it yet.
+    $holes = slovak(['title' => ' ']);
+    unset($holes['questions']['q-element']['options']['o-other']);
+    $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => $survey['revision'], 'survey' => ['translations' => ['sk' => $holes, 'de' => new stdClass()]] + $survey]);
+    assert_same(200, $saved['status'], test_show($saved['body']));
+    $refused = $open();
+    assert_same([422, 'survey_problems'], [$refused['status'], $refused['body']['code']]);
+    assert_same([
+        'Slovak: the title is missing.',
+        'Slovak: question 1 has 1 text to translate.',
+        'German: the title is missing.',
+        'German: the welcome text is missing.',
+        'German: the thank-you text is missing.',
+        'German: the title of step 2 is missing.',
+        'German: question 1 has 4 texts to translate.',
+        'German: question 2 has 1 text to translate.',
+    ], $refused['body']['problems'], 'in the languages\' order, each in the order of the document');
+
+    // A hidden language may be as unfinished as it likes: nobody is offered it.
+    assert_same(200, as_user(OWNER, 'PUT', '/api/admin/languages/de', ['enabled' => false])['status']);
+    assert_same(['Slovak: the title is missing.', 'Slovak: question 1 has 1 text to translate.'], $open()['body']['problems'] ?? null);
+    $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => $saved['body']['survey']['revision'], 'survey' => ['translations' => ['sk' => slovak(), 'de' => new stdClass()]] + $survey]);
+    assert_same(200, $saved['status'], test_show($saved['body']));
+    $opened = $open();
+    assert_same([200, 'open'], [$opened['status'], $opened['body']['survey']['status'] ?? null], test_show($opened['body']));
+
+    // The editor has every language; the people taking it, the ones they are offered.
+    $languages = array_keys($opened['body']['survey']['translations']);
+    sort($languages);
+    assert_same(['de', 'sk'], $languages);
+    $taken = anonymous('GET', '/api/surveys/two-languages');
+    assert_same([200, 'en', ['sk']], [$taken['status'], $taken['body']['survey']['language'], array_keys($taken['body']['survey']['translations'])]);
+    assert_json_same(slovak_kept(), $taken['body']['survey']['translations']['sk']);
+    assert_true(str_contains($taken['raw'], '"options":{}') && str_contains($taken['raw'], '"images":{}'), $taken['raw']);
+    assert_false(str_contains($taken['raw'], '"de"'), 'not a word of the hidden one');
+    $listed = as_user(PAT, 'GET', '/api/surveys');
+    $mine = array_values(array_filter($listed['body']['surveys'], static fn(array $item): bool => $item['survey']['id'] === $id))[0];
+    assert_same(['sk'], array_keys($mine['survey']['translations']), 'in the list of open surveys too');
+    assert_true(str_contains($listed['raw'], '"translations":{}'), 'and a survey with none has an object there');
+
+    // Hidden Slovak: the survey goes out in its own language alone - and stays open.
+    assert_same(200, as_user(OWNER, 'PUT', '/api/admin/languages/sk', ['enabled' => false])['status']);
+    $taken = anonymous('GET', '/api/surveys/two-languages');
+    assert_same(['open', []], [$taken['body']['survey']['status'], $taken['body']['survey']['translations']]);
+    assert_true(str_contains($taken['raw'], '"translations":{}'), $taken['raw']);
+    assert_same(200, as_user(OWNER, 'PUT', '/api/admin/languages/sk', ['enabled' => true])['status']);
+});
+
+test('answers say which language the survey was read in - when it is one of the survey\'s; never a reason to refuse them', function (): void {
+    $id = $GLOBALS['translated']['id'];
+    // A language the site has and this survey does not.
+    assert_same(201, as_user(OWNER, 'POST', '/api/admin/languages', ['code' => 'fr', 'name' => 'French', 'nativeName' => 'Français'])['status']);
+    $send = static fn(int $user, array $more): array => as_user($user, 'POST', '/api/surveys/two-languages/responses', $more + [
+        'aboutYou' => ['gender' => 'undisclosed', 'age' => 'undisclosed'], 'answers' => ['q-element' => ['optionIds' => ['o-geo']]],
+    ]);
+
+    $cases = [
+        201 => ['language' => 'en'],                        // the language the survey is written in
+        202 => ['language' => 'sk'],                        // one it is translated into
+        203 => ['language' => 'de'],                        // and another, though hidden now: it was one of the survey's
+        204 => ['language' => ['sk']],                      // not text
+        205 => ['language' => str_repeat('s', 300)],        // not a code
+        206 => ['language' => 'xx'],                        // no language of the site
+        207 => ['language' => 'fr'],                        // a language the survey does not have
+        208 => [],                                          // none said (a page from before)
+        209 => ['language' => 'SK'],                        // a code is small letters
+    ];
+    $expected = [201 => 'en', 202 => 'sk', 203 => 'de', 204 => null, 205 => null, 206 => null, 207 => null, 208 => null, 209 => null];
+    foreach ($cases as $user => $more) {
+        $sent = $send($user, $more);
+        assert_same(201, $sent['status'], "user $user: " . test_show($sent['body']));
+        assert_same($expected[$user], dbValue('SELECT language FROM responses WHERE id = ?', [$sent['body']['id']]), "user $user");
+    }
+
+    // The results say it, person by person.
+    $responses = as_user(EDITH, 'GET', "/api/admin/surveys/$id/responses")['body']['responses'];
+    assert_same(['id', 'surveyId', 'person', 'aboutYou', 'answers', 'language', 'startedAt', 'submittedAt'], array_keys($responses[0]));
+    $read = [];
+    foreach ($responses as $response) {
+        $read[(int) $response['person']['id']] = $response['language'];
+    }
+    ksort($read);
+    assert_same($expected, $read);
+
+    // A language that goes - once no survey is translated into it - takes the note with it, and leaves the answers.
+    $survey = as_user(EDITH, 'GET', "/api/admin/surveys/$id")['body']['survey'];
+    assert_same('language_in_use', as_user(OWNER, 'DELETE', '/api/admin/languages/de')['body']['code'] ?? null);
+    $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => $survey['revision'], 'survey' => ['translations' => ['sk' => $survey['translations']['sk']]] + $survey]);
+    assert_same(200, $saved['status'], test_show($saved['body']));
+    assert_same(204, as_user(OWNER, 'DELETE', '/api/admin/languages/de')['status']);
+    assert_same([9, 0, 1], [
+        (int) dbValue('SELECT count(*) FROM responses WHERE survey_id = ?', [$id]),
+        (int) dbValue("SELECT count(*) FROM responses WHERE survey_id = ? AND language = 'de'", [$id]),
+        (int) dbValue("SELECT count(*) FROM responses WHERE survey_id = ? AND language = 'sk'", [$id]),
+    ]);
+
+    assert_same(204, as_user(OWNER, 'DELETE', "/api/admin/surveys/$id")['status']);
+    assert_same(204, as_user(OWNER, 'DELETE', '/api/admin/languages/fr')['status']);
 });
 
 test('the server said nothing it should not have', function (): void {

@@ -12,6 +12,9 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *                                 which database it uses and what it still needs
  *   GET /api/auth/config          how the browser signs in: {issuer, clientId}
  *   GET /api/images/{id}.{ext}    a survey's picture (see api/images.php)
+ *   GET /api/translations/{code}  the site's own words in a language, with the
+ *                                 languages on offer (see api/translations.php);
+ *                                 "sk-sk" is answered by "sk" when only that is offered
  *
  * @var \Slim\App $app
  */
@@ -56,4 +59,33 @@ $app->get('/api/images/{file}', function (Request $request, Response $response, 
         ->withHeader('Content-Type', $image['type'])
         ->withHeader('Content-Length', (string) strlen($image['bytes']))
         ->withHeader('Content-Disposition', 'inline; filename="' . $m[1] . '.' . IMAGE_TYPES[$image['type']] . '"');
+});
+
+// No middleware for who is asking, on purpose: the words are the same for
+// everybody, so a token - even one that would not check out - is not looked at,
+// and a page whose sign-in has run out still reads in its language.
+$app->get('/api/translations/{code}', function (Request $request, Response $response, array $args): Response {
+    // Before any query: only a code is looked up (a wrong address is a 404, not
+    // a database refusing bytes that are not text).
+    $code = (string) $args['code'];
+    if (!languageCodeOk($code)) {
+        throw new ApiError(404, 'not_found', 'There is no such language.');
+    }
+
+    // The strings change when somebody saves one in the admin area, or with a
+    // release: the browser asks every time (no-cache) and is told "the same as
+    // you have" in a few bytes. Both headers are set before that answer, so it
+    // carries them too - without them it would go out as no-store. The tag is
+    // compared as it may come back from behind a server that compresses
+    // (translationsNotModified).
+    $body = jsonText(translationBundle($code));
+    $etag = '"' . md5($body) . '"';
+    $response = $response->withHeader('ETag', $etag)->withHeader('Cache-Control', 'no-cache');
+    if (translationsNotModified($request->getHeaderLine('If-None-Match'), $etag)) {
+        return $response->withStatus(304);
+    }
+
+    $response->getBody()->write($body);
+
+    return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
 });

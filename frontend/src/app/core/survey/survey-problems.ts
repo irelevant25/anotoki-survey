@@ -1,14 +1,34 @@
 import { isChoice } from './answer-rules';
+import { translatedText, translationGaps, translationOf } from './localize';
 import { isBlankHtml } from './plain-text';
 import { RESERVED_SLUGS, slugify } from './survey-factory';
 import { numberedQuestions } from './survey-outline';
-import { Survey } from './survey.model';
+import { Survey, SurveyStatus } from './survey.model';
 
 /** Something that keeps a survey from being opened, and where it is. */
 export interface SurveyProblem {
   message: string;
-  /** What to scroll to and mark: a field of the survey itself, a step, a question. */
-  target: { kind: 'survey'; field: 'title' | 'address' | 'questions' } | { kind: 'step'; stepId: string } | { kind: 'question'; questionId: string };
+  /**
+   * What to scroll to and mark: a field of the survey itself, a step, a
+   * question - and, for something missing from a translation, the language
+   * it is missing in (the editor opens that language).
+   */
+  target: ({ kind: 'survey'; field: 'title' | 'address' | 'questions' | 'intro' | 'thanks' } | { kind: 'step'; stepId: string } | { kind: 'question'; questionId: string }) & { language?: string };
+  /**
+   * The problem is a text its translation (`target.language`) still lacks.
+   * Such a problem does to an open survey what no other does: people who read
+   * in that language are shown the survey whole in the language it is written
+   * in (localizedSurvey, 'complete') until the text is there - the editor
+   * says so. The page's own: the server sends sentences only.
+   */
+  untranslated?: true;
+}
+
+/** A language of the site, as the problems need it: its name in English, and whether people are offered it. */
+export interface ProblemLanguage {
+  code: string;
+  name: string;
+  enabled: boolean;
 }
 
 /**
@@ -16,9 +36,13 @@ export interface SurveyProblem {
  * these and will not open a survey that has any; a draft may have as many as
  * it likes while it is being written. The server checks the same before it
  * opens one (surveyProblems() in backend/api/survey_rules.php), in the same
- * words. `others`: the other surveys, for their addresses.
+ * words and the same order. `others`: the other surveys, for their
+ * addresses. `languages`: every language the site has, in its order - a
+ * translation into one people are offered must be whole, or they would be
+ * shown the survey in its own language without anybody having meant it; one
+ * into a hidden language may be as unfinished as it likes.
  */
-export function surveyProblems(survey: Survey, others: readonly Pick<Survey, 'id' | 'slug'>[]): SurveyProblem[] {
+export function surveyProblems(survey: Survey, others: readonly Pick<Survey, 'id' | 'slug'>[], languages: readonly ProblemLanguage[] = []): SurveyProblem[] {
   const problems: SurveyProblem[] = [];
   const title = { kind: 'survey', field: 'title' } as const;
   const address = { kind: 'survey', field: 'address' } as const;
@@ -93,5 +117,95 @@ export function surveyProblems(survey: Survey, others: readonly Pick<Survey, 'id
     }
   }
 
+  for (const language of languages) {
+    if (language.enabled && language.code !== survey.language && translationOf(survey, language.code)) {
+      problems.push(...translationProblems(survey, language, firstStep));
+    }
+  }
+
   return problems;
+}
+
+/**
+ * What a translation still lacks, in the order of the document: the title,
+ * the welcome, the thanks, then step by step its title and, question by
+ * question, how many of its texts are left - one problem a question, however
+ * many - and two options that would read the same.
+ */
+function translationProblems(survey: Survey, language: ProblemLanguage, firstStep: number): SurveyProblem[] {
+  const problems: SurveyProblem[] = [];
+  const code = language.code;
+  const translation = translationOf(survey, code);
+
+  const missing = new Set<string>();
+  const texts = new Map<string, number>();
+  for (const gap of translationGaps(survey, code)) {
+    if (gap.kind === 'title' || gap.kind === 'intro' || gap.kind === 'thanks') {
+      missing.add(gap.kind);
+    } else if (gap.kind === 'step') {
+      missing.add(`step ${gap.stepId}`);
+    } else {
+      texts.set(gap.questionId, (texts.get(gap.questionId) ?? 0) + 1);
+    }
+  }
+
+  if (missing.has('title')) {
+    problems.push({ message: `${language.name}: the title is missing.`, target: { kind: 'survey', field: 'title', language: code }, untranslated: true });
+  }
+  if (missing.has('intro')) {
+    problems.push({ message: `${language.name}: the welcome text is missing.`, target: { kind: 'survey', field: 'intro', language: code }, untranslated: true });
+  }
+  if (missing.has('thanks')) {
+    problems.push({ message: `${language.name}: the thank-you text is missing.`, target: { kind: 'survey', field: 'thanks', language: code }, untranslated: true });
+  }
+
+  let number = 0;
+  survey.steps.forEach((step, index) => {
+    if (missing.has(`step ${step.id}`)) {
+      problems.push({ message: `${language.name}: the title of step ${index + firstStep} is missing.`, target: { kind: 'step', stepId: step.id, language: code }, untranslated: true });
+    }
+    for (const question of step.questions) {
+      number++;
+      const target = { kind: 'question', questionId: question.id, language: code } as const;
+      const count = texts.get(question.id) ?? 0;
+      if (count > 0) {
+        problems.push({ message: `${language.name}: question ${number} has ${count === 1 ? '1 text' : `${count} texts`} to translate.`, target, untranslated: true });
+      }
+      if (!isChoice(question)) {
+        continue;
+      }
+      const seen = new Set<string>();
+      for (const option of question.options) {
+        const label = translatedText(translation, { kind: 'option', questionId: question.id, optionId: option.id }).trim();
+        const key = label.toLowerCase();
+        if (key && seen.has(key)) {
+          problems.push({ message: `${language.name}: question ${number} has two options called "${label}".`, target });
+          break;
+        }
+        seen.add(key);
+      }
+    }
+  });
+
+  return problems;
+}
+
+/**
+ * What the list of problems is called, by where the survey is - for the same
+ * problems mean something else in each state. A draft's keep it from
+ * opening; an open survey's are wrong with it now, while people take it (it
+ * does not open, it is open); a closed one's keep it from being reopened.
+ * `status` is the status as people meet it (currentStatus()): a survey whose
+ * last day is over is closed. The editor's own words: the server has none
+ * for this.
+ */
+export function problemsHeading(status: SurveyStatus, count: number): string {
+  switch (status) {
+    case 'open':
+      return count ? `${count} to fix - the survey is open` : 'Nothing to fix';
+    case 'closed':
+      return count ? `${count} to fix before it reopens` : 'Ready to reopen';
+    default:
+      return count ? `${count} to fix before it opens` : 'Ready to open';
+  }
 }

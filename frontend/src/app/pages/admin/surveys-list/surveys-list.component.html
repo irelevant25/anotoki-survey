@@ -1,5 +1,9 @@
 <div class="page">
     <app-page-header heading="Surveys" lead="Write a survey, open it when the time comes, and see what people answered.">
+        <a appButton routerLink="/admin/translations">
+            <app-icon name="globe" [size]="16" />
+            Translations
+        </a>
         <button appButton variant="primary" [loading]="creating()" (click)="create()">
             <app-icon name="plus" [size]="17" />
             New survey

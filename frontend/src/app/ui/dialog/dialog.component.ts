@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRender, inject, input, output, viewChild } from '@angular/core';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { IconComponent } from '../icon/icon.component';
 import { uniqueId } from '../unique-id';
 
@@ -25,7 +26,7 @@ const FOCUSABLE = ['a[href]', 'button:not([disabled])', 'input:not([disabled]):n
  */
 @Component({
   selector: 'app-dialog',
-  imports: [IconComponent],
+  imports: [IconComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './dialog.component.html',
   styleUrl: './dialog.component.scss',

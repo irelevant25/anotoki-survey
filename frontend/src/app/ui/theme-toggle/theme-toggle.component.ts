@@ -1,11 +1,17 @@
 import { ChangeDetectionStrategy, Component, ElementRef, inject, input, viewChildren } from '@angular/core';
+import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { ThemeMode, ThemeService } from '../../core/theme/theme.service';
 import { IconComponent, IconName } from '../icon/icon.component';
 
-const OPTIONS: { mode: ThemeMode; icon: IconName; label: string }[] = [
-  { mode: 'light', icon: 'sun', label: 'Light' },
-  { mode: 'dark', icon: 'moon', label: 'Dark' },
-  { mode: 'auto', icon: 'monitor', label: 'Automatic' },
+/**
+ * Each choice with the key of its name - a key and never the name itself: a
+ * constant is worded once, and the language changes under it. The template
+ * words it (the translate pipe).
+ */
+const OPTIONS: { mode: ThemeMode; icon: IconName; labelKey: string }[] = [
+  { mode: 'light', icon: 'sun', labelKey: 'theme.light' },
+  { mode: 'dark', icon: 'moon', labelKey: 'theme.dark' },
+  { mode: 'auto', icon: 'monitor', labelKey: 'theme.auto' },
 ];
 
 /**
@@ -17,7 +23,7 @@ const OPTIONS: { mode: ThemeMode; icon: IconName; label: string }[] = [
  */
 @Component({
   selector: 'app-theme-toggle',
-  imports: [IconComponent],
+  imports: [IconComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './theme-toggle.component.html',
   styleUrl: './theme-toggle.component.scss',

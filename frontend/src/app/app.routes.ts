@@ -16,6 +16,10 @@ import { AuthCallbackPageComponent } from './pages/auth-callback/auth-callback-p
  * A survey lives at /{slug} - one segment - so every other path of the site
  * has two segments or a name the editor may not give a survey
  * (RESERVED_SLUGS in survey-factory.ts).
+ *
+ * A `title` here is a translation key: the title strategy words it in the
+ * language on the page (core/title.strategy.ts). The admin area's titles are
+ * plain English (admin.routes.ts).
  */
 export const routes: Routes = [
   {
@@ -23,21 +27,21 @@ export const routes: Routes = [
     canActivate: [signInGuard],
     loadChildren: () => import('./pages/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
   },
-  { path: 'auth/callback', component: AuthCallbackPageComponent, title: 'Signing in' },
+  { path: 'auth/callback', component: AuthCallbackPageComponent, title: 'title.signingIn' },
   {
     path: '',
     component: ParticipantLayoutComponent,
     children: [
-      { path: '', title: 'Surveys', loadComponent: () => import('./pages/participant/survey-home/survey-home.component').then((m) => m.SurveyHomeComponent) },
+      { path: '', title: 'title.surveys', loadComponent: () => import('./pages/participant/survey-home/survey-home.component').then((m) => m.SurveyHomeComponent) },
       {
+        // No title: the survey page writes its own ("Preview: ..."), and is the only writer there.
         path: 'preview/:surveyId',
-        title: 'Preview',
         data: { preview: true },
         canActivate: [signInGuard],
         loadComponent: () => import('./pages/participant/take-survey/take-survey.component').then((m) => m.TakeSurveyComponent),
       },
       { path: ':slug', loadComponent: () => import('./pages/participant/take-survey/take-survey.component').then((m) => m.TakeSurveyComponent) },
-      { path: '**', title: 'Not found', loadComponent: () => import('./pages/not-found/not-found.component').then((m) => m.NotFoundComponent) },
+      { path: '**', title: 'title.pageNotFound', loadComponent: () => import('./pages/not-found/not-found.component').then((m) => m.NotFoundComponent) },
     ],
   },
 ];

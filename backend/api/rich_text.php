@@ -161,13 +161,17 @@ function richTextEscape(string $text, bool $attribute): string
     return str_replace(['<', '>'], ['&lt;', '&gt;'], $text);
 }
 
-/** The words of the HTML, one space between them: what a reader of it would read. */
+/**
+ * The words of the HTML, one space between them: what a reader of it would
+ * read - plainText() in core/survey/plain-text.ts, with the browser's own
+ * spaces (TEXT_SPACE), so both sides find the same texts blank.
+ */
 function richTextPlain(string $html): string
 {
     $spaced = (string) preg_replace('~</(p|li|h[1-6])>|<br\s*/?>~i', '$0 ', $html);
     $text = html_entity_decode(strip_tags($spaced), ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
-    return textTrim((string) preg_replace('/[\s\p{Z}]+/u', ' ', $text));
+    return textTrim((string) preg_replace('/' . TEXT_SPACE . '+/u', ' ', $text));
 }
 
 /** HTML with no words in it - what the editor leaves behind when everything is deleted (<p></p>). */

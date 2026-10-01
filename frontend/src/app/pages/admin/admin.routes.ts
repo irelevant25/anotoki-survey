@@ -1,7 +1,12 @@
 import { Routes } from '@angular/router';
 import { AdminLayoutComponent } from '../../layouts/admin-layout/admin-layout.component';
+import { unsavedChangesGuard } from './localization/unsaved-changes.guard';
 
-/** /admin: the surveys, and for each its editor, its results and each response on its own page. */
+/**
+ * /admin: the surveys, and for each its editor, its results and each response
+ * on its own page; and the site's own words - the strings in every language
+ * (translations) and the languages themselves.
+ */
 export const ADMIN_ROUTES: Routes = [
   {
     path: '',
@@ -15,6 +20,18 @@ export const ADMIN_ROUTES: Routes = [
         path: 'surveys/:surveyId/responses/:responseId',
         title: 'Response',
         loadComponent: () => import('./response-page/response-page.component').then((m) => m.ResponsePageComponent),
+      },
+      {
+        path: 'translations',
+        title: 'Translations',
+        canDeactivate: [unsavedChangesGuard],
+        loadComponent: () => import('./localization/translations/translations.component').then((m) => m.TranslationsComponent),
+      },
+      {
+        path: 'languages',
+        title: 'Languages',
+        canDeactivate: [unsavedChangesGuard],
+        loadComponent: () => import('./localization/languages/languages.component').then((m) => m.LanguagesComponent),
       },
       { path: '**', title: 'Not found', loadComponent: () => import('../not-found/not-found.component').then((m) => m.NotFoundComponent) },
     ],

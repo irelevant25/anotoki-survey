@@ -6,7 +6,8 @@
 // (survey_test_browser, from survey_test_template - `php tests/run.php` keeps
 // that current), starts the stand-in IAM on 8597 and the site on 8590 (the
 // built app and the API on one origin, as on the hosting), starts headless
-// Chrome with a profile of its own on 9590, runs flow.mjs, and then stops all
+// Chrome with a profile of its own on 9590 - in English (--lang=en-GB), so the
+// language the site starts in is never the computer's - runs flow.mjs, and then stops all
 // of it and drops the database - also when the check fails. --keep leaves the
 // work folder (settings, logs, screenshots) behind to look at; the screenshots
 // are always there while it runs.
@@ -112,7 +113,9 @@ try {
 
   start(php, ['-S', `127.0.0.1:${IAM}`, 'tests/tools/fake-iam.php'], { cwd: backend, env: { ...process.env, FAKE_IAM_DIR: iamDir, FAKE_IAM_ISSUER: `http://127.0.0.1:${IAM}` } });
   start(php, ['-S', `127.0.0.1:${SITE}`, 'router.php'], { cwd: backend, env: { ...process.env, SURVEY_TEST_CONFIG: join(work, 'config') } });
-  start(findChrome(), ['--headless=new', `--remote-debugging-port=${CHROME_PORT}`, `--user-data-dir=${join(work, 'chrome')}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,860', 'about:blank']);
+  // --lang: the browser's own language decides which language the site starts in, so it is said here and
+  // never left to the computer the check runs on. English; the flow asks for Slovak where it wants it.
+  start(findChrome(), ['--headless=new', '--lang=en-GB', `--remote-debugging-port=${CHROME_PORT}`, `--user-data-dir=${join(work, 'chrome')}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,860', 'about:blank']);
 
   await waitForUrl(`http://127.0.0.1:${IAM}/.well-known/openid-configuration`, 'The stand-in IAM');
   await waitForUrl(`http://127.0.0.1:${SITE}/api/health`, 'The site');

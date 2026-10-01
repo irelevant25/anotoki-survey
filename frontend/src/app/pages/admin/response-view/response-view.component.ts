@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { AdminStore } from '../../../core/admin/admin-store.service';
 import { AGE_ID, GENDER_ID } from '../../../core/survey/about-you';
 import { ABOUT_YOU_QUESTIONS } from '../../../core/survey/about-you-questions';
 import { isChoice } from '../../../core/survey/answer-rules';
@@ -25,6 +26,10 @@ interface Item {
  *
  * `highlight` marks the answer that led here - the bar that was pressed - so
  * the eye lands on it first.
+ *
+ * The questions are shown as the survey is written - its main language - and
+ * a survey may be read in another: "Read in Slovak" says which the person had
+ * in front of them, when the answers say (older ones do not).
  */
 @Component({
   selector: 'app-response-view',
@@ -37,6 +42,21 @@ export class ResponseViewComponent {
   readonly survey = input.required<Survey>();
   readonly response = input.required<SurveyResponse>();
   readonly highlight = input<ResultFilter | null>(null);
+
+  private readonly _languages = inject(AdminStore).languages;
+
+  /**
+   * The language the person read the survey's texts in, by its English name -
+   * by its code while the languages are on their way. Null when the answers
+   * do not say.
+   */
+  protected readonly readIn = computed(() => {
+    const code = this.response().language;
+    if (!code) {
+      return null;
+    }
+    return this._languages()?.find((language) => language.code === code)?.name ?? code;
+  });
 
   protected readonly aboutYou = computed<Item[]>(() => {
     const about = this.response().aboutYou;
