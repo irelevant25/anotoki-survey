@@ -27,6 +27,18 @@ declare(strict_types=1);
  * default in a committed file would be a way for the site to run somewhere
  * with settings nobody chose there - which is exactly what this is here to stop.
  *
+ * A third file is optional, and nothing writes it - put it there by hand:
+ *
+ *   visitors.local.php   the limits on visitors (people taking surveys without
+ *                        signing in, while the IAM says sign-in is not required)
+ *                        and which proxies to believe about a visitor's address
+ *
+ *       return ['trusted_proxies' => ['173.245.48.0/20', ...], 'new_per_hour_per_address' => 60];
+ *
+ *   Every key is optional (VISITOR_DEFAULTS has them all); a value that is not
+ *   usable is left out and logged, and a file that cannot be read (a parse
+ *   error, no array returned) is logged and the defaults hold - never fatal.
+ *
  * The tests run against throwaway databases with settings of their own:
  * SURVEY_TEST_CONFIG names a folder holding the same two files, and it is only
  * honoured while the database named there is a survey_test_ one.
@@ -91,6 +103,7 @@ function localSettings(bool $reload = false): array
 
     $database = $read('database');
     $iam = $read('iam');
+    $visitors = visitorSettingsChecked(visitorSettingsFile());
     $problem = null;
 
     if ($database === null) {
@@ -105,7 +118,122 @@ function localSettings(bool $reload = false): array
         $problem = 'SURVEY_TEST_CONFIG is only for the tests\' survey_test_ databases.';
     }
 
-    return $settings = ['database' => $database, 'iam' => $iam, 'problem' => $problem];
+    return $settings = ['database' => $database, 'iam' => $iam, 'visitors' => $visitors, 'problem' => $problem];
+}
+
+/**
+ * What visitors.local.php may set, and what holds without it:
+ *
+ *   new_per_hour_per_address   new visitors an hour from one address (an IPv6 address counts by its /64):
+ *                              a school class behind one address must fit
+ *   new_per_hour               new visitors an hour in all
+ *   max_active                 visitors with a key at once - past any of the three, a new visitor is
+ *                              refused (429 too_many_visitors); the ones there are carry on
+ *   keep_days                  a visitor unseen this long ends: its key opens nothing, its answers stay
+ *   sweep_batch                visitors ended (or deleted) by one clean-up, after somebody's answer
+ *   sweep_timeout_ms           how long one statement of the clean-up may take or wait
+ *   move_lock_timeout_ms       how long the move at sign-in waits for the rows it takes
+ *   trusted_proxies            addresses or CIDR ranges of the proxies in front of the site: only a
+ *                              request from one of them is believed about the visitor's address
+ *   client_ip_header           the header those proxies put the visitor's address in
+ */
+const VISITOR_DEFAULTS = [
+    'new_per_hour_per_address' => 30,
+    'new_per_hour' => 600,
+    'max_active' => 20000,
+    'keep_days' => 30,
+    'sweep_batch' => 50,
+    'sweep_timeout_ms' => 2000,
+    'move_lock_timeout_ms' => 5000,
+    'trusted_proxies' => [],
+    'client_ip_header' => 'CF-Connecting-IP',
+];
+
+/** The smallest and largest number each numeric setting may be. */
+const VISITOR_SETTING_RANGES = [
+    'new_per_hour_per_address' => [1, 1000000],
+    'new_per_hour' => [1, 10000000],
+    'max_active' => [1, 100000000],
+    'keep_days' => [1, 3650],
+    'sweep_batch' => [1, 10000],
+    'sweep_timeout_ms' => [100, 60000],
+    'move_lock_timeout_ms' => [100, 60000],
+];
+
+/** The visitor settings in use: visitors.local.php's usable values over VISITOR_DEFAULTS. */
+function visitorSettings(): array
+{
+    return localSettings()['visitors'];
+}
+
+/**
+ * What visitors.local.php returns - null without one. Unlike the other two,
+ * setup.php never writes this file: it is written by hand, so a typo in it
+ * (a parse error, a missing `return`) is logged and the defaults hold, never
+ * a failure of every request.
+ */
+function visitorSettingsFile(): ?array
+{
+    $file = localConfigFile('visitors');
+    if (!is_file($file)) {
+        return null;
+    }
+
+    try {
+        $values = require $file;
+    } catch (Throwable $e) {
+        error_log('[visitors] config/visitors.local.php could not be read (' . get_class($e) . ': '
+            . $e->getMessage() . ' on line ' . $e->getLine() . '): the defaults hold.');
+
+        return null;
+    }
+    if (!is_array($values)) {
+        error_log('[visitors] config/visitors.local.php could not be read (it returns no array): the defaults hold.');
+
+        return null;
+    }
+
+    return $values;
+}
+
+/**
+ * $values (what visitors.local.php returned, null without one) over the
+ * defaults: a value of the wrong type or out of range, and a key nobody
+ * reads, are left out and logged - a typo there must not stop people
+ * answering surveys.
+ */
+function visitorSettingsChecked(?array $values): array
+{
+    $settings = VISITOR_DEFAULTS;
+    foreach ($values ?? [] as $key => $value) {
+        $usable = match (true) {
+            isset(VISITOR_SETTING_RANGES[$key]) => is_int($value) && $value >= VISITOR_SETTING_RANGES[$key][0] && $value <= VISITOR_SETTING_RANGES[$key][1],
+            $key === 'trusted_proxies' => is_array($value) && array_is_list($value) && count($value) <= 1000 && array_filter($value, 'visitorSettingRangeOk') === $value,
+            $key === 'client_ip_header' => is_string($value) && preg_match('/^[A-Za-z0-9-]{1,64}$/D', $value) === 1,
+            default => null,
+        };
+        if ($usable === true) {
+            $settings[$key] = $value;
+        } else {
+            error_log('[visitors] config/visitors.local.php: ' . ($usable === null ? "$key is no setting of visitors" : "$key is not usable, the default holds") . '.');
+        }
+    }
+
+    return $settings;
+}
+
+/** An address, or one with a /prefix that fits it (198.51.100.0/24, 2001:db8::/32). */
+function visitorSettingRangeOk(mixed $range): bool
+{
+    if (!is_string($range) || !preg_match('~^([0-9A-Fa-f:.]{2,45})(/(\d{1,3}))?$~D', $range, $m)) {
+        return false;
+    }
+    $address = @inet_pton($m[1]);
+    if ($address === false) {
+        return false;
+    }
+
+    return !isset($m[3]) || (int) $m[3] <= strlen($address) * 8;
 }
 
 /** Null when the site is set up; otherwise a sentence saying what is missing. */

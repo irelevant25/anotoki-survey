@@ -95,72 +95,15 @@ function cli(string ...$arguments): array
     return [$code, implode("\n", $lines)];
 }
 
-/** Somebody else at the same moment: a second connection to this file's database, for a transaction left open. */
-function somebody_else(): PDO
-{
-    return dbConnect(databaseSettings());
-}
-
 /**
- * A request that is sent and not waited for - for what has to wait for
- * somebody else. (The server answers one request at a time, and this one
- * keeps it busy until it is answered: ask for 'answer' before the next call.)
- *
- *   'waits'   is it held up by a lock somebody else has? True as soon as the
- *             database shows a connection waiting for one while the request
- *             is unanswered; false when the answer comes first - it did not
- *             wait - or nothing of either is seen in ten seconds
- *   'answer'  waits for the answer: ['status' => int, 'body' => mixed]
+ * A request as $user, sent and not waited for (begin_call() in tests/lib.php,
+ * with somebody_else() for the other side).
  *
  * @return array{waits: callable(): bool, answer: callable(): array}
  */
 function begin_as(int $user, string $method, string $url, mixed $body = null): array
 {
-    $curl = curl_init($GLOBALS['app']['base'] . $url);
-    $headers = array_merge(bearer(test_token($user, roles_of($user))), ['Expect:'], $body === null ? [] : ['Content-Type: application/json']);
-    curl_setopt_array($curl, [CURLOPT_CUSTOMREQUEST => $method, CURLOPT_RETURNTRANSFER => true, CURLOPT_HTTPHEADER => $headers, CURLOPT_TIMEOUT => 30]);
-    if ($body !== null) {
-        curl_setopt($curl, CURLOPT_POSTFIELDS, jsonText($body));
-    }
-    $multi = curl_multi_init();
-    curl_multi_add_handle($multi, $curl);
-
-    // Lets the request go on for a moment; true once it is answered.
-    $answered = static function () use ($multi): bool {
-        curl_multi_exec($multi, $running);
-        if ($running > 0 && curl_multi_select($multi, 0.05) === -1) {
-            usleep(20000); // nothing to wait on yet
-        }
-
-        return $running === 0;
-    };
-    $answer = null;
-
-    return [
-        'waits' => static function () use ($answered): bool {
-            for ($until = microtime(true) + 10; microtime(true) < $until;) {
-                if ($answered()) {
-                    return false;
-                }
-                if ((int) dbValue("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'") > 0) {
-                    return true;
-                }
-            }
-
-            return false;
-        },
-        'answer' => static function () use ($answered, $multi, $curl, &$answer): array {
-            if ($answer === null) {
-                for ($until = microtime(true) + 35; !$answered() && microtime(true) < $until;) {
-                    // until it is answered (or its own 30 seconds are over)
-                }
-                $answer = ['status' => (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 'body' => json_decode((string) curl_multi_getcontent($curl), true)];
-                curl_multi_remove_handle($multi, $curl);
-            }
-
-            return $answer;
-        },
-    ];
+    return begin_call($GLOBALS['app']['base'], $method, $url, $body, bearer(test_token($user, roles_of($user))));
 }
 
 test('before there is any string: the languages on offer, and empty maps that are still objects', function (): void {

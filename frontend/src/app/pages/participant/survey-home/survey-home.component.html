@@ -4,6 +4,10 @@
         <p class="lead">{{ "home.lead" | translate }}</p>
     </header>
 
+    @if (taker()?.visitor) {
+        <app-visitor-notice />
+    }
+
     @if (error(); as failure) {
         <app-alert tone="danger" [heading]="'home.loadFailed' | translate">
             {{ errorKey(failure) | translate: errorParams(failure) }}

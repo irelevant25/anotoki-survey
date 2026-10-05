@@ -14,6 +14,7 @@ const OWNER = 1;       // ADMIN
 const EDITH = 2;       // EDITOR
 const PAT = 101;       // takes surveys
 const QUINN = 102;     // takes surveys
+const LOOKER = 103;    // takes surveys, only ever looks
 
 $GLOBALS['app'] = null;
 before(function (): void {
@@ -102,7 +103,9 @@ function png(): string
 }
 
 test('who may do what: people read, editors write, only an administrator deletes', function (): void {
-    assert_same(200, anonymous('GET', '/api/surveys')['status'], 'anybody sees the open surveys');
+    assert_same(401, anonymous('GET', '/api/surveys')['status'], 'nobody signed in sees anything of a survey: not the list');
+    assert_same(401, anonymous('GET', '/api/surveys/genshin-1-0')['status'], 'nor one survey');
+    assert_same(200, as_user(PAT, 'GET', '/api/surveys')['status'], 'anybody signed in sees the open surveys');
     assert_same(401, anonymous('GET', '/api/admin/surveys')['status']);
     $refused = as_user(PAT, 'GET', '/api/admin/surveys');
     assert_same(403, $refused['status'], 'a person with no role of this site');
@@ -133,8 +136,8 @@ test('an editor writes a draft: it is a draft whatever it says, and nobody else 
     assert_same('q-element', $survey['steps'][0]['questions'][0]['id'], 'the editor\'s own ids are kept');
     assert_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/', $survey['createdAt']);
 
-    assert_same(404, anonymous('GET', '/api/surveys/genshin-1-0')['status'], 'a draft is nobody\'s to take');
-    assert_same([], anonymous('GET', '/api/surveys')['body']['surveys']);
+    assert_same(404, as_user(LOOKER, 'GET', '/api/surveys/genshin-1-0')['status'], 'a draft is nobody\'s to take');
+    assert_same([], as_user(LOOKER, 'GET', '/api/surveys')['body']['surveys']);
 
     $list = as_user(EDITH, 'GET', '/api/admin/surveys')['body']['surveys'];
     $mine = array_values(array_filter($list, static fn(array $row): bool => $row['id'] === $survey['id']))[0];
@@ -195,13 +198,13 @@ test('opening: refused while there is something to fix; a live address is its ow
     $GLOBALS['survey'] = $opened;
 });
 
-test('taking it: anybody may look, only a signed-in person answers - once', function (): void {
+test('taking it: people signed in look, and answer - once', function (): void {
     $survey = $GLOBALS['survey'];
 
-    $look = anonymous('GET', '/api/surveys/genshin-1-0');
+    $look = as_user(LOOKER, 'GET', '/api/surveys/genshin-1-0');
     assert_same(200, $look['status']);
     assert_same(null, $look['body']['answeredAt']);
-    assert_same($survey['id'], anonymous('GET', '/api/surveys')['body']['surveys'][0]['survey']['id']);
+    assert_same($survey['id'], as_user(LOOKER, 'GET', '/api/surveys')['body']['surveys'][0]['survey']['id']);
 
     $answers = [
         'aboutYou' => ['gender' => 'female', 'age' => '25-34'],
@@ -238,9 +241,9 @@ test('taking it: anybody may look, only a signed-in person answers - once', func
     assert_true(strtotime((string) dbValue('SELECT started_at FROM responses WHERE id = ?', [$quinn['body']['id']])) <= time(), 'a start in the future is taken as now');
 
     // An address that is not one - not even UTF-8 - is no survey, not a database error.
-    assert_same(404, anonymous('GET', '/api/surveys/%FF')['status']);
+    assert_same(404, as_user(LOOKER, 'GET', '/api/surveys/%FF')['status']);
     assert_same(404, as_user(QUINN, 'POST', '/api/surveys/%C3/responses', $answers)['status']);
-    assert_same(404, anonymous('GET', '/api/surveys/Not%20a%20slug')['status']);
+    assert_same(404, as_user(LOOKER, 'GET', '/api/surveys/Not%20a%20slug')['status']);
 });
 
 test('the results: every filled survey with who filled it; an administrator can delete one', function (): void {
@@ -249,7 +252,7 @@ test('the results: every filled survey with who filled it; an administrator can 
     $responses = as_user(EDITH, 'GET', "/api/admin/surveys/$id/responses")['body']['responses'];
     assert_same(2, count($responses));
     $quinn = $responses[0];
-    assert_same(['id' => (string) QUINN, 'name' => 'user' . QUINN, 'email' => 'user' . QUINN . '@example.test'], $quinn['person'], 'newest first, named from the token');
+    assert_same(['id' => (string) QUINN, 'name' => 'user' . QUINN, 'email' => 'user' . QUINN . '@example.test', 'visitor' => false], $quinn['person'], 'newest first, named from the token');
     assert_same(['gender' => 'undisclosed', 'age' => 'undisclosed'], $quinn['aboutYou']);
     assert_json_same(['q-element' => ['text' => '', 'other' => '', 'optionIds' => ['o-geo']], 'q-words' => ['text' => 'More Geo!', 'other' => '', 'optionIds' => []]], $quinn['answers']);
     assert_same($id, $quinn['surveyId']);
@@ -268,8 +271,8 @@ test('closing: the answers stay, new ones do not come in; a closed survey still 
     $late = as_user(QUINN, 'POST', '/api/surveys/genshin-1-0/responses', ['aboutYou' => ['gender' => 'male', 'age' => '18-24'], 'answers' => ['q-element' => ['optionIds' => ['o-geo']]]]);
     assert_same(409, $late['status']);
     assert_same('not_open', $late['body']['code']);
-    assert_same('closed', anonymous('GET', '/api/surveys/genshin-1-0')['body']['survey']['status']);
-    assert_same([], anonymous('GET', '/api/surveys')['body']['surveys']);
+    assert_same('closed', as_user(LOOKER, 'GET', '/api/surveys/genshin-1-0')['body']['survey']['status']);
+    assert_same([], as_user(LOOKER, 'GET', '/api/surveys')['body']['surveys']);
 
     // Reopened with a last day long gone: closed to answers all the same.
     $reopened = as_user(EDITH, 'POST', "/api/admin/surveys/$id/status", ['status' => 'open', 'closesOn' => '2020-01-01']);
@@ -277,7 +280,7 @@ test('closing: the answers stay, new ones do not come in; a closed survey still 
     assert_same('not_open', as_user(QUINN, 'POST', '/api/surveys/genshin-1-0/responses', ['answers' => []])['body']['code']);
     // With the day dropped, as the editor reopens it: open again.
     as_user(EDITH, 'POST', "/api/admin/surveys/$id/status", ['status' => 'open', 'closesOn' => null]);
-    assert_same(1, count(anonymous('GET', '/api/surveys')['body']['surveys']));
+    assert_same(1, count(as_user(LOOKER, 'GET', '/api/surveys')['body']['surveys']));
     assert_same(409, as_user(EDITH, 'POST', '/api/admin/surveys/' . as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => draft(['slug' => 'x'])])['body']['survey']['id'] . '/status', ['status' => 'closed'])['status'], 'a draft cannot close');
 });
 
@@ -500,7 +503,7 @@ test('a translation people are offered must be whole before the survey opens; th
     $languages = array_keys($opened['body']['survey']['translations']);
     sort($languages);
     assert_same(['de', 'sk'], $languages);
-    $taken = anonymous('GET', '/api/surveys/two-languages');
+    $taken = as_user(LOOKER, 'GET', '/api/surveys/two-languages');
     assert_same([200, 'en', ['sk']], [$taken['status'], $taken['body']['survey']['language'], array_keys($taken['body']['survey']['translations'])]);
     assert_json_same(slovak_kept(), $taken['body']['survey']['translations']['sk']);
     assert_true(str_contains($taken['raw'], '"options":{}') && str_contains($taken['raw'], '"images":{}'), $taken['raw']);
@@ -512,7 +515,7 @@ test('a translation people are offered must be whole before the survey opens; th
 
     // Hidden Slovak: the survey goes out in its own language alone - and stays open.
     assert_same(200, as_user(OWNER, 'PUT', '/api/admin/languages/sk', ['enabled' => false])['status']);
-    $taken = anonymous('GET', '/api/surveys/two-languages');
+    $taken = as_user(LOOKER, 'GET', '/api/surveys/two-languages');
     assert_same(['open', []], [$taken['body']['survey']['status'], $taken['body']['survey']['translations']]);
     assert_true(str_contains($taken['raw'], '"translations":{}'), $taken['raw']);
     assert_same(200, as_user(OWNER, 'PUT', '/api/admin/languages/sk', ['enabled' => true])['status']);

@@ -4,8 +4,11 @@
  browser (Angular)                    backend (PHP, Slim 4)                    PostgreSQL (anotoki_survey)
  ─────────────────                    ─────────────────────                    ───────────────────────────
  AuthService ── sign-in ──▶ the anotoki IAM (OIDC code + PKCE; tokens in localStorage)
- ApiService ── /api/... + Bearer ──▶ index.php: security headers ▶ error handler ▶ setup gate ▶ route
-                                        ├─ optionalUser / requireUser / requireRole: the token, checked here
+ VisitorKey (the key, the move)
+ ApiService ── /api/... + Bearer, or X-Visitor-Key ──▶ index.php: security headers ▶ error handler ▶ setup gate ▶ route
+                                        ├─ requireUser / requireRole: the token, checked here;
+                                        │  requireTaker (the surveys' routes): the token, or a visitor's key
+                                        ├─ visitors.php, client_address.php: visitors, their limits, the move
                                         ├─ surveys.php, responses.php, images.php ─────────▶ surveys, responses,
                                         ├─ survey_rules.php, rich_text.php: what may be kept   images, survey_images, users
  TranslationService ── /api/translations/{code} ──▶ translations.php ─────────────────────▶ languages, translation_keys,
@@ -25,39 +28,245 @@ v1.1.1, byte for byte the IAM's `sdk/js/`), as client `survey`:
 
 - `AuthService.init()` runs before the first page (the app initializer,
   `boot()` in `core/boot.ts`): it reads
-  `GET /api/auth/config` (`{issuer, clientId}` - or 503 `not_set_up`, and the
-  site draws its "not set up yet" page), then lets the SDK finish a callback
+  `GET /api/auth/config` (`{issuer, clientId, loginRequired, visitorDays}` - or 503 `not_set_up`, and the
+  site draws its "not set up yet" page; with `update: true` while a migration
+  is pending: `needsUpdate`, below), then lets the SDK finish a callback
   (`/auth/callback`; the SDK puts back the address the person came from before
-  the router reads it) or restore the stored session. The language and its
-  strings come next (*The site's own words*, below), and the site is drawn
-  only once both are there.
+  the router reads it) or restore the stored session. `loginRequired` (the
+  IAM's switch, below) becomes `AuthService.loginRequired` - true unless the
+  backend says false - and, with `visitorDays` (a backend that does not say
+  it is one from before visitors), `visitorsWelcome`: the pages people take
+  surveys on are open to visitors (*Visitors in the browser*, below). `boot()`
+  makes `VisitorKey` before it awaits anything, and, back from a sign-in,
+  makes this browser's visitor drafts the person's before the first page is
+  drawn. The language and its strings come next (*The site's own words*,
+  below), and the site is drawn only once both are there.
 - `authInterceptor` puts `Authorization: Bearer <access token>` on every `/api/`
-  call while somebody is signed in (not on `/api/auth/config`, the pictures or
-  `/api/translations/`), and retries once with a fresh token after a 401.
+  call issued for a person (not on `/api/auth/config`, the pictures or
+  `/api/translations/`), and retries once with a fresh token after a 401. A
+  person's call whose token comes back null is never sent (401
+  `sign_in_required`, at once); a visitor's call carries the visitor key
+  instead (below).
 - `AuthService.signIn(returnTo, uiLocales)` sends the person to the IAM with the
   language they read this site in, so the IAM's pages open in the same one.
-- The backend checks the token with the vendored verifier
-  (`backend/api/anotoki_iam.php`, v1.0.1, the IAM's `sdk/php/`): RS256, typ
-  `at+jwt`, the IAM's published keys (cached in `storage/cache/`), iss, aud
-  `survey`, exp. `sub` is the person; `roles` their roles in this site. A
-  person is recorded in `users` (id = the IAM's user id, name and address from
-  the token) as they come.
+- The backend checks the token with the vendored SDK
+  (`backend/api/anotoki_iam.php`, v1.1.0, byte for byte the IAM's `sdk/php/`):
+  RS256, typ `at+jwt`, the IAM's published keys (cached in `storage/cache/`),
+  iss, aud `survey`, exp. `sub` is the person; `roles` their roles in this
+  site. A person is recorded in `users` (id = the IAM's user id, name and
+  address from the token) as they come. Only an `Authorization: Bearer` header
+  claims to be somebody (`authSentCredentials()`): one whose token does not
+  check out - an empty one too - is 401 `invalid_token`, never "nobody"; any
+  other scheme (`Basic`, from a host behind a password file) is not looked at.
+- **Sign-in required** is the IAM's to say, per site (its admin panel:
+  Applications -> survey -> "Sign-in required"). `authLoginRequired()` asks it
+  through the SDK (`anotoki_iam_login_required()`:
+  `GET {issuer}/api/public/applications/survey`), keeps the answer a minute in
+  `storage/cache/` (one request asks when the minute is up, the others use the
+  kept answer; an IAM that does not answer is asked again a minute later), and
+  `/api/auth/config` relays it. It **fails closed**: true unless the IAM said
+  false - an unknown application (404), an IAM never reached, an answer about
+  another site all mean "required"; an IAM out of reach after it answered
+  keeps its last answer.
+- **Visitors** - the switch off: surveys taken without signing in, on the
+  pages people take surveys on (below, *Visitors* and *Visitors in the
+  browser*). The admin panel and the editor's preview sign in first whatever
+  the switch says.
 
 | Role | May |
 | --- | --- |
-| (none) | take surveys - once each, while open |
-| `EDITOR` | the admin area: write and translate surveys, open and close them, preview, read every answer, export; reword the site's strings, add and hide languages |
-| `ADMIN` | all of that, and delete surveys, answers and languages |
+| `MEMBER` | every account holds it (the IAM gives it to everyone): an ordinary person - take surveys, once each, while open. No check here asks for it; a token without it (an older one) is the same |
+| `EDITOR` | the admin panel: write and translate surveys, open and close them, preview, read every answer, export; reword the site's strings, add and hide languages |
+| `ADMIN` | all of that, and delete surveys, answers and languages; see and apply the database's migrations (the Migrations page) |
 
 The frontend hides what a role may not do (`AuthService.isStaff`, `isAdmin`);
-the backend decides (`requireRole()` in `api/meddleware/auth.php`). The admin
-routes need somebody signed in first (`signInGuard`: off to the IAM, and back);
-a signed-in person without a role gets the admin layout's "this part is for the
-people who write the surveys". Somebody whose session ends on an admin page
-gets "You are signed out" instead - with what is kept, and no button: the top
-bar's Sign in is the way on. (A signed-out person cannot reach the admin area
-by its address - the guard sends them to the IAM - so on this layout "signed
-out" always means a session that ended in place.)
+the backend decides (`requireRole()` in `api/meddleware/auth.php`). Every page
+needs somebody signed in first (`signInGuard`: off to the IAM before anything
+of the page is drawn, and back to the address asked for) - the admin panel
+(`canActivate`, once as it is entered), the editor's preview (its own
+`canActivate`), and, while sign-in is required, every page people take
+surveys on (`takeSurveysGuard`, `canActivateChild` of their layout, so each
+page asks again; with visitors welcome it lets anybody through); while sign-in
+is required the API answers nothing of a survey without a token - its
+pictures aside, which an `<img>` loads with no token, at addresses that are
+random UUIDs ([API](api.md#the-people-taking-surveys)). Only the boot pages (not set up, cannot
+be reached) draw without it: while the site cannot run the guard lets nothing
+through and sends nobody anywhere. A signed-in person without EDITOR or ADMIN
+(MEMBER alone) gets the admin layout's "this part is for the people who write
+the surveys".
+
+**Blocking somebody** is the IAM's: taking a person's MEMBER away in the
+survey application (Users -> the person -> Roles) makes the IAM refuse their
+next sign-in and every refresh; the access token they hold still verifies
+until it runs out (minutes). A person blocked so can still take surveys as a
+visitor while sign-in is not required - blocking stops signing in, not
+visiting; to keep somebody out entirely, keep "Sign-in required" on.
+
+### Visitors
+
+While the IAM says sign-in is not required, somebody who is not signed in may
+take the open surveys too, once each, as a **visitor** (`api/visitors.php`,
+migration 006). Who a request is, on the surveys' own routes only
+(`requireTaker()` in `api/meddleware/auth.php`): a Bearer header - that person
+or 401, the key not even read; else, while sign-in is required, 401
+`sign_in_required` for a key and for nobody alike; else the visitor of the
+`X-Visitor-Key` header (401 `visitor_unknown` for a key that is nobody's);
+else nobody. `requireUser()` / `requireRole()` refuse a visitor as they
+refuse nobody - the admin panel, the Migrations page and the move are a
+verified token's alone.
+
+- **A visitor is a row of `users` with a negative id** (the sequence
+  `visitor_ids` counts down from -1; an IAM id is always positive), no name,
+  no address, and `visitor_key_hash` - the SHA-256 of a key the server made
+  (32 random bytes, base64url) and sent once, in the `X-Visitor-Key` header of
+  the 201 whose answers made it. So "once each", `answeredAt` and the results
+  work for a visitor with no code of their own; the results call it "Visitor
+  N" (`responsesOf()`, `person.visitor`).
+- **Made with its first answers that are kept**, inside their transaction
+  (`visitorMake()` in `responseSubmit()`), after three limits: new visitors an
+  hour from one address and in all - counters that are rows of
+  `visitor_counters`, held to the end of the transaction - and visitors with a
+  key at once, counted after everybody's counter is held. A refusal rolls the
+  counts back with everything else. The address is `REMOTE_ADDR` unless the
+  connection is a trusted proxy's (`api/client_address.php`, the IAM's and
+  the analyzer's rule; IPv6 by its /64).
+- **The clean-up** runs after the answer (`afterAnswerRun()` in
+  `api/index.php`, `visitorSweepSoon()`): after every new visitor, else at most
+  once an hour (a marker file in `storage/`). It ends the visitors unseen for
+  `keep_days` - the hash cleared, the answers kept as "Visitor N" - or deletes
+  them when they have no answers; a visitor still coming back is never
+  touched. A batch at a time, rows another request holds skipped, each
+  statement bounded; a failure is logged and never reaches the answer. An
+  ended visitor left with no answers - an ADMIN deleted its last ones, or the
+  survey - goes with that delete (`visitorsForgetEmpty()`).
+- **The move at sign-in** (`POST /api/visitor/move`, token and key, whatever
+  the switch): the visitor's answers into the person's account in one
+  transaction (`visitorMoveInto()`); the person's answers win where both
+  answered.
+- Settings: `config/visitors.local.php`, optional
+  ([operations](operations.md#visitors)).
+
+### Visitors in the browser
+
+`AuthService.visitorsWelcome` (the site runs, `loginRequired` is false, the
+backend said `visitorDays`) opens the pages people take surveys on to anybody
+(`takeSurveysGuard`); `AuthService.taker` says who takes them - the person
+signed in, else this browser's visitor (`{id: 'visitor', visitor: true}`),
+else nobody - and `visiting` that it is the visitor.
+
+- **Who a request is, decided when it is issued** (`ISSUED_AS` in
+  `core/api/api.service.ts`): `ApiService` marks the three survey routes the
+  person's while somebody is signed in and the visitor's otherwise, the move
+  always the person's; anything unmarked is decided as it is handed over.
+  `authInterceptor` sends a person's call with the token or not at all - a
+  token that comes back null (a refresh refused, signed out in another tab)
+  fails the call at once as 401 `sign_in_required`, so a person's answers
+  never go out as nobody's and never make a visitor. A visitor's call goes
+  without a token, and to `/api/surveys` - only there, only while
+  `loginRequired` is false - with the key held now; the answer that made a
+  visitor brings its key (`X-Visitor-Key`), which is kept; a key on a
+  person's answer is ignored. A 401 `visitor_unknown` forgets the key (only
+  while it is the one held) and sends once more without it; a 401
+  `sign_in_required` to `/api/surveys` means the switch went on since the page
+  loaded (`AuthService.noteLoginRequired()`: the pages stop welcoming visitors
+  until the next load) - and keeps the key.
+- **`VisitorKey`** (`core/auth/visitor-key.ts`, the analyzer's pattern): the
+  key in `localStorage` (`anotoki-survey:visitor`), read as each call leaves
+  and kept in step across tabs by the `storage` event; the first key a browser
+  got stays (two tabs that each sent first answers: the second key is
+  dropped, its answer stays a visitor of its own); in memory for the tab when
+  storage refuses. **Kept while sign-in is required** - the server refuses it
+  then, and the next sign-in still moves what it answered; switching the
+  requirement off again within `visitorDays` brings it back. After every
+  sign-in with a key held (an effect - `AuthService` never reads
+  `VisitorKey`) it asks for the move, one at a time; a 200 forgets the key,
+  counts `moves` (home and the survey page ask again) and leaves `moved` for
+  the participant layout's toast (`visitor.moved` / `visitor.kept`); no
+  answer or a 5xx asks again after 2 s, 10 s, 30 s (`Retry-After` wins); a
+  422 forgets the key; a 401 waits for the next sign-in. A key the server no
+  longer knew sets `lost`, which the layout says once (`visitor.lost`).
+- **Drafts** stay in the browser, as a person's do: a visitor's under the slot
+  `visitor` (`anotoki-survey:draft:{surveyId}:visitor`) - a draft never makes
+  a visitor. At a sign-in they become the person's (`adoptVisitorDrafts()`):
+  in `boot()` before the first page, in `VisitorKey`'s effect for a sign-in
+  in another tab, and by the survey page itself before it reads a person's
+  draft (`adoptVisitorDraft()`); where the person has a draft of their own,
+  theirs stays and the visitor's goes - the rule the move keeps for answers.
+- **A sign-in waits for the sends on their way** (`SavesInFlight`, counted
+  by the interceptor; `AuthService.signIn()` waits at most 30 s): a visitor's
+  first answers bring the key the move needs, and a page left before their
+  answer arrived would leave them out of the browser's reach.
+- **The pages**: the participant layout draws its page for a visitor (never
+  the editor's preview: the card stands there for anybody not signed in);
+  home and the survey page show the visitor notice (`visitor.notice`, its
+  days from `visitorDays`, with a Sign in button) - home above the list, the
+  survey on its welcome, "answered" and "sent", never on the steps - and the
+  welcome says `take.asVisitor` where a person reads whom they are signed in
+  as. Their answers refused because the switch went on say
+  `take.refused.signInRequired`; past the limits on new visitors,
+  `take.refused.tooManyVisitors`. A sign-in that came back refused while
+  visiting (`access_denied`: a person whose MEMBER was taken away) is said
+  in its toast as ever, and the page goes on as the visitor's.
+- **The admin panel** shows a visitor's answers like anybody's, under the
+  name the server gives them ("Visitor 12"), and says "Not signed in" where a
+  person's address would be (`Person.visitor`: the results' table of people,
+  the lists a number opens, the drawer of their answers, the page of their
+  answers). The CSV has the name and an empty address. The delete question is
+  the same as for a person - "Visitor 12 can take the survey again": their
+  browser can, while its key lives, and an ended visitor's browser can anyway.
+
+What is left of "signed out" is drawn by the layouts where the page would be,
+with a Sign in button of their own (on a phone the top bar's is inside its
+menu): a session that ended with the page open (the admin panel's "You are
+signed out", with what is kept; the participant layout's "You are not signed
+in", `signedOut.*`), or a sign-in that came back without one (refused,
+cancelled; the admin panel's card is then "You are not signed in" - nobody had
+a session to end) - the guard lets every page of that page load through
+(`signInFailure` is never cleared) rather than send the browser round between
+the site and the IAM for ever, and the toast says what went wrong. A sign-in
+that cannot even start is the same: the SDK keeps the sign-in in progress in
+`sessionStorage`, and when the browser refuses it (`storage_unavailable`)
+`AuthService.signIn()` answers false and sets `signInFailure`; the guard lets
+the page through to its card, and it - or the Sign in button pressed
+(`signInOrSayWhy()`) - says why in a toast (`signIn.storageUnavailable`),
+where it was a blank page. Nothing of a survey is drawn then: the layout holds
+back its `<router-outlet>`.
+
+## The top bar
+
+`layouts/top-bar` is the anotoki family's bar, and the one the other sites copy
+(the IAM, Japanese, Piano, the build analyzer). One row, in this order: the
+brand (`ui/brand`: the mark, "anotoki" and the site's name, linking home -
+`/`; in the admin panel "anotoki survey · admin panel", linking to `/admin`); the site's sections as links (where
+people take surveys: Surveys; in the admin panel: Surveys, Translations,
+Languages, and Migrations for an ADMIN - only Migrations while the database
+waits for a migration - `SURVEY_LINKS`, `ADMIN_LINKS`; the one the page is in is marked,
+and `aria-current="page"` on its own address); then the language chooser
+(where people take surveys, when more than one language is offered), the
+theme, and the person's menu - name, address and role, "Your anotoki account"
+(the IAM's account page, in a new tab), "Admin panel" ("Administrátorský
+panel") for EDITOR / ADMIN or "Back to the surveys" in the admin panel, Sign out - or, signed out, Sign in.
+
+Up to 760 px (`PHONE_BAR_MAX`) it is a phone's bar: the brand is the mark and
+the site's name alone (`showName`), then the language, the theme and a menu
+button; the links and the person's menu (or Sign in) are inside that button's
+menu. From 761 px the links are in the row; up to 960 px (`NARROW_BAR_MAX`)
+the person's button is the initial alone, from 961 px with the name - and
+the admin panel's longer wordmark leaves out "anotoki" up to 960 px too
+("survey" with "admin panel" small under it, as on a phone), or the bar
+overflows at 761 (and at 360 on one line). Both menus behave the IAM's
+way: the focus goes to the first item when one opens, arrow keys, Home and
+End move between items, Escape closes it and gives the focus back to its
+button, and so do Tab and Shift+Tab from any item (the browser's own move is
+stopped: it would land on the next item of a menu about to go, and then on
+`<body>`) - the next Tab moves on from the button; a click outside closes it,
+and so does a
+change between the phone's bar and the desktop's. Every word of it is a key
+(`topbar.*`, `common.signIn` / `signOut`, `brand.area`, `brand.adminPanel`); the admin panel reads
+them in English (`effectiveLanguage`) - but the Migrations link, which only an
+ADMIN in the admin panel ever sees: its English word is written in the code
+(`label`), as the admin panel's pages are.
+
 
 ## The data
 
@@ -71,7 +280,8 @@ closing day, the times - are columns beside it. The frontend's
 
 | Table | Holds |
 | --- | --- |
-| `users` | who has signed in: the IAM's user id, name, address |
+| `users` | who has signed in: the IAM's user id, name, address - and the visitors: a negative id, no name, `visitor_key_hash` (the SHA-256 of their key; cleared when the visitor ends, the row and its answers kept) |
+| `visitor_counters` | the limits on new visitors: a count per name (`visitors:new`, `visitors:new:<address>`) and when it starts again |
 | `surveys` | the surveys; `revision` counts the saves; a partial unique index keeps one live (not draft) survey per address |
 | `responses` | one filled survey per person and survey (unique); gender and age as columns (checked lists), the answers as JSONB by question id; `language`: the language the survey was read in, or null |
 | `images` | the pictures' bytes (bytea), type and size - never changed once kept |
@@ -87,10 +297,46 @@ an answer keeps pointing at its option when the option is renamed or moved.
 
 Migrations are the schema: `backend/migrations/survey/NNN_name.sql`, applied in
 order by `api/migration_runner.php` (the family's engine) from `setup.php`,
-`migration.php` and the tests. The setup gate answers 503 while one is pending.
+`migration.php`, the admin panel's Migrations page and the tests. The first
+three take one PostgreSQL advisory lock (`api/database_update.php`,
+`databaseUpdateLocked()`), on a connection of their own: one update at a time,
+and the second is told another is running (409 `busy`). See *A database behind
+the code*, below.
 The site's strings are part of it: `002` makes the three tables and the two
 languages, `003` writes every key with its English and Slovak string, `004`
-adds `responses.language`.
+adds `responses.language`, `005` the top bar's and the sign-in's strings,
+`006` the visitors (their sequence, `users.visitor_key_hash` and its rules,
+`visitor_counters`, and `responses_by_user` - answers by person), `007` what
+the pages say to a visitor (`visitor.*`, `take.asVisitor`, two refusals, three
+`error.*`).
+
+## A database behind the code
+
+A version whose migrations have not been applied yet: the setup gate
+(`api/meddleware/setup.php`) answers every request 503 `not_set_up` with
+`update: true` - nothing is read from, or written into, tables that are not
+there - except what an administrator needs to apply it
+(`SETUP_GATE_OPEN_WHILE_BEHIND`): `/api/health`, `GET /api/auth/config`
+(which then says `update: true`), the strings (`/api/translations/{code}`,
+read-only - the "not set up yet" page and the admin panel's bar are worded
+with them) and `/api/admin/migrations` (+ `/apply`), still behind a verified
+token and ADMIN. Never while the settings are missing: then `setup.php` is the
+way.
+
+The frontend learns it from the sign-in's settings: `AuthService.needsUpdate`.
+Signing in works (the status is `ready`; the sign-in guard sends a visitor to
+the IAM as ever), but the app (`app.component.ts`) draws the "not set up yet"
+page instead of every page - somebody taking surveys and an EDITOR get it as
+it always was. For a signed-in ADMIN (`onlyMigrations`) the page adds, in
+English, a link to the Migrations page, which is the one page drawn
+(`/admin/migrations`, with only Migrations in the bar). Its "Apply pending"
+(`POST /api/admin/migrations/apply`, behind a question) runs the pending files
+in order, each in its own transaction, and stops at the first that fails -
+rolled back whole, named, with the database's whole error in a box. After
+anything was applied the strings are read again (`TranslationService.reload()`:
+the ones read while behind lack the keys the migration brought), and once
+nothing is pending `AuthService.databaseUpdated()` lets the site run where it
+stands - the page and what it said stay, every link comes back, no reload.
 
 ## The rules, on both sides
 
@@ -106,7 +352,7 @@ In the frontend a rule ("choose up to 3") and a problem ("please choose an
 answer") are a kind and its numbers (`{kind: 'upTo', params: {max: 3}}`), not a
 sentence, because the page a person answers on says them in that person's
 language (`core/i18n/answer-words.ts`). The English sentences are
-`choiceRuleText()` and `answerProblemText()` beside them: the admin area quotes
+`choiceRuleText()` and `answerProblemText()` beside them: the admin panel quotes
 those, and they are what keeps the pair - `answerProblemText(answerProblem(...))`
 says what PHP's `answerProblem()` says for the same case. The server's
 sentences stay English and are never shown to somebody taking a survey.
@@ -146,7 +392,7 @@ sentences stay English and are never shown to somebody taking a survey.
 ## Saving in the editor
 
 `AdminStore` (`frontend/src/app/core/admin/admin-store.service.ts`) holds the
-admin area's surveys, summaries and answers while pages come and go:
+admin panel's surveys, summaries and answers while pages come and go:
 
 - Every change goes through `updateSurvey(id, change)` (in the editor, through
   `SurveyEditing`, by id): shown at once, saved 0.7 s after the last change, one
@@ -252,22 +498,22 @@ address offers to carry on.
 
 What the site itself says to somebody taking a survey - its buttons, the rule
 under a question, "you have already taken this survey" - is in English and
-Slovak. **The admin area is English**, written in its templates; a survey's own
+Slovak. **The admin panel is English**, written in its templates; a survey's own
 texts are the survey's (next section).
 
 **Where the words are.** In the database, because they are edited in the admin
-area (a file in the build would be overwritten by the next upload, and the host
+panel (a file in the build would be overwritten by the next upload, and the host
 has no shell): `translation_keys` names each string, `translations` holds its
 value per language, `languages` the languages. Which keys there are is the
 code's business: **migrations write them** with their first English and Slovak
-string (`003_site_strings.sql`), and the admin area only ever rewords a value.
+string (`003_site_strings.sql`), and the admin panel only ever rewords a value.
 English is what every other language falls back to, string by string, so it
 cannot be switched off, deleted or left empty. A string is text and is drawn
 as text - there is no HTML in one.
 
 **How a page gets them.** One request, `GET /api/translations/{code}`
 (`translationBundle()`): the language's strings with English merged underneath,
-the languages on offer, and English itself beside them for the admin area. No
+the languages on offer, and English itself beside them for the admin panel. No
 token goes with it. It is answered with an `ETag`, so asking again is a 304. A
 code with a region that is not offered itself is answered by its language
 (`sk-sk` by `sk`), so a Slovak browser's first visit is one request.
@@ -358,9 +604,9 @@ it.
   an address, the IAM's answer or what a person typed. A failed request is
   worded from its code (`error-text.ts`), never with the server's sentence.
 - Dates and "5 minutes ago" go through `Intl` in the language on the page
-  (`localDate`); `core/util/dates.ts` keeps the English ones for the admin area.
+  (`localDate`); `core/util/dates.ts` keeps the English ones for the admin panel.
 
-**The admin area is English whatever the person reads.** `effectiveLanguage`
+**The admin panel is English whatever the person reads.** `effectiveLanguage`
 is `en` while the address is `/admin` or under it, and everything that words a
 string goes through it - so the pieces both areas share (the top bar, the UI
 kit, toasts) are English there, and `<html lang>` says `en`. The service cannot
@@ -369,13 +615,18 @@ needs the service - NG0200): `SurveyTitleStrategy` tells it after every
 navigation (`noteAddress()`), and `init()` reads the address for the first page.
 The same strategy writes the tab's title in the language on the page: a
 route's `title` is a key on the pages people take surveys on, plain English in
-the admin area. With no strings at all (the two boot pages in a browser that
+the admin panel. With no strings at all (the two boot pages in a browser that
 has kept none) a participant route's title is the site's name alone - never
-the key - and an admin route keeps its English title.
+the key - and an admin route keeps its English title, with the part of the
+site after it: "Results · Admin panel · anotoki survey". Every anotoki site
+calls its admin area the admin panel.
 
 **The chooser** (`ui/language-switcher`, in the top bar where people take
 surveys, when more than one language is on offer): a button with the code
 ("SK") and a menu of the languages under the names their speakers give them.
+Its accessible name holds the code it shows ("Jazyk: Slovenčina (SK)", `language.button`
+with `{name}` and `{code}`): somebody who speaks to the computer says "click SK"
+(WCAG 2.5.3, Label in Name).
 Choosing one loads its bundle, then switches and remembers. The button stays
 usable while a language is on its way, and the last choice wins - going back
 to the language on the page included, which drops the one still loading; an
@@ -574,3 +825,21 @@ Everybody takes what they hold in one order, so they wait for each other and
 do not deadlock: a save holds the survey's row and then its languages; a
 delete holds a language and only reads the surveys; a new language takes its
 table lock before anything else.
+
+And the visitors (`api/visitors.php`):
+
+- **Two new visitors at once.** The limits are rows (`visitor_counters`),
+  bumped by one upsert each and held to the end of the transaction - the
+  address's, then everybody's - so the second waits and counts the first;
+  the count of visitors with a key comes after everybody's row is held.
+- **Answers and the row they belong to.** Every send holds its taker's row
+  `FOR SHARE` before the insert (`visitorHold()`): a visitor's row that a move
+  or the clean-up took meanwhile is found gone - 401 `visitor_unknown`, not a
+  broken reference (which would be a 503).
+- **The move and the person's own answers.** The move holds the visitor's row,
+  then the person's (`FOR UPDATE`, `lock_timeout` from the settings), then
+  three statements - the kept ones out, the rest moved, the visitor deleted. A
+  send of the person's that is being written holds the person's row (its
+  foreign key's lock), so the move waits and then keeps that answer; a lock
+  not had in time is 503 `visitor_move_retry`. The clean-up skips rows anybody
+  holds (`SKIP LOCKED`).

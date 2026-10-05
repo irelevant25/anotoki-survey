@@ -114,6 +114,62 @@ function jsonBody(Request $request, int $limit = BODY_LIMIT): mixed
     }
 }
 
+/**
+ * Work that belongs to a request but not to its answer - the visitors'
+ * clean-up - done after the answer has gone (afterAnswerRun(), called by
+ * api/index.php once Slim has written it).
+ *
+ * @return list<callable(): void>
+ */
+function &afterAnswerWork(): array
+{
+    static $work = [];
+
+    return $work;
+}
+
+/** @param callable(): void $work */
+function afterAnswerAdd(callable $work): void
+{
+    $queue = &afterAnswerWork();
+    $queue[] = $work;
+}
+
+/**
+ * The work afterAnswerAdd() was given, once the answer is out: PHP-FPM and
+ * LiteSpeed close the connection first (fastcgi_finish_request(),
+ * litespeed_finish_request()); elsewhere - Apache's mod_php, php -S - the
+ * answer is flushed and the browser waits that moment longer. A visitor who
+ * goes away meanwhile stops nothing (ignore_user_abort). Each piece runs on
+ * its own: a failure is logged, never reaches the answer, nor stops the next.
+ */
+function afterAnswerRun(): void
+{
+    $queue = &afterAnswerWork();
+    if ($queue === []) {
+        return;
+    }
+    ignore_user_abort(true);
+    if (function_exists('fastcgi_finish_request')) {
+        fastcgi_finish_request();
+    } elseif (function_exists('litespeed_finish_request')) {
+        litespeed_finish_request();
+    } else {
+        while (ob_get_level() > 0) {
+            @ob_end_flush();
+        }
+        flush();
+    }
+
+    while (($work = array_shift($queue)) !== null) {
+        try {
+            $work();
+        } catch (Throwable $e) {
+            error_log('[after the answer] ' . get_class($e) . ': ' . $e->getMessage());
+        }
+    }
+}
+
 /** REMOTE_ADDR as the server saw it. */
 function requestRemoteAddr(Request $request): string
 {

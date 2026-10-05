@@ -27,9 +27,15 @@ function good_database(): array
     return ['host' => '127.0.0.1', 'port' => 5432, 'name' => 'survey_test_config', 'user' => 'postgres', 'password' => ''];
 }
 
+/**
+ * The development settings - with the IAM's answer about sign-in from a file
+ * that is not there: asked through these, the SDK would call the development
+ * IAM (it may be running here) and keep its answer in backend/storage/cache,
+ * the running site's own.
+ */
 function good_iam(): array
 {
-    return ['issuer' => 'http://localhost:4300', 'client_id' => 'survey', 'cache_dir' => 'storage/cache'];
+    return ['issuer' => 'http://localhost:4300', 'client_id' => 'survey', 'cache_dir' => 'storage/cache', 'application_file' => test_application_file()];
 }
 
 function write_settings(string $dir, ?array $database, mixed $iam): void
@@ -51,7 +57,9 @@ test('without the *.local.php files the site is not set up, and says which one i
 
     write_settings($dir, null, good_iam());
     assert_same(null, with_config_dir($dir, 'settingsProblem'));
-    assert_same(['issuer' => 'http://localhost:4300', 'clientId' => 'survey'], with_config_dir($dir, 'authPublicConfig'));
+    write_settings($dir, null, ['application_file' => test_application_file(false)] + good_iam());
+    assert_same(null, with_config_dir($dir, 'settingsProblem'), 'a file standing in for the IAM\'s answer is allowed');
+    assert_same(['issuer' => 'http://localhost:4300', 'clientId' => 'survey', 'loginRequired' => false, 'visitorDays' => 30], with_config_dir($dir, 'authPublicConfig'));
 });
 
 test('a settings file that does not say what it must is no setting', function (): void {

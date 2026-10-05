@@ -2,10 +2,16 @@
     <a class="brand" [routerLink]="link()" [attr.aria-label]="linkLabel()">
         <img src="anotoki.png" alt="" [attr.width]="size()" [attr.height]="size() * 0.835" />
         @if (wordmark()) {
-            <span class="wordmark">
-                <span class="name">anotoki</span>
+            <span class="wordmark" [class.is-short]="!showName()" [class.has-panel]="!!panel()">
+                @if (showName()) {
+                    <span class="name">anotoki</span>
+                }
                 @if (area()) {
                     <span class="area">{{ area() }}</span>
+                }
+                @if (panel()) {
+                    <span class="dot" aria-hidden="true">·</span>
+                    <span class="panel">{{ panel() }}</span>
                 }
             </span>
         }
@@ -14,10 +20,16 @@
     <span class="brand">
         <img src="anotoki.png" alt="" [attr.width]="size()" [attr.height]="size() * 0.835" />
         @if (wordmark()) {
-            <span class="wordmark">
-                <span class="name">anotoki</span>
+            <span class="wordmark" [class.is-short]="!showName()" [class.has-panel]="!!panel()">
+                @if (showName()) {
+                    <span class="name">anotoki</span>
+                }
                 @if (area()) {
                     <span class="area">{{ area() }}</span>
+                }
+                @if (panel()) {
+                    <span class="dot" aria-hidden="true">·</span>
+                    <span class="panel">{{ panel() }}</span>
                 }
             </span>
         }

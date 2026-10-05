@@ -1,75 +1,85 @@
-<header class="topbar">
+<header class="topbar" [class.is-phone]="phone()">
     <div class="topbar-inner" [class.is-narrow]="width() === 'narrow'">
         @if (area() === "admin") {
-            <app-brand [size]="32" [wordmark]="!tiny()" [area]="'brand.area' | translate" link="/admin" [linkLabel]="'topbar.homeAdmin' | translate" />
+            <app-brand [size]="32" [showName]="brandName()" [area]="'brand.area' | translate" [panel]="'brand.adminPanel' | translate" link="/admin" [linkLabel]="'topbar.homeAdmin' | translate" />
         } @else {
-            <app-brand [size]="32" [wordmark]="!tiny()" [area]="'brand.area' | translate" link="/" [linkLabel]="'topbar.home' | translate" />
+            <app-brand [size]="32" [showName]="!phone()" [area]="'brand.area' | translate" link="/" [linkLabel]="'topbar.home' | translate" />
+        }
+
+        @if (!phone()) {
+            <nav class="topbar-nav" [attr.aria-label]="'topbar.sections' | translate">
+                @for (link of links(); track link.path) {
+                    <a class="topbar-link" [routerLink]="link.path" [class.is-active]="inSection(link)" [attr.aria-current]="isPage(link) ? 'page' : null">
+                        {{ link.key ? (link.key | translate) : link.label }}
+                    </a>
+                }
+            </nav>
         }
 
         <div class="topbar-actions">
-            @if (area() === "survey" && i18n.languages().length > 1) {
+            @if (chooser()) {
                 <app-language-switcher />
             }
             <app-theme-toggle [compact]="true" />
 
-            @if (auth.person(); as me) {
+            @if (phone()) {
+                <div class="phone-menu">
+                    <button
+                        #phoneButton
+                        type="button"
+                        class="menu-button"
+                        aria-haspopup="menu"
+                        [attr.aria-expanded]="openMenu() === 'phone'"
+                        aria-controls="topbar-menu"
+                        [attr.aria-label]="'topbar.phoneMenu' | translate"
+                        (click)="toggleMenu('phone')">
+                        <app-icon [name]="openMenu() === 'phone' ? 'x' : 'menu'" [size]="20" />
+                    </button>
+
+                    @if (openMenu() === "phone") {
+                        <div #menu id="topbar-menu" class="menu" role="menu" [attr.aria-label]="'topbar.phoneMenu' | translate" (keydown)="onMenuKeydown($event)">
+                            @for (link of links(); track link.path) {
+                                <a
+                                    role="menuitem"
+                                    class="menu-item menu-link"
+                                    [routerLink]="link.path"
+                                    [class.is-active]="inSection(link)"
+                                    [attr.aria-current]="isPage(link) ? 'page' : null"
+                                    (click)="closeMenu(false)">
+                                    {{ link.key ? (link.key | translate) : link.label }}
+                                </a>
+                            }
+                            <div class="menu-sep" role="separator"></div>
+                            @if (auth.person()) {
+                                <ng-container [ngTemplateOutlet]="accountItems" />
+                            } @else {
+                                <button role="menuitem" type="button" class="menu-item" (click)="signIn()">
+                                    <app-icon name="logIn" [size]="17" />
+                                    {{ "common.signIn" | translate }}
+                                </button>
+                            }
+                        </div>
+                    }
+                </div>
+            } @else if (auth.person(); as me) {
                 <div class="user-menu">
                     <button
-                        #menuButton
+                        #accountButton
                         type="button"
                         class="user-button"
                         aria-haspopup="menu"
-                        [attr.aria-expanded]="menuOpen()"
+                        [attr.aria-expanded]="openMenu() === 'account'"
                         aria-controls="user-menu"
                         [attr.aria-label]="'topbar.menuButton' | translate: { name: me.name }"
-                        (click)="toggleMenu()">
+                        (click)="toggleMenu('account')">
                         <span class="avatar" aria-hidden="true">{{ initial() }}</span>
                         <span class="user-name">{{ me.name }}</span>
                         <app-icon name="chevronDown" [size]="16" />
                     </button>
 
-                    @if (menuOpen()) {
+                    @if (openMenu() === "account") {
                         <div #menu id="user-menu" class="menu" role="menu" [attr.aria-label]="'topbar.menu' | translate" (keydown)="onMenuKeydown($event)">
-                            <div class="menu-head" role="none">
-                                <span class="menu-name">{{ me.name }}</span>
-                                @if (me.email) {
-                                    <span class="menu-email">{{ me.email }}</span>
-                                }
-                                @if (auth.isAdmin()) {
-                                    <span class="menu-role">{{ "topbar.roleAdmin" | translate }}</span>
-                                } @else if (auth.isStaff()) {
-                                    <span class="menu-role">{{ "topbar.roleEditor" | translate }}</span>
-                                }
-                            </div>
-                            @if (accountUrl(); as url) {
-                                <a role="menuitem" class="menu-item" [href]="url" target="_blank" rel="noopener" (click)="closeMenu(false)">
-                                    <app-icon name="user" [size]="17" />
-                                    {{ "topbar.account" | translate }}
-                                    <app-icon class="menu-external" name="externalLink" [size]="14" />
-                                </a>
-                            }
-                            @if (auth.isStaff()) {
-                                @if (area() === "admin") {
-                                    <a role="menuitem" class="menu-item" routerLink="/" (click)="closeMenu(false)">
-                                        <app-icon name="survey" [size]="17" />
-                                        {{ "topbar.openSurveys" | translate }}
-                                    </a>
-                                } @else {
-                                    <a role="menuitem" class="menu-item" routerLink="/admin" (click)="closeMenu(false)">
-                                        <app-icon name="shield" [size]="17" />
-                                        {{ "topbar.admin" | translate }}
-                                    </a>
-                                }
-                            }
-                            <div class="menu-sep" role="separator"></div>
-                            <button role="menuitem" type="button" class="menu-item" [disabled]="signingOut()" (click)="signOut()">
-                                @if (signingOut()) {
-                                    <app-spinner size="sm" />
-                                } @else {
-                                    <app-icon name="logOut" [size]="17" />
-                                }
-                                {{ "common.signOut" | translate }}
-                            </button>
+                            <ng-container [ngTemplateOutlet]="accountItems" />
                         </div>
                     }
                 </div>
@@ -82,3 +92,49 @@
         </div>
     </div>
 </header>
+
+<!-- The person's menu: on its own button on a desktop, after the links in the phone's menu. -->
+<ng-template #accountItems>
+    @if (auth.person(); as me) {
+        <div class="menu-head" role="none">
+            <span class="menu-name">{{ me.name }}</span>
+            @if (me.email) {
+                <span class="menu-email">{{ me.email }}</span>
+            }
+            @if (auth.isAdmin()) {
+                <span class="menu-role">{{ "topbar.roleAdmin" | translate }}</span>
+            } @else if (auth.isStaff()) {
+                <span class="menu-role">{{ "topbar.roleEditor" | translate }}</span>
+            }
+        </div>
+        @if (accountUrl(); as url) {
+            <a role="menuitem" class="menu-item" [href]="url" target="_blank" rel="noopener" (click)="closeMenu(false)">
+                <app-icon name="user" [size]="17" />
+                {{ "topbar.account" | translate }}
+                <app-icon class="menu-external" name="externalLink" [size]="14" />
+            </a>
+        }
+        @if (auth.isStaff()) {
+            @if (area() === "admin") {
+                <a role="menuitem" class="menu-item" routerLink="/" (click)="closeMenu(false)">
+                    <app-icon name="arrowLeft" [size]="17" />
+                    {{ "topbar.backToSurveys" | translate }}
+                </a>
+            } @else {
+                <a role="menuitem" class="menu-item" routerLink="/admin" (click)="closeMenu(false)">
+                    <app-icon name="shield" [size]="17" />
+                    {{ "topbar.admin" | translate }}
+                </a>
+            }
+        }
+        <div class="menu-sep" role="separator"></div>
+        <button role="menuitem" type="button" class="menu-item" [disabled]="signingOut()" (click)="signOut()">
+            @if (signingOut()) {
+                <app-spinner size="sm" />
+            } @else {
+                <app-icon name="logOut" [size]="17" />
+            }
+            {{ "common.signOut" | translate }}
+        </button>
+    }
+</ng-template>

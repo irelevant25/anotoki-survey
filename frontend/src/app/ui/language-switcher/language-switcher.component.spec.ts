@@ -4,8 +4,8 @@ import { provideTestTranslations } from '../../core/testing/test-translations';
 import { ToastService } from '../toast/toast.service';
 import { LanguageSwitcherComponent } from './language-switcher.component';
 
-const ENGLISH = { 'language.button': 'Language: {name}', 'language.notLoaded': 'The language could not be loaded. Please try again.' };
-const SLOVAK = { 'language.button': 'Jazyk: {name}', 'language.notLoaded': 'Jazyk sa nepodarilo načítať. Skúste to, prosím, znova.' };
+const ENGLISH = { 'language.button': 'Language: {name} ({code})', 'language.notLoaded': 'The language could not be loaded. Please try again.' };
+const SLOVAK = { 'language.button': 'Jazyk: {name} ({code})', 'language.notLoaded': 'Jazyk sa nepodarilo načítať. Skúste to, prosím, znova.' };
 
 describe('LanguageSwitcherComponent', () => {
   let fixture: ComponentFixture<LanguageSwitcherComponent>;
@@ -29,10 +29,10 @@ describe('LanguageSwitcherComponent', () => {
 
   afterEach(() => host.remove());
 
-  it('is one button: the code in capitals, named with the language as its speakers write it', () => {
+  it('is one button: the code in capitals, named with the language as its speakers write it and the code it shows', () => {
     expect(host.querySelectorAll('button')).toHaveLength(1);
     expect(button().textContent?.trim()).toBe('SK');
-    expect(button().getAttribute('aria-label')).toBe('Jazyk: Slovenčina');
+    expect(button().getAttribute('aria-label')).toBe('Jazyk: Slovenčina (SK)');
     expect(button().getAttribute('aria-haspopup')).toBe('menu');
     expect(button().getAttribute('aria-expanded')).toBe('false');
   });
@@ -79,7 +79,7 @@ describe('LanguageSwitcherComponent', () => {
     expect(TestBed.inject(TranslationService).language()).toBe('en');
     expect(localStorage.getItem('anotoki-survey:language')).toBe('en');
     expect(button().textContent?.trim()).toBe('EN');
-    expect(button().getAttribute('aria-label')).toBe('Language: English');
+    expect(button().getAttribute('aria-label')).toBe('Language: English (EN)');
     expect(items()).toEqual([]);
     localStorage.clear();
   });

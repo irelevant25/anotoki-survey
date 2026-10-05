@@ -21,8 +21,33 @@ lists.
 Security and correctness first:
 
 - **Who and what role**: every route that reads or writes somebody's data or a
-  survey has `optionalUser()` / `requireUser()` / `requireRole()`; the admin
-  group has `ROLES_STAFF`; deletes have `ROLE_ADMIN`. Nothing takes a user id,
+  survey has `requireUser()` / `requireRole()` (the three survey routes `requireTaker()`) -
+  nothing of a survey answers without a token while sign-in is required (only a `Bearer` header claims to be somebody: a bad or empty
+  one is 401 `invalid_token`, never nobody; `Basic` is ignored; whether the IAM
+  requires sign-in is `authLoginRequired()` - the SDK's reader, failing closed -
+  never a fetch of the site's own) (the pictures are the one exception, on purpose: an `<img>`
+  sends none, and their addresses are random UUIDs); the admin group has `ROLES_STAFF`; deletes and
+  the migrations have `ROLE_ADMIN`. **Visitors**: a visitor key makes somebody a visitor only in
+  `requireTaker()` (the three survey routes), and only after "no Bearer header" and "the IAM says
+  sign-in is not required" - in that order; the one other reader of `X-Visitor-Key` is
+  `POST /api/visitor/move`, which needs a verified token as well (`requireUser()`) and only hands
+  the key in - any other reader is a finding; a visitor `SiteUser` never passes `requireUser()` / `requireRole()` /
+  `signedInUser()`; a visitor is made only inside the transaction that keeps its answers, after the
+  limits; the key is never logged, never in a body or an address, only its hash stored; a write
+  for a taker holds the taker's row first (`visitorHold()`) so a row that went is 401
+  `visitor_unknown`, never a 503. A visitor's `person` has no address: anything new in the admin
+  panel that shows `person.email` says "Not signed in" for `person.visitor`. Only what
+  `SETUP_GATE_OPEN_WHILE_BEHIND` lists answers while a migration is pending (the auth config, the strings, the migrations routes) - never anything that
+  reads or writes the site's data; whatever applies migrations takes `databaseUpdateLocked()`.
+  Every page is under a layout whose route has `signInGuard` - or, the pages
+  people take surveys on, `takeSurveysGuard` (open to visitors only while
+  `visitorsWelcome`); the admin panel and the editor's preview sign in
+  whatever the switch (only the boot pages draw without either). In the
+  browser a request says whom it is for as it is made (`ISSUED_AS` in
+  `ApiService`): a person's never leaves without a token (a local 401), a
+  visitor's never carries one; the key goes only to `/api/surveys`, only
+  while sign-in is not required, is kept on `sign_in_required` and forgotten
+  only on `visitor_unknown` (compare-and-delete). Nothing takes a user id,
   role or name from a body, a query string or a header other than the token.
 - **Input**: every new field is checked on the server for type, length and
   count (`surveyFromBody()` and friends, `answerFromBody()`); unknown keys are
@@ -49,7 +74,7 @@ Security and correctness first:
   `SurveyEditing`; a save's answer never replaces the content; a 409 conflict
   reaches the editor; revisions are sent; a conflict settled "mine" keeps only
   what this page changed (against `_server`), text by text for translations.
-  Nothing typed in the admin area lives only in a component (a session that
+  Nothing typed in the admin panel lives only in a component (a session that
   ends takes the page away without a navigation): `AdminStore`,
   `LocalizationDrafts`. A failed save is said where the person is looking.
 - **A survey's translations**: a save sends `language` and `translations`, and
@@ -65,7 +90,7 @@ Security and correctness first:
 - **The site's strings**:
   - a word the site says to somebody taking a survey is a key with its English
     and formal Slovak string in a migration - not a sentence in a template, a
-    field initialiser, a constant or a signal; the admin area is English, in
+    field initialiser, a constant or a signal; the admin panel is English, in
     its templates, with no `translate` pipe;
   - a string is never drawn as HTML (`[innerHTML]` with `translate`, or a
     string put into HTML without `escapeHtml()`); a value `around()` marks up
@@ -95,7 +120,10 @@ Security and correctness first:
   `en` and `sk`, a removed key deleted; a language they write strings for is
   in `TRANSLATION_SEEDED_LANGUAGES`.
 - **Setup and hosting**: `setup.php` stays parseable by PHP 7.4; no new
-  committed default for anything in `config/*.local.php`; `tools/build.php`
+  committed default for anything in `config/*.local.php` (`VISITOR_DEFAULTS` is the one
+  allowed: the optional `visitors.local.php` only tunes it, and a bad value there - or a
+  file that does not parse or returns no array (`visitorSettingsFile()`) - is logged and
+  ignored, never fatal); `tools/build.php`
   still leaves out settings, tests, tools, the command-line scripts
   (`migration.php`, `translations.php`) and composer files; no new route
   named like a folder under the web root's `api/`.

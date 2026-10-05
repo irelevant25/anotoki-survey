@@ -1,0 +1,61 @@
+# anotoki survey - the frontend
+
+The survey site's pages: Angular 21 - standalone components, zoneless,
+signals, OnPush. The surveys people take (in English and Slovak), the editor
+and the results (the admin panel, in English). How it works and why is in
+[`../docs/`](../docs/README.md); setting it up and running it in
+[`../DEV.md`](../DEV.md).
+
+## Layout
+
+```
+src/
+  main.ts, index.html, styles.scss   the start, the page, the colour tokens (light and dark)
+  app/
+    app.config.ts, app.routes.ts     providers, the boot (core/boot.ts) and the routes
+    boot/                            the pages drawn instead of the site: not set up (with the way to the
+                                     Migrations page for an ADMIN while only a migration waits), cannot be reached
+    core/
+      auth/                          AuthService (the IAM's SDK, vendored); signInGuard (the admin panel,
+                                     the preview) and takeSurveysGuard (the surveys: open to visitors
+                                     while the IAM says sign-in is not required); authInterceptor (the
+                                     token, or the visitor key); VisitorKey (the key, the move at sign-in);
+                                     SavesInFlight; the toast when a sign-in fails or cannot start
+      api/                           ApiService: one method a route of ../backend
+      i18n/                          the site's words: TranslationService, the translate pipes
+      survey/                        the model and every rule (the twin of backend/api/survey_rules.php)
+      admin/                         AdminStore (the editor's saving), LocalizationDrafts
+      images/                        pictures made small in the browser
+    layouts/                         top-bar (the anotoki family's bar), participant, admin
+    pages/participant/               the open surveys, a survey to take, the visitor notice
+    pages/admin/                     the surveys, the editor, the results (a visitor: "Visitor N",
+                                     "Not signed in"), Translations, Languages, Migrations (ADMIN)
+    ui/                              the IAM's UI kit, the rich text editor, the language chooser
+public/                              the mark, the favicon, theme-boot.js
+proxy.conf.json                      /api and /setup.php to the backend on :8500
+.nvmrc                               the Node version
+```
+
+Components are three files (`.ts`, `.html`, `.scss`); colours come from the
+tokens in `src/styles.scss`; every page works at 390 px. What the site says to
+somebody taking a survey is a key (`'home.title' | translate`) whose strings
+are in the database; the admin panel is English, written in its templates.
+
+## Commands
+
+```bash
+npm install
+npm start          # ng serve on http://localhost:4700, /api and /setup.php proxied to :8500
+npm test           # Vitest, once
+npm run build      # production -> dist/survey/browser/
+npx prettier --check "src/**/*.{ts,html,scss}"   # a checkout with CRLF line endings: add --end-of-line crlf
+```
+
+## Tests
+
+`npm test` runs every `*.spec.ts` beside its code (Vitest through
+`ng test`). `src/app/core/testing/` holds what they share: example surveys,
+`provideTestTranslations()` and `answersOf()` (a person's answers or a visitor's). The pages in a real browser, signed in through a
+stand-in IAM, are the `check-in-browser` skill's
+(`node .claude/skills/check-in-browser/scripts/run.mjs` from the repository's
+root).

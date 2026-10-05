@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { AppComponent } from './app.component';
 import { AuthService, BootStatus } from './core/auth/auth.service';
 import { BOOTED } from './core/boot';
@@ -11,11 +11,17 @@ class TestPageComponent {}
 
 describe('AppComponent: what is drawn while the site starts', () => {
   const status = signal<BootStatus>('loading');
+  const signedIn = signal(false);
+  const signInFailure = signal<{ code: string; message: string } | null>(null);
+  const needsUpdate = signal(false);
+  const onlyMigrations = signal(false);
   const auth = {
     status,
     user: signal(null),
-    signedIn: () => false,
-    signInFailure: signal(null),
+    signedIn,
+    signInFailure,
+    needsUpdate,
+    onlyMigrations,
     notSetUpDetail: signal<string | null>(null),
     onAuthChange: () => () => undefined,
     init: async () => undefined,
@@ -42,9 +48,79 @@ describe('AppComponent: what is drawn while the site starts', () => {
   }
 
   beforeEach(() => {
+    signedIn.set(false);
+    signInFailure.set(null);
+    needsUpdate.set(false);
+    onlyMigrations.set(false);
     TestBed.configureTestingModule({
       // No strings at all: what is drawn instead of the site words itself.
-      providers: [provideTestTranslations({}), provideRouter([{ path: '', component: TestPageComponent }]), { provide: AuthService, useValue: auth }],
+      providers: [
+        provideTestTranslations({}),
+        provideRouter([
+          { path: '', component: TestPageComponent },
+          { path: 'admin/migrations', component: TestPageComponent },
+          { path: 'admin', component: TestPageComponent },
+        ]),
+        { provide: AuthService, useValue: auth },
+      ],
+    });
+  });
+
+  async function at(url: string): Promise<void> {
+    await TestBed.inject(Router).navigateByUrl(url);
+    await fixture.whenStable();
+  }
+
+  describe('while the database waits for a migration (the sign-in said update: true)', () => {
+    beforeEach(() => needsUpdate.set(true));
+
+    it('draws "not set up yet" for somebody signed in, wherever they are - the Migrations page included, unless they are an ADMIN', async () => {
+      signedIn.set(true);
+      await start('ready', true);
+      await at('/');
+      expect(notSetUp()).not.toBeNull();
+      expect(site()).toBeNull();
+      await at('/admin/migrations');
+      expect(notSetUp()).not.toBeNull();
+      expect(site()).toBeNull();
+    });
+
+    it('draws the site for an ADMIN on the Migrations page alone - and runs where it stands once the update is applied', async () => {
+      signedIn.set(true);
+      onlyMigrations.set(true);
+      await start('ready', true);
+      await at('/');
+      expect(notSetUp()).not.toBeNull();
+      await at('/admin');
+      expect(notSetUp()).not.toBeNull();
+      expect(site()).toBeNull();
+      await at('/admin/migrations?from=card');
+      expect(site()).not.toBeNull();
+      expect(notSetUp()).toBeNull();
+      await at('/');
+      expect(notSetUp()).not.toBeNull();
+
+      await at('/admin/migrations');
+      const outlet = site();
+      // Applied (AuthService.databaseUpdated()): the same page stays, and every other page opens again.
+      needsUpdate.set(false);
+      onlyMigrations.set(false);
+      await fixture.whenStable();
+      expect(site()).toBe(outlet);
+      await at('/');
+      expect(site()).not.toBeNull();
+      expect(notSetUp()).toBeNull();
+    });
+
+    it('draws nothing new for somebody not signed in - the sign-in guard is taking them to the IAM - but the card after a sign-in that came back without one', async () => {
+      await start('ready', true);
+      await at('/');
+      expect(site()).toBeNull();
+      expect(notSetUp()).toBeNull();
+
+      signInFailure.set({ code: 'access_denied', message: 'refused' });
+      await fixture.whenStable();
+      expect(notSetUp()).not.toBeNull();
     });
   });
 

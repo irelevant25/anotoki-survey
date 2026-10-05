@@ -9,5 +9,15 @@
         }
         <a appButton variant="primary" href="/setup.php">{{ open() }}</a>
         <p class="muted small">{{ after() }}</p>
+        @if (auth.onlyMigrations()) {
+            <!-- For an administrator only, and English as the admin panel is: the site is set up, its database waits for a migration. -->
+            <div class="admin-update" id="not-set-up-update" lang="en">
+                <p>You are an administrator of the survey site: its database has an update waiting. See it and apply it on the admin panel's Migrations page. Back the database up first.</p>
+                <a appButton variant="secondary" routerLink="/admin/migrations">
+                    <app-icon name="database" [size]="16" />
+                    Open Migrations
+                </a>
+            </div>
+        }
     </section>
 </main>

@@ -1,6 +1,6 @@
-import { signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { AdminStore } from '../../core/admin/admin-store.service';
 import { LOCALIZATION_DRAFTS_KEY, LocalizationDrafts } from '../../core/admin/localization-drafts.service';
 import { AuthService } from '../../core/auth/auth.service';
@@ -12,15 +12,21 @@ import { TopBarComponent } from './top-bar.component';
 
 const ENGLISH = {
   'brand.area': 'survey',
+  'brand.adminPanel': 'admin panel',
   'topbar.home': 'anotoki survey: the open surveys',
-  'topbar.homeAdmin': 'anotoki survey: all surveys',
+  'topbar.homeAdmin': 'anotoki survey admin panel: all surveys',
+  'topbar.surveys': 'Surveys',
+  'topbar.translations': 'Translations',
+  'topbar.languages': 'Languages',
+  'topbar.sections': "The site's sections",
+  'topbar.phoneMenu': 'Menu',
   'topbar.menuButton': 'Your menu: {name}',
   'topbar.menu': 'Your menu',
   'topbar.roleAdmin': 'Administrator',
   'topbar.roleEditor': 'Editor',
   'topbar.account': 'Your anotoki account',
-  'topbar.openSurveys': 'The open surveys',
-  'topbar.admin': 'Admin',
+  'topbar.backToSurveys': 'Back to the surveys',
+  'topbar.admin': 'Admin panel',
   'topbar.signOutUnsaved.title': 'Sign out without your latest changes?',
   'topbar.signOutUnsaved.message': 'Some changes to a survey are not saved - the editor says why above the survey. Signed out, they cannot be saved any more.',
   'topbar.signOutUnsaved.strings': "Some changes to the site's strings or languages are not saved - the Translations and Languages pages show them. Signed out, they are lost.",
@@ -33,19 +39,25 @@ const ENGLISH = {
   'theme.dark': 'Dark',
   'theme.auto': 'Automatic',
   'theme.autoHint': 'As your device is set',
-  'language.button': 'Language: {name}',
+  'language.button': 'Language: {name} ({code})',
 };
 const SLOVAK = {
   'brand.area': 'prieskum',
+  'brand.adminPanel': 'administrátorský panel',
   'topbar.home': 'anotoki prieskum: otvorené prieskumy',
-  'topbar.homeAdmin': 'anotoki prieskum: všetky prieskumy',
+  'topbar.homeAdmin': 'anotoki prieskum, administrátorský panel: všetky prieskumy',
+  'topbar.surveys': 'Prieskumy',
+  'topbar.translations': 'Preklady',
+  'topbar.languages': 'Jazyky',
+  'topbar.sections': 'Časti stránky',
+  'topbar.phoneMenu': 'Ponuka',
   'topbar.menuButton': 'Vaša ponuka: {name}',
   'topbar.menu': 'Vaša ponuka',
   'topbar.roleAdmin': 'Rola: administrátor',
   'topbar.roleEditor': 'Rola: editor',
   'topbar.account': 'Váš anotoki účet',
-  'topbar.openSurveys': 'Otvorené prieskumy',
-  'topbar.admin': 'Administrácia',
+  'topbar.backToSurveys': 'Späť na prieskumy',
+  'topbar.admin': 'Administrátorský panel',
   'topbar.signOutUnsaved.title': 'Odhlásiť sa bez uloženia posledných zmien?',
   'topbar.signOutUnsaved.message': 'Niektoré zmeny v prieskume nie sú uložené – dôvod nájdete v editore nad prieskumom. Po odhlásení ich už nebude možné uložiť.',
   'topbar.signOutUnsaved.strings': 'Niektoré zmeny v textoch alebo jazykoch stránky nie sú uložené – nájdete ich na stránkach „Translations“ a „Languages“. Po odhlásení sa stratia.',
@@ -58,22 +70,29 @@ const SLOVAK = {
   'theme.dark': 'Tmavý',
   'theme.auto': 'Systémový',
   'theme.autoHint': 'Podľa nastavenia systému',
-  'language.button': 'Jazyk: {name}',
+  'language.button': 'Jazyk: {name} ({code})',
 };
+
+/** Whatever page the router draws: the bar only needs it to be somewhere. */
+@Component({ selector: 'app-test-page', changeDetection: ChangeDetectionStrategy.OnPush, template: '' })
+class PageComponent {}
 
 describe('TopBarComponent', () => {
   const person = signal<Person | null>(null);
   const roles = signal<string[]>([]);
+  /** The database waits for a migration (AuthService.needsUpdate). */
+  const behind = signal(false);
   const auth = {
     status: signal('ready'),
     user: signal(null),
     person,
     signedIn: () => person() !== null,
     isAdmin: () => roles().includes('ADMIN'),
+    onlyMigrations: () => behind() && roles().includes('ADMIN'),
     isStaff: () => roles().includes('ADMIN') || roles().includes('EDITOR'),
     accountUrl: () => 'https://iam.example.test/account',
     onAuthChange: () => () => undefined,
-    signIn: vi.fn(),
+    signIn: vi.fn(async (_returnTo?: string, _uiLocales?: string) => true),
     signOut: vi.fn(),
   };
   const store = { flushAll: vi.fn(async () => true) };
@@ -82,8 +101,18 @@ describe('TopBarComponent', () => {
   let host: HTMLElement;
 
   const menuButton = () => host.querySelector<HTMLButtonElement>('.user-button')!;
+  const phoneButton = () => host.querySelector<HTMLButtonElement>('.menu-button')!;
   const items = () => Array.from(host.querySelectorAll<HTMLElement>('[role="menuitem"]'));
   const words = (element: Element | null) => element?.textContent?.replace(/\s+/g, ' ').trim();
+  /** The words of each element a selector finds, in order. */
+  const parts = (selector: string) => Array.from(host.querySelectorAll(selector)).map(words);
+  const links = () => Array.from(host.querySelectorAll<HTMLAnchorElement>('.topbar-nav a'));
+  /** A link as "words href", with " [page]" for aria-current and " [here]" for the section the page is in. */
+  const described = (link: HTMLAnchorElement) =>
+    `${words(link)} ${link.getAttribute('href')}${link.getAttribute('aria-current') === 'page' ? ' [page]' : ''}${link.classList.contains('is-active') ? ' [here]' : ''}`;
+  /** What stands in an element, in order: each child as tag.firstClass. */
+  const childrenOf = (selector: string) =>
+    Array.from(host.querySelector(selector)!.children).map((child) => child.tagName.toLowerCase() + (child.className ? '.' + String(child.className).split(' ')[0] : ''));
 
   async function draw(area: 'survey' | 'admin' = 'survey'): Promise<void> {
     fixture = TestBed.createComponent(TopBarComponent);
@@ -93,8 +122,13 @@ describe('TopBarComponent', () => {
     await fixture.whenStable();
   }
 
+  async function at(url: string): Promise<void> {
+    await TestBed.inject(Router).navigateByUrl(url);
+    await fixture.whenStable();
+  }
+
   async function openMenu(): Promise<void> {
-    menuButton().click();
+    (host.querySelector<HTMLButtonElement>('.user-button') ?? phoneButton()).click();
     await fixture.whenStable();
   }
 
@@ -107,21 +141,88 @@ describe('TopBarComponent', () => {
     await fixture.whenStable();
   }
 
+  /** A window `width` wide, as the bar's media queries see it. */
+  function windowOf(width: number): void {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: width <= Number(/max-width:\s*(\d+)px/.exec(query)?.[1] ?? Infinity),
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+  }
+
   beforeEach(() => {
     sessionStorage.clear();
     person.set({ id: '7', name: 'owner', email: 'owner@example.test' });
     roles.set(['ADMIN']);
+    behind.set(false);
     auth.signIn.mockClear();
     auth.signOut.mockClear();
     store.flushAll.mockReset().mockResolvedValue(true);
     TestBed.configureTestingModule({
-      providers: [provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }), provideRouter([]), { provide: AuthService, useValue: auth }, { provide: AdminStore, useValue: store }],
+      providers: [
+        provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }),
+        provideRouter([{ path: '**', component: PageComponent }]),
+        { provide: AuthService, useValue: auth },
+        { provide: AdminStore, useValue: store },
+      ],
     });
   });
 
   afterEach(() => {
     host.remove();
     sessionStorage.clear();
+    vi.unstubAllGlobals();
+  });
+
+  it('is one row in the family’s order: the brand, the links, then the language, the theme and the person', async () => {
+    await draw();
+    expect(childrenOf('.topbar-inner')).toEqual(['app-brand', 'nav.topbar-nav', 'div.topbar-actions']);
+    expect(childrenOf('.topbar-actions')).toEqual(['app-language-switcher', 'app-theme-toggle', 'div.user-menu']);
+    expect(host.querySelector('.topbar-nav')?.getAttribute('aria-label')).toBe('Časti stránky');
+    // The brand: the mark, "anotoki" and the site's name.
+    expect(parts('app-brand .wordmark > span')).toEqual(['anotoki', 'prieskum']);
+  });
+
+  it('links the sections of the area it is in, and marks the one the page is in', async () => {
+    await draw();
+    await at('/');
+    expect(links().map(described)).toEqual(['Prieskumy / [page] [here]']);
+    await at('/genshin-6-1');
+    expect(links().map(described)).toEqual(['Prieskumy /']);
+  });
+
+  it('in the admin area: Surveys, Translations, Languages, Migrations - a survey’s editor is in Surveys, without being its page', async () => {
+    TestBed.inject(TranslationService).noteAddress('/admin');
+    await draw('admin');
+    await at('/admin');
+    expect(links().map(described)).toEqual(['Surveys /admin [page] [here]', 'Translations /admin/translations', 'Languages /admin/languages', 'Migrations /admin/migrations']);
+    await at('/admin/surveys/abc/edit?language=sk');
+    expect(links().map(described)).toEqual(['Surveys /admin [here]', 'Translations /admin/translations', 'Languages /admin/languages', 'Migrations /admin/migrations']);
+    await at('/admin/languages');
+    expect(links().map(described)).toEqual(['Surveys /admin', 'Translations /admin/translations', 'Languages /admin/languages [page] [here]', 'Migrations /admin/migrations']);
+    await at('/admin/migrations');
+    expect(links().map(described)).toEqual(['Surveys /admin', 'Translations /admin/translations', 'Languages /admin/languages', 'Migrations /admin/migrations [page] [here]']);
+  });
+
+  it('Migrations is an ADMIN’s alone: an EDITOR’s bar has the other three', async () => {
+    roles.set(['EDITOR']);
+    TestBed.inject(TranslationService).noteAddress('/admin');
+    await draw('admin');
+    await at('/admin');
+    expect(links().map(words)).toEqual(['Surveys', 'Translations', 'Languages']);
+  });
+
+  it('while the database waits for a migration, an ADMIN’s bar in the admin panel links Migrations alone - the one page that works', async () => {
+    behind.set(true);
+    TestBed.inject(TranslationService).noteAddress('/admin/migrations');
+    await draw('admin');
+    await at('/admin/migrations');
+    expect(links().map(described)).toEqual(['Migrations /admin/migrations [page] [here]']);
+
+    // Applied: the bar has every section again, without being drawn anew.
+    behind.set(false);
+    await fixture.whenStable();
+    expect(links().map(words)).toEqual(['Surveys', 'Translations', 'Languages', 'Migrations']);
   });
 
   it('moves focus into the menu when it opens, and back to its button on Escape', async () => {
@@ -136,6 +237,12 @@ describe('TopBarComponent', () => {
 
     items()[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
     expect(document.activeElement).toBe(items()[1]);
+    items()[1].dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    expect(document.activeElement).toBe(items().at(-1));
+    items()
+      .at(-1)!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    expect(document.activeElement).toBe(items()[0]);
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await fixture.whenStable();
@@ -143,16 +250,69 @@ describe('TopBarComponent', () => {
     expect(document.activeElement).toBe(menuButton());
   });
 
+  /**
+   * Tab (and Shift+Tab) from the first, a middle and the last item of the open
+   * menu: the menu closes, the browser's own move is stopped (it would land on
+   * the next item of a menu about to go, then on <body>), and the focus is on
+   * the button that opened it - where the next Tab moves on from.
+   */
+  async function expectTabOut(button: () => HTMLButtonElement): Promise<void> {
+    const count = items().length;
+    for (const [which, shift] of [
+      [0, false],
+      [1, false],
+      [count - 1, false],
+      [1, true],
+    ] as const) {
+      if (items().length === 0) {
+        button().click();
+        await fixture.whenStable();
+      }
+      expect(items().length).toBe(count);
+      items()[which].focus();
+      const tab = new KeyboardEvent('keydown', { key: 'Tab', shiftKey: shift, bubbles: true, cancelable: true });
+      items()[which].dispatchEvent(tab);
+      expect(tab.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(button());
+      await fixture.whenStable();
+      expect(items()).toEqual([]);
+      expect(button().getAttribute('aria-expanded')).toBe('false');
+      expect(document.activeElement).toBe(button());
+    }
+  }
+
+  it('closes on Tab and Shift+Tab with the focus on its button, from any item - never on <body>', async () => {
+    await draw();
+    await openMenu();
+    expect(items().length).toBe(3);
+    await expectTabOut(menuButton);
+  });
+
+  it('closes on a click outside it - a click inside it is no reason to', async () => {
+    await draw();
+    await openMenu();
+    host.querySelector<HTMLElement>('.menu-head')!.click();
+    await fixture.whenStable();
+    expect(items().length).toBeGreaterThan(1);
+
+    document.body.click();
+    await fixture.whenStable();
+    expect(items()).toEqual([]);
+    expect(menuButton().getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('reads in the person’s language where people take surveys', async () => {
     await draw();
     expect(words(host.querySelector('app-brand .area'))).toBe('prieskum');
+    // The part of the site is said only in the admin area.
+    expect(host.querySelector('app-brand .panel')).toBeNull();
     expect(host.querySelector('app-brand a')?.getAttribute('aria-label')).toBe('anotoki prieskum: otvorené prieskumy');
     expect(menuButton().getAttribute('aria-label')).toBe('Vaša ponuka: owner');
 
     await openMenu();
     expect(host.querySelector('[role="menu"]')?.getAttribute('aria-label')).toBe('Vaša ponuka');
     expect(words(host.querySelector('.menu-role'))).toBe('Rola: administrátor');
-    expect(items().map(words)).toEqual(['Váš anotoki účet', 'Administrácia', 'Odhlásiť sa']);
+    expect(items().map(words)).toEqual(['Váš anotoki účet', 'Administrátorský panel', 'Odhlásiť sa']);
 
     roles.set(['EDITOR']);
     await fixture.whenStable();
@@ -167,15 +327,38 @@ describe('TopBarComponent', () => {
   it('reads in English in the admin area, whatever the person reads - with no case of its own', async () => {
     TestBed.inject(TranslationService).noteAddress('/admin/surveys');
     await draw('admin');
-    expect(words(host.querySelector('app-brand .area'))).toBe('survey');
-    expect(host.querySelector('app-brand a')?.getAttribute('aria-label')).toBe('anotoki survey: all surveys');
+    expect([...host.querySelectorAll('app-brand .wordmark > span')].map(words)).toEqual(['anotoki', 'survey', '·', 'admin panel']);
+    expect(host.querySelector('app-brand a')?.getAttribute('aria-label')).toBe('anotoki survey admin panel: all surveys');
     expect(menuButton().getAttribute('aria-label')).toBe('Your menu: owner');
+    expect(links().map(words)).toEqual(['Surveys', 'Translations', 'Languages', 'Migrations']);
     // No chooser there: the admin area is English.
     expect(host.querySelector('app-language-switcher')).toBeNull();
 
     await openMenu();
     expect(words(host.querySelector('.menu-role'))).toBe('Administrator');
-    expect(items().map(words)).toEqual(['Your anotoki account', 'The open surveys', 'Sign out']);
+    expect(items().map(words)).toEqual(['Your anotoki account', 'Back to the surveys', 'Sign out']);
+    expect(items()[1].getAttribute('href')).toBe('/');
+  });
+
+  it('says "admin panel" beside the mark in the admin area - without "anotoki" on a bar too narrow for it', async () => {
+    const wordmark = () => [...host.querySelectorAll('app-brand .wordmark > span')].map(words);
+    TestBed.inject(TranslationService).noteAddress('/admin/surveys');
+    for (const [width, shown] of [
+      [961, ['anotoki', 'survey', '·', 'admin panel']],
+      [960, ['survey', '·', 'admin panel']],
+      [761, ['survey', '·', 'admin panel']],
+      [390, ['survey', '·', 'admin panel']],
+    ] as const) {
+      windowOf(width);
+      await draw('admin');
+      expect(wordmark()).toEqual(shown);
+      fixture.destroy();
+    }
+    // Where people take surveys the bar keeps "anotoki" on every desktop.
+    TestBed.inject(TranslationService).noteAddress('/');
+    windowOf(761);
+    await draw();
+    expect(wordmark()).toEqual(['anotoki', 'prieskum']);
   });
 
   it('follows a change of language without being drawn again', async () => {
@@ -185,6 +368,7 @@ describe('TopBarComponent', () => {
     await fixture.whenStable();
     expect(menuButton().getAttribute('aria-label')).toBe('Your menu: owner');
     expect(words(host.querySelector('app-brand .area'))).toBe('survey');
+    expect(links().map(words)).toEqual(['Surveys']);
   });
 
   it('signed out: the button to sign in, which opens the IAM in the person’s language', async () => {
@@ -197,40 +381,86 @@ describe('TopBarComponent', () => {
     expect(auth.signIn).toHaveBeenCalledWith(undefined, 'sk');
   });
 
-  describe('the words beside the mark, on a phone', () => {
-    /** A window `width` wide, as the bar's media queries see it. */
-    function windowOf(width: number): void {
-      vi.stubGlobal('matchMedia', (query: string) => ({
-        matches: width <= Number(/max-width:\s*(\d+)px/.exec(query)?.[1] ?? Infinity),
-        addEventListener: () => undefined,
-        removeEventListener: () => undefined,
-      }));
-    }
-    const wordmark = () => host.querySelector('app-brand .wordmark');
-
-    afterEach(() => vi.unstubAllGlobals());
-
-    it('go signed out, up to 420 px, where no chooser sends them sooner - the sign-in button was squeezed at 390 in the admin area', async () => {
-      TestBed.inject(TranslationService).noteAddress('/admin/translations');
-      person.set(null);
-      roles.set([]);
+  describe('on a phone', () => {
+    it('is the brand (the mark and the site’s name), the language, the theme and a menu button - nothing else in the row', async () => {
       windowOf(390);
-      await draw('admin');
-      expect(host.querySelector('button.btn-primary')).not.toBeNull();
-      expect(wordmark()).toBeNull();
-
-      host.remove();
-      windowOf(421);
-      await draw('admin');
-      expect(wordmark()).not.toBeNull();
+      await draw();
+      expect(parts('app-brand .wordmark > span')).toEqual(['prieskum']);
+      expect(host.querySelector('.topbar-nav')).toBeNull();
+      expect(host.querySelector('.user-button')).toBeNull();
+      expect(childrenOf('.topbar-actions')).toEqual(['app-language-switcher', 'app-theme-toggle', 'div.phone-menu']);
+      expect(phoneButton().getAttribute('aria-label')).toBe('Ponuka');
+      expect(phoneButton().getAttribute('aria-haspopup')).toBe('menu');
+      expect(phoneButton().getAttribute('aria-expanded')).toBe('false');
     });
 
-    it('stay signed in at 390 px, where the person’s button is the round one', async () => {
+    it('holds the links and the person’s menu: focus in, arrow keys, Escape back to its button', async () => {
+      windowOf(360);
+      await draw();
+      await at('/');
+      await openMenu();
+      expect(phoneButton().getAttribute('aria-expanded')).toBe('true');
+      expect(host.querySelector('#topbar-menu')?.getAttribute('aria-label')).toBe('Ponuka');
+      expect(items().map(words)).toEqual(['Prieskumy', 'Váš anotoki účet', 'Administrátorský panel', 'Odhlásiť sa']);
+      expect(items()[0].getAttribute('aria-current')).toBe('page');
+      expect(parts('#topbar-menu .menu-head > span')).toEqual(['owner', 'owner@example.test', 'Rola: administrátor']);
+      expect(document.activeElement).toBe(items()[0]);
+
+      items()[0].dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+      expect(document.activeElement).toBe(items().at(-1));
+      items()
+        .at(-1)!
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+      expect(document.activeElement).toBe(items()[0]);
+
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+      await fixture.whenStable();
+      expect(items()).toEqual([]);
+      expect(document.activeElement).toBe(phoneButton());
+    });
+
+    it('closes when a link is chosen, on a click outside, and on Tab out of it', async () => {
       TestBed.inject(TranslationService).noteAddress('/admin');
       windowOf(390);
       await draw('admin');
+      await openMenu();
+      expect(items().map(words)).toEqual(['Surveys', 'Translations', 'Languages', 'Migrations', 'Your anotoki account', 'Back to the surveys', 'Sign out']);
+      items()[1].click();
+      await fixture.whenStable();
+      expect(items()).toEqual([]);
+      expect(TestBed.inject(Router).url).toBe('/admin/translations');
+
+      await openMenu();
+      document.body.click();
+      await fixture.whenStable();
+      expect(items()).toEqual([]);
+
+      // Tab from the first, a middle and the last item (and Shift+Tab): closed, the focus on the menu button.
+      await openMenu();
+      await expectTabOut(phoneButton);
+    });
+
+    it('signed out: Sign in is in the menu, after the links', async () => {
+      person.set(null);
+      roles.set([]);
+      windowOf(360);
+      await draw();
+      expect(host.querySelector('button.btn-primary')).toBeNull();
+      await openMenu();
+      expect(items().map(words)).toEqual(['Prieskumy', 'Prihlásiť sa']);
+      items()[1].click();
+      await fixture.whenStable();
+      expect(auth.signIn).toHaveBeenCalledWith(undefined, 'sk');
+      expect(items()).toEqual([]);
+    });
+
+    it('is a desktop’s bar from 761 px: the links and the person in the row again', async () => {
+      windowOf(761);
+      await draw();
+      expect(host.querySelector('.menu-button')).toBeNull();
+      expect(links().map(words)).toEqual(['Prieskumy']);
       expect(menuButton()).not.toBeNull();
-      expect(wordmark()).not.toBeNull();
+      expect(parts('app-brand .wordmark > span')).toEqual(['anotoki', 'prieskum']);
     });
   });
 

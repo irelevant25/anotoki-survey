@@ -4,20 +4,51 @@ Every route is under `/api/`, answers JSON, and refuses in one shape:
 `{"error": "a sentence", "code": "a_code", ...}` with more fields where the code
 needs them. Bodies are JSON (`Content-Type: application/json`, anything else is
 415) except a picture's bytes. Signed-in routes take the IAM's access token as
-`Authorization: Bearer ...` - never from the address. The frontend's side is
-`frontend/src/app/core/api/api.service.ts`.
+`Authorization: Bearer ...` - never from the address. Only the Bearer scheme
+claims to be somebody: a Bearer header whose token does not check out - an
+empty one too - is 401 `invalid_token`, whatever else the request carries;
+another scheme (`Basic ...`, which a host behind a password file sends with
+every request) is not looked at, and the request is nobody's (401
+`sign_in_required` where a person is needed). The one other identity is a
+**visitor's key** (`X-Visitor-Key`, below): it makes somebody a visitor only
+on the surveys' own routes and only while the IAM says sign-in is not
+required; the one other route that reads it, `POST /api/visitor/move`, needs a
+person's token as well and only hands the key in. The frontend's
+side is `frontend/src/app/core/api/api.service.ts`.
 
 Everything answers 503 `not_set_up` (with `setup: "/setup.php"`) while the
-settings are missing or a migration is pending - `/api/health` aside.
+settings are missing - `/api/health` aside. While a migration is pending the
+same, with `update: true` - but for what an administrator needs to apply it:
+`/api/health`, `GET /api/auth/config` (saying `update: true`), the strings
+(`GET /api/translations/{code}`) and the two migrations routes (ADMIN, below)
+answer as ever (`api/meddleware/setup.php`, `SETUP_GATE_OPEN_WHILE_BEHIND`).
 
 ## Anybody
 
 | Route | Answers |
 | --- | --- |
 | `GET /api/health` | `{ok}` - and, asked from this computer, `problem`, `database`, `pending` (migrations); 503 when not set up |
-| `GET /api/auth/config` | `{issuer, clientId}`: how the browser signs in |
+| `GET /api/auth/config` | `{issuer, clientId, loginRequired, visitorDays}`: how the browser signs in, and whether it must - `loginRequired` is the IAM's "Sign-in required" switch for this site (below); `visitorDays`, how many days a visitor's browser is remembered after its last visit (`keep_days`, `config/visitors.local.php`) - with `update: true` while a migration is pending (the site then draws "not set up yet", and a link to the Migrations page for an ADMIN) |
 | `GET /api/images/{id}.{ext}` | a picture: its bytes, cached for a year; `If-None-Match` → 304; 404 when there is none |
 | `GET /api/translations/{code}` | the site's own words in a language: `{language, languages, values, english?}`; `If-None-Match` → 304; 404 `not_found` for a code that is not one |
+
+### Sign-in required: the IAM's switch, relayed
+
+The IAM says, per site, whether signing in is required (its admin panel:
+Applications -> survey -> "Sign-in required"). The backend asks it -
+`GET {issuer}/api/public/applications/survey`, through the vendored SDK's
+`anotoki_iam_login_required()` (`authLoginRequired()` in `api/auth.php`) - and
+`/api/auth/config` relays the answer as `loginRequired`, so the browser never
+asks the IAM. The answer is kept a minute in `cache_dir`; it **fails closed**:
+`loginRequired` is `true` unless the IAM said `false` - an application the IAM
+does not know (404), an IAM never reached, or an answer that is not about this
+site all read as `true`; an IAM out of reach after it has answered keeps its
+last answer (asked again a minute later).
+
+While it says `false`, the API takes **visitors** - people taking surveys
+without signing in (*The people taking surveys*, below), and so do the pages
+they take surveys on (the browser's half: [architecture](architecture.md#visitors-in-the-browser)).
+The admin panel and the editor's preview sign in first whatever it says.
 
 ### The site's words: the bundle
 
@@ -29,7 +60,7 @@ token is looked at, not even a bad one:
 - `languages`: the ones on offer, `[{code, name, nativeName}]`, in their order
   (`sort_order`, then name). There is no other public list of languages;
 - `english`: English's own map, **left out when `language` is `en`** - the
-  admin area reads English whatever the person reads, without a second request;
+  admin panel reads English whatever the person reads, without a second request;
 - `language`: the language that answered. A code shaped like one (`sk`,
   `pt-br`: two small letters, or two and two) is answered by itself when it is
   on offer. **A code with a region that is not offered itself is answered by
@@ -50,14 +81,83 @@ be answered behind such a server.
 
 ## The people taking surveys
 
-Signed in or not (`optionalUser`): anybody may read a survey that is not a
-draft; whoever is signed in also learns whether they have answered it.
+Who is asking is `requireTaker()`'s (`api/meddleware/auth.php`), in this
+order:
+
+1. **a Bearer header**: that person, or 401 `invalid_token` - a bad token
+   never falls back to a visitor key, which is not even read;
+2. else, **while the IAM says sign-in is required** (`loginRequired`, above):
+   401 `sign_in_required` - for nobody and for a visitor key alike; the key is
+   never looked up, and its visitor is not "seen";
+3. else **`X-Visitor-Key`**: that visitor (a key that is nobody's, or not a
+   key: 401 `visitor_unknown`);
+4. else **nobody**: may read the open surveys (`answeredAt` always null) and
+   send answers - which makes a visitor.
+
+So with sign-in required - the default, and what the IAM is taken to say when
+it cannot be asked - nothing of a survey, not even the list, reaches anybody
+who is not signed in. The one exception is a survey's pictures
+(`GET /api/images/{id}.{ext}`, above): an `<img>` cannot send the Bearer
+token, so they are served to anybody who has the address, and the addresses
+are random UUIDs, which nobody can guess or list. Each answer says whether
+this person - or visitor - has answered the survey; a survey that is not a
+draft may be read by anybody who may take surveys.
 
 | Route | Answers |
 | --- | --- |
 | `GET /api/surveys` | `{surveys: [{survey, answeredAt}]}` - the surveys taking answers now, newest opened first |
 | `GET /api/surveys/{slug}` | `{survey, answeredAt}` - open or closed; 404 for a draft or nothing |
-| `POST /api/surveys/{slug}/responses` | signed in: `{aboutYou: {gender, age} \| null, answers: {questionId: {optionIds, other, text}}, language, startedAt}` → 201 `{id, submittedAt}` |
+| `POST /api/surveys/{slug}/responses` | `{aboutYou: {gender, age} \| null, answers: {questionId: {optionIds, other, text}}, language, startedAt}` → 201 `{id, submittedAt}`; from nobody, answers that are kept make a visitor, and the 201 carries its key in the **`X-Visitor-Key` response header** (with `Cache-Control: no-store`) - never in the body |
+| `POST /api/visitor/move` | a person's token **and** `X-Visitor-Key` → `{found, moved, kept}` - at sign-in, the visitor's answers into the account (below) |
+
+### Visitors
+
+A **visitor** is somebody taking surveys without signing in while the IAM says
+sign-in is not required (`api/visitors.php`, migration 006): a row of `users`
+with a **negative id** (an IAM id is always positive), no name, no address -
+so its answers are kept and counted like a person's, once each survey. It has
+no role and never passes a check that needs a token: the admin panel, the
+Migrations page and the move answer it 401 `sign_in_required`.
+
+- **Made lazily**: only by answers from nobody that pass every check, inside
+  the transaction that keeps them - never by reading a page. A refused send
+  (`invalid_answer`, `not_open`, `not_found`, a limit) makes no visitor and
+  counts nothing.
+- **The key**: 32 random bytes the server makes, base64url without padding
+  (43 characters `[A-Za-z0-9_-]`). It leaves the server once, in the
+  `X-Visitor-Key` header of the 201 that made the visitor; the browser keeps it
+  and sends it back in the `X-Visitor-Key` request header. Only its SHA-256 is
+  stored. A visitor's last visit is written at most once an hour.
+- **Limits on new visitors** (`config/visitors.local.php`,
+  [operations](operations.md#visitors)): per address an hour, in all an hour,
+  and visitors with a key at once - past any, 429 `too_many_visitors` with
+  `Retry-After: 3600`, nothing kept. Visitors there already carry on.
+- **Unseen for `keep_days`** (30 by default) **a visitor ends**: its key opens
+  nothing (401 `visitor_unknown`), and its answers **stay** in the results as
+  "Visitor N". A visitor with no answers left is deleted then - or, once ended,
+  when an ADMIN deletes its last answers (one, or with a whole survey). A
+  browser whose visit ended may answer the same survey again, as a new
+  visitor.
+- **The move at sign-in** - `POST /api/visitor/move` with the person's token and
+  the key, **allowed whatever the switch says**: one transaction, the
+  visitor's row then the person's held; a survey both answered keeps the
+  person's answers as they are and the visitor's go (`kept`); every other
+  answer becomes the person's, with its language and times (`moved`); the
+  visitor and its key are gone. A key nobody has (moved by another tab, ended,
+  never there) is 200 `{found: false, moved: 0, kept: 0}` - ask as often as you
+  like. No key, or one that is not a key: 422 `invalid_visitor_key`. A lock not
+  had in time, or the person's own answers being written at that moment: 503
+  `visitor_move_retry` with `Retry-After: 2`, nothing moved.
+- **What the browser does** ([architecture](architecture.md#visitors-in-the-browser)):
+  it keeps the key in `localStorage` (`anotoki-survey:visitor`; the first key
+  a browser got stays) and sends it only on `/api/surveys`, only while
+  `loginRequired` is false - never with a token. A 401 `visitor_unknown`
+  forgets it and the request goes once more without it (nothing was kept for
+  it, so answers are never sent twice); a 401 `sign_in_required` keeps it (the
+  switch went on: the page stops welcoming visitors until the next load) - so
+  a sign-in later still moves what it answered. After every sign-in with a
+  key held it asks for the move, again after no answer or a 5xx (2 s, 10 s,
+  30 s; `Retry-After` wins), and forgets the key on a 200 or a 422.
 
 A `survey` here carries its `language` and, of its `translations`, only those
 into languages people are offered (below: *A survey's languages*).
@@ -66,11 +166,13 @@ Sending answers is refused with:
 
 | Status, code | When |
 | --- | --- |
-| 401 `sign_in_required` | no token |
+| 401 `sign_in_required` | no token, while sign-in is required |
+| 401 `visitor_unknown` | a visitor key that is nobody's (any more), or not a key - or whose visitor went while the answers were on their way (moved at sign-in in another tab, ended): nothing kept |
 | 404 `not_found` | no such survey, or a draft - or an address that is not one (not even UTF-8). Also answers sent to the address a survey had before an editor changed it (or an ADMIN deleted it) while the person was in it: the page says so (`take.refused.gone`) and becomes "There is no survey here"; the draft is kept by the survey's id, so the new address offers to carry on |
 | 409 `not_open` | closed, or its last day is over everywhere |
-| 409 `already_answered` | this person answered it before (also two sends at once) |
+| 409 `already_answered` | this person (or visitor) answered it before (also two sends at once) |
 | 422 `invalid_answer` + `questionId` | an answer not good enough, in the page's words: "Question 2: Please choose an answer." (`about-gender`, `about-age` for those) - or not an answer at all (a list for a choice, a number for text) |
+| 429 `too_many_visitors` | nobody's answers, past a limit on new visitors (`Retry-After: 3600`): sign in, or try later |
 
 `startedAt` is the browser's (toISOString); a time in the future is taken as
 now, one before the survey opened as its opening. Control characters in the
@@ -87,11 +189,11 @@ The sentences of these refusals are English. The page people answer on never
 shows them: it words every refusal itself, in the reader's language, from the
 code (and `questionId`).
 
-## The admin area
+## The admin panel
 
 EDITOR or ADMIN for all of it (`requireRole`): 401 without a token, 403
 `forbidden` without the role. ADMIN alone for the three deletes (a survey,
-somebody's answers, a language).
+somebody's answers, a language) and the migrations.
 
 | Route | Answers |
 | --- | --- |
@@ -101,8 +203,8 @@ somebody's answers, a language).
 | `PUT /api/admin/surveys/{id}` | `{revision, survey}` → `{survey}` with the next revision |
 | `POST /api/admin/surveys/{id}/status` | `{status: "open" \| "closed", closesOn?}` → `{survey}` with the next revision (the closing day is part of what editors save) |
 | `DELETE /api/admin/surveys/{id}` | ADMIN → 204; its answers go with it |
-| `GET /api/admin/surveys/{id}/responses` | `{responses: [SurveyResponse]}` - newest first, each with `person: {id, name, email}` and `language` (the code the survey was read in, or null) |
-| `DELETE /api/admin/responses/{id}` | ADMIN → 204: that person may take the survey again |
+| `GET /api/admin/surveys/{id}/responses` | `{responses: [SurveyResponse]}` - newest first, each with `person: {id, name, email, visitor}` and `language` (the code the survey was read in, or null). A visitor's `person` is `{id: "-12", name: "Visitor 12", email: "", visitor: true}` - from its own id; a person's says `visitor: false` |
+| `DELETE /api/admin/responses/{id}` | ADMIN → 204: that person may take the survey again (a visitor too, while its key lives; an ended visitor left with no answers is deleted) |
 | `POST /api/admin/images` | the picture's bytes, `Content-Type: image/*` → 201 `{image: {id, alt, width, height, src}}` |
 
 A survey is refused with:
@@ -241,6 +343,23 @@ A picture is refused with 415 `not_an_image` (not PNG, JPEG, WebP, GIF or AVIF
 by its own bytes - SVG never), 413 `too_large` (over 10 MB), 422 `image_size`
 (over 10 000 px a side).
 
+### The database: migrations
+
+ADMIN alone (an EDITOR and somebody taking surveys: 403 `forbidden`; nobody:
+401) - the admin panel's Migrations page, the IAM's shape
+(`api/database_update.php`). Both answer while a migration is pending, when the
+rest of the site is 503; neither while the settings are missing (there is no
+database to update then: `setup.php`).
+
+| Route | Answers |
+| --- | --- |
+| `GET /api/admin/migrations` | `{applied: [{name, applied_at}], pending: [{name}]}` - applied in the order they ran (`applied_at` ISO 8601, UTC), pending in the order they will run. Writes nothing |
+| `POST /api/admin/migrations/apply` | `{applied: [file], failed: file \| null, error: string \| null}` - every pending file in order, each in its own transaction, stopping at the first that fails: that one is rolled back whole and named, and `error` is the database's whole error (`statement n of m: SQLSTATE[...]: ...` and the statement's first lines), as the IAM's page shows it - it is logged too (`[db] the migration ... failed`). A failure is a 200 with `failed` set; `{applied: [], failed: null, error: null}`: nothing was pending |
+
+| Status, code | When |
+| --- | --- |
+| 409 `busy` | another update is running - another Apply, `setup.php`'s Save or `php migration.php`: all three take one PostgreSQL advisory lock, and the second applies nothing |
+
 ## Limits
 
 | | |
@@ -251,3 +370,4 @@ by its own bytes - SVG never), 413 `too_large` (over 10 MB), 422 `image_size`
 | The site's words | 20 languages; a language's name 50 characters; a string 2000 characters |
 | An answer | 10 000 characters of text, 1 000 for "Other" |
 | A picture | 10 MB, 10 000 px a side |
+| New visitors | by default 30 an hour from one address (an IPv6 address by its /64), 600 an hour in all, 20 000 with a key at once - `config/visitors.local.php` ([operations](operations.md#visitors)) |

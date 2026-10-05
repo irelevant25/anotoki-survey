@@ -39,12 +39,27 @@ words and languages*) has the rest, and how a language is added.
 
 ## 2. Upload
 
-For a version with a new migration, delete `storage/installed.lock` on the
-host BEFORE uploading (step 3 says why). Then everything in `dist/` into the
+For a version with a new migration that will be applied with the setup page
+(not the Migrations page), delete `storage/installed.lock` on the host BEFORE
+uploading (step 3 says why). Then everything in `dist/` into the
 web root `anotoki.eu/sub/survey/` (over the old files: FTP never deletes, and
 `config/*.local.php` on the host stays - and the lock, for a version with no
 new migration). Files that were removed from a version stay on the host until
 deleted by hand - delete them if they matter.
+
+`config/visitors.local.php` (the visitors' limits and trusted proxies) is
+never in the upload and nothing writes it: the owner puts it into the web
+root's `config/` by hand over SFTP, and it stays across uploads. Before the
+IAM's "Sign-in required" is switched off for the survey it should hold
+Cloudflare's ranges in `trusted_proxies` (the site is behind Cloudflare's
+proxy) - [docs/operations.md](../../../docs/operations.md#visitors). Once it is
+off, one check on the host: a POST of answers without a token answers 201
+with an `X-Visitor-Key` header, and the same key sent back makes
+`GET /api/surveys/<slug>` say `answeredAt` (Apache passes `X-*` headers to
+PHP; this proves it). And in a private window: the home page opens without
+signing in, under the visitor notice ("... for 30 days ..."), a survey sent
+shows "Taken" after a reload, and `/admin` still goes to the IAM; the
+results list that answer as "Visitor N", "Not signed in".
 
 ## 3. The database
 
@@ -54,9 +69,18 @@ deleted by hand - delete them if they matter.
   IAM (`https://iam.anotoki.eu`, client id `survey`). Test both, then Install.
   It locks (`storage/installed.lock`) and deletes itself.
 - **A version with a new migration**: the site is closed (503, "not set up
-  yet") until it is applied. With the lock deleted before the upload, open
+  yet", `update: true`) until it is applied. Back the database up first. The
+  usual way: the owner signs in as an ADMIN - the "not set up yet" page links
+  to the admin panel's **Migrations** page (nobody else gets the link) - and
+  presses **Apply pending**: the files run in order, each in its own
+  transaction; a failure is rolled back whole and shown with the database's
+  whole error ("Stopped at <file>"), and the next Apply goes on from there.
+  Once nothing is pending the site runs again. The lock stays where it is.
+  The other way, the setup page: with the lock deleted before the upload, open
   `/setup.php` (the upload carries it), give the new token and the same
-  details. It applies what is pending and locks and deletes itself again. If
+  details. It applies what is pending and locks and deletes itself again. (The
+  two never run at once: one lock, and the second says another update is
+  running.) If
   `setup.php` was opened while the lock was still there (anybody may: the
   closed site's own button leads to it) it has deleted itself: delete the
   lock, upload `setup.php` again. The version that brings the
@@ -75,7 +99,7 @@ The site signs in as `survey`. On the live IAM the application needs
 `https://survey.anotoki.eu/auth/callback` (login), `https://survey.anotoki.eu/`
 (logout), the origin and home `https://survey.anotoki.eu`, and "show on the
 landing page" for its card - the IAM's migration 005 registers the site and its
-roles but gives a live IAM no address and no card. The admin console's
+roles but gives a live IAM no address and no card. The admin panel's
 Applications page is the place. Roles are given in Users: EDITOR to the people
 who write surveys, and ADMIN too on an IAM installed from scratch - 005 gives
 ADMIN only to the administrators the IAM had when it ran.
@@ -83,7 +107,11 @@ ADMIN only to the administrators the IAM had when it ran.
 ## 5. Check
 
 - `https://survey.anotoki.eu/api/health` → `{"ok":true}`;
-  `/api/auth/config` → the live IAM and `survey`.
+  `/api/auth/config` → the live IAM and `survey`, and `loginRequired` - `true`
+  until the IAM's 010 is applied there and its "Sign-in required" is switched
+  off for the survey (the site asks the IAM through the SDK; `storage/cache/`
+  must be writable); `visitorDays` - 30, or the `keep_days` of
+  `config/visitors.local.php`.
 - `https://survey.anotoki.eu/setup.php` does not show the installer.
 - `/config/database.local.php`, `/storage/`, `/vendor/composer/installed.json`,
   `/api/auth.php` are refused (403), not served.

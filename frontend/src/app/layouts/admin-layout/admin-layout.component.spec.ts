@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, RouterOutlet, provideRouter } from '@angular/router';
-import { AuthService } from '../../core/auth/auth.service';
+import { AuthService, SignInFailure } from '../../core/auth/auth.service';
+import { provideTestTranslations } from '../../core/testing/test-translations';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 import { AdminLayoutComponent } from './admin-layout.component';
 
@@ -21,9 +22,12 @@ describe('AdminLayoutComponent', () => {
   // As AuthService has them: no roles for anybody who is not signed in.
   const signedIn = signal(true);
   const roles = signal<string[]>(['EDITOR']);
+  const failure = signal<SignInFailure | null>(null);
   const auth = {
     signedIn: () => signedIn(),
     isStaff: () => signedIn() && (roles().includes('ADMIN') || roles().includes('EDITOR')),
+    signInFailure: failure,
+    signIn: vi.fn(async (_returnTo?: string, _uiLocales?: string) => true),
   };
 
   let fixture: ComponentFixture<AdminLayoutComponent>;
@@ -35,6 +39,7 @@ describe('AdminLayoutComponent', () => {
   async function layout(who: { signedIn: boolean; roles: string[] }): Promise<void> {
     signedIn.set(who.signedIn);
     roles.set(who.roles);
+    failure.set(null);
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
@@ -42,6 +47,7 @@ describe('AdminLayoutComponent', () => {
           { path: '', pathMatch: 'full', component: PageComponent },
         ]),
         { provide: AuthService, useValue: auth },
+        provideTestTranslations({}, { language: 'sk' }),
       ],
     });
     TestBed.overrideComponent(AdminLayoutComponent, { remove: { imports: [TopBarComponent] }, add: { imports: [TopBarStubComponent] } });
@@ -66,8 +72,8 @@ describe('AdminLayoutComponent', () => {
     await layout({ signedIn: true, roles: [] });
 
     expect(host.querySelector('router-outlet')).toBeNull();
-    expect(text('.empty-heading')).toBe('This part is for the people who write the surveys');
-    expect(text('.empty-text')).toBe("Your anotoki account has no editor role here. The site's administrator can give it to you in the anotoki account's admin console.");
+    expect(text('.empty-heading')).toBe('The admin panel is for the people who write the surveys');
+    expect(text('.empty-text')).toBe("Your anotoki account has no editor role here. The site's administrator can give it to you in the anotoki account's admin panel.");
     const link = host.querySelector<HTMLAnchorElement>('app-empty-state a')!;
     expect(clean(link.textContent)).toBe('See the open surveys');
     expect(link.getAttribute('href')).toBe('/');
@@ -80,14 +86,35 @@ describe('AdminLayoutComponent', () => {
     expect(host.querySelector('router-outlet')).toBeNull();
     expect(text('.empty-heading')).toBe('You are signed out');
     expect(text('.empty-text')).toBe(
-      'Your session has ended. Sign in again with the button at the top: what you typed on the Translations and Languages pages is kept in this tab, and will be in its boxes again. ' +
+      'Your session has ended. Sign in again: what you typed on the Translations and Languages pages is kept in this tab, and will be in its boxes again. ' +
         'Changes to a survey that were not saved yet stay only while this page is open - sign in again in another tab to save them.',
     );
     expect(host.textContent).not.toContain('no editor role');
-    expect(host.textContent).not.toContain('This part is for the people who write the surveys');
-    // The way back is the top bar's "Sign in": the card has no button or link of its own.
-    expect(host.querySelector('app-empty-state a, app-empty-state button')).toBeNull();
+    expect(host.textContent).not.toContain('The admin panel is for the people who write the surveys');
+    // The way back is a Sign in of its own (on a phone the top bar's is inside its menu) - to the IAM in the language
+    // the person reads, not the admin area's English.
+    const button = host.querySelector<HTMLButtonElement>('app-empty-state button')!;
+    expect(clean(button.textContent)).toBe('Sign in');
+    button.click();
+    expect(auth.signIn).toHaveBeenCalledWith(undefined, 'sk');
     expect(host.querySelector('app-top-bar')).not.toBeNull();
+  });
+
+  it('tells somebody whose sign-in came back without one that they are not signed in - nobody had a session to end', async () => {
+    await layout({ signedIn: false, roles: [] });
+    // As the IAM's refusal leaves it (signInGuard let this page load through).
+    failure.set({ code: 'access_denied', message: 'No.' });
+    await fixture.whenStable();
+
+    expect(host.querySelector('router-outlet')).toBeNull();
+    expect(text('.empty-heading')).toBe('You are not signed in');
+    expect(text('.empty-text')).toBe('The admin panel is for the people who write the surveys, signed in with their anotoki account. The sign-in did not complete - sign in to try again.');
+    expect(host.textContent).not.toContain('Your session has ended');
+    expect(host.textContent).not.toContain('no editor role');
+    const button = host.querySelector<HTMLButtonElement>('app-empty-state button')!;
+    expect(clean(button.textContent)).toBe('Sign in');
+    button.click();
+    expect(auth.signIn).toHaveBeenCalledWith(undefined, 'sk');
   });
 
   it('says so the moment the session ends over an open page, and draws the page again for the editor who comes back', async () => {

@@ -5,7 +5,8 @@ import { unsavedChangesGuard } from './localization/unsaved-changes.guard';
 /**
  * /admin: the surveys, and for each its editor, its results and each response
  * on its own page; and the site's own words - the strings in every language
- * (translations) and the languages themselves.
+ * (translations) and the languages themselves; and, for an ADMIN, the
+ * database's migrations.
  */
 export const ADMIN_ROUTES: Routes = [
   {
@@ -33,6 +34,8 @@ export const ADMIN_ROUTES: Routes = [
         canDeactivate: [unsavedChangesGuard],
         loadComponent: () => import('./localization/languages/languages.component').then((m) => m.LanguagesComponent),
       },
+      // ADMIN alone (the page says so to an EDITOR); the one page drawn while the database waits for a migration.
+      { path: 'migrations', title: 'Migrations', loadComponent: () => import('./migrations/migrations.component').then((m) => m.MigrationsComponent) },
       { path: '**', title: 'Not found', loadComponent: () => import('../not-found/not-found.component').then((m) => m.NotFoundComponent) },
     ],
   },

@@ -8,6 +8,26 @@ export async function openPage(port) {
   return connect(target.webSocketDebuggerUrl, target.id, port);
 }
 
+/**
+ * A page in a browser context of its own - another browser, as far as the site can tell: no localStorage, no
+ * cookies, no session shared with the first page. `close()` disposes the context with it.
+ */
+export async function openPageInNewContext(port) {
+  const version = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+  const browser = await connect(version.webSocketDebuggerUrl, null, port);
+  const { browserContextId } = await browser.send('Target.createBrowserContext');
+  const { targetId } = await browser.send('Target.createTarget', { url: 'about:blank', browserContextId });
+  const target = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find((item) => item.id === targetId);
+  const page = await connect(target.webSocketDebuggerUrl, targetId, port);
+  const closePage = page.close;
+  page.close = async () => {
+    await closePage();
+    await browser.send('Target.disposeBrowserContext', { browserContextId }).catch(() => undefined);
+    browser.socket.close();
+  };
+  return page;
+}
+
 async function connect(url, targetId, port) {
   const socket = new WebSocket(url);
   await new Promise((resolve, reject) => {
@@ -34,6 +54,7 @@ async function connect(url, targetId, port) {
 
   const page = {
     targetId,
+    socket,
     send(method, params = {}) {
       const id = nextId++;
       socket.send(JSON.stringify({ id, method, params }));

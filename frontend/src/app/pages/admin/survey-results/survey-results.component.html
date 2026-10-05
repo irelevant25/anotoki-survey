@@ -172,7 +172,11 @@
                                                 <span class="avatar" [style.--hue]="hueOf(response.person.name)" aria-hidden="true">{{ response.person.name.charAt(0).toUpperCase() }}</span>
                                                 <span class="who">
                                                     <span class="who-name">{{ response.person.name }}</span>
-                                                    <span class="who-email">{{ response.person.email }}</span>
+                                                    @if (response.person.visitor) {
+                                                        <span class="who-email not-signed-in">Not signed in</span>
+                                                    } @else {
+                                                        <span class="who-email">{{ response.person.email }}</span>
+                                                    }
                                                 </span>
                                             </button>
                                         </td>

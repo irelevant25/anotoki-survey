@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { ApiError, ApiService, ParticipantSurvey, toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { VisitorKey } from '../../../core/auth/visitor-key';
 import { LocalDatePipe } from '../../../core/i18n/local-date.pipe';
 import { TranslatePluralPipe } from '../../../core/i18n/translate-plural.pipe';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
@@ -11,7 +12,7 @@ import { TranslationService } from '../../../core/i18n/translation.service';
 import { AGE_ID, GENDER_ID, isAgeKey, isGenderKey } from '../../../core/survey/about-you';
 import { aboutYouQuestions } from '../../../core/survey/about-you-questions';
 import { AnswerProblem, answerProblem, cleanAnswer } from '../../../core/survey/answer-rules';
-import { Draft, clearDraft, readDraft, writeDraft } from '../../../core/survey/drafts';
+import { Draft, adoptVisitorDraft, clearDraft, readDraft, writeDraft } from '../../../core/survey/drafts';
 import { LocalizedSurvey, localizedSurvey } from '../../../core/survey/localize';
 import { newId } from '../../../core/survey/survey-factory';
 import { currentStatus, estimatedMinutes, numberedQuestions, questionCount } from '../../../core/survey/survey-outline';
@@ -24,6 +25,7 @@ import { ToastService } from '../../../ui/toast/toast.service';
 import { QuestionBlockComponent } from '../question-block/question-block.component';
 import { otherLanguage } from '../shown-language';
 import { SurveyHeroComponent } from '../survey-hero/survey-hero.component';
+import { VisitorNoticeComponent } from '../visitor-notice/visitor-notice.component';
 import { sendFailure, sendFailureText } from './send-failure';
 
 /** One page of the survey: "About you" (when asked), then each of the survey's steps. */
@@ -40,7 +42,7 @@ interface Page {
 }
 
 /** What the person meets at this address, before any of the survey. */
-type State = 'loading' | 'failed' | 'missing' | 'not-open' | 'closed' | 'signed-out' | 'answered' | 'sent' | 'take';
+type State = 'loading' | 'failed' | 'missing' | 'not-open' | 'closed' | 'answered' | 'sent' | 'take';
 
 /**
  * A survey, taken: the welcome, the steps one at a time, and the thanks - and
@@ -53,6 +55,13 @@ type State = 'loading' | 'failed' | 'missing' | 'not-open' | 'closed' | 'signed-
  * again, since an answer given earlier may no longer fit a survey the editor
  * has changed since - and the server checks it all once more, in the same
  * words (backend/api/survey_rules.php).
+ *
+ * Somebody taking surveys without signing in (while the site welcomes
+ * visitors) takes it the same way, as this browser's visitor: the draft is
+ * kept under the visitor's slot, "answered" is the visitor's, and the first
+ * answers sent make the visitor (the interceptor keeps the key). A sign-in
+ * makes the drafts the person's (adoptVisitorDraft()) and moves the answers
+ * (core/auth/visitor-key.ts); the page then asks again.
  *
  * At /preview/{id} it is the editor's preview: any survey, open or not, and
  * nothing saved - not the draft, not the answers. It is read again whenever
@@ -88,7 +97,19 @@ type State = 'loading' | 'failed' | 'missing' | 'not-open' | 'closed' | 'signed-
  */
 @Component({
   selector: 'app-take-survey',
-  imports: [RouterLink, AlertComponent, ButtonComponent, IconComponent, QuestionBlockComponent, SpinnerComponent, SurveyHeroComponent, LocalDatePipe, TranslatePipe, TranslatePluralPipe],
+  imports: [
+    RouterLink,
+    AlertComponent,
+    ButtonComponent,
+    IconComponent,
+    QuestionBlockComponent,
+    SpinnerComponent,
+    SurveyHeroComponent,
+    VisitorNoticeComponent,
+    LocalDatePipe,
+    TranslatePipe,
+    TranslatePluralPipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './take-survey.component.html',
   styleUrl: './take-survey.component.scss',
@@ -111,6 +132,7 @@ export class TakeSurveyComponent {
   private readonly _api = inject(ApiService);
   private readonly _admin = inject(AdminStore);
   private readonly _auth = inject(AuthService);
+  private readonly _visitor = inject(VisitorKey);
   private readonly _i18n = inject(TranslationService);
   private readonly _title = inject(Title);
   private readonly _toast = inject(ToastService);
@@ -144,9 +166,13 @@ export class TakeSurveyComponent {
   /** That language's code for `lang` - nothing when the texts are in the page's own. */
   protected readonly surveyLang = computed(() => this.otherLanguage()?.code ?? null);
   protected readonly person = this._auth.person;
+  /** Who takes the survey: the person signed in, or this browser's visitor. */
+  protected readonly taker = this._auth.taker;
   /** Who, by id alone: a refreshed token is the same person, and asks for nothing again. */
-  private readonly _personId = computed(() => this.person()?.id ?? null);
-  /** When this person sent their answers, if they have. */
+  private readonly _takerId = computed(() => this.taker()?.id ?? null);
+  /** A visitor takes the survey here (never in a preview): the notice, and the line that says so. */
+  protected readonly visiting = computed(() => !this.preview() && this.taker()?.visitor === true);
+  /** When this person - or this browser's visitor - sent their answers, if they have. */
   protected readonly answeredAt = computed(() => (this.preview() ? null : (this._loaded()?.answeredAt ?? null)));
 
   protected readonly phase = signal<'welcome' | 'steps'>('welcome');
@@ -217,14 +243,11 @@ export class TakeSurveyComponent {
     if (survey.status === 'draft') {
       return 'not-open';
     }
-    const status = currentStatus(survey);
-    if (!this.person()) {
-      return status === 'closed' ? 'closed' : 'signed-out';
-    }
+    // Nobody else is here: the layout draws a page only for somebody signed in, or a visitor while the site welcomes them.
     if (this.answeredAt()) {
       return 'answered';
     }
-    return status === 'closed' ? 'closed' : 'take';
+    return currentStatus(survey) === 'closed' ? 'closed' : 'take';
   });
 
   protected readonly facts = computed(() => {
@@ -238,7 +261,7 @@ export class TakeSurveyComponent {
   protected readonly draftStep = computed(() => Math.min((this.draft()?.stepIndex ?? 0) + 1, this.pages().length));
 
   /** Which survey, as whom: when it changes the page starts over - but not when the editor changes the survey under a preview. */
-  private readonly _who = computed(() => `${this.survey()?.id ?? ''}|${this._personId() ?? ''}|${this.preview()}`);
+  private readonly _who = computed(() => `${this.survey()?.id ?? ''}|${this._takerId() ?? ''}|${this.preview()}`);
 
   /** "Signed in as " and " · everyone can take this survey once.": the sentence before and after the name, which is set in bold - and drawn only when the string has a place for it. */
   protected readonly signedInAs = computed(() => this._i18n.around('take.signedInAs', 'name'));
@@ -272,12 +295,18 @@ export class TakeSurveyComponent {
       this._title.setTitle(this.state() === 'loading' ? site : `${this._i18n.t('title.notFound')} · ${site}`);
     });
 
-    // The survey, and whether this person has answered it: again for another address, or another person.
+    // The survey, and whether this person has answered it: again for another
+    // address, another person, a visitor key that came or went, and a move of
+    // what this browser answered as a visitor into the account.
     effect(() => {
       const slug = this.slug();
       const id = this.surveyId();
       const preview = this.preview();
-      this._personId();
+      this._takerId();
+      if (!preview) {
+        this._visitor.key();
+        this._visitor.moves();
+      }
       untracked(() => void this._load(slug, id, preview));
     });
 
@@ -292,11 +321,7 @@ export class TakeSurveyComponent {
 
     effect(() => {
       this._who();
-      untracked(() => {
-        const survey = this.survey();
-        const person = this.person();
-        this._startOver(survey && person && !this.preview() ? readDraft(survey.id, person.id) : null);
-      });
+      untracked(() => this._startOver(this._readDraft()));
     });
 
     // The draft follows every change while the person is on the steps.
@@ -307,9 +332,9 @@ export class TakeSurveyComponent {
         return;
       }
       const survey = untracked(this.survey);
-      const person = untracked(this.person);
-      if (survey && person) {
-        writeDraft(survey.id, person.id, { stepIndex, answers, startedAt: untracked(this.startedAt) ?? new Date().toISOString(), savedAt: new Date().toISOString() });
+      const taker = untracked(this.taker);
+      if (survey && taker) {
+        writeDraft(survey.id, taker.id, { stepIndex, answers, startedAt: untracked(this.startedAt) ?? new Date().toISOString(), savedAt: new Date().toISOString() });
       }
     });
   }
@@ -342,9 +367,9 @@ export class TakeSurveyComponent {
 
   protected startAgain(): void {
     const survey = this.survey();
-    const person = this.person();
-    if (survey && person) {
-      clearDraft(survey.id, person.id);
+    const taker = this.taker();
+    if (survey && taker) {
+      clearDraft(survey.id, taker.id);
     }
     this._startOver(null);
     this.start();
@@ -378,20 +403,13 @@ export class TakeSurveyComponent {
     if (this.pageIndex() === 0) {
       // The welcome offers to carry on from the draft as it is now, not as it
       // was when the page was opened - that one would bring older answers back.
-      const survey = this.survey();
-      const person = this.person();
-      this.draft.set(survey && person && !this.preview() ? readDraft(survey.id, person.id) : null);
+      this.draft.set(this._readDraft());
       this.phase.set('welcome');
       this._focusAfterRender('.start button, app-alert button');
       return;
     }
     this.pageIndex.update((index) => index - 1);
     this._showStep();
-  }
-
-  /** To the IAM - its pages in the language the person reads here - and back to this survey. */
-  protected signIn(): void {
-    this._auth.signIn(undefined, this._i18n.language());
   }
 
   protected restartPreview(): void {
@@ -431,6 +449,7 @@ export class TakeSurveyComponent {
   private async _send(): Promise<void> {
     const shown = this._shown();
     const person = this.person();
+    const taker = this.taker();
     if (!shown) {
       return;
     }
@@ -476,25 +495,25 @@ export class TakeSurveyComponent {
       this._showTop();
       return;
     }
-    if (!person) {
+    if (!taker) {
       return;
     }
 
     this.sending.set(true);
     try {
       const saved = await this._api.submit(survey.slug, { aboutYou, answers: kept, language, startedAt: response.startedAt });
-      clearDraft(survey.id, person.id);
+      clearDraft(survey.id, taker.id);
       this.sent.set({ ...response, id: saved.id, submittedAt: saved.submittedAt });
       this._loaded.update((loaded) => (loaded ? { ...loaded, answeredAt: saved.submittedAt } : loaded));
       this._showTop();
     } catch (failure) {
       const error = toApiError(failure);
-      const reason = sendFailure(error);
+      const reason = sendFailure(error, taker.visitor);
       // The page's own words, in the reader's language - never the server's
       // sentence. A toast is a finished sentence when it is raised.
-      const text = sendFailureText(this._i18n, error, (questionId) => pages.flatMap((page) => page.questions).find((item) => item.question.id === questionId)?.number ?? null);
+      const text = sendFailureText(this._i18n, error, (questionId) => pages.flatMap((page) => page.questions).find((item) => item.question.id === questionId)?.number ?? null, taker.visitor);
       if (reason === 'already') {
-        clearDraft(survey.id, person.id);
+        clearDraft(survey.id, taker.id);
         this._toast.info(text);
         void this._load(this.slug(), undefined, false);
       } else if (reason === 'closed') {
@@ -523,6 +542,24 @@ export class TakeSurveyComponent {
     } finally {
       this.sending.set(false);
     }
+  }
+
+  /**
+   * The draft of the survey on the page, for whoever takes it - nothing in a
+   * preview. A person's takes in first a draft this browser's visitor left of
+   * it (a sign-in on this page, or in another tab: before the page reads it,
+   * whatever order the effects run in) - the person's own wins.
+   */
+  private _readDraft(): Draft | null {
+    const survey = this.survey();
+    const taker = this.taker();
+    if (!survey || !taker || this.preview()) {
+      return null;
+    }
+    if (!taker.visitor) {
+      adoptVisitorDraft(survey.id, taker.id);
+    }
+    return readDraft(survey.id, taker.id);
   }
 
   private _startOver(draft: Draft | null): void {

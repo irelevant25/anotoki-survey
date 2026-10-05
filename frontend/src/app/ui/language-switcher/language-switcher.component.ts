@@ -41,6 +41,8 @@ export class LanguageSwitcherComponent {
   protected readonly open = signal(false);
   /** The chosen language's strings are on their way. */
   protected readonly switching = signal(false);
+  /** What the button shows ("SK") - and its accessible name says it too (WCAG 2.5.3, Label in Name: somebody who speaks to the computer says "click SK"). */
+  protected readonly currentCode = computed(() => this.i18n.language().toUpperCase());
   /** The current language as its speakers write it; its code while the list does not name it. */
   protected readonly currentName = computed(() => {
     const code = this.i18n.language();

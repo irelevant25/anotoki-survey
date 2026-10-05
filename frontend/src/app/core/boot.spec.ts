@@ -5,8 +5,11 @@ import { Router, TitleStrategy, provideRouter } from '@angular/router';
 import { ToastService } from '../ui/toast/toast.service';
 import { ApiService } from './api/api.service';
 import { AuthService, SignInFailure } from './auth/auth.service';
+import { VisitorKey } from './auth/visitor-key';
 import { BOOTED, boot } from './boot';
 import { TranslationService } from './i18n/translation.service';
+import { VISITOR_SLOT, readDraft, writeDraft } from './survey/drafts';
+import { Person } from './survey/survey.model';
 import { provideTestTranslations } from './testing/test-translations';
 import { SurveyTitleStrategy } from './title.strategy';
 
@@ -28,10 +31,12 @@ describe('boot(): the whole start', () => {
   /** What BOOTED said at each step of the start. */
   const bootedAt: Record<string, boolean> = {};
   const failure = signal<SignInFailure | null>(null);
+  const person = signal<Person | null>(null);
   const auth = {
     status: signal('ready'),
     user: signal(null),
-    signedIn: () => false,
+    signedIn: () => person() !== null,
+    person,
     signInFailure: failure,
     onAuthChange: () => () => undefined,
     init: vi.fn(async () => {
@@ -43,8 +48,23 @@ describe('boot(): the whole start', () => {
   beforeEach(() => {
     order.length = 0;
     failure.set(null);
+    person.set(null);
+    localStorage.clear();
     auth.init.mockClear();
-    TestBed.configureTestingModule({ providers: [provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }), { provide: AuthService, useValue: auth }] });
+    TestBed.configureTestingModule({
+      providers: [
+        provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }),
+        { provide: AuthService, useValue: auth },
+        // Made by the start itself, before anything is awaited: its effect is there for the first sign-in.
+        {
+          provide: VisitorKey,
+          useFactory: () => {
+            order.push('visitor key');
+            return {};
+          },
+        },
+      ],
+    });
     const i18n = TestBed.inject(TranslationService);
     vi.spyOn(i18n, 'init').mockImplementation(async () => {
       order.push('i18n');
@@ -56,7 +76,7 @@ describe('boot(): the whole start', () => {
 
   it('signs in first, then settles the language - which needs to know who it is', async () => {
     await TestBed.runInInjectionContext(boot);
-    expect(order).toEqual(['auth', 'i18n']);
+    expect(order).toEqual(['visitor key', 'auth', 'i18n']);
     expect(TestBed.inject(ToastService).toasts()).toEqual([]);
   });
 
@@ -78,6 +98,29 @@ describe('boot(): the whole start', () => {
     await again;
     expect(bootedAt).toEqual({ auth: false, i18n: false });
     expect(booted()).toBe(true);
+  });
+
+  it('back from a sign-in, makes the drafts this browser’s visitor left the person’s before anything else - the first page reads them', async () => {
+    const draft = { stepIndex: 1, answers: {}, startedAt: '2026-10-01T10:00:00.000Z', savedAt: '2026-10-01T10:05:00.000Z' };
+    writeDraft('survey-a', VISITOR_SLOT, draft);
+    auth.init.mockImplementationOnce(async () => {
+      order.push('auth');
+      person.set({ id: '12', name: 'Zuzka', email: 'zuzka@example.com' });
+    });
+    vi.spyOn(TestBed.inject(TranslationService), 'init').mockImplementation(async () => {
+      // The language comes after: by now the drafts are where the page will look for them.
+      order.push(readDraft('survey-a', '12') ? 'i18n, the draft adopted' : 'i18n, no draft yet');
+    });
+    await TestBed.runInInjectionContext(boot);
+    expect(order).toEqual(['visitor key', 'auth', 'i18n, the draft adopted']);
+    expect(readDraft('survey-a', VISITOR_SLOT)).toBeNull();
+  });
+
+  it('leaves a visitor’s drafts where they are while nobody is signed in', async () => {
+    const draft = { stepIndex: 0, answers: {}, startedAt: '2026-10-01T10:00:00.000Z', savedAt: '2026-10-01T10:05:00.000Z' };
+    writeDraft('survey-a', VISITOR_SLOT, draft);
+    await TestBed.runInInjectionContext(boot);
+    expect(readDraft('survey-a', VISITOR_SLOT)).toEqual(draft);
   });
 
   it('says a failed sign-in in the reader’s language, with the code and nobody’s English sentence', async () => {
@@ -139,9 +182,9 @@ describe('SurveyTitleStrategy', () => {
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/admin/surveys?tab=people');
     expect(TestBed.inject(TranslationService).inAdmin()).toBe(true);
-    expect(title()).toBe('Results · anotoki survey');
+    expect(title()).toBe('Results · Admin panel · anotoki survey');
     await router.navigateByUrl('/admin');
-    expect(title()).toBe('Surveys · anotoki survey');
+    expect(title()).toBe('Surveys · Admin panel · anotoki survey');
     await router.navigateByUrl('/');
     expect(TestBed.inject(TranslationService).inAdmin()).toBe(false);
     expect(title()).toBe('Prieskumy · anotoki prieskum');
@@ -230,7 +273,7 @@ describe('SurveyTitleStrategy with no strings at all', () => {
 
     await TestBed.inject(Router).navigateByUrl('/admin/surveys');
     expect(i18n.ready()).toBe(false);
-    expect(title()).toBe('Results · anotoki survey');
+    expect(title()).toBe('Results · Admin panel · anotoki survey');
     // Back on a participant page: the name alone again.
     await TestBed.inject(Router).navigateByUrl('/');
     expect(title()).toBe('anotoki survey');

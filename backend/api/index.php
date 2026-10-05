@@ -12,13 +12,18 @@ declare(strict_types=1);
  *
  *   routes/public.php    GET /api/health, GET /api/auth/config, GET /api/images/{id}.{ext},
  *                        GET /api/translations/{code}
- *   routes/surveys.php   the surveys for the people taking them, and their answers
+ *   routes/surveys.php   the surveys for the people taking them, and their answers - signed
+ *                        in, or as a visitor while the IAM says sign-in is not required
+ *   routes/visitor.php   POST /api/visitor/move: at sign-in, a visitor's answers into the account
  *   routes/admin.php     /api/admin/...: the surveys, the results, the pictures, the languages
- *                        and the site's own strings (EDITOR, ADMIN)
+ *                        and the site's own strings (EDITOR, ADMIN); the migrations (ADMIN)
  *
  * The middleware, outermost first: security headers -> the error handler ->
- * the setup gate (503 not_set_up without config/*.local.php, or with a
- * migration not applied) -> routing -> on each route, who is asking.
+ * the setup gate (503 not_set_up without config/database.local.php and
+ * iam.local.php, or with a migration not applied - then with update: true, and
+ * the sign-in's settings, the strings and the migrations routes still
+ * answered) -> routing -> on each route, who is asking. After the answer, what
+ * a request left for then (afterAnswerRun(): the visitors' clean-up).
  */
 
 require_once __DIR__ . '/bootstrap.php';
@@ -49,6 +54,7 @@ function buildSurveyApp(): \Slim\App
 
     require __DIR__ . '/routes/public.php';
     require __DIR__ . '/routes/surveys.php';
+    require __DIR__ . '/routes/visitor.php';
     require __DIR__ . '/routes/admin.php';
 
     // Added in this order, so they run the other way round.
@@ -89,4 +95,6 @@ function buildSurveyApp(): \Slim\App
 // The tests build the app themselves; nothing is served while they load this file.
 if (!defined('SURVEY_NO_RUN')) {
     buildSurveyApp()->run();
+    // What a request left for after its answer: the visitors' clean-up.
+    afterAnswerRun();
 }

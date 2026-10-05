@@ -5,6 +5,17 @@
 
 <div class="page">
     <main #main id="main" class="main" tabindex="-1">
-        <router-outlet />
+        @if (showPage()) {
+            <router-outlet />
+        } @else {
+            <div class="signed-out">
+                <app-empty-state icon="lock" [heading]="'signedOut.heading' | translate" [text]="'signedOut.text' | translate">
+                    <button appButton variant="primary" (click)="signIn()">
+                        <app-icon name="logIn" [size]="16" />
+                        {{ "common.signIn" | translate }}
+                    </button>
+                </app-empty-state>
+            </div>
+        }
     </main>
 </div>

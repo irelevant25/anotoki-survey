@@ -47,24 +47,6 @@
                     </p>
                 </div>
             }
-            @case ("signed-out") {
-                <div class="body">
-                    <div class="intro rich" [attr.lang]="surveyLang()" [innerHTML]="survey.intro"></div>
-                    <div class="sign-in">
-                        <span class="sign-in-icon"><app-icon name="logIn" [size]="20" /></span>
-                        <div class="sign-in-text">
-                            <p class="sign-in-heading">{{ "take.signIn.heading" | translate }}</p>
-                            <p class="muted small">{{ "take.signIn.text" | translate }}</p>
-                        </div>
-                    </div>
-                    <div class="start">
-                        <button appButton variant="primary" size="lg" (click)="signIn()">
-                            <app-icon name="logIn" [size]="18" />
-                            {{ "take.signIn.button" | translate }}
-                        </button>
-                    </div>
-                </div>
-            }
             @case ("answered") {
                 <div class="body message">
                     <span class="message-icon message-icon-success"><app-icon name="check" [size]="26" [strokeWidth]="2.4" /></span>
@@ -73,6 +55,9 @@
                         <p class="muted">{{ "take.answered.text" | translate: { when: (sentAt | localDate: "ago") } }}</p>
                     }
                     <div class="rich thanks" [attr.lang]="surveyLang()" [innerHTML]="survey.thanks"></div>
+                    @if (visiting()) {
+                        <app-visitor-notice class="visitor-notice" />
+                    }
                 </div>
             }
             @case ("sent") {
@@ -89,6 +74,9 @@
                             </button>
                             <a appButton variant="primary" [routerLink]="['/admin/surveys', survey.id, 'edit']" [queryParams]="editorQuery()">Back to the editor</a>
                         </div>
+                    }
+                    @if (visiting()) {
+                        <app-visitor-notice class="visitor-notice" />
                     }
                 </div>
             }
@@ -139,6 +127,12 @@
                                     <span>{{ signedInAs()[1] }}</span>
                                 </span>
                             </p>
+                        } @else if (visiting()) {
+                            <p class="who">
+                                <app-icon name="user" [size]="16" />
+                                <span>{{ "take.asVisitor" | translate }}</span>
+                            </p>
+                            <app-visitor-notice />
                         }
 
                         @if (draft(); as draft) {

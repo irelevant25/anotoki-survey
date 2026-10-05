@@ -67,38 +67,6 @@
   padding-top: 0.25rem;
 }
 
-.sign-in {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.9rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface-2);
-}
-
-.sign-in-icon {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  background: var(--primary-soft);
-  color: var(--primary-soft-text);
-}
-
-.sign-in-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
-.sign-in-heading {
-  font-weight: 750;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // The steps
 // ─────────────────────────────────────────────────────────────────────────────
@@ -143,6 +111,14 @@
   gap: 0.75rem;
   padding: 2.5rem 2rem 2.6rem;
   text-align: center;
+}
+
+// What a visitor is told, under the thanks: the width of the card's text, read from the start of the line.
+.visitor-notice {
+  align-self: stretch;
+  max-width: 32rem;
+  margin: 0.75rem auto 0;
+  text-align: start;
 }
 
 .message-icon {

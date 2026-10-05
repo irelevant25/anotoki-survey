@@ -67,21 +67,221 @@ or somebody's answers cannot be undone, so it is the admin's.
 
 **The IAM's administrators administer the site from the start.** Migration 005
 in the IAM gives them the survey ADMIN role: they could give it to themselves
-in the admin console anyway, and the site is theirs. It reaches the
+in the admin panel anyway, and the site is theirs. It reaches the
 administrators there are when it runs: a fresh IAM's migrations run before any
-account exists, so there the role is given in the admin console like any other.
+account exists, so there the role is given in the admin panel like any other.
 
 **No "no sign-in" mode.** The study apps run on the owner's own computer
-without a login; this site is a public one (like genshin) - who answered is
-the point of it. Locally it signs in through a local IAM, and the tests and
-the browser check through a stand-in.
+without a login; this site is for people signed in - who answered is the
+point of it. Locally it signs in through a local IAM, and the tests and the
+browser check through a stand-in.
 
 **No changelog.** The owner decided the survey site needs none (the other
 anotoki sites have one); the version is in `frontend/package.json`.
 
-**The admin area and the survey share one top bar.** People see the survey
-and who they are signed in as; the way into the admin area shows only to
-editors and admins.
+**The admin panel and the survey share one top bar - the anotoki family's.**
+The owner made every anotoki site (the IAM, the survey, Japanese, Piano, the
+build analyzer; not genshin) look and work one way, and this site's bar is the
+one the others copy: one row - the brand (the mark, "anotoki" and the site's
+name, linking home), the site's sections as links, then the language, the
+theme and the person's menu (name, address, role; their anotoki account; the
+way into the admin panel for editors and admins, or back to the surveys from
+it; Sign out) - or Sign in. On a phone (up to 760 px) the links and the
+person's menu fold into one menu button. Its words are keys like everything
+else a reader meets; in the admin panel they read in English
+(`effectiveLanguage`).
+
+**The admin area is called the admin panel, on every anotoki site.** The
+owner (2026-10-04): not "Admin" - the person's menu says "Admin panel"
+("Administrátorský panel" in Slovak), the wordmark there reads "anotoki
+survey · admin panel" and the tab "Surveys · Admin panel · anotoki survey".
+The IAM, Japanese, Piano and the build analyzer say the same.
+
+**The admin panel has the family's Migrations page.** The owner (2026-10-05):
+"The survey admin panel does not contain migrations page" - the other sites
+gained one with the "admin panel" round, and this one now has the same, the
+IAM's page as the model: `/admin/migrations`, Pending (in the order they will
+run) and Applied (with when), "Apply pending" behind a question, and after it
+"Up to date", "There was nothing to apply" or "Stopped at <file>" with what was
+applied first and **the database's whole error** in a box - PostgreSQL's own
+words, to an ADMIN, on this computer and on a host alike (the owner's decision
+for every site: on a host with only FTP that page is where the error can be
+read; it is logged too). Applying the database's updates is an ADMIN's, not an
+EDITOR's - the server refuses an EDITOR, and the frontend shows them neither
+the link nor the page. One update at a time, whoever starts it: the Apply,
+`setup.php`'s Save and `php migration.php` take one PostgreSQL advisory lock
+(`api/database_update.php`), and the second is told another is running. A
+pending migration still closes the site to everybody (503 `not_set_up`, now
+with `update: true`), but not to the ADMIN who must apply it: signing in, the
+site's strings and the two migrations routes keep answering, and the "not set
+up yet" page links a signed-in ADMIN to the Migrations page (in English - it
+is the admin panel's; somebody taking surveys and an EDITOR keep the page as it
+was). After an Apply that applied something the strings are read again
+(`TranslationService.reload()`), so a key it brought never shows as itself,
+and once nothing is pending the site runs where it stands, without a reload.
+The bar's Migrations link is English in the code rather than a key: the admin
+panel is English, and a key would have needed a migration with a Slovak string
+nobody ever reads. `setup.php` stays a way to apply them (and the only one for
+a database with nothing in it yet).
+
+**Every page is for somebody signed in - while the IAM says sign-in is
+required.** The owner: the survey (like the IAM, Japanese and Piano) requires
+a sign-in at minimum - nothing but the sign-in prompt for anybody else. So
+every page goes to the IAM first and comes back to the address asked for, and
+the API answers nothing of a survey without a token; a survey's welcome is no
+longer shown to visitors before they sign in (it was, until the family's
+change). Only the boot pages (not set up, cannot be reached) draw without it.
+Later (2026-10-05) the owner made that the IAM's switch, per site (below):
+switched off, the pages people take surveys on welcome visitors; the admin
+panel and the editor's preview never do. One exception, kept on purpose: a
+survey's pictures (`/api/images/{id}.{ext}`) are served with no token, because
+an `<img>` cannot send one, and their addresses are random UUIDs, so they
+reach only somebody who was given the address. Putting them behind the token
+too would mean fetching each one with it into a blob URL, and losing the
+year-long cache shared across visitors; not worth it for pictures that only
+illustrate a question.
+
+**Whether sign-in is required is the IAM's to say, and it fails closed.** The
+owner (2026-10-05): "I would like to be able to setup if log in is required
+for a specific project and also what roles can log in to a specific project.
+The default role for users should be member. Every user needs to have a role."
+So the IAM has a "Sign-in required" switch per site (on for the survey), and
+gives every account MEMBER in every site. The backend reads the switch through
+the IAM's PHP SDK (`anotoki_iam_login_required()`, vendored byte for byte like
+the verifier - no site writes its own fetch) and relays it in
+`/api/auth/config`; the browser never asks the IAM. The answer is kept a minute
+on disk and is **true unless the IAM said false**: an IAM never reached, an
+application it does not know (404) and an answer about another site all mean
+"required" - a site that cannot tell must not open itself to people who are not
+signed in. An IAM out of reach after it answered keeps its last answer: a
+minute-long outage must not flip the site. Switched off, the site takes
+visitors (below).
+
+**Only `Authorization: Bearer` claims to be somebody.** A Bearer header whose
+token does not check out - an empty one included - is 401 `invalid_token`,
+never "nobody": a person whose token ran out must never be taken for a
+visitor, nor have a visitor key read for them. Any other scheme is ignored: `Basic ...` is what a host
+behind a password file sends with every request, and says nothing about who is
+using the site.
+
+**MEMBER is an ordinary person.** Every account holds it (the IAM gives it to
+everyone, and to every account made later); no check here asks for it, and a
+token without it is treated the same. Taking a person's MEMBER away in the
+survey application is how the IAM blocks them: their next sign-in and every
+refresh is refused, while the access token they hold verifies until it runs
+out (minutes). A person blocked so can still take surveys as a visitor while
+sign-in is not required - blocking stops signing in, not visiting; a survey
+that must keep somebody out keeps "Sign-in required" on.
+
+**With sign-in not required, people take surveys as visitors - the build
+analyzer's visitor accounts.** The owner (2026-10-05), for every site: "The
+visitors will have automatically created account with role visitors or
+something like that with all data there. Its just they can lose their data
+because they are not stored via credentials. But when they register the data
+could transfer." So a visitor is a row of `users` like a person's - a negative
+id from its own sequence, so it never meets an IAM id, and no name - and its
+answers are ordinary answers: "once each", the results and the move need no
+second kind of answer. The "role visitors" is that mark, never an IAM role: a
+visitor has none, and nothing that needs a verified token lets one through.
+The key is the server's (32 random bytes; only its hash stored), sent once in
+a response header, never in a body, a URL or a log. A visitor is made only by
+answers that are kept, in their own transaction - a page view, a draft or a
+refused send makes none and counts nothing, so the table holds only people who
+answered.
+
+**A visitor that ends keeps its answers in the results.** The analyzer deletes
+a visitor's data when it is unseen for 30 days; here the answers are the
+survey's results as much as the visitor's, and a survey's numbers must not
+shrink because its respondents did not come back. So the visit *ends* - the
+key's hash is cleared, the browser no longer counts as their sender - and the
+answers stay as "Visitor N" (a coordinator's answer to the owner question, the
+owner may reverse it). The cost, said in operations: ended visitors' rows are
+kept for good, and a browser whose visit ended may answer the same survey
+again. A visitor with no answers left is deleted - when it would end, or, once
+ended, when an ADMIN deletes its last answers (with the delete itself, not by
+a clean-up that would have to look through every ended visitor each hour). A
+visitor still coming back is never deleted, answers or not: what a visitor is
+told is `keep_days` after the last visit (`visitorDays`), whatever happened to
+its answers.
+
+**In the admin panel a visitor is "Visitor N", "Not signed in" - no badge.**
+The name comes from the server (from the visitor's own id, so it never
+changes and two visitors never share one), and "Not signed in" stands where a
+person's address is - the one place a person and a visitor differ in the
+lists. The plan also gave the row a "Visitor" badge; beside "Visitor 12" it
+said the same thing twice, so it was left out. An IAM account that happens to
+be called "Visitor 12" still shows its address, which tells the two apart.
+
+**A survey that must count one answer per person keeps sign-in required.**
+With visitors, a fresh browser is a fresh respondent. The limits on new
+visitors (per address an hour, in all an hour, how many at once) bound it and
+nothing more; they live in an optional settings file nobody writes, with
+defaults that fit a school class behind one address. The address is
+`REMOTE_ADDR` unless a proxy the settings trust says otherwise - a forwarding
+header believed from anybody would let a script pick a new address for every
+request.
+
+**At sign-in the person's answers win.** The move needs the person's token and
+the visitor's key, and works whatever the switch says - switching sign-in on
+stops a key being somebody, not being handed in with a token, so nothing a
+visitor answered is stranded. Where both answered a survey, the person's
+answers stay as they are and the visitor's go: the person's were given knowing
+who they are, and "once each" leaves room for one. Everything else becomes the
+person's, with its language and times.
+
+**A visitor's send that loses its row is "visitor unknown", never a database
+error.** A move in another tab or the clean-up can take a visitor's row while
+its answers are on their way; the insert would then fail on its reference and
+be answered as "the database is not reachable". Every send holds its taker's
+row first, and a row that went is the same 401 `visitor_unknown` a stale key
+gets - which the browser knows what to do with.
+
+**In the browser, who a request is is decided when it is issued.** The
+analyzer first chose by whether a token happened to be there as a request
+left: a person whose refresh was refused (an account blocked in the IAM, a
+sign-out in another tab) sent their answers with no token - and, with
+visitors welcome, as nobody, which made a visitor no browser held, and let
+the person answer again as themselves. So `ApiService` marks each request the
+person's or the visitor's from the state when it is made, and a person's
+request with no token is never sent: it fails at once as 401
+`sign_in_required`, and the signed-out handling takes over with the answers
+still in the draft. The key goes only on a visitor's requests, only to the
+three survey routes, only while sign-in is not required.
+
+**The key is kept while sign-in is required.** The server refuses it then, and
+the browser stops sending it - but keeps it: the visitor who signs in still
+has their answers moved (the move works whatever the switch), and switching
+the requirement off again within the days a visitor is kept brings the visit
+back. Only the server saying it no longer knows the key (`visitor_unknown`)
+forgets it - and only while it is still the key that was sent, since another
+tab may hold a newer one. A 401 `sign_in_required` on a survey's route tells
+the page the switch went on since it loaded; on any other route it says
+nothing of the switch (the preview's admin calls refuse nobody-signed-in
+whatever it says).
+
+**A visitor's drafts stay in the browser and become the person's at
+sign-in.** A draft on the server would make visitors out of typing, and the
+survey never had server drafts. At a sign-in the visitor's draft of a survey
+becomes the person's - where the person has one of their own, theirs stays,
+the rule the move keeps for answers - before any page reads them: in the
+start (`boot()`), and by the survey page itself for a sign-in in another tab,
+whatever order the effects run in. A shared browser hands a visitor's drafts
+and answers to whoever signs in next there; the notice says "this browser".
+
+**A sign-in waits for the sends on their way.** A visitor's first answers
+bring their key in the answer; a page that left for the IAM before it came
+would leave the answers kept under a visitor nobody holds, and the move would
+find nothing. So the site's writes are counted while they are out, and a
+sign-in leaves when they have their answers (30 s at most).
+
+**The editor's preview signs in whatever the switch.** It shows any survey,
+open or not, to the people who write them; a visitor has no business there,
+and its own guard and the layout keep it to somebody signed in.
+
+**The days the notice promises are the server's.** "This browser remembers
+... for 30 days" is the server's `keep_days`, relayed as `visitorDays` - not a
+number of the frontend's that a host's settings could make a lie. A backend
+that does not say it is one from before visitors, and the pages welcome none.
 
 ## Languages
 
@@ -89,16 +289,16 @@ The first five are the owner's, made before any of it was built.
 
 **The site's own words live in the database, like the genshin site's.** Tables
 (`languages`, `translation_keys`, `translations`), a `translate` pipe with
-keys, a language chooser, and the strings editable in the admin area. They are
+keys, a language chooser, and the strings editable in the admin panel. They are
 rows rather than files in the build because they are reworded on the live
 site: a file in the Angular build is overwritten by the next upload, and the
 host has no shell to edit one with. There is no `site` scope and no HTML flag
 on a string (genshin has both): one database, and no HTML ever goes through a
 string.
 
-**Only what somebody taking a survey sees is translated; the admin area stays
+**Only what somebody taking a survey sees is translated; the admin panel stays
 English.** Its words are written in its templates, as before, and the server's
-sentences - which only the admin area shows - stay English too. So the pages
+sentences - which only the admin panel shows - stay English too. So the pages
 people take surveys on never show a server's sentence: they word every refusal
 themselves. The no-access card under `/admin` is English on purpose, with the
 whole frame; so is the preview's own chrome, an editor's tool.
@@ -138,7 +338,7 @@ means the same in each.
 
 The rest were made on the way.
 
-**Keys are the code's; the admin area only rewords.** Migrations write every
+**Keys are the code's; the admin panel only rewords.** Migrations write every
 key with its English and Slovak string; no route makes or deletes one. A
 string added or reworded by a release is a new migration whose inserts step
 aside for a row that is there - what was reworded on the live site is the

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, u
 import { RouterLink } from '@angular/router';
 import { ApiError, ApiService, ParticipantSurvey, toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { VisitorKey } from '../../../core/auth/visitor-key';
 import { errorKey, errorParams } from '../../../core/i18n/error-text';
 import { LocalDatePipe } from '../../../core/i18n/local-date.pipe';
 import { TranslatePluralPipe } from '../../../core/i18n/translate-plural.pipe';
@@ -17,11 +18,14 @@ import { EmptyStateComponent } from '../../../ui/empty-state/empty-state.compone
 import { IconComponent } from '../../../ui/icon/icon.component';
 import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
 import { otherLanguage } from '../shown-language';
+import { VisitorNoticeComponent } from '../visitor-notice/visitor-notice.component';
 
 /**
  * The address without a survey in it: the surveys open now, and for each
  * whether this person has taken it, started it, or not yet. People mostly
  * arrive through a survey's own link; this is where they land without one.
+ * Somebody taking surveys without signing in (a visitor) reads the same list,
+ * for this browser, under the notice that says so.
  *
  * Every word of the page's own is a key, worded in the template - so the page
  * follows the language when it is switched. A survey's title is the survey's:
@@ -31,15 +35,30 @@ import { otherLanguage } from '../shown-language';
  */
 @Component({
   selector: 'app-survey-home',
-  imports: [RouterLink, AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, IconComponent, SpinnerComponent, LocalDatePipe, TranslatePipe, TranslatePluralPipe],
+  imports: [
+    RouterLink,
+    AlertComponent,
+    BadgeComponent,
+    ButtonComponent,
+    EmptyStateComponent,
+    IconComponent,
+    SpinnerComponent,
+    VisitorNoticeComponent,
+    LocalDatePipe,
+    TranslatePipe,
+    TranslatePluralPipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './survey-home.component.html',
   styleUrl: './survey-home.component.scss',
 })
 export class SurveyHomeComponent {
   private readonly _api = inject(ApiService);
-  private readonly _person = inject(AuthService).person;
+  private readonly _visitor = inject(VisitorKey);
   private readonly _i18n = inject(TranslationService);
+  /** Who takes the surveys here: the person signed in, or this browser's visitor. */
+  protected readonly taker = inject(AuthService).taker;
+  private readonly _takerId = computed(() => this.taker()?.id ?? null);
 
   private readonly _open = signal<ParticipantSurvey[] | null>(null);
   /**
@@ -50,7 +69,7 @@ export class SurveyHomeComponent {
   protected readonly loading = computed(() => this._open() === null && this.error() === null);
 
   protected readonly surveys = computed(() => {
-    const person = this._person();
+    const taker = this._takerId();
     const reading = this._i18n.language();
     return (this._open() ?? [])
       .filter((item) => currentStatus(item.survey) === 'open')
@@ -65,7 +84,7 @@ export class SurveyHomeComponent {
           questions: questionCount(survey),
           minutes: estimatedMinutes(survey),
           taken: answeredAt !== null,
-          started: answeredAt === null && !!person && readDraft(survey.id, person.id) !== null,
+          started: answeredAt === null && taker !== null && readDraft(survey.id, taker) !== null,
         };
       });
   });
@@ -77,9 +96,13 @@ export class SurveyHomeComponent {
   protected readonly errorParams = errorParams;
 
   constructor() {
-    // Again when somebody signs in or out: whether each survey is taken is theirs.
+    // Again when somebody signs in or out, when this browser's visitor key
+    // comes or goes, and when a move after a sign-in has finished: whether
+    // each survey is taken is theirs.
     effect(() => {
-      this._person()?.id;
+      this._takerId();
+      this._visitor.key();
+      this._visitor.moves();
       untracked(() => void this.load());
     });
   }

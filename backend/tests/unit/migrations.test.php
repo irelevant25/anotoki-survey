@@ -56,6 +56,24 @@ test('the database itself keeps the rules: one answer per person, one live surve
     assert_same(0, (int) dbValue('SELECT count(*) FROM responses'), 'a survey\'s answers go with it');
 });
 
+test('the database keeps the visitors\' rules: a negative id, nameless, a key\'s hash only theirs and only once; no id 0', function (): void {
+    test_db();
+    $first = (int) dbValue("SELECT nextval('visitor_ids')");
+    assert_same([true, $first - 1], [$first < 0, (int) dbValue("SELECT nextval('visitor_ids')")], 'visitors count down, below every IAM id');
+    $hash = hash('sha256', 'a key');
+    dbExec('INSERT INTO users (id, visitor_key_hash) VALUES (-50, ?)', [$hash]);
+    dbExec('INSERT INTO users (id) VALUES (-51)'); // ended: no key, its answers stay
+    assert_throws(static fn() => dbExec('INSERT INTO users (id, visitor_key_hash) VALUES (-52, ?)', [$hash]), '/users_visitor_key_hash_unique/');
+    assert_throws(static fn() => dbExec('INSERT INTO users (id, visitor_key_hash) VALUES (52, ?)', [hash('sha256', 'b')]), '/users_visitor_check/');
+    assert_throws(static fn() => dbExec("INSERT INTO users (id, preferred_username) VALUES (-53, 'somebody')"), '/users_visitor_check/');
+    assert_throws(static fn() => dbExec("INSERT INTO users (id, email) VALUES (-54, 'a@b')"), '/users_visitor_check/');
+    assert_throws(static fn() => dbExec('INSERT INTO users (id) VALUES (0)'), '/users_visitor_check/');
+    assert_throws(static fn() => dbExec('INSERT INTO users (id, visitor_key_hash) VALUES (-55, ?)', [strtoupper(hash('sha256', 'c'))]), '/users_visitor_check/');
+    assert_throws(static fn() => dbExec("INSERT INTO users (id, visitor_key_hash) VALUES (-56, 'the key itself')"), '/users_visitor_check/');
+    assert_throws(static fn() => dbExec("INSERT INTO visitor_counters (name, count, window_ends) VALUES ('x', -1, now())"), '/check/i');
+    dbExec('DELETE FROM users WHERE id < 0');
+});
+
 test('a SQL file splits into statements, never inside a string, a comment or a $$ block', function (): void {
     $sql = "-- a comment; with a semicolon\nCREATE TABLE a (x text DEFAULT 'semi;colon');\n/* block; */ SELECT 1;\n"
         . "DO \$\$ BEGIN IF 1 <> 1 THEN RAISE EXCEPTION 'no;'; END IF; END \$\$;\nSELECT 'it''s';";

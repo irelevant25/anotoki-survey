@@ -38,7 +38,11 @@
                     <span class="avatar" [style.--hue]="hueOf(response.person.name)" aria-hidden="true">{{ response.person.name.charAt(0).toUpperCase() }}</span>
                     <div class="who">
                         <h1 id="page-title" tabindex="-1">{{ response.person.name }}</h1>
-                        <p class="muted">{{ response.person.email }}</p>
+                        @if (response.person.visitor) {
+                            <p class="muted not-signed-in">Not signed in</p>
+                        } @else {
+                            <p class="muted">{{ response.person.email }}</p>
+                        }
                     </div>
                     <div class="sheet-actions">
                         <button appButton size="sm" variant="ghost" (click)="print()">

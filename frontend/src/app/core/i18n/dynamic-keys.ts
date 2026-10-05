@@ -11,7 +11,20 @@
  */
 export const DYNAMIC_KEYS: Record<string, readonly string[]> = {
   // The whole-request failures errorKey() words (error-text.ts): the API's own codes, verbatim.
-  'error.': ['offline', 'server_error', 'database_unavailable', 'invalid_token', 'sign_in_required', 'too_large', 'not_set_up', 'http', 'unknown'],
+  'error.': [
+    'offline',
+    'server_error',
+    'database_unavailable',
+    'invalid_token',
+    'sign_in_required',
+    'too_large',
+    'not_set_up',
+    'visitor_unknown',
+    'too_many_visitors',
+    'visitor_move_retry',
+    'http',
+    'unknown',
+  ],
   // The answers of the About-you step, as aboutYouQuestions() asks for them
   // (core/survey/about-you-questions.ts): the keys of GENDERS and AGES
   // (core/survey/about-you.ts), verbatim - the server's SURVEY_GENDERS and SURVEY_AGES.

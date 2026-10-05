@@ -6,7 +6,11 @@
                 <span class="who">
                     <span class="name">{{ row.response.person.name }}</span>
                     <span class="details">
-                        {{ row.response.person.email }}
+                        @if (row.response.person.visitor) {
+                            <span class="not-signed-in">Not signed in</span>
+                        } @else {
+                            {{ row.response.person.email }}
+                        }
                         @if (row.response.aboutYou; as about) {
                             · {{ genderLabel(about.gender) }} · {{ ageLabel(about.age) }}
                         }

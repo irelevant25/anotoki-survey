@@ -25,8 +25,12 @@ declare(strict_types=1);
  *                          access can read that file. When it is done it
  *                          writes storage/installed.lock, which stops it
  *                          running again, and deletes the token and itself.
- *                          A later version with a new migration: delete the
- *                          lock, upload setup.php again, and run it once more.
+ *                          A later version with a new migration: an
+ *                          administrator applies it on the admin panel's
+ *                          Migrations page (or: delete the lock, upload
+ *                          setup.php again, and run it once more). Both take
+ *                          one lock (api/database_update.php), as does
+ *                          php migration.php.
  *
  * "Test" tries the database, and the IAM's discovery document
  * ({issuer}/.well-known/openid-configuration) and keys, with what is typed in -
@@ -171,7 +175,8 @@ if (!$local && is_file($lockFile)) {
         . ($gone
             ? '<p class="ok">The setup page has deleted itself.</p>'
             : '<p class="err">Delete <code>setup.php</code> and <code>storage/setup-token.php</code> by hand: the host did not let the setup page do it.</p>')
-        . '<p class="small">To run it again on purpose (a new version with a database update): delete the lock, upload setup.php again, and open it.</p>', 'good');
+        . '<p class="small">A new version with a database update: an administrator applies it on the Migrations page of the site\'s admin panel. '
+        . 'To run the setup again on purpose: delete the lock, upload setup.php again, and open it.</p>', 'good');
 }
 
 /**
@@ -472,7 +477,13 @@ if ($method === 'POST') {
                 // the one made in the hosting panel is what the connection finds.
             }
             $pdo = dbConnect($db);
-            $migrated = applyPendingMigrations($pdo);
+            // The lock an administrator's Apply and php migration.php take too (api/database_update.php).
+            $migrated = databaseUpdateLocked($pdo, function () use ($pdo) {
+                return applyPendingMigrations($pdo);
+            });
+            if ($migrated === null) {
+                throw new RuntimeException('Another database update is running (an administrator\'s Apply on the Migrations page, or php migration.php). Nothing was saved. Wait a moment, then press Save again.');
+            }
             if ($migrated['failed'] !== null) {
                 throw new RuntimeException('The database update ' . $migrated['failed'] . ' failed: ' . $migrated['error']);
             }
@@ -495,7 +506,7 @@ if ($method === 'POST') {
                 'Saved the database connection and the IAM in config/database.local.php and config/iam.local.php.',
                 $migrated['applied'] ? 'Made the tables (' . implode(', ', $migrated['applied']) . ').' : 'The tables were up to date.',
                 'People sign in through the IAM at ' . $form['issuer'] . ', where this site is "' . $form['client_id'] . '". '
-                    . 'Who may write surveys (EDITOR) and administer them (ADMIN) is set there, in the admin console.',
+                    . 'Who may write surveys (EDITOR) and administer them (ADMIN) is set there, in the admin panel.',
             ];
             $steps = '<ul>' . implode('', array_map(static function (string $line): string {
                 return '<li>' . h($line) . '</li>';

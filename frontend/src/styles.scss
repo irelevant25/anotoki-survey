@@ -65,6 +65,9 @@
   --shadow-sm: 0 1px 2px rgb(15 27 51 / 6%);
   --shadow: 0 1px 2px rgb(15 27 51 / 5%), 0 8px 24px rgb(15 27 51 / 6%);
   --shadow-lg: 0 4px 12px rgb(15 27 51 / 8%), 0 24px 56px rgb(15 27 51 / 14%);
+  // The anotoki mark (a navy picture) in the bar: the family's soft shadow; in
+  // dark a light halo, or the mark sinks into the bar.
+  --mark-shadow: drop-shadow(0 2px 6px rgb(0 0 0 / 18%));
 
   // The highlighter of the editor's toolbar, and the bars of the results.
   --mark-bg: #ffe9a8;
@@ -124,6 +127,7 @@
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 35%);
   --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 10px 28px rgb(0 0 0 / 30%);
   --shadow-lg: 0 6px 16px rgb(0 0 0 / 35%), 0 28px 64px rgb(0 0 0 / 45%);
+  --mark-shadow: drop-shadow(0 0 1px rgb(255 255 255 / 70%)) drop-shadow(0 0 6px rgb(255 255 255 / 22%));
 
   --mark-bg: rgb(229 180 84 / 28%);
   --mark-fg: #ffe3a3;

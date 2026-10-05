@@ -3,9 +3,13 @@ import { Title } from '@angular/platform-browser';
 import { RouterStateSnapshot, TitleStrategy } from '@angular/router';
 import { TranslationService } from './i18n/translation.service';
 
+/** Between an admin page's title and the site's name, in the admin area's English: "Translations · Admin panel · anotoki survey". */
+const ADMIN_PANEL = 'Admin panel';
+
 /**
- * "Results · anotoki survey": a page's own title first, where a tab shows the
- * start of it.
+ * "Surveys · anotoki survey": a page's own title first, where a tab shows the
+ * start of it - and in the admin area which part of the site it is:
+ * "Results · Admin panel · anotoki survey".
  *
  * A route's `title` is a translation key on the pages people take surveys on,
  * and plain English in the admin area; either works here. The title follows
@@ -53,7 +57,8 @@ export class SurveyTitleStrategy extends TitleStrategy {
         return;
       }
       // With strings, a key that has none shows as itself: the owner wants to see which.
-      this._title.setTitle(`${this._i18n.has(page) ? this._i18n.t(page) : page} · ${site}`);
+      const part = this._i18n.inAdmin() ? ` · ${ADMIN_PANEL}` : '';
+      this._title.setTitle(`${this._i18n.has(page) ? this._i18n.t(page) : page}${part} · ${site}`);
     });
   }
 

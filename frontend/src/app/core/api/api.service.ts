@@ -1,6 +1,7 @@
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpContextToken, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, firstValueFrom } from 'rxjs';
+import { AuthService } from '../auth/auth.service';
 import { AdminLanguage, LanguageChanges, NewLanguage, TranslationChanges, TranslationGrid } from '../i18n/translation.model';
 import { AboutYou, Answer, Survey, SurveyImage, SurveyResponse, SurveyStatus, SurveySummary } from '../survey/survey.model';
 
@@ -8,6 +9,8 @@ import { AboutYou, Answer, Survey, SurveyImage, SurveyResponse, SurveyStatus, Su
  * A refusal from the API, in the one shape it answers with: {error, code} and
  * whatever else the code needs (the question an answer failed on, the survey
  * as somebody else saved it). Status 0, code `offline`: no answer at all.
+ * `retryAfter`: the seconds its `Retry-After` header asked to wait, when it
+ * had one (the move after a sign-in, the limits on new visitors).
  */
 export class ApiError extends Error {
   constructor(
@@ -15,12 +18,53 @@ export class ApiError extends Error {
     readonly code: string,
     message: string,
     readonly body: Record<string, unknown> = {},
+    readonly retryAfter: number | null = null,
   ) {
     super(message);
   }
 }
 
-/** A survey for the people taking it, and when the signed-in person answered it (null: not yet). */
+/** The header a visitor's key travels in, both ways (core/auth/visitor-key.ts). */
+export const VISITOR_KEY_HEADER = 'X-Visitor-Key';
+
+/** Who a request is for: the signed-in person, or the visitor this browser is (or becomes, with its first answers). */
+export type Caller = 'person' | 'visitor';
+
+/**
+ * Who a request of the site's own API is for, decided when it is ISSUED -
+ * from the app's state then, never from whether a token happens to be there
+ * when it leaves (authInterceptor reads it):
+ *
+ *   'person'   the token, or the request is never sent: it fails at once as a
+ *              401 sign_in_required - a person's answers never go out as
+ *              nobody's, and never make a visitor
+ *   'visitor'  the visitor key (to /api/surveys, while the site does not
+ *              require a sign-in), never a token
+ *   null       a request this service did not mark: decided by the
+ *              interceptor as it is handed over
+ */
+export const ISSUED_AS = new HttpContextToken<Caller | null>(() => null);
+
+/**
+ * The one request that carries the person's token and the visitor's key
+ * together - the move after a sign-in: the interceptor adds the token and
+ * leaves the key the request set itself.
+ */
+export const CARRIES_VISITOR_KEY = new HttpContextToken<boolean>(() => false);
+
+/** A request's context saying who it is for. */
+export function issuedAs(caller: Caller): HttpContext {
+  return new HttpContext().set(ISSUED_AS, caller);
+}
+
+/** What the move after a sign-in did: whether the key was still a visitor's, how many surveys' answers became the person's, and how many kept the person's own. */
+export interface VisitorMove {
+  found: boolean;
+  moved: number;
+  kept: number;
+}
+
+/** A survey for the people taking it, and when this person - or this browser's visitor - answered it (null: not yet). */
 export interface ParticipantSurvey {
   survey: Survey;
   answeredAt: string | null;
@@ -44,26 +88,69 @@ export interface ResponseSubmission {
 }
 
 /**
+ * GET /api/admin/migrations - the IAM's shape: the files the database has, in
+ * the order they ran (`applied_at` ISO 8601), and the ones it lacks, in the
+ * order they will run.
+ */
+export interface MigrationsStatus {
+  applied: { name: string; applied_at: string | null }[];
+  pending: { name: string }[];
+}
+
+/**
+ * POST /api/admin/migrations/apply: what ran (in order), and the file that
+ * failed with the database's whole error - or null and null.
+ */
+export interface MigrationsApplyResult {
+  applied: string[];
+  failed: string | null;
+  error: string | null;
+}
+
+/**
  * The backend's API (backend/api/routes/), one method a route. Every call
- * resolves with what the route answers or rejects with an ApiError; the access
- * token is added by the interceptor.
+ * resolves with what the route answers or rejects with an ApiError. The access
+ * token - or the visitor key - is added by the interceptor, by whom the request
+ * says it was issued for (ISSUED_AS): the three routes of the people taking
+ * surveys are the person's while somebody is signed in and the visitor's
+ * otherwise, the move is always the person's, and the rest (the admin area)
+ * are decided as they are handed over - which, for a call made here, is the
+ * same moment.
  */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly _http = inject(HttpClient);
+  private readonly _auth = inject(AuthService);
 
   // ── For the people taking surveys ────────────────────────────────────────
 
   async openSurveys(): Promise<ParticipantSurvey[]> {
-    return (await this._call(this._http.get<{ surveys: ParticipantSurvey[] }>('/api/surveys'))).surveys;
+    return (await this._call(this._http.get<{ surveys: ParticipantSurvey[] }>('/api/surveys', { context: this._asTaker() }))).surveys;
   }
 
   surveyBySlug(slug: string): Promise<ParticipantSurvey> {
-    return this._call(this._http.get<ParticipantSurvey>(`/api/surveys/${encodeURIComponent(slug)}`));
+    return this._call(this._http.get<ParticipantSurvey>(`/api/surveys/${encodeURIComponent(slug)}`, { context: this._asTaker() }));
   }
 
+  /**
+   * The answers. Sent by nobody yet (no token, no key) while the site does not
+   * require a sign-in, the answer that keeps them makes this browser a visitor:
+   * its key comes in the `X-Visitor-Key` header, which the interceptor keeps.
+   * ApiError 429 `too_many_visitors` when too many new visitors came lately.
+   */
   submit(slug: string, response: ResponseSubmission): Promise<{ id: string; submittedAt: string }> {
-    return this._call(this._http.post<{ id: string; submittedAt: string }>(`/api/surveys/${encodeURIComponent(slug)}/responses`, response));
+    return this._call(this._http.post<{ id: string; submittedAt: string }>(`/api/surveys/${encodeURIComponent(slug)}/responses`, response, { context: this._asTaker() }));
+  }
+
+  /**
+   * After a sign-in: what this browser answered as a visitor becomes the
+   * person's (core/auth/visitor-key.ts) - the token and the key together, the
+   * only request that carries both. ApiError 422 `invalid_visitor_key` for
+   * something that is not a key; 503 `visitor_move_retry` (with `retryAfter`)
+   * when it did not finish this time.
+   */
+  moveVisitor(key: string): Promise<VisitorMove> {
+    return this._call(this._http.post<VisitorMove>('/api/visitor/move', {}, { headers: { [VISITOR_KEY_HEADER]: key }, context: issuedAs('person').set(CARRIES_VISITOR_KEY, true) }));
   }
 
   // ── The site's own words ─────────────────────────────────────────────────
@@ -168,6 +255,28 @@ export class ApiService {
     return this._call(this._http.put<TranslationGrid>(`/api/admin/translations/${encodeURIComponent(code)}/import`, values));
   }
 
+  // ── The database (ADMIN) ─────────────────────────────────────────────────
+
+  /** What the database has and lacks. Answered while it is behind the code too, when nothing else of the admin area is. */
+  migrations(): Promise<MigrationsStatus> {
+    return this._call(this._http.get<MigrationsStatus>('/api/admin/migrations'));
+  }
+
+  /**
+   * Every pending migration, in order, stopping at the first that fails - which
+   * is rolled back whole and named, with the database's whole error. A failure
+   * is an answer, not an ApiError; ApiError 409 `busy` while another update runs
+   * (another Apply, setup.php, php migration.php), and nothing was applied.
+   */
+  applyMigrations(): Promise<MigrationsApplyResult> {
+    return this._call(this._http.post<MigrationsApplyResult>('/api/admin/migrations/apply', {}));
+  }
+
+  /** For whoever takes surveys now: the person signed in, or else the visitor - decided as the request is made. */
+  private _asTaker(): HttpContext {
+    return issuedAs(this._auth.signedIn() ? 'person' : 'visitor');
+  }
+
   private async _call<T>(request: Observable<T>): Promise<T> {
     try {
       return await firstValueFrom(request);
@@ -188,7 +297,8 @@ export function toApiError(error: unknown): ApiError {
     }
     const body = error.error && typeof error.error === 'object' ? (error.error as Record<string, unknown>) : {};
     const message = typeof body['error'] === 'string' ? body['error'] : `The server answered ${error.status}.`;
-    return new ApiError(error.status, typeof body['code'] === 'string' ? body['code'] : 'http_' + error.status, message, body);
+    const wait = Number(error.headers?.get('Retry-After') ?? Number.NaN);
+    return new ApiError(error.status, typeof body['code'] === 'string' ? body['code'] : 'http_' + error.status, message, body, Number.isFinite(wait) && wait >= 0 ? wait : null);
   }
   return new ApiError(0, 'unknown', error instanceof Error ? error.message : 'Something went wrong.');
 }

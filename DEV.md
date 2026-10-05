@@ -2,6 +2,9 @@
 
 From a fresh clone to a running site, then the day to day, the tests, and the
 build for the hosting.
+Each folder says what is in it and its own commands:
+[`backend/README.md`](backend/README.md) and
+[`frontend/README.md`](frontend/README.md).
 
 ## Prerequisites
 
@@ -65,13 +68,39 @@ Run the IAM (`../anotoki-iam`: its backend on `:8100`, its pages on
 out) with the roles **ADMIN** and **EDITOR**, and gives ADMIN to the IAM's
 administrators of the moment; `php migration.php` in its `backend/` (or its
 setup page, saved again) applies it to an IAM set up before. Anybody with an
-account may take surveys; the admin area needs EDITOR or ADMIN, given in the
-IAM's admin console (Users → the account → roles). An IAM installed from
+account may take surveys (every account holds MEMBER, from the IAM's 010 on);
+the admin panel needs EDITOR or ADMIN, given in the
+IAM's admin panel (Users → the account → roles). An IAM installed from
 scratch has no accounts yet when its migrations run, so there its own
 administrators are given the site's ADMIN that way too.
 
-Without the IAM, the site shows everything a signed-out visitor sees, and the
-tests and the browser check (below) sign in through a stand-in instead.
+Without the IAM nobody gets past the sign-in - every page of the site goes
+there first (only the "not set up" and "cannot be reached" pages draw
+without it; with "Sign-in required" off, the pages people take surveys on
+do too); the tests and the browser check (below) sign in through a
+stand-in instead. The backend also asks the IAM whether the site requires
+sign-in (its "Sign-in required" switch, kept a minute in `storage/cache/`):
+an IAM that does not answer that yet means "required". The stand-in answers
+it too (`login_required`, default true: `POST /_test/state`); the PHP tests
+never ask an IAM for it - their settings carry `application_file`, a file that
+stands in for the answer (`test_application_file()` in `tests/lib.php`).
+
+With the switch off (in your IAM's admin panel: Applications → survey →
+"Sign-in required"; within a minute here, then reload) the site takes
+**visitors**: open `http://localhost:4700` in a private window and take a
+survey without signing in - the browser keeps its key in localStorage
+(`anotoki-survey:visitor`), the home page says "Taken", and signing in moves
+the answers (and any unfinished draft) into the account, with a toast. The
+admin panel and `/preview/...` still sign in first; the results list a visitor
+as "Visitor N", "Not signed in" where a person's address is. To try the API by hand:
+`curl -i -X POST -H 'Content-Type: application/json' -d '{"answers": {...}}'
+http://localhost:8500/api/surveys/<slug>/responses` answers 201 with the key in
+the `X-Visitor-Key` header; send it back in that header and the survey says
+`answeredAt`. The limits and trusted proxies are an optional
+`backend/config/visitors.local.php` (gitignored like the others; nothing
+writes it - [docs/operations.md](docs/operations.md#visitors)); without one the
+defaults hold, and on this computer every request comes from `127.0.0.1`, one
+address: 30 new visitors an hour from it.
 
 ## Day to day
 
@@ -96,7 +125,7 @@ tests and the browser check (below) sign in through a stand-in instead.
 
 `?lang=sk` on any address of the site reads it in that language for the tab
 (and is taken out of the address); the chooser in the top bar remembers a
-choice on the device. The admin area is English whichever it is.
+choice on the device. The admin panel is English whichever it is.
 
 The results keep their state in the address, so Back steps out of it and every
 view can be linked: `?filter=question:option,…` narrows the page,
@@ -107,10 +136,10 @@ age use the question ids `about-gender` and `about-age`.
 Command-line tools in `backend/`, all reading the same settings:
 
 ```bash
-php migration.php [--status|--dry-run]    # apply pending migrations (setup.php does too)
+php migration.php [--status|--dry-run]    # apply pending migrations (setup.php and the admin panel's Migrations page do too - one at a time)
 php translations.php --status             # the keys the frontend uses against the database's strings
 php translations.php --export sk [file]   # a language's own strings as flat JSON (to the screen without a file)
-php translations.php --import sk file     # and back in, checked as a save in the admin area is
+php translations.php --import sk file     # and back in, checked as a save in the admin panel is
 php tools/build.php [--out=DIR]           # the upload (see Building and deploying)
 ```
 
@@ -124,7 +153,7 @@ What the site says to somebody taking a survey is not written in a template:
 the page names a key (`{{ 'home.title' | translate }}`) and the string comes
 from the database, in English and Slovak
 ([docs/architecture.md](docs/architecture.md), *The site's own words*). The
-admin area is English, written in its templates. So a new sentence on a page
+admin panel is English, written in its templates. So a new sentence on a page
 people take surveys on is:
 
 1. the key in the template (or `i18n.t()` inside a `computed()`);
@@ -132,13 +161,16 @@ people take surveys on is:
    English and its Slovak string - `003_site_strings.sql` is the pattern, and
    Slovak on this site addresses the reader formally
    ([docs/decisions.md](docs/decisions.md), *Languages*);
-3. `php migration.php` for your own database (the site says it needs an
-   update until then). A key no migration has written yet shows on the page as
+3. `php migration.php` for your own database - or, signed in as an ADMIN,
+   "Apply pending" on the admin panel's Migrations page (the site says it
+   needs an update until then, and links an ADMIN there). Writing the file is
+   the moment the running site closes: write it whole, last. A key no
+   migration has written yet shows on the page as
    itself - which is how a missing string is meant to look.
 
 `php tests/run.php` fails when the frontend uses a key no migration wrote, or
 a migration wrote one nothing uses; `php translations.php --status` says the
-same about your database. A string can also be reworded in the admin area
+same about your database. A string can also be reworded in the admin panel
 (`/admin/translations`) - that changes your database only, not what a
 migration gives the next one.
 
@@ -181,10 +213,14 @@ put together from a prefix that `core/i18n/dynamic-keys.ts` does not declare
 against your own database and ends with 1 when it is not clean.
 
 Two requests at the same moment - a language deleted while a survey is saved
-in it, two people adding the last language the site keeps - are tested through
-the real server: `begin_as()` sends a request without waiting for it and
+in it, two people adding the last language the site keeps, two new visitors
+from one address, a visitor's answers on their way while its row goes - are
+tested through the real server: `begin_call()` (in `tests/lib.php`; the files'
+`begin_as()` wraps it with a token) sends a request without waiting for it and
 `somebody_else()` is a second connection holding the other side
-(`tests/api/translations.test.php`).
+(`tests/api/translations.test.php`, `tests/api/visitors.test.php`). The server
+answers one request at a time, so two HTTP requests never race there: one
+side is always a transaction held open from the test.
 
 ### In a browser
 
@@ -192,10 +228,14 @@ the real server: `begin_as()` sends a request without waiting for it and
 node .claude/skills/check-in-browser/scripts/run.mjs [--no-build] [--keep]
 ```
 
-The whole site end to end in headless Chrome - the owner writes and opens a
+The whole site end to end in headless Chrome - every page signed in first
+(to the IAM and back to it; nothing of a survey before, and the API answers
+401 without a token - but for a picture's address), the top bar at 360, 390
+and 1280 px with its phone menu (the keyboard, Escape, Tab back to the menu
+button, a click outside), the owner writes and opens a
 survey with a picture, somebody takes it once, the results, the roles, a phone
 width, and then the pages people take surveys on in Slovak (no key where a word
-should be, the admin area English all the same) - signing in through the
+should be, the admin panel English all the same) - signing in through the
 stand-in IAM (`backend/tests/tools/fake-iam.php`),
 on a throwaway database, then everything stopped and dropped. The skill
 (`.claude/skills/check-in-browser/SKILL.md`) has the details, and how to click
@@ -205,8 +245,12 @@ It also walks the states a happy path never draws: a save of strings that
 fails, a session ending over boxes typed and not saved (they are back after
 signing in again), signing out over them, a language added hidden, an open
 survey with a text not translated yet, an author saving over a translator's
-save, and the site not set up or out of reach - with "Try again". It takes
-about six minutes after the build.
+save, the site not set up or out of reach - with "Try again" - and visitors:
+the stand-in's "Sign-in required" switched off, surveys taken without signing
+in (in a second browser too), "Visitor N" / "Not signed in" in the results,
+a sign-in that moves the answers and the draft into the account, and the
+switch on again sending a visitor to sign in. It takes about seven minutes
+after the build.
 
 ## Building and deploying
 
@@ -238,13 +282,15 @@ No settings file, no tests or tools, no command-line scripts (`migration.php`,
 5. Sign in on the site.
 
 **Later versions**: build and upload again (the settings stay). A
-version with a new migration needs the setup page once more: delete
-`storage/installed.lock` first, then build and upload, then open `/setup.php`
-(the upload carries it) with the same details - it applies what is missing and
-keeps every survey and answer. Opened while the lock is there, `setup.php`
-deletes itself - delete the lock and upload it again. Until then the site is
-closed ("not set up yet"). The site's strings on the host
-are reworded in its admin area and are never overwritten by a release; what a
+version with a new migration closes the site ("not set up yet") until it is
+applied: sign in as an ADMIN, follow "Open Migrations" from that page, and
+press "Apply pending" (back the database up first) - it applies what is
+missing and keeps every survey and answer. The setup page still does the same:
+delete `storage/installed.lock` first, then build and upload, then open
+`/setup.php` (the upload carries it) with the same details. Opened while the
+lock is there, `setup.php` deletes itself - delete the lock and upload it
+again. The site's strings on the host
+are reworded in its admin panel and are never overwritten by a release; what a
 release with string migrations needs first, and how a language is added, is in
 [docs/operations.md](docs/operations.md) (*The site's words and languages*).
 
@@ -256,12 +302,13 @@ remove that line.
 
 | Symptom | Likely cause |
 | --- | --- |
-| "The survey site is not set up yet"; the API answers 503 `not_set_up` | The setup page has not run, a `config/*.local.php` is missing - or the database needs an update (`php migration.php`, or the setup page). |
+| "The survey site is not set up yet"; the API answers 503 `not_set_up` | The setup page has not run, a `config/*.local.php` is missing - or the database needs an update (`update: true`): `php migration.php`, the setup page, or - signed in as an ADMIN - the Migrations page the "not set up yet" page links to. |
+| "Another database update is running" | An Apply, the setup page or `php migration.php` is applying at this moment (one lock for the three): wait and try again. |
 | The setup page asks for a token on this computer | It was not asked as `localhost` / `127.0.0.1` straight from PHP's built-in server: a LAN address, another name, or a proxy that adds forwarding headers makes it a real host's install. |
 | "The survey site cannot be reached" | The backend on :8500 is not running, or was started without `router.php`. |
 | Signing in stops at the IAM ("This site is not registered", "We cannot send you back"), or comes back saying it did not work | The IAM does not know this site or this address: use `http://localhost:4700`, which its migration 005 registers for `survey`. On an IAM database from before 005, `php migration.php` there (or its setup page, saved again) adds the site; `php clients.php --dev` there only puts back the development addresses of a site the database already has. |
 | "Your sign-in has run out" on every request | The issuer in `config/iam.local.php` is not exactly the IAM's address, or the backend cannot reach `{issuer}/.well-known/jwks.json`. |
-| The admin area says it is for the people who write the surveys | Your account has no EDITOR or ADMIN role for `survey`: the IAM's admin console gives it. |
+| The admin panel says it is for the people who write the surveys | Your account has no EDITOR or ADMIN role for `survey`: the IAM's admin panel gives it. |
 | "Not saved" beside a survey's name | The server refused the last change - the editor says why above the survey (often an address another live survey has). |
 | `tests/run.php` stops before any test | No `config/database.local.php` to borrow the PostgreSQL server from: run the setup first. |
 | A page shows `home.title` (a key) where a word should be | The database has no string for it: no migration writes that key yet. `php translations.php --status` lists what the frontend uses and the database lacks. |

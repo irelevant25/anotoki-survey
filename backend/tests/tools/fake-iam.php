@@ -3,8 +3,10 @@
  * A stand-in for the anotoki IAM, for the tests and for browser checks only:
  * just enough OpenID Connect for the browser SDK and the PHP verifier -
  * discovery, the key set, authorize (signs the configured person in at once),
- * token (authorization code with PKCE, refresh with rotation), logout, revoke.
- * Its tokens are signed with the tests' own key. Never point a real site at it.
+ * token (authorization code with PKCE, refresh with rotation), logout, revoke,
+ * and the public answer about an application (whether its site requires
+ * sign-in). Its tokens are signed with the tests' own key. Never point a real
+ * site at it.
  *
  *   FAKE_IAM_DIR=<folder> FAKE_IAM_ISSUER=http://127.0.0.1:8597 php -S 127.0.0.1:8597 tests/tools/fake-iam.php
  *
@@ -14,12 +16,18 @@
  * <folder>/state.json  who signs in and how the IAM behaves; POST /_test/state
  *                      merges JSON into it:
  *   user      { id, username, roles, locale? }   who authorize signs in; locale is the
- *             language their account is set to - the token's `locale` claim (en)
+ *             language their account is set to - the token's `locale` claim (en).
+ *             Roles are this application's: every account holds MEMBER, so an
+ *             ordinary person is ['MEMBER'] (owner: MEMBER, ADMIN)
  *   ttl       seconds an access token lives (600)
- *   down      true: every OIDC endpoint answers 503 (the IAM unreachable)
+ *   down      true: every endpoint but the key set answers 503 (the IAM unreachable)
  *   refuse    true: refreshing answers invalid_grant (the IAM session ended)
  *   deny      true: authorize answers access_denied (no role in the application),
  *             with deny_description as its error_description
+ *   login_required       what GET /api/public/applications/{client_id} says: whether the
+ *                        site requires sign-in (true)
+ *   application_missing  true: that address answers 404 - an unknown or switched-off application
+ *   application_name     the name it gives there (Test site)
  */
 
 declare(strict_types=1);
@@ -38,8 +46,9 @@ function fake_state(string $dir): array
 {
     $state = is_file("$dir/state.json") ? json_decode((string) file_get_contents("$dir/state.json"), true) : null;
     return (is_array($state) ? $state : []) + [
-        'user' => ['id' => 1, 'username' => 'owner', 'roles' => ['ADMIN']],
+        'user' => ['id' => 1, 'username' => 'owner', 'roles' => ['MEMBER', 'ADMIN']],
         'ttl' => 600, 'down' => false, 'refuse' => false, 'deny' => false, 'deny_description' => 'No access to this application',
+        'login_required' => true, 'application_missing' => false,
         'codes' => [], 'refresh' => [], 'log' => [],
     ];
 }
@@ -111,6 +120,25 @@ if ($path === '/_test/state') {
 if ($state['down'] && $path !== '/.well-known/jwks.json') {
     fake_save($dir, $state);
     return fake_json(503, ['error' => 'temporarily_unavailable'], $origin);
+}
+
+// The IAM's public answer about an application: whether its site requires sign-in
+// (anotoki_iam_login_required() in the SDK reads it). Answered for any client id;
+// `down` above makes it 503 like everything else.
+if ($method === 'GET' && preg_match('#^/api/public/applications/([a-z0-9][a-z0-9-]{1,63})$#', $path, $m)) {
+    fake_save($dir, $state);
+    if ($state['application_missing']) {
+        return fake_json(404, ['error' => 'not_found']);
+    }
+    http_response_code(200);
+    header('Content-Type: application/json');
+    header('Cache-Control: public, max-age=60');
+    echo json_encode([
+        'client_id' => $m[1],
+        'name' => (string) ($state['application_name'] ?? 'Test site'),
+        'login_required' => (bool) $state['login_required'],
+    ], JSON_UNESCAPED_SLASHES);
+    return true;
 }
 
 switch ($path) {

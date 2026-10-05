@@ -36,19 +36,26 @@ person by person.
   others; people read it in theirs when every text is translated, and in the
   language it was written in otherwise. The editor translates a survey side by
   side with the original; the site's own words are reworded, and languages
-  added, in the admin area - which itself is English. A new language starts
+  added, in the admin panel - which itself is English. A new language starts
   hidden, to be offered when its strings are written.
 - **Who does what**: people sign in with their **anotoki account** (the anotoki
-  IAM). The top bar shows who is signed in, with their account and signing out.
+  IAM) - every page asks for that first, and nothing of a survey shows before;
+  unless the IAM's "Sign-in required" is switched off for the survey, when
+  anybody may take the open surveys without signing in, once from their
+  browser, and signing in later moves those answers into their account (the
+  admin panel always asks).
+  The top bar is the anotoki family's: the site's sections, the language, the
+  theme and the person's menu (their account, the admin panel, signing out); on
+  a phone one menu button holds the sections and the person's menu.
   **EDITOR**s write and translate surveys, open and close them, read the
   answers and reword the site's strings; **ADMIN**s also delete surveys,
   answers and languages. The roles are given in the IAM's
-  admin console; everybody else takes surveys.
+  admin panel; everybody else takes surveys.
 
 | Part | Folder | Stack |
 | --- | --- | --- |
-| Frontend | [`frontend/`](frontend/) | Angular 21, standalone + zoneless, signals |
-| Backend | [`backend/`](backend/) | PHP 8.2+, Slim 4, PostgreSQL (`anotoki_survey`) |
+| Frontend | [`frontend/`](frontend/) ([its README](frontend/README.md)) | Angular 21, standalone + zoneless, signals |
+| Backend | [`backend/`](backend/) ([its README](backend/README.md)) | PHP 8.2+, Slim 4, PostgreSQL (`anotoki_survey`) |
 | Knowledge base | [`docs/`](docs/), [`.claude/`](.claude/) | how it works and why; the agents and skills that work on it |
 
 ## Current state - 0.3
@@ -62,11 +69,34 @@ survey, the editor and the results look and work.
 Since then, in two languages: everything the site says to somebody taking a
 survey comes from the database in English and Slovak (formal Slovak, unlike
 the other anotoki sites), with a chooser in the top bar and pages in the admin
-area to reword the strings and keep the languages; and one survey holds its
+panel to reword the strings and keep the languages; and one survey holds its
 texts in both languages, translated in the editor, read by each person in
-theirs, and its answers say which language they were read in. The admin area
-stays English. On the hosting this version needs the setup page run once more
-(three new migrations) - [docs/operations.md](docs/operations.md).
+theirs, and its answers say which language they were read in. The admin panel
+stays English.
+
+And made one way with the other anotoki sites: the family's top bar (one row;
+on a phone the sections and the person's menu inside one menu button), every
+page signed in first - a visitor goes to the IAM and comes back to the page
+asked for, and the API answers nothing of a survey without a token (but its
+pictures, which an `<img>` loads by their unguessable address), the admin
+area called the admin panel as on every anotoki site (the person's menu, the
+wordmark "anotoki survey · admin panel", the tab's title), the family's
+Migrations page in the admin panel (an ADMIN's: what the database has and
+lacks, and "Apply pending", which shows the database's own error when a file
+fails; it works while the site is closed for a pending migration, and the
+"not set up yet" page links an ADMIN there) - and a README in `backend/` and
+`frontend/`. The backend already reads the IAM's new "Sign-in required"
+switch for the site and passes it to the browser (required unless the IAM
+says otherwise), and its API takes **visitors** when the switch is off -
+people answering without signing in, once each from their browser, kept in
+the results as "Visitor N", moved into their account when they sign in, within
+limits per address and in all ([docs/api.md](docs/api.md#visitors)) - and so
+do the pages: a visitor reads a notice of how long this browser remembers
+what they answered, takes surveys, and signing in moves their answers and
+unfinished drafts into the account; the admin panel lists a visitor as
+"Visitor N", "Not signed in". On the hosting this version brings new migrations (up to
+`007_visitor_strings.sql`): after the upload an ADMIN applies them on the
+Migrations page (or the setup page does) - [docs/operations.md](docs/operations.md).
 
 ## Trying it out
 

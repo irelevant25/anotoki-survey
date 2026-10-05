@@ -104,8 +104,9 @@ function surveyNotFound(): ApiError
 // ── For the people taking them ──────────────────────────────────────────────
 
 /**
- * The surveys taking answers now, newest first, each with when this person
- * answered it (null: not yet, or nobody signed in).
+ * The surveys taking answers now, newest first, each with when this person -
+ * or visitor - answered it (null: not yet; always for nobody, $userId null:
+ * `user_id = NULL` matches no row).
  *
  * @return array<array{survey: array, answeredAt: ?string}>
  */
@@ -117,7 +118,7 @@ function surveysOpen(?int $userId): array
            LEFT JOIN responses r ON r.survey_id = s.id AND r.user_id = ?
           WHERE ' . SURVEY_TAKING_ANSWERS_SQL . '
           ORDER BY s.opened_at DESC NULLS LAST, s.created_at DESC',
-        [$userId ?? 0]
+        [$userId]
     );
     $offered = $rows === [] ? [] : languagesOffered();
 
@@ -126,7 +127,7 @@ function surveysOpen(?int $userId): array
 
 /**
  * The survey at /{slug} for the people taking it - open or closed, never a
- * draft - and when this person answered it.
+ * draft - and when this person or visitor answered it (null for nobody).
  *
  * @return array{survey: array, answeredAt: ?string}
  */
@@ -143,7 +144,7 @@ function surveyForParticipant(string $slug, ?int $userId): array
            FROM surveys s
            LEFT JOIN responses r ON r.survey_id = s.id AND r.user_id = ?
           WHERE s.slug = ? AND s.status <> \'draft\'',
-        [$userId ?? 0, $slug]
+        [$userId, $slug]
     );
     if ($row === null) {
         throw surveyNotFound();
@@ -446,8 +447,16 @@ function surveySetStatus(SiteUser $user, string $id, mixed $body): array
 /** Deletes the survey and every answer it was given. */
 function surveyDelete(string $id): void
 {
-    if (!isUuid($id) || dbExec('DELETE FROM surveys WHERE id = ?', [$id]) === 0) {
+    if (!isUuid($id)) {
         throw surveyNotFound();
     }
+    dbTx(static function () use ($id): void {
+        // Its answers go with it; an ended visitor left with none goes too.
+        $visitors = array_map('intval', array_column(dbAll('SELECT DISTINCT user_id FROM responses WHERE survey_id = ? AND user_id < 0', [$id]), 'user_id'));
+        if (dbExec('DELETE FROM surveys WHERE id = ?', [$id]) === 0) {
+            throw surveyNotFound();
+        }
+        visitorsForgetEmpty($visitors);
+    });
     imagesCleanup();
 }

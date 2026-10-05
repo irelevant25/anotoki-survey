@@ -20,6 +20,10 @@ export type SendFailure =
   | 'answer'
   /** The sign-in ran out on the way. */
   | 'signedOut'
+  /** A visitor's answers, refused because the site has required a sign-in since the page loaded. */
+  | 'signInRequired'
+  /** Nobody's first answers, past the limits on new visitors: sign in, or later. */
+  | 'tooManyVisitors'
   /** The survey is not at this address any more: moved or deleted. */
   | 'gone'
   /** Anything else: no connection, the server failing. */
@@ -29,8 +33,13 @@ export type SendFailure =
  * By the API's own code, never by the status alone: a 404 that is not the
  * API's (a proxy's, the hosting's) has the code `http_404`, says nothing
  * about the survey, and stays 'other' - trying again may well work.
+ * `visitor`: the answers were sent without a sign-in, so a 401 is no sign-in
+ * that ran out.
  */
-export function sendFailure(error: ApiError): SendFailure {
+export function sendFailure(error: ApiError, visitor = false): SendFailure {
+  if (error.code === 'too_many_visitors') {
+    return 'tooManyVisitors';
+  }
   if (error.code === 'already_answered') {
     return 'already';
   }
@@ -43,24 +52,32 @@ export function sendFailure(error: ApiError): SendFailure {
   if (error.code === 'not_found') {
     return 'gone';
   }
-  return error.status === 401 ? 'signedOut' : 'other';
+  if (error.status === 401) {
+    return visitor ? 'signInRequired' : 'signedOut';
+  }
+  return 'other';
 }
 
 /**
  * The sentence for a failed send. `numberOf` gives a question's number as the
- * page shows it (null: the page has no such question, or it has no number).
+ * page shows it (null: the page has no such question, or it has no number);
+ * `visitor`, as for sendFailure().
  *
  * For anything the page has no words of its own for, two whole sentences side
  * by side: what went wrong with the request, and that the answers are safe.
  */
-export function sendFailureText(i18n: Pick<TranslationService, 't'>, error: ApiError, numberOf: (questionId: string) => number | null): string {
-  switch (sendFailure(error)) {
+export function sendFailureText(i18n: Pick<TranslationService, 't'>, error: ApiError, numberOf: (questionId: string) => number | null, visitor = false): string {
+  switch (sendFailure(error, visitor)) {
     case 'already':
       return i18n.t('take.refused.already');
     case 'closed':
       return i18n.t('take.refused.closed');
     case 'signedOut':
       return i18n.t('take.refused.signedOut');
+    case 'signInRequired':
+      return i18n.t('take.refused.signInRequired');
+    case 'tooManyVisitors':
+      return i18n.t('take.refused.tooManyVisitors');
     case 'gone':
       return i18n.t('take.refused.gone');
     case 'answer': {

@@ -10,11 +10,20 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *
  *   GET /api/health               is the API up - and, asked from this computer,
  *                                 which database it uses and what it still needs
- *   GET /api/auth/config          how the browser signs in: {issuer, clientId}
+ *   GET /api/auth/config          how the browser signs in: {issuer, clientId,
+ *                                 loginRequired, visitorDays} - the IAM's "Sign-in
+ *                                 required", true unless it said otherwise; visitorDays
+ *                                 is keep_days, the days the visitor notice tells people
+ *                                 their browser is remembered - and update: true
+ *                                 while a migration waits
  *   GET /api/images/{id}.{ext}    a survey's picture (see api/images.php)
  *   GET /api/translations/{code}  the site's own words in a language, with the
  *                                 languages on offer (see api/translations.php);
  *                                 "sk-sk" is answered by "sk" when only that is offered
+ *
+ * The health, the sign-in settings and the strings are answered while the
+ * database waits for a migration as well (meddleware/setup.php); a picture,
+ * like everything else of the site, is 503 not_set_up then.
  *
  * @var \Slim\App $app
  */
@@ -34,8 +43,14 @@ $app->get('/api/health', function (Request $request, Response $response): Respon
     return respondJson($response, $health, $problem === null ? 200 : 503);
 });
 
+// Answered while the database waits for a migration too (the setup gate lets
+// it through): an administrator must be able to sign in to apply it. It then
+// says so - `update: true` - and the site draws its "not set up yet" page,
+// with a link to the Migrations page for an ADMIN. `loginRequired` relays the
+// IAM's "Sign-in required" switch (authLoginRequired()), so the browser never
+// asks the IAM for it.
 $app->get('/api/auth/config', function (Request $request, Response $response): Response {
-    return respondJson($response, authPublicConfig());
+    return respondJson($response, authPublicConfig() + ($request->getAttribute('databaseBehind') === true ? ['update' => true] : []));
 });
 
 $app->get('/api/images/{file}', function (Request $request, Response $response, array $args): Response {

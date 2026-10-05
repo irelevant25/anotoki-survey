@@ -18,8 +18,12 @@ import { RouterLink } from '@angular/router';
 export class BrandComponent {
   readonly size = input(34);
   readonly wordmark = input(true);
+  /** "anotoki" in the wordmark; without it, the area alone beside the mark (the top bar on a phone). */
+  readonly showName = input(true);
   /** The part of anotoki, after the name: "survey". */
   readonly area = input<string | null>(null);
+  /** After the area and a dot, the part of the site: "admin panel" in the admin area's top bar. Without the name, small under the area. */
+  readonly panel = input<string | null>(null);
   readonly link = input<string | null>(null);
   readonly linkLabel = input<string | null>(null);
 }

@@ -6,10 +6,10 @@
     aria-haspopup="menu"
     [attr.aria-expanded]="open()"
     [attr.aria-controls]="menuId"
-    [attr.aria-label]="'language.button' | translate: { name: currentName() }"
+    [attr.aria-label]="'language.button' | translate: { name: currentName(), code: currentCode() }"
     [attr.aria-busy]="switching() ? 'true' : null"
     (click)="toggle()">
-    {{ i18n.language().toUpperCase() }}
+    {{ currentCode() }}
 </button>
 
 @if (open()) {

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/auth/auth.service';
 import { TranslationService } from '../../core/i18n/translation.service';
 import { BrandComponent } from '../../ui/brand/brand.component';
@@ -11,14 +12,21 @@ import { keptWord } from '../kept-word';
  * config/iam.local.php are not there yet, or the database needs an update.
  * The setup page does both. Drawn instead of the whole site.
  *
- * Its words cannot be asked for - the strings live in the database this page
- * is about - so each is the string the browser kept from an earlier visit, or
- * the English written here (keptWord()). The line saying what is missing is
- * the server's own, for whoever runs the site, and is shown as it came.
+ * Its words cannot always be asked for - the strings live in the database
+ * this page is about - so each is the string the browser has (kept from an
+ * earlier visit, or - while only a migration waits - read just now), or the
+ * English written here (keptWord()). The line saying what is missing is the
+ * server's own, for whoever runs the site, and is shown as it came.
+ *
+ * While only a migration waits and the person signed in is an ADMIN
+ * (AuthService.onlyMigrations), the card also links to the admin panel's
+ * Migrations page, which shows what is pending and applies it - in English,
+ * as the admin panel is. An EDITOR or somebody taking surveys never sees it:
+ * the server refuses them the page anyway.
  */
 @Component({
   selector: 'app-not-set-up',
-  imports: [BrandComponent, ButtonComponent, IconComponent],
+  imports: [RouterLink, BrandComponent, ButtonComponent, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './not-set-up.component.html',
   styleUrl: './not-set-up.component.scss',

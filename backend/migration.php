@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 /**
  * migration.php - brings the database up to date from the migrations, and
- * nothing else. For a computer with a shell; the live site has none, and
- * setup.php does the same there.
+ * nothing else. For a computer with a shell; the live site has none, and an
+ * administrator's "Apply pending" on the admin panel's Migrations page (or
+ * setup.php) does the same there. All three take one lock
+ * (api/database_update.php): a second update at the same time applies nothing.
  *
  *   php migration.php              create the database if missing, apply what is pending
  *   php migration.php --status     say what has run and what has not
@@ -83,25 +85,41 @@ if ($statusOnly) {
 
 if (!$pending) {
     say('green', '  Up to date - ' . count($files) . ' migration' . (count($files) === 1 ? '' : 's') . '.');
+    exit(0);
 }
 
-foreach ($pending as $file) {
-    if ($dryRun) {
+if ($dryRun) {
+    foreach ($pending as $file) {
         say('yellow', '  would apply ' . $file);
-        continue;
     }
-
-    echo '  ' . $file . ' ... ';
-
-    try {
-        applyMigration($pdo, MIGRATIONS_ALIAS, $file);
-        say('green', 'done');
-    } catch (Throwable $e) {
-        say('red', 'FAILED');
-        say('red', '    ' . $e->getMessage());
-        say('yellow', '    Nothing from this file was applied. The migrations before it stand.');
-        exit(1);
-    }
+    exit(0);
 }
 
-exit(0);
+// The lock setup.php and an administrator's Apply on the Migrations page take
+// too (api/database_update.php): one update at a time. What is pending is read
+// again under it - another update may have applied some of it meanwhile.
+$code = databaseUpdateLocked($pdo, static function () use ($pdo): int {
+    foreach (pendingMigrations($pdo) as $file) {
+        echo '  ' . $file . ' ... ';
+
+        try {
+            applyMigration($pdo, MIGRATIONS_ALIAS, $file);
+            say('green', 'done');
+        } catch (Throwable $e) {
+            say('red', 'FAILED');
+            say('red', '    ' . $e->getMessage());
+            say('yellow', '    Nothing from this file was applied. The migrations before it stand.');
+
+            return 1;
+        }
+    }
+
+    return 0;
+});
+
+if ($code === null) {
+    say('red', '  Another database update is running (setup.php, or an administrator\'s Apply on the Migrations page). Nothing was applied: try again in a moment.');
+    exit(1);
+}
+
+exit($code);

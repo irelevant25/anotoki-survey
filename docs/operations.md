@@ -48,20 +48,32 @@ Things the hosting does that matter here:
 
 Upload the new build over the old one: FTP never deletes, and the settings
 stay. A version with a new migration closes the whole site (503; people see
-"The survey site is not set up yet") until it is applied, and needs the setup
-page once more, in this order: **delete `storage/installed.lock` over FTP
-first**, then upload (the upload carries `setup.php`), then open `/setup.php`,
-give the token it writes and the same details - it applies what is missing,
-keeps every survey and answer, and locks and deletes itself again. The order
-matters: opened while the lock is still there - by anybody; the closed site's
-own button leads to it - `setup.php` deletes itself and says "Already set up";
-then delete the lock and upload `setup.php` again. A version with no new
-migration leaves the lock where it is.
+"The survey site is not set up yet") until it is applied. **An administrator
+applies it on the admin panel's Migrations page**: back the database up
+(`pg_dump`), open the site and sign in with an account that has `ADMIN` - the
+"not set up yet" page then has "Open Migrations" (nobody else sees it) - and
+press **Apply pending**. The pending files run in order, each in its own
+transaction; one that fails is rolled back whole and the page says "Stopped at
+<file>" with what was applied before it and the database's whole error (the
+server's log has it too); fix what is in the way and Apply again. Once nothing
+is pending the site runs again, at once, for everybody.
+
+The setup page is still a way to do the same (and the only one for a database
+with nothing in it yet), in this order: **delete `storage/installed.lock` over
+FTP first**, then upload (the upload carries `setup.php`), then open
+`/setup.php`, give the token it writes and the same details - it applies what
+is missing, keeps every survey and answer, and locks and deletes itself again.
+The order matters: opened while the lock is still there - by anybody; the
+closed site's own button leads to it - `setup.php` deletes itself and says
+"Already set up"; then delete the lock and upload `setup.php` again. A version
+with no new migration leaves the lock where it is. The Apply, the setup page
+and `php migration.php` never run at the same time: they take one lock, and
+the second says another update is running and applies nothing.
 
 The version that brings the languages is such a version: migrations `002`
 (the tables for the site's words, English and Slovak), `003` (every string)
-and `004` (the language an answer was read in). Until `/setup.php` has run
-again the site is closed ("not set up yet"). The surveys there need nothing: one
+and `004` (the language an answer was read in). Until they are applied (the
+Migrations page, or `/setup.php`) the site is closed ("not set up yet"). The surveys there need nothing: one
 stored before is read as written in English, with no translations. An editor
 page left open across that upload cannot save any more: the server asks every
 save for the survey's language, the old page does not send it, and "Try again"
@@ -70,10 +82,19 @@ was open before the site was updated can no longer save: copy what you changed
 since the last save, then reload the page." - so tell the editors before the
 upload, and expect that sentence from whoever had the editor open.
 
+The version that brings visitors has migrations `006` (the visitors' sequence,
+`users.visitor_key_hash`, `visitor_counters`, an index of answers by person)
+and `007` (what the pages say to a visitor, in English and Slovak - new keys
+only, nothing reworded): nothing of the surveys or answers changes. Applied, nothing
+visible changes either while the IAM says "Sign-in required" - which it says
+for the survey, and which the site assumes until the IAM answers. Put
+`config/visitors.local.php` in place (*Visitors*, below - Cloudflare's ranges)
+before switching it off.
+
 ## The site's words and languages
 
 The words the site says to people taking surveys are in the database and are
-reworded on the live site, in the admin area: **Translations**
+reworded on the live site, in the admin panel: **Translations**
 (`/admin/translations`) and **Languages** (`/admin/languages`), for EDITOR and
 ADMIN. There is no file to edit and nothing to upload for a rewording; the
 command line (`php translations.php`) is for a computer with a shell and is
@@ -137,10 +158,10 @@ moment. On a development IAM it also gets `http://localhost:4700` (callback
 an IAM already installed on a real host it gets neither - there a localhost
 callback would hand a code to whatever listens on the visitor's machine, and a
 card would lead nowhere. An IAM that has `survey` already - made by hand in the
-admin console - keeps what it has: 005 only adds what is missing. So on the
+admin panel - keeps what it has: 005 only adds what is missing. So on the
 live IAM, after the migration:
 
-- in the admin console → Applications → Surveys: the redirect URI
+- in the admin panel → Applications → Surveys: the redirect URI
   `https://survey.anotoki.eu/auth/callback`, the post-logout URI
   `https://survey.anotoki.eu/`, the web origin `https://survey.anotoki.eu`, the
   home address `https://survey.anotoki.eu`, and "show on the landing page";
@@ -151,22 +172,129 @@ live IAM, after the migration:
 
 A fresh IAM install on a real host asks for the site's address with the others
 (`SETUP_SITES` in its `setup.php`) and puts it in place of the development one;
-left blank, the admin console gives it later. Its migrations run before any
+left blank, the admin panel gives it later. Its migrations run before any
 account exists, so there nobody holds the survey's ADMIN - the first
-administrator included - until the admin console gives it (Users → the
+administrator included - until the admin panel gives it (Users → the
 account).
+
+From the IAM's migration 010 on, every account holds **MEMBER** in the survey
+too (an ordinary person; nothing here asks for it), and the survey's page in
+the IAM's admin panel has **"Sign-in required"** (on for the survey) and the
+roles that may sign in. The site reads the switch from
+`{issuer}/api/public/applications/survey` and keeps the answer a minute in
+`storage/cache/` (`anotoki-iam-application-*.json`; the folder must be
+writable, or the IAM is asked on every request and the log says so). Until the
+IAM answers that address - before its 010, or while it is out of reach and
+never answered - the site takes sign-in as required. Switched off, the pages
+people take surveys on welcome visitors within the minute (below); the admin
+panel and the editor's preview still sign in first. Switched on again, a page
+already open stops welcoming them at its next answer from the server, and a
+visitor's browser keeps its key - its answers move into the account at its
+next sign-in. **To block
+somebody**, take their MEMBER away in the survey application (Users → the
+person → Roles): the IAM refuses their next sign-in and every refresh; the
+token they hold works until it runs out (minutes). With "Sign-in required"
+off, a person blocked so can still take surveys as a visitor - blocking stops
+signing in, not visiting: to keep somebody out entirely, keep it on.
+
+## Visitors
+
+With "Sign-in required" off in the IAM, somebody who is not signed in may take
+the open surveys too, once each, as a **visitor**: the server makes one with
+their first answers that are kept, and their browser holds its key
+(`X-Visitor-Key`; only its hash is in the database). What the switch costs:
+
+- **Ballot stuffing.** A fresh browser is a fresh visitor, and a visitor whose
+  visit ended (below) may answer the same survey again - the results then hold
+  both, by design. The limits bound it, nothing prevents it: **a survey that
+  must count one answer per person needs "Sign-in required" on**.
+- **Growth.** A visitor unseen for 30 days *ends* - its key opens nothing - but
+  its answers stay in the results as "Visitor N" (they are the survey's
+  results), and so does its row: ended visitors' rows are kept for good, with
+  their answers. Only a visitor with no answers left is deleted. Spam answers
+  are deleted one by one in the results (ADMIN), or with their survey. In the
+  results a visitor is "Visitor N" with "Not signed in" where a person's
+  address is (N is the visitor's number, counted from 1 - how many visitors
+  came before it, which only staff see); the CSV has the name and no address.
+
+Signing in moves a visitor's answers into the person's account (the person's
+own answers win where both answered a survey); that happens even with the
+switch on again, so nothing a visitor answered is stranded by switching.
+Switching on while visitors exist: their keys stop working at once (401
+`sign_in_required`), their browsers keep them, and switching off again within
+`keep_days` brings them back.
+
+**The settings** are an optional file, `config/visitors.local.php`, which
+nothing writes - `setup.php` neither writes nor reads it, an upload never
+carries it (`*.local.php` is left out of the build) and FTP never deletes it:
+put it there by hand, over SFTP, into the web root's `config/` beside the
+other two, and keep a copy (it is not in the database's backup). Without it the
+defaults hold; a value that is not usable is left out and logged (`[visitors]`
+in the PHP log), and a file PHP cannot read (a typo that breaks its syntax, no
+`return [...]`) is logged as `[visitors] config/visitors.local.php could not
+be read (...): the defaults hold` and left out whole - never fatal, so after
+editing it, look at the log (or `visitorDays` in `/api/auth/config`):
+
+```php
+<?php
+return [
+    // Cloudflare's ranges (https://www.cloudflare.com/ips/): without them every
+    // visitor counts as the Cloudflare edge it came through.
+    'trusted_proxies' => ['173.245.48.0/20', '103.21.244.0/22', /* ..., */ '2400:cb00::/32' /* , ... */],
+    'client_ip_header' => 'CF-Connecting-IP',
+    'new_per_hour_per_address' => 30,
+];
+```
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `new_per_hour_per_address` | 30 | new visitors an hour from one address (an IPv6 address counts by its /64): a school class behind one address must fit |
+| `new_per_hour` | 600 | new visitors an hour in all |
+| `max_active` | 20000 | visitors with a key at once |
+| `keep_days` | 30 | a visitor unseen this long ends; the page tells visitors this number (`/api/auth/config`'s `visitorDays`) |
+| `sweep_batch` | 50 | visitors one clean-up ends or deletes |
+| `sweep_timeout_ms` | 2000 | how long one statement of the clean-up may run or wait |
+| `move_lock_timeout_ms` | 5000 | how long the move at sign-in waits for the rows it takes |
+| `trusted_proxies` | none | proxies believed about a visitor's address (addresses or CIDR ranges) |
+| `client_ip_header` | `CF-Connecting-IP` | the header those proxies put it in (a list such as `X-Forwarded-For` is read from the right) |
+
+Past a limit a **new** visitor is refused (429 `too_many_visitors`: sign in, or
+try later); visitors there already carry on. The limits are the only
+protection against a script filling the tables: when they bite real people,
+raise them; when the tables fill, lower them. **survey.anotoki.eu is behind
+Cloudflare's proxy**: list Cloudflare's ranges in `trusted_proxies`, or every
+visitor shares the per-address count of the few edges they come through.
+
+**The clean-up** needs no cron: after an answer, at most once an hour (and
+after every new visitor), it ends a batch of visitors unseen for `keep_days`
+(deleting those with no answers) and drops the limit counters whose hour is
+over. It never fails a request: what goes wrong is logged (`[after the
+answer]`), and the next one tries again. It writes `storage/visitors-swept`
+to know when it last ran.
+
+Counting them (psql, or the hosting's database page):
+
+```sql
+SELECT count(*) FILTER (WHERE visitor_key_hash IS NOT NULL) AS with_a_key,
+       count(*) FILTER (WHERE visitor_key_hash IS NULL)     AS ended
+  FROM users WHERE id < 0;
+SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 20;
+```
 
 ## Backups
 
 Everything is in the database, pictures and the site's reworded strings
 included: a `pg_dump` of `anotoki_survey` is the whole site's data. The config files are only the
-connection and the IAM's address; setup.php writes them again.
+connection and the IAM's address; setup.php writes them again - all but
+`config/visitors.local.php`, which is put there by hand: keep a copy of it.
 
 ## When something goes wrong
 
 | Symptom | Likely cause |
 | --- | --- |
-| The whole site says it is not set up | A `config/*.local.php` is missing or incomplete, or a migration is pending (`/api/health` asked from the server's own computer says which; a visitor only reads "not set up yet"). |
+| The whole site says it is not set up | `config/database.local.php` or `config/iam.local.php` is missing or incomplete, or a migration is pending (`/api/health` asked from the server's own computer says which; a visitor only reads "not set up yet"). A pending migration: sign in as an ADMIN - the page then links to the Migrations page, which applies it. |
+| The Migrations page says "Stopped at <file>" | That file failed and was rolled back whole; the box under it is PostgreSQL's own error (also in the server's log). The files before it stand. Fix the cause in the database (or the file, in a new version), then Apply again. |
+| Apply says another database update is running | Another Apply, the setup page or `php migration.php` is applying right now: wait a moment and look again. |
 | `/setup.php` shows the site's "not set up yet" page instead of the installer | `setup.php` is not on the host: it deleted itself when somebody opened it while `storage/installed.lock` was there. Delete the lock, upload `setup.php` again, open it. |
 | 500 on every page after an upload | The host refused a line of the root `.htaccess` (`Options -Indexes`, `CGIPassAuth`): remove it. |
 | Signing in ends at the IAM with an error about the redirect URI | The IAM does not have `https://survey.anotoki.eu/auth/callback` for `survey`. |
@@ -178,8 +306,14 @@ connection and the IAM's address; setup.php writes them again.
 | A survey shows in English on a Slovak page, with "Jazyk: English" | Its Slovak translation is missing a text (one added since it was translated), or it has none: the editor's Slovak tab counts what is left. |
 | An editor's save is refused: "Say which language the survey is written in (language). A page that was open before the site was updated can no longer save: …" | The page was opened before the release that brought the languages. As the sentence says: copy what was changed since the last save, then reload the page. |
 | An editor's save is refused: "A language of this survey has just been deleted from the site." | An ADMIN deleted the language in the moment the survey was being saved in it. Add the language again (Languages), or remove that translation from the survey. |
-| An admin page turns into "You are signed out" in the middle of work | The session ended (idle at the IAM, or signed out on another anotoki site): sign in again with the button at the top. What was typed on the Translations and Languages pages is kept in the tab for the same person, and is in its boxes again. Unsaved changes to a survey are kept only while that page stays open (signing in is a page load): sign in again in another tab, and the open page saves them. |
-| An admin page says "This part is for the people who write the surveys" | Signed in, but the account has no EDITOR or ADMIN role for `survey`: the IAM's admin console gives it. |
+| An admin page turns into "You are signed out" in the middle of work | The session ended (idle at the IAM, or signed out on another anotoki site): sign in again with the card's Sign in (or the top bar's - on a phone, inside its menu). What was typed on the Translations and Languages pages is kept in the tab for the same person, and is in its boxes again. Unsaved changes to a survey are kept only while that page stays open (signing in is a page load): sign in again in another tab, and the open page saves them. |
+| A page where people take surveys says "You are not signed in" (the admin panel too, with its own English words) | The sign-in came back without one - the IAM turned the account away (the `survey` application's access in the IAM's admin panel), or the person went back from it - and the toast says which; or the session ended with the page open (in the admin panel that one is "You are signed out"). Or the sign-in could not start: the browser refuses the site's storage (blocked cookies and site data, some private modes), and the toast says to allow it. Its Sign in (and the top bar's) tries again and comes back to the same page. Every other page goes to the IAM by itself: nothing of a survey is shown to anybody not signed in. With "Sign-in required" off, only the editor's preview draws it for somebody not signed in - the pages people take surveys on are theirs as visitors, and a refused sign-in is said in its toast while they go on as visitors. |
+| An admin page says "This part is for the people who write the surveys" | Signed in, but the account has no EDITOR or ADMIN role for `survey`: the IAM's admin panel gives it. |
 | The browser asks "Leave site?" | Strings or languages are typed and not saved, and somebody is signed in - or the tab's storage would not keep them. Signed out, with the drafts kept in the tab, it does not ask (the way on is the sign-in, and they are there after it); so closing such a tab while signed out is not asked about, and loses them. Unsaved changes to a survey always ask. |
 | The Translations page says "Nothing was saved." in the bar beside Save | The reason follows it: the server's sentence, or that the site could not be reached. A language or key deleted meanwhile: the page has read the grid again, and Save sends the rest. |
+| "Sign-in required" is off in the IAM, and the site still asks everybody to sign in | The site keeps the IAM's answer a minute, and a page reads it once, when it loads: reload. The IAM out of reach and never read means "required" (the log says `[auth] the IAM did not say whether sign-in is required`); `storage/cache/` must be writable. `/api/auth/config` shows what the site took (`loginRequired`, and `visitorDays` - without it the pages welcome nobody: the backend is older than the frontend). The admin panel and the editor's preview always ask. |
+| A visitor's page says "Sign in to send your answers" | "Sign-in required" was switched on while the page was open: the page now draws "You are not signed in", the answers stay in the browser, and signing in sends them (and moves what that browser answered before). |
+| Answers without signing in are refused: 429 `too_many_visitors` | A limit on new visitors (*Visitors*): many people behind one address (a school), or a site behind a proxy whose ranges are not in `trusted_proxies`, so everybody counts as the proxy. Raise `new_per_hour_per_address`, or list the proxy. `visitor_counters` shows the counts. |
+| A visitor's browser is told its visit has ended (401 `visitor_unknown`) | It was unseen for `keep_days`, or its answers were moved into an account at sign-in (another tab). Its answers are kept; the browser forgets the key and starts afresh. |
+| Signing in after answering as a visitor answers 503 `visitor_move_retry` | Something held the rows a moment (the same person sending answers in another tab): the page asks again; nothing was moved meanwhile. |
 | Adding a language answers 503, everything else works | The site's database user cannot lock the `languages` table (`LOCK TABLE` needs UPDATE, DELETE or TRUNCATE on it). The user that ran `/setup.php` owns the tables; one that does not must be granted them. |

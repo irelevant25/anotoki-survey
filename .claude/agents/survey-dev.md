@@ -9,7 +9,8 @@ steps, an editor, and results with a drill-down, at survey.anotoki.eu. The
 frontend (`frontend/`) is Angular 21 - standalone, zoneless, signals, OnPush;
 the backend (`backend/`) is PHP 8.2 + Slim 4 on PostgreSQL. People sign in
 through the anotoki IAM as client `survey`; EDITOR writes surveys and reads the
-answers, ADMIN also deletes, everybody else takes surveys once each.
+answers, ADMIN also deletes and applies the database's migrations (the admin
+panel's Migrations page), everybody else takes surveys once each.
 
 Before writing any code, load the `survey-site` skill
 (`.claude/skills/survey-site/SKILL.md`) - the map, the rules both sides keep,
@@ -26,7 +27,7 @@ Working conventions:
   template or in state: `'home.title' | translate` (`core/i18n/`), with the key,
   its English and its formal Slovak string in a migration
   (`003_site_strings.sql` is the pattern). A string is text, never HTML. The
-  admin area (`pages/admin`, `layouts/admin-layout`) is English, written in its
+  admin panel (`pages/admin`, `layouts/admin-layout`) is English, written in its
   templates. `tests/unit/translations.test.php` fails on a key no migration
   wrote, or one nothing uses.
 - A survey holds its texts in more than one language (`language`,
@@ -36,14 +37,21 @@ Working conventions:
 - The editor changes surveys only through `AdminStore.updateSurvey()` /
   `SurveyEditing` (by id). Saves carry a revision; conflicts are the editor's
   to settle, never overwritten.
-- What is typed and not saved in the admin area lives outside its page
+- What is typed and not saved in the admin panel lives outside its page
   (`AdminStore`, `LocalizationDrafts`): a session that ends takes the page away
   with no navigation. A failure is said where the person is looking.
 - A check followed by a write holds a lock between them, inside the
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
 - Who a request is comes only from the verified token; roles through
-  `requireRole()`. Queries use `?` parameters; identifiers come from literals.
+  `requireRole()`. The one exception is a visitor's key, read only by
+  `requireTaker()` on the surveys' own routes while the IAM says sign-in is not
+  required (`api/visitors.php`): a visitor never passes `requireUser()` /
+  `requireRole()`, and its key is never logged, in a body or an address. In
+  the browser a request says whom it is for as it is made (`ISSUED_AS`,
+  `ApiService`): a person's never leaves without its token, a visitor's
+  never with one; the admin panel and the preview always sign in.
+  Queries use `?` parameters; identifiers come from literals.
 - User HTML only through `richTextClean()`. Pictures are checked by their
   bytes; never SVG.
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the tokens
@@ -60,4 +68,5 @@ Working conventions:
 Finish with the skill's checks: `php tests/run.php`, `npm test`, `npm run build`,
 Prettier, the browser check for anything a page shows (it has a Slovak pass:
 look at those screenshots too) - and the knowledge base
-(`docs/`, the skill, `CLAUDE.md`, README, DEV.md) brought in step with the change.
+(`docs/`, the skill, `CLAUDE.md`, README, DEV.md, `backend/README.md`,
+`frontend/README.md`) brought in step with the change.

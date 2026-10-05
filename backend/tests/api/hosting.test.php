@@ -139,9 +139,11 @@ test('the setup page on a real host: the token, the tests, the database - and th
     assert_false(is_file("$dist/setup.php"), 'the setup page deleted itself');
     assert_false(is_file("$dist/storage/setup-token.php"), 'and the token');
 
-    // the site itself, through api/index.php
-    assert_same(['issuer' => 'https://iam.anotoki.eu', 'clientId' => 'survey'], site($site, 'GET', '/api/auth/config')['body']);
-    assert_same(['surveys' => []], site($site, 'GET', '/api/surveys')['body']);
+    // the site itself, through api/index.php - asking a file, not the real IAM,
+    // whether sign-in is required (none there: the IAM out of reach, required)
+    file_put_contents("$dist/config/iam.local.php", '<?php return ' . var_export(['application_file' => test_application_file()] + (require "$dist/config/iam.local.php"), true) . ";\n");
+    assert_same(['issuer' => 'https://iam.anotoki.eu', 'clientId' => 'survey', 'loginRequired' => true, 'visitorDays' => 30], site($site, 'GET', '/api/auth/config')['body']);
+    assert_same(401, site($site, 'GET', '/api/surveys')['status'], 'nothing of a survey without a sign-in');
     assert_same(401, site($site, 'GET', '/api/admin/surveys')['status']);
     assert_same(['ok' => true], site($site, 'GET', '/api/health')['body'], 'a stranger learns only that it is up');
 

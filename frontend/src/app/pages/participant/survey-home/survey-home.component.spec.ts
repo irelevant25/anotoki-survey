@@ -1,10 +1,11 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { ApiError, ApiService, ParticipantSurvey } from '../../../core/api/api.service';
-import { AuthService } from '../../../core/auth/auth.service';
+import { AuthService, Taker } from '../../../core/auth/auth.service';
+import { VisitorKey } from '../../../core/auth/visitor-key';
 import { TranslationService } from '../../../core/i18n/translation.service';
-import { writeDraft } from '../../../core/survey/drafts';
+import { VISITOR_SLOT, writeDraft } from '../../../core/survey/drafts';
 import { newQuestion, newStep, newSurvey } from '../../../core/survey/survey-factory';
 import { Person } from '../../../core/survey/survey.model';
 import { provideTestTranslations } from '../../../core/testing/test-translations';
@@ -32,6 +33,13 @@ const ENGLISH = {
   'error.offline': 'The site could not be reached. Check the connection and try again.',
   'error.http': 'The server answered {status}.',
   'error.unknown': 'Something went wrong.',
+  'common.signIn': 'Sign in',
+  'visitor.notice.one':
+    'You are taking surveys without signing in. This browser remembers which ones you have answered for {count} day after your last visit - sign in, and your answers move into your anotoki account.',
+  'visitor.notice.few':
+    'You are taking surveys without signing in. This browser remembers which ones you have answered for {count} days after your last visit - sign in, and your answers move into your anotoki account.',
+  'visitor.notice.other':
+    'You are taking surveys without signing in. This browser remembers which ones you have answered for {count} days after your last visit - sign in, and your answers move into your anotoki account.',
 };
 const SLOVAK = {
   'home.title': 'Povedzte nám svoj názor',
@@ -55,6 +63,13 @@ const SLOVAK = {
   'error.offline': 'So stránkou sa nepodarilo spojiť. Skontrolujte pripojenie a skúste to znova.',
   'error.http': 'Server odpovedal kódom {status}.',
   'error.unknown': 'Niečo sa pokazilo.',
+  'common.signIn': 'Prihlásiť sa',
+  'visitor.notice.one':
+    'Prieskumy vypĺňate bez prihlásenia. Tento prehliadač si pamätá, ktoré ste vyplnili, ešte 1 deň po Vašej poslednej návšteve – keď sa prihlásite, Vaše odpovede sa presunú do Vášho anotoki účtu.',
+  'visitor.notice.few':
+    'Prieskumy vypĺňate bez prihlásenia. Tento prehliadač si pamätá, ktoré ste vyplnili, ešte {count} dni po Vašej poslednej návšteve – keď sa prihlásite, Vaše odpovede sa presunú do Vášho anotoki účtu.',
+  'visitor.notice.other':
+    'Prieskumy vypĺňate bez prihlásenia. Tento prehliadač si pamätá, ktoré ste vyplnili, ešte {count} dní po Vašej poslednej návšteve – keď sa prihlásite, Vaše odpovede sa presunú do Vášho anotoki účtu.',
 };
 
 const YOU: Person = { id: 'person-you', name: 'You', email: 'you@example.com' };
@@ -77,6 +92,13 @@ describe('SurveyHomeComponent', () => {
   let host: HTMLElement;
   let openSurveys: ReturnType<typeof vi.fn>;
   const person = signal<Person | null>(null);
+  /** The IAM's switch is off for the site: nobody signed in takes surveys as this browser's visitor. */
+  const welcome = signal(false);
+  const taker = computed<Taker | null>(() => {
+    const me = person();
+    return me ? { id: me.id, visitor: false } : welcome() ? { id: VISITOR_SLOT, visitor: true } : null;
+  });
+  const visitor = { key: signal<string | null>(null), moves: signal(0) };
 
   const text = (selector: string) => host.querySelector(selector)?.textContent?.replace(/\s+/g, ' ').trim();
   const all = (selector: string) => Array.from(host.querySelectorAll(selector)).map((element) => element.textContent?.replace(/\s+/g, ' ').trim());
@@ -87,7 +109,8 @@ describe('SurveyHomeComponent', () => {
       providers: [
         provideRouter([]),
         { provide: ApiService, useValue: { openSurveys } },
-        { provide: AuthService, useValue: { person } },
+        { provide: AuthService, useValue: { person, taker, visitorDays: () => 30, signIn: vi.fn(async () => true) } },
+        { provide: VisitorKey, useValue: visitor },
         language === 'sk' ? provideTestTranslations(slovak, { language: 'sk', english: ENGLISH }) : provideTestTranslations(ENGLISH),
       ],
     });
@@ -99,6 +122,9 @@ describe('SurveyHomeComponent', () => {
   beforeEach(() => {
     localStorage.clear();
     person.set(null);
+    welcome.set(false);
+    visitor.key.set(null);
+    visitor.moves.set(0);
   });
 
   afterEach(() => {
@@ -136,6 +162,42 @@ describe('SurveyHomeComponent', () => {
     await page('sk', [{ ...openSurvey('taken', 'A', 1), answeredAt: '2026-09-29T08:00:00Z' }, openSurvey('started', 'B', 1), openSurvey('new', 'C', 1)]);
 
     expect(all('.survey-state')).toEqual(['Vyplnený', 'Začatý', 'Nový']);
+  });
+
+  it('shows nobody signed in - a visitor - the list for this browser, under the notice that says so, with the days the server keeps a visitor', async () => {
+    welcome.set(true);
+    writeDraft('started', VISITOR_SLOT, { stepIndex: 0, answers: {}, startedAt: '2026-09-30T08:00:00Z', savedAt: '2026-09-30T08:00:00Z' });
+    await page('sk', [{ ...openSurvey('taken', 'A', 1), answeredAt: '2026-09-29T08:00:00Z' }, openSurvey('started', 'B', 1), openSurvey('new', 'C', 1)]);
+
+    expect(all('.survey-state')).toEqual(['Vyplnený', 'Začatý', 'Nový']);
+    expect(text('app-visitor-notice .alert-text')).toBe(SLOVAK['visitor.notice.other'].replace('{count}', '30'));
+    expect(text('app-visitor-notice button')).toBe('Prihlásiť sa');
+  });
+
+  it('shows no notice to somebody signed in', async () => {
+    welcome.set(true);
+    person.set(YOU);
+    await page('sk', [openSurvey('new', 'C', 1)]);
+    expect(host.querySelector('app-visitor-notice')).toBeNull();
+  });
+
+  it('asks again when the visitor key comes or goes, when a move after a sign-in has finished, and when somebody signs in', async () => {
+    welcome.set(true);
+    await page('en', [openSurvey('new', 'C', 1)]);
+    expect(openSurveys).toHaveBeenCalledTimes(1);
+
+    visitor.key.set('k'.repeat(43));
+    await fixture.whenStable();
+    expect(openSurveys).toHaveBeenCalledTimes(2);
+
+    visitor.moves.set(1);
+    await fixture.whenStable();
+    expect(openSurveys).toHaveBeenCalledTimes(3);
+
+    person.set(YOU);
+    await fixture.whenStable();
+    expect(openSurveys).toHaveBeenCalledTimes(4);
+    expect(host.querySelector('app-visitor-notice')).toBeNull();
   });
 
   it('says so, in the language of the page, when no survey is open - and while they are on their way', async () => {

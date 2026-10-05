@@ -10,6 +10,18 @@
 // answer; an editor gets everything but the delete buttons; a phone-sized page
 // has no sideways scroll and a top bar that fits.
 //
+// Every page is for somebody signed in while the IAM says sign-in is required
+// (the stand-in's default; the visitors' stage near the end switches it off):
+// somebody not signed in goes to the IAM first and comes back to the page asked for - nothing of a survey is drawn or asked
+// for before; and the API answers nothing of a survey without a token (its
+// pictures aside: an <img> sends none, and their addresses are UUIDs). The
+// family's top bar - brand, links, language, theme, the person's menu - at
+// 360, 390 and 1280 px, light and dark; on a phone the links and the person's
+// menu are inside one menu button (focus in, arrow keys, Escape back, a click
+// outside, Tab and Shift+Tab back to the button from any item). "Signed out"
+// is a sign-in the IAM turned down (the stand-in's `deny`): the page then
+// draws a card with Sign in instead of itself.
+//
 // Then in Slovak (/?lang=sk): the top bar on a phone, signed out and signed
 // in; the home page and a survey, step by step; no key of the bundle on any of
 // those pages; the admin area in English all the same; the language of the
@@ -40,15 +52,27 @@
 // mine over it" is not offered where the server would refuse it; a preview
 // from the editor's main tab shows the survey as it is written, whatever the
 // page's language; answers sent to an address the survey has left are said to
-// be kept, and offered again at its new address; and the two pages drawn
-// instead of the site - not set up, out of reach - name the tab by the site,
-// never by a key, and "Try again" opens the page that was asked for.
+// be kept, and offered again at its new address; a database behind the code
+// (two files' rows taken out of its record - the one stage that changes the
+// database itself, through sql()): "not set up yet" for somebody taking
+// surveys and an EDITOR, and for an ADMIN the way to the Migrations page, an
+// Apply that stops at a failing file with the database's error, and one that
+// brings the site back where it stands, its strings read again; visitors -
+// the IAM's "Sign-in required" switched off: nobody signed in takes surveys
+// (a second browser too), the admin panel lists them as "Visitor N", "Not
+// signed in", the admin panel and the preview still sign in, a sign-in moves
+// the visitor's answers and draft into the account (the person's own answers
+// win), and switched on again a visitor is sent to sign in and keeps the key;
+// and the two pages drawn instead of the site - not set up, out of reach - name the tab by
+// the site, never by a key, and "Try again" opens the page that was asked for.
 //
 // Prints ok/FAIL per check and every page error. A console warning is a
 // problem too - "[i18n] no string for ..." is how a missing string shows.
 
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { openPage, sleep, waitFor } from './cdp.mjs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { openPage, openPageInNewContext, sleep, waitFor } from './cdp.mjs';
 
 const [port, origin, iam, pngFile, out] = process.argv.slice(2);
 mkdirSync(out, { recursive: true });
@@ -215,6 +239,9 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 /** The stand-in IAM told how to behave: who signs in next ({user}), whether it still renews a session ({refuse}). */
 const setIam = async (changes) => (await fetch(`${iam}/_test/state`, { method: 'POST', body: JSON.stringify(changes) })).ok;
 const setIamUser = (user) => setIam({ user });
+// What the browser asked the stand-in IAM, in order - without the site's own question about its
+// "Sign-in required" switch (GET /api/public/applications/...), which the backend asks at any page load.
+const iamTrips = async () => ((await (await fetch(`${iam}/_test/state`)).json()).log ?? []).filter((line) => !line.startsWith('GET /api/public/'));
 /**
  * The language the browser itself is set to - what `navigator.languages` says and `Accept-Language` sends ("sk-SK",
  * or a list: "en-GB,en"). Chrome was started in English (run.mjs); a stage that wants another says so, and puts it back.
@@ -226,6 +253,16 @@ const escape = async () => {
   await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   await sleep(200);
 };
+/**
+ * A statement run on the check's own database - survey_test_browser, through the settings run.mjs wrote
+ * (SURVEY_CHECK_CONFIG; the app honours them only for a survey_test_ database) - for the one stage that needs the
+ * database itself changed, as a release changes it: a database behind the code.
+ */
+function sql(statement) {
+  const { SURVEY_CHECK_PHP: php = 'php', SURVEY_CHECK_BACKEND: backend, SURVEY_CHECK_CONFIG: config } = process.env;
+  if (!backend || !config) throw new Error('SURVEY_CHECK_BACKEND and SURVEY_CHECK_CONFIG are not set: run the check through run.mjs.');
+  execFileSync(php, ['-r', 'require "api/bootstrap.php"; dbExec($argv[1]);', '--', statement], { cwd: backend, env: { ...process.env, SURVEY_TEST_CONFIG: config }, stdio: ['ignore', 'ignore', 'inherit'] });
+}
 
 // ── The language ────────────────────────────────────────────────────────────
 
@@ -288,7 +325,7 @@ const barFits = () =>
   js(`(() => {
     const inner = document.querySelector('app-top-bar .topbar-inner');
     if (!inner) return { ok: false, detail: 'no top bar' };
-    const names = ['app-brand', 'app-language-switcher', 'app-theme-toggle', '.user-button', 'button.btn-primary'];
+    const names = ['app-brand', '.topbar-nav', 'app-language-switcher', 'app-theme-toggle', '.user-button', '.menu-button', 'button.btn-primary'];
     const parts = names.map((name) => [name, inner.querySelector(name)]).filter(([, el]) => el);
     const rects = parts.map(([, el]) => el.getBoundingClientRect());
     const width = window.innerWidth;
@@ -359,72 +396,249 @@ const chosenLabels = () => js("[...document.querySelectorAll('app-question-block
 
 // ── Signing in and out ──────────────────────────────────────────────────────
 
+/**
+ * The person's menu: on a desktop its own button (the name), on a phone the menu button, which holds the site's
+ * links and then the person's menu (or Sign in).
+ */
 async function openUserMenu() {
-  await js("document.querySelector('app-top-bar .user-button').click(); true");
+  await js("(document.querySelector('app-top-bar .user-button') ?? document.querySelector('app-top-bar .menu-button')).click(); true");
   await sleep(300);
 }
+/** The site holds a session (the SDK's stored tokens) and the bar is drawn. */
+const SIGNED_IN =
+  "Object.keys(localStorage).some((name) => name.startsWith('anotoki-auth:') && !!JSON.parse(localStorage.getItem(name) || 'null')?.access_token) && !!document.querySelector('app-top-bar .user-button, app-top-bar .menu-button')";
+/** Who the bar says is signed in: the name on its button, or - on a phone - at the head of the menu; null for nobody. */
+async function whoIsIn() {
+  if (await js("!!document.querySelector('app-top-bar .user-button')")) {
+    return text('app-top-bar .user-name');
+  }
+  if (!(await js("!!document.querySelector('app-top-bar .menu-button')"))) {
+    return null;
+  }
+  const open = await js("!!document.querySelector('app-top-bar .menu')");
+  if (!open) await openUserMenu();
+  const name = await text('app-top-bar .menu .menu-name');
+  if (!open) await escape();
+  return name;
+}
+/** The session the site holds is forgotten (as if the browser had never signed in here); the IAM's is the stand-in's. */
+const forgetSession = () => js("Object.keys(localStorage).filter((name) => name.startsWith('anotoki-auth:')).forEach((name) => localStorage.removeItem(name)); true");
 
-/** Out through the person's menu (the stand-in IAM's logout comes back to /); nothing to do when nobody is signed in. */
+/**
+ * Out through the person's menu. The stand-in IAM's logout comes back to /, which is for somebody signed in: the
+ * sign-in follows at once - whoever the stand-in signs in now (`setIam({ user })`), or, with `deny`, nobody (the
+ * page then draws its signed-out card). Nothing to do when nobody is signed in.
+ */
 async function signOut(words) {
   await go('/');
-  if (await js("!!document.querySelector('app-top-bar .user-button')")) {
+  if (await js(SIGNED_IN)) {
     await openUserMenu();
     await clickText('app-top-bar .menu-item', words.signOut);
     await sleep(1500);
     await settle();
+    await sleep(800);
+    await settle();
   }
 }
 
-/** Signed out of this site, then in again as `user` - by the words of the language the page is in. */
+/** Signed in as `user`: out through the menu (by the words of the language the page is in), and in again at once. */
 async function signInAs(user, words = EN) {
-  await setIamUser(user);
+  await setIam({ user, deny: false });
   await signOut(words);
-  expect(`signed out before ${user.username}`, await js("!!document.querySelector('app-top-bar button.btn-primary')"));
-  await clickText('app-top-bar button', words.signIn);
-  await sleep(1500);
-  await settle();
-  await waitFor(page, "!!document.querySelector('app-top-bar .user-button')", 15000);
-  expect(`signed in as ${user.username}`, (await text('app-top-bar .user-name')) === user.username, await text('app-top-bar .user-name'));
+  if (!(await js(SIGNED_IN))) {
+    // A page drawn without a sign-in (the IAM turned the last one down): its card's Sign in.
+    await clickText('app-empty-state button', words.signIn);
+    await sleep(1500);
+    await settle();
+  }
+  await waitFor(page, SIGNED_IN, 15000);
+  const who = await whoIsIn();
+  expect(`signed in as ${user.username}`, who === user.username, who);
 }
 
-const OWNER = { id: 1, username: 'owner', roles: ['ADMIN'] };
-const PAT = { id: 101, username: 'pat', roles: [] };
-const EDITH = { id: 2, username: 'edith', roles: ['EDITOR'] };
-// For the Slovak pass. Nina's account is English: her Slovak comes from the link she followed.
-const NINA = { id: 102, username: 'nina', roles: [], locale: 'en' };
-// Zuzana's account is Slovak - and her name is twenty characters, the longest the bar was measured with.
-const ZUZANA = { id: 103, username: 'zuzana-kovacova-2026', roles: [], locale: 'sk' };
+/**
+ * Nobody signed in, on `path`: the session forgotten and the IAM turning the sign-in down (`deny`), so the page comes
+ * back from the IAM without one and draws its card instead of itself. The toast that says so is dismissed.
+ * `setIam({ deny: false })` and the card's (or the bar's) Sign in sign in again.
+ */
+async function signedOutOn(path) {
+  await setIam({ deny: true });
+  await forgetSession();
+  await go(path);
+  await waitFor(page, "!!document.querySelector('app-participant-layout app-empty-state, app-admin-layout app-empty-state')", 15000);
+  await sleep(500);
+  await js("document.querySelectorAll('.toast-close').forEach((b) => b.click()); true");
+  await sleep(300);
+}
 
-// ── Signed out: the top bar offers to sign in; the admin area sends to the IAM ──
-await setIamUser(OWNER);
+// Every account holds MEMBER (the IAM gives it to everyone): an ordinary person is ['MEMBER'].
+const OWNER = { id: 1, username: 'owner', roles: ['MEMBER', 'ADMIN'] };
+const PAT = { id: 101, username: 'pat', roles: ['MEMBER'] };
+const EDITH = { id: 2, username: 'edith', roles: ['MEMBER', 'EDITOR'] };
+// For the Slovak pass. Nina's account is English: her Slovak comes from the link she followed.
+const NINA = { id: 102, username: 'nina', roles: ['MEMBER'], locale: 'en' };
+// Zuzana's account is Slovak - and her name is twenty characters, the longest the bar was measured with.
+const ZUZANA = { id: 103, username: 'zuzana-kovacova-2026', roles: ['MEMBER'], locale: 'sk' };
+
+// ── Signed in first: every page goes to the IAM before anything of it is drawn ──
+await setIam({ user: OWNER, deny: false });
 await go('/');
 await js('localStorage.clear(); sessionStorage.clear(); true');
-// The language is said through the site itself, and holds for the tab from here on.
+// The language is said through the site itself, and holds for the tab from here on - through the IAM and back.
+let since = requested.length;
 await go('/?lang=en');
+await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
+let trip = requested.slice(since);
 expect('?lang=en: English, kept for this tab only and taken out of the address', (await pageLanguage()) === 'en' && (await storedLanguage()) === ' / en' && (await js('location.search')) === '', `${await pageLanguage()}, ${await storedLanguage()}, ${await js('location.search')}`);
-expect('signed out: a Sign in button in the top bar', (await text('app-top-bar button.btn-primary'))?.includes('Sign in'));
-expect('the language chooser in the top bar says EN', (await text('app-language-switcher .switcher')) === 'EN', await text('app-language-switcher .switcher'));
+expect(
+  'nobody signed in, /: to the IAM first, back at / signed in - no survey asked for before the sign-in',
+  (await js('location.pathname')) === '/' && trip.includes('GET /api/oidc/authorize') && trip.indexOf('GET /api/surveys') > trip.indexOf('GET /api/oidc/authorize'),
+  trip.join(', '),
+);
+expect('the owner is signed in', (await whoIsIn()) === 'owner', await whoIsIn());
+expect('the language chooser in the top bar says EN, and its name says it too', (await text('app-language-switcher .switcher')) === 'EN' && (await js("document.querySelector('app-language-switcher .switcher').getAttribute('aria-label')")) === 'Language: English (EN)', await js("document.querySelector('app-language-switcher .switcher')?.getAttribute('aria-label')"));
 expect('no survey is open yet', (await text('app-survey-home'))?.includes('No survey is open right now'));
 expect('the tab is named in English', (await js('document.title')) === 'Surveys · anotoki survey', await js('document.title'));
-await screenshot('home-signed-out');
+// Nor does the API answer anything of a survey without a token.
+const tokenless = await Promise.all(['/api/surveys', '/api/surveys/anything', '/api/admin/surveys'].map(async (path) => `${path} ${(await fetch(origin + path)).status}`));
+expect('without a token the API answers 401 for the surveys, a survey and the admin area', same(tokenless, ['/api/surveys 401', '/api/surveys/anything 401', '/api/admin/surveys 401']), tokenless.join(', '));
 
+// The family's top bar on a desktop: the brand, the links, then the language, the theme and the person.
+const barRow = () => js("[...document.querySelector('app-top-bar .topbar-inner').querySelectorAll(':scope > app-brand, :scope > .topbar-nav, .topbar-actions > *')].map((e) => e.matches('.topbar-nav') ? 'links: ' + [...e.querySelectorAll('a')].map((a) => a.textContent.trim() + (a.getAttribute('aria-current') === 'page' ? ' (page)' : '')).join(' ') : e.tagName.toLowerCase() === 'div' ? e.className : e.tagName.toLowerCase())");
+expect('1280 px: one row - brand, links (Surveys, the page), language, theme, the person', same(await barRow(), ['app-brand', 'links: Surveys (page)', 'app-language-switcher', 'app-theme-toggle', 'user-menu']), JSON.stringify(await barRow()));
+expect('1280 px: the brand is the mark, "anotoki" and "survey", linking home', same(await texts('app-top-bar app-brand .wordmark > span'), ['anotoki', 'survey']) && (await js("document.querySelector('app-top-bar app-brand a').getAttribute('href')")) === '/', await text('app-top-bar app-brand'));
+await expectBar('English, 1280 px, signed in');
+await screenshots('en-1280-bar', false);
+
+// A survey's address, nobody signed in: to the IAM and back to that address (here: no survey there).
+await forgetSession();
+since = requested.length;
+await go('/no-such-survey');
+await waitFor(page, SIGNED_IN + " && !!document.querySelector('.message-heading')", 15000);
+trip = requested.slice(since);
+expect(
+  'nobody signed in, a survey\'s address: to the IAM, back to that address - asked for only after',
+  (await js('location.pathname')) === '/no-such-survey' && trip.indexOf('GET /api/surveys/no-such-survey') > trip.indexOf('GET /api/oidc/authorize') && trip.indexOf('GET /api/oidc/authorize') >= 0,
+  `${await js('location.pathname')}: ${trip.join(', ')}`,
+);
+
+// The admin area, the sign-in turned down: nobody had a session to end - "You are not signed in", never "Your session has ended".
+await signedOutOn('/admin');
+const refusedCard = await text('app-admin-layout app-empty-state');
+expect(
+  'the admin area, the sign-in turned down: "You are not signed in" with its Sign in - not a session that ended',
+  (await text('app-admin-layout .empty-heading')) === 'You are not signed in' && !refusedCard?.includes('session has ended') && (await text('app-admin-layout app-empty-state button')) === 'Sign in',
+  refusedCard,
+);
+await screenshots('en-1280-admin-refused', false);
+
+// Signed out - the IAM turned the sign-in down: the page draws a card with Sign in, and the bar offers it too.
+await signedOutOn('/');
+expect('signed out: the card instead of the page - no list of surveys', (await text('app-participant-layout .empty-heading')) === 'You are not signed in' && !(await js("!!document.querySelector('app-survey-home')")), await text('app-participant-layout app-empty-state'));
+expect('signed out: a Sign in button in the top bar', (await text('app-top-bar button.btn-primary'))?.includes('Sign in'));
+await expectBar('English, 1280 px, signed out');
+await screenshots('en-1280-signed-out', false);
+await setIam({ deny: false });
+await clickText('app-top-bar button.btn-primary', 'Sign in');
+await sleep(1500);
+await settle();
+await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
+expect('Sign in from the bar: back on the page, signed in', (await whoIsIn()) === 'owner' && (await js('location.pathname')) === '/', await whoIsIn());
+
+// The browser refuses the site its storage, where the SDK keeps the sign-in in progress: the sign-in cannot start.
+// The page goes through to its card, and a toast says why - it was a blank page, nothing said.
+await forgetSession();
+// AuthService says so in the console (with the SDK's English); that is expected here, and nothing else.
+expected = [/The sign-in could not start\./];
+const { identifier: refuseStorage } = await page.send('Page.addScriptToEvaluateOnNewDocument', {
+  source:
+    "(() => { const set = Storage.prototype.setItem; Storage.prototype.setItem = function (key, value) { if (String(key).startsWith('anotoki-auth:') && String(key).includes(':login:')) throw new DOMException('Refused', 'SecurityError'); return set.call(this, key, value); }; })()",
+});
+await go('/');
+await waitFor(page, "!!document.querySelector('app-participant-layout app-empty-state')", 15000).catch(() => null);
+expect(
+  'storage refused: the card, and a toast that says why - not a blank page',
+  (await text('app-participant-layout .empty-heading')) === 'You are not signed in' &&
+    (await texts('.toast-message')).some((message) => message.startsWith('This browser would not let the site remember the sign-in in progress.')),
+  `${await text('app-participant-layout .empty-heading')} | ${(await texts('.toast-message')).join(' | ')}`,
+);
+await screenshot('en-1280-storage-refused', false);
+await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: refuseStorage });
+expect('storage refused: the console said only that the sign-in could not start', heard.length > 0 && heard.every((message) => message.includes('The sign-in could not start.')), heard.join(' | ').slice(0, 300));
+expected = [];
+heard.length = 0;
+await js("document.querySelectorAll('.toast-close').forEach((b) => b.click()); true");
+
+// /admin, nobody signed in: through the IAM and back at /admin.
+await forgetSession();
 await go('/admin');
 await sleep(1500);
 await settle();
 expect('/admin while signed out: signed in through the IAM and back at /admin', (await js('location.pathname')) === '/admin', await js('location.pathname'));
-expect('the owner is signed in', (await text('app-top-bar .user-name')) === 'owner');
+expect('the owner is signed in', (await whoIsIn()) === 'owner');
 expect('the admin area shows the surveys (no survey yet)', (await text('app-surveys-list'))?.includes('No surveys yet'), (await text('app-surveys-list'))?.slice(0, 120));
 expect('no language chooser in the admin area', !(await js("!!document.querySelector('app-language-switcher')")));
+expect('the admin area\'s bar: its sections as links - Migrations too, for an ADMIN - Surveys the page', same(await barRow(), ['app-brand', 'links: Surveys (page) Translations Languages Migrations', 'app-theme-toggle', 'user-menu']), JSON.stringify(await barRow()));
+expect(
+  'the admin panel\'s brand: "anotoki survey · admin panel", linking to /admin and named after what it shows',
+  same(await texts('app-top-bar app-brand .wordmark > span'), ['anotoki', 'survey', '·', 'admin panel']) && (await js("document.querySelector('app-top-bar app-brand a').getAttribute('href')")) === '/admin' && (await js("document.querySelector('app-top-bar app-brand a').getAttribute('aria-label')")) === 'anotoki survey admin panel: all surveys',
+  `${JSON.stringify(await texts('app-top-bar app-brand .wordmark > span'))} / ${await js("document.querySelector('app-top-bar app-brand a')?.getAttribute('aria-label')")}`,
+);
+expect('the admin panel\'s tab: the page, the admin panel, the site', (await js('document.title')) === 'Surveys · Admin panel · anotoki survey', await js('document.title'));
 await screenshot('admin-empty');
+// The narrowest desktop bar (761 px) holds an ADMIN's four links, the theme and the person beside "survey" with "admin
+// panel" small under it; "anotoki" and the row "anotoki survey · admin panel" come back with the person's name, from 961 px.
+for (const [width, words] of [
+  [761, ['survey', '·', 'admin panel']],
+  [960, ['survey', '·', 'admin panel']],
+  [961, ['anotoki', 'survey', '·', 'admin panel']],
+]) {
+  await viewport(width);
+  await sleep(400);
+  await expectBar(`the admin panel, ${width} px`);
+  expect(`the admin panel, ${width} px: the wordmark is ${words.join(' ')}`, same(await texts('app-top-bar app-brand .wordmark > span'), words), JSON.stringify(await texts('app-top-bar app-brand .wordmark > span')));
+  await screenshot(`admin-${width}-bar`);
+}
+await viewport(1280);
+await sleep(300);
 
 // ── The user menu ───────────────────────────────────────────────────────────
+/** The element that has the focus, as "tag.class text". */
+const focused = () => js("(() => { const e = document.activeElement; return e ? e.tagName.toLowerCase() + '.' + [...e.classList].join('.') + ' ' + e.textContent.replace(/\\s+/g, ' ').trim() : null; })()");
+/** A real key press; `shift` holds Shift down with it (Shift+Tab). */
+const press = async (key, shift = false) => {
+  const modifiers = shift ? 8 : 0;
+  await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, modifiers, windowsVirtualKeyCode: { ArrowDown: 40, ArrowUp: 38, Home: 36, End: 35, Tab: 9 }[key] });
+  await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, modifiers });
+  await sleep(150);
+};
 await openUserMenu();
 const menu = await text('app-top-bar .menu');
-expect('the menu: name, address, role, account, the open surveys, sign out', ['owner', 'owner@example.test', 'Administrator', 'Your anotoki account', 'The open surveys', 'Sign out'].every((part) => menu?.includes(part)), menu);
+expect('the menu: name, address, role, account, back to the surveys, sign out', ['owner', 'owner@example.test', 'Administrator', 'Your anotoki account', 'Back to the surveys', 'Sign out'].every((part) => menu?.includes(part)), menu);
 expect('the account link goes to the IAM', (await js("document.querySelector('app-top-bar .menu a[target=_blank]')?.href")) === `${iam}/account`, await js("document.querySelector('app-top-bar .menu a[target=_blank]')?.href"));
+expect('the menu: the focus on its first item, the button says it is open', (await focused())?.includes('Your anotoki account') && (await js("document.querySelector('app-top-bar .user-button').getAttribute('aria-expanded')")) === 'true', await focused());
+await press('ArrowDown');
+expect('ArrowDown: the next item', (await focused())?.includes('Back to the surveys'), await focused());
+await press('End');
+expect('End: the last item', (await focused())?.includes('Sign out'), await focused());
+await press('ArrowDown');
+expect('ArrowDown on the last: round to the first', (await focused())?.includes('Your anotoki account'), await focused());
 await screenshot('user-menu');
 await escape();
-expect('Escape closes the menu', !(await js("!!document.querySelector('app-top-bar .menu')")));
+expect('Escape closes the menu, and the focus is back on its button', !(await js("!!document.querySelector('app-top-bar .menu')")) && (await focused())?.startsWith('button.user-button'), await focused());
+// Tab and Shift+Tab from any item: closed, the focus on the button (left to the browser it went to the next item, then <body>).
+for (const [move, shift, where] of [[null, false, 'the first'], ['ArrowDown', false, 'a middle'], ['End', false, 'the last'], ['ArrowDown', true, 'a middle (Shift+Tab)']]) {
+  await openUserMenu();
+  if (move) await press(move);
+  await press('Tab', shift);
+  expect(`Tab from ${where} item closes the menu, the focus on its button`, !(await js("!!document.querySelector('app-top-bar .menu')")) && (await focused())?.startsWith('button.user-button'), await focused());
+}
+await press('Tab');
+expect('the next Tab moves on from the menu button - not to <body>', !(await focused())?.startsWith('body') && !(await focused())?.startsWith('button.user-button'), await focused());
+await openUserMenu();
+await js("document.querySelector('app-surveys-list').click(); true");
+await sleep(200);
+expect('a click outside closes it', !(await js("!!document.querySelector('app-top-bar .menu')")));
 
 // ── A new survey, written and saved ─────────────────────────────────────────
 expect('new survey', (await clickText('button', 'New survey')) === true);
@@ -513,7 +727,7 @@ expect('... and its "See the open surveys" leaves it: the home page', (await js(
 // ── The owner sees the answer, and may delete it ────────────────────────────
 await signInAs(OWNER);
 await openUserMenu();
-expect('the owner\'s menu, where people take surveys, has the way into the admin area', (await text('app-top-bar .menu a[href="/admin"]')) === 'Admin', await text('app-top-bar .menu'));
+expect('the owner\'s menu, where people take surveys, has the way into the admin area', (await text('app-top-bar .menu a[href="/admin"]')) === 'Admin panel', await text('app-top-bar .menu'));
 await escape();
 await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list .stat strong')", 15000);
@@ -542,6 +756,21 @@ await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list .survey')", 15000);
 expect('an editor sees the surveys', (await text('app-surveys-list .title')) === 'Genshin 6.1 - what next?');
 expect('but no Delete button', !(await js("!![...document.querySelectorAll('app-surveys-list button')].find(b => b.getAttribute('aria-label') === 'Delete')")));
+expect('nor Migrations in the bar: applying the database\'s updates is an ADMIN\'s', (await texts('app-top-bar .topbar-nav a')).join(' ') === 'Surveys Translations Languages', (await texts('app-top-bar .topbar-nav a')).join(' '));
+await go('/admin/migrations');
+await waitFor(page, "!!document.querySelector('app-migrations')", 15000);
+await sleep(500);
+expect(
+  '... and at its address the page says whose it is, asking the server nothing',
+  (await text('app-migrations .empty-heading')) === 'Migrations are for administrators' && !(await js("!!document.querySelector('#migrations-apply')")) && !requested.slice(-10).some((request) => request.includes('/api/admin/migrations')),
+  await text('app-migrations .empty-heading'),
+);
+/** The access token the site holds for whoever is signed in. */
+const heldToken = () =>
+  js("Object.keys(localStorage).filter((name) => name.startsWith('anotoki-auth:')).map((name) => { try { return JSON.parse(localStorage.getItem(name))?.access_token; } catch { return null; } }).find(Boolean) ?? ''");
+const editorRefused = await (await fetch(`${origin}/api/admin/migrations`, { headers: { Authorization: `Bearer ${await heldToken()}` } })).json();
+expect('... and the server refuses an EDITOR the migrations all the same', editorRefused.code === 'forbidden', JSON.stringify(editorRefused).slice(0, 160));
+await screenshot('admin-migrations-editor');
 if (responseId) {
   await go(`/admin/surveys/${surveyId}/responses/${responseId}`);
   await waitFor(page, "!!document.querySelector('app-response-view')", 15000);
@@ -570,50 +799,108 @@ expect('English: a step sent with nothing chosen says what is missing', (await t
 await expectBar('English, 390 px, a step');
 await expectNoKeys('English, a step');
 await screenshots('en-390-step');
-await signOut(EN);
-await viewport(360);
+
+// The phone's bar: the brand (the mark and the site's name), the language, the theme and the menu button - the
+// links and the person's menu inside it.
 await go('/');
-expect('English, signed out: Sign in', (await text('app-top-bar button.btn-primary')) === 'Sign in', await text('app-top-bar button.btn-primary'));
+expect('390 px: brand, language, theme, menu button - nothing else in the row', same(await barRow(), ['app-brand', 'app-language-switcher', 'app-theme-toggle', 'phone-menu']), JSON.stringify(await barRow()));
+expect('390 px: the brand is the mark and "survey"', (await text('app-top-bar app-brand .wordmark')) === 'survey', await text('app-top-bar app-brand .wordmark'));
+await expectBar('English, 390 px, the home page');
+await screenshots('en-390-home', false);
+await openUserMenu();
+const phoneMenu = await texts('app-top-bar .menu [role=menuitem]');
+expect('the phone menu: the links, then the person\'s menu (an editor\'s: Admin panel too)', same(phoneMenu, ['Surveys', 'Your anotoki account', 'Admin panel', 'Sign out']) && (await text('app-top-bar .menu .menu-name')) === 'edith', JSON.stringify(phoneMenu) + ' ' + (await text('app-top-bar .menu .menu-name')));
+expect('the phone menu: Surveys says it is the page', (await js("document.querySelector('app-top-bar .menu a.menu-link').getAttribute('aria-current')")) === 'page');
+expect('the phone menu: the focus on its first item, the button says it is open', (await focused())?.includes('Surveys') && (await js("document.querySelector('app-top-bar .menu-button').getAttribute('aria-expanded')")) === 'true', await focused());
+expect('the phone menu is inside the window', await menuInside('app-top-bar .menu'));
+await press('ArrowDown');
+expect('the phone menu: ArrowDown, the next item', (await focused())?.includes('Your anotoki account'), await focused());
+await press('ArrowUp');
+await press('ArrowUp');
+expect('the phone menu: ArrowUp from the first, round to the last', (await focused())?.includes('Sign out'), await focused());
+await press('Home');
+expect('the phone menu: Home, the first', (await focused())?.includes('Surveys'), await focused());
+await screenshots('en-390-phone-menu', false);
+await escape();
+expect('Escape closes the phone menu, the focus back on its button', !(await js("!!document.querySelector('app-top-bar .menu')")) && (await focused())?.startsWith('button.menu-button'), await focused());
+await openUserMenu();
+await js("document.querySelector('main').click(); true");
+await sleep(200);
+expect('a click outside closes the phone menu', !(await js("!!document.querySelector('app-top-bar .menu')")));
+for (const [move, shift, where] of [[null, false, 'the first'], ['ArrowDown', false, 'a middle'], ['End', false, 'the last'], ['End', true, 'the last (Shift+Tab)']]) {
+  await openUserMenu();
+  if (move) await press(move);
+  await press('Tab', shift);
+  expect(`Tab from ${where} item of the phone menu closes it, the focus on its button`, !(await js("!!document.querySelector('app-top-bar .menu')")) && (await focused())?.startsWith('button.menu-button'), await focused());
+}
+await go(`/${slug}`);
+await openUserMenu();
+await clickText('app-top-bar .menu a', 'Surveys');
+await waitFor(page, "location.pathname === '/' && !!document.querySelector('app-survey-home h1')", 10000).catch(() => null);
+expect('a link of the phone menu goes there and closes the menu', (await js('location.pathname')) === '/' && !(await js("!!document.querySelector('app-top-bar .menu')")), await js('location.pathname'));
+
+// Signed out on a phone: the card, and Sign in inside the menu.
+await viewport(360);
+await signedOutOn('/');
+expect('English, 360 px, signed out: the card with its Sign in', (await text('app-participant-layout .empty-heading')) === 'You are not signed in' && (await text('app-participant-layout app-empty-state button')) === 'Sign in', await text('app-participant-layout app-empty-state'));
 await expectBar('English, 360 px, signed out');
-await expectNoKeys('English, the home page');
+await expectNoKeys('English, signed out');
 await screenshots('en-360-home-signed-out');
+await openUserMenu();
+expect('360 px, signed out: the phone menu holds the links and Sign in', same(await texts('app-top-bar .menu [role=menuitem]'), ['Surveys', 'Sign in']), JSON.stringify(await texts('app-top-bar .menu [role=menuitem]')));
+await screenshots('en-360-phone-menu-signed-out', false);
+await escape();
+await setIam({ deny: false });
 
 // ═══ In Slovak ═════════════════════════════════════════════════════════════
-// A browser set to Slovak, on its first visit: nobody signed in, nothing stored, no ?lang= - the language is the
-// browser's, which says "sk-SK". The server answers a code with a region by its base language, so the strings
-// take one request, not one answered in English and then another.
+// A browser set to Slovak, on its first visit: nobody signed in (the IAM turns the sign-in down), nothing stored,
+// no ?lang= - the language is the browser's, which says "sk-SK". The server answers a code with a region by its
+// base language, so each page load (the one before the IAM, the one after) asks once, for that - never English
+// first and then Slovak.
+await signedOutOn('/');
 await js('localStorage.clear(); sessionStorage.clear(); true');
 const browsersOwn = await js("navigator.languages.join(',')");
 await browserLanguage('sk-SK');
 const firstVisit = requested.length;
 await go('/');
+await waitFor(page, "!!document.querySelector('app-participant-layout app-empty-state')", 15000);
 await sleep(1200);
 const asked = requested.slice(firstVisit).filter((request) => request.includes('/api/translations/'));
 expect(
   'a browser set to Slovak, first visit: the site is Slovak, from the browser alone - nothing chosen, nothing in the address',
-  (await js("navigator.languages.join(',')")) === 'sk-SK' && (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === SK.home && (await storedLanguage()) === ' / ',
-  `${await js("navigator.languages.join(',')")}: ${await pageLanguage()}, ${await text('app-survey-home h1')}, ${await storedLanguage()}`,
+  (await js("navigator.languages.join(',')")) === 'sk-SK' && (await pageLanguage()) === 'sk' && (await text('app-participant-layout .empty-heading')) === 'Nie ste prihlásení' && (await storedLanguage()) === ' / ',
+  `${await js("navigator.languages.join(',')")}: ${await pageLanguage()}, ${await text('app-participant-layout .empty-heading')}, ${await storedLanguage()}`,
 );
-expect('... and its strings took one request', same(asked, ['GET /api/translations/sk-sk']), asked.join(', '));
-await expectNoKeys('Slovak by the browser, the home page');
+expect('... and its strings were asked for in Slovak alone, once a page load (after the IAM, the cached Slovak again)', asked[0] === 'GET /api/translations/sk-sk' && asked.length <= 2 && asked.every((request) => ['GET /api/translations/sk-sk', 'GET /api/translations/sk'].includes(request)), asked.join(', '));
+await expectNoKeys('Slovak by the browser, signed out');
 await browserLanguage(browsersOwn);
 
 // Nobody signed in, nothing stored: a link with ?lang=sk, on the narrowest phone.
 await js('localStorage.clear(); sessionStorage.clear(); true');
 await go('/?lang=sk');
-expect('?lang=sk: <html lang="sk">, kept for this tab only and taken out of the address', (await pageLanguage()) === 'sk' && (await storedLanguage()) === ' / sk' && (await js('location.search')) === '', `${await pageLanguage()}, ${await storedLanguage()}, ${await js('location.search')}`);
-expect('Slovak: the button says Prihlásiť sa', (await text('app-top-bar button.btn-primary')) === 'Prihlásiť sa', await text('app-top-bar button.btn-primary'));
-expect('Slovak: the chooser says SK and is named in Slovak', (await text('app-language-switcher .switcher')) === 'SK' && (await js("document.querySelector('app-language-switcher .switcher').getAttribute('aria-label')")) === 'Jazyk: Slovenčina', await js("document.querySelector('app-language-switcher .switcher')?.getAttribute('aria-label')"));
-expect('Slovak: the home page', (await text('app-survey-home h1')) === SK.home, await text('app-survey-home h1'));
+await waitFor(page, "!!document.querySelector('app-participant-layout app-empty-state')", 15000);
+await js("document.querySelectorAll('.toast-close').forEach((b) => b.click()); true");
+await sleep(300);
+expect('?lang=sk: <html lang="sk">, kept for this tab only - through the IAM and back - and taken out of the address', (await pageLanguage()) === 'sk' && (await storedLanguage()) === ' / sk' && (await js('location.search')) === '', `${await pageLanguage()}, ${await storedLanguage()}, ${await js('location.search')}`);
+expect('Slovak, signed out: the card, its button says Prihlásiť sa', (await text('app-participant-layout .empty-heading')) === 'Nie ste prihlásení' && (await text('app-participant-layout app-empty-state button')) === SK.signIn, await text('app-participant-layout app-empty-state'));
+expect('Slovak: the chooser says SK and is named in Slovak with the code it shows', (await text('app-language-switcher .switcher')) === 'SK' && (await js("document.querySelector('app-language-switcher .switcher').getAttribute('aria-label')")) === 'Jazyk: Slovenčina (SK)', await js("document.querySelector('app-language-switcher .switcher')?.getAttribute('aria-label')"));
 expect('Slovak: the tab', (await js('document.title')) === 'Prieskumy · anotoki prieskum', await js('document.title'));
-expect('Slovak: the open survey with its size in Slovak', /^\d+ otáz(ka|ky|ok) · približne \d+ minút/.test((await text('app-survey-home .survey-meta')) ?? ''), await text('app-survey-home .survey-meta'));
+expect('Slovak, 360 px: the brand is the mark and "prieskum", the menu button named in Slovak', (await text('app-top-bar app-brand .wordmark')) === 'prieskum' && (await js("document.querySelector('app-top-bar .menu-button').getAttribute('aria-label')")) === 'Ponuka', `${await text('app-top-bar app-brand .wordmark')} / ${await js("document.querySelector('app-top-bar .menu-button')?.getAttribute('aria-label')")}`);
 await expectBar('Slovak, 360 px, signed out');
-await expectNoKeys('Slovak, the home page');
+await expectNoKeys('Slovak, signed out');
 // The detector itself: a key put on the page is found (so "none" above means none).
-await js("document.querySelector('app-survey-home h1').append(document.createTextNode(' home.title')); true");
+await js("document.querySelector('app-participant-layout .empty-heading').append(document.createTextNode(' home.title')); true");
 expect('a key on the page would have been seen', (await keysShown()).includes('home.title'));
 await go('/');
+await waitFor(page, "!!document.querySelector('app-participant-layout app-empty-state')", 15000);
+await js("document.querySelectorAll('.toast-close').forEach((b) => b.click()); true");
+await sleep(300);
 await screenshots('sk-360-home-signed-out');
+await openUserMenu();
+expect('Slovak, 360 px, signed out: the phone menu - Prieskumy, Prihlásiť sa', same(await texts('app-top-bar .menu [role=menuitem]'), ['Prieskumy', SK.signIn]), JSON.stringify(await texts('app-top-bar .menu [role=menuitem]')));
+expect('... inside the window', await menuInside('app-top-bar .menu'));
+await screenshots('sk-360-phone-menu-signed-out', false);
+await escape();
 
 // The chooser: a menu of the languages under their own names.
 await js("document.querySelector('app-language-switcher .switcher').click(); true");
@@ -625,37 +912,58 @@ await screenshot('sk-360-chooser');
 await escape();
 expect('Escape closes the chooser', !(await js("!!document.querySelector('app-language-switcher .menu')")));
 
-// The bar between the narrowest phone and the width where the words beside the mark come back: with the
-// chooser in it they are hidden up to 520 px (in Slovak, signed out, the bar with them needs 500).
-for (const width of [390, 520, 521]) {
+// The bar on a phone up to 760 px, a desktop's from 761: the links and Sign in in the row again.
+for (const width of [390, 760, 761]) {
   await viewport(width);
   await go('/');
+  await waitFor(page, "!!document.querySelector('app-participant-layout app-empty-state')", 15000);
+  await js("document.querySelectorAll('.toast-close').forEach((b) => b.click()); true");
   await expectBar(`Slovak, ${width} px, signed out`);
-  const words = await js("!!document.querySelector('app-top-bar app-brand .wordmark')");
-  expect(`Slovak, ${width} px: the words beside the mark are ${width > 520 ? 'shown' : 'hidden'}`, words === width > 520);
+  const row = await barRow();
+  const phone = width <= 760;
+  expect(
+    `Slovak, ${width} px, signed out: ${phone ? 'the menu button' : 'the links and Sign in'} in the row`,
+    phone ? same(row, ['app-brand', 'app-language-switcher', 'app-theme-toggle', 'phone-menu']) : same(row, ['app-brand', 'links: Prieskumy (page)', 'app-language-switcher', 'app-theme-toggle', 'button']),
+    JSON.stringify(row),
+  );
   if (width === 390) {
-    await screenshots('sk-390-home-signed-out');
+    await screenshots('sk-390-home-signed-out', false);
   } else {
     await screenshot(`sk-${width}-bar-signed-out`);
   }
 }
 
-// A survey, signed out.
+// A survey, signed out: the card where the survey would be - nothing of it drawn, nor asked for.
 await viewport(360);
+since = requested.length;
 await go(`/${slug}`);
-await waitFor(page, "!!document.querySelector('.start button')", 15000);
-expect('Slovak, signed out: the survey asks to sign in', (await text('.start button')) === 'Prihlásiť sa cez anotoki' && (await text('.sign-in-heading')) === 'Ak chcete tento prieskum vyplniť, prihláste sa', `${await text('.start button')} / ${await text('.sign-in-heading')}`);
+await waitFor(page, "!!document.querySelector('app-participant-layout app-empty-state')", 15000);
+await js("document.querySelectorAll('.toast-close').forEach((b) => b.click()); true");
+await sleep(300);
+expect(
+  'Slovak, a survey signed out: the card, nothing of the survey on the page or asked of the API',
+  (await text('app-participant-layout .empty-heading')) === 'Nie ste prihlásení' && !(await js("!!document.querySelector('app-take-survey')")) && !(await js('document.body.textContent')).includes('Genshin') && !requested.slice(since).some((request) => request.startsWith('GET /api/surveys')),
+  requested.slice(since).join(', '),
+);
 await expectNoKeys('Slovak, a survey signed out');
 await screenshots('sk-360-survey-signed-out');
 
-// Signed in - the account is English, the link followed was Slovak: the tab stays Slovak through the IAM and back.
-await signInAs(NINA, SK);
+// Signed in - the account is English, the link followed was Slovak: the tab stays Slovak through the IAM and back,
+// and the card's Sign in comes back to the survey.
+await setIam({ user: NINA, deny: false });
+await clickText('app-participant-layout app-empty-state button', SK.signIn);
+await sleep(1500);
+await settle();
+await waitFor(page, SIGNED_IN + " && !!document.querySelector('.start button')", 15000);
+expect('signed in from the card: back on the survey\'s page, its welcome drawn', (await js('location.pathname')) === `/${slug}` && (await whoIsIn()) === NINA.username, `${await js('location.pathname')} / ${await whoIsIn()}`);
+await go('/');
 expect('Slovak still, back from the IAM', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === SK.home, `${await pageLanguage()}, ${await text('app-survey-home h1')}`);
+expect('Slovak: the open survey with its size in Slovak', /^\d+ otáz(ka|ky|ok) · približne \d+ minút/.test((await text('app-survey-home .survey-meta')) ?? ''), await text('app-survey-home .survey-meta'));
 expect('the survey is new to Nina', (await text('app-survey-home app-badge')) === 'Nový', await text('app-survey-home app-badge'));
 await expectBar('Slovak, 360 px, signed in');
 await openUserMenu();
 const menuSk = await text('app-top-bar .menu');
-expect('the person\'s menu in Slovak', ['nina', 'Váš anotoki účet', 'Odhlásiť sa'].every((part) => menuSk?.includes(part)) && !menuSk?.includes('Administrácia'), menuSk);
+expect('the person\'s menu in Slovak', ['nina', 'Váš anotoki účet', 'Odhlásiť sa'].every((part) => menuSk?.includes(part)) && !menuSk?.includes('Administrátorský panel'), menuSk);
 expect('the person\'s menu is inside the window', await menuInside('app-top-bar .menu'));
 await expectNoKeys('Slovak, the person\'s menu');
 await screenshot('sk-360-user-menu');
@@ -743,23 +1051,23 @@ await screenshot('sk-360-no-access', true);
 // ... and the surveys for the owner, whose tab is Slovak too.
 await signInAs(OWNER, SK);
 await openUserMenu();
-expect('Slovak: the owner\'s way into the admin area', (await text('app-top-bar .menu a[href="/admin"]')) === 'Administrácia' && (await text('app-top-bar .menu-role')) === 'Rola: administrátor', await text('app-top-bar .menu'));
+expect('Slovak: the owner\'s way into the admin area', (await text('app-top-bar .menu a[href="/admin"]')) === 'Administrátorský panel' && (await text('app-top-bar .menu-role')) === 'Rola: administrátor', await text('app-top-bar .menu'));
 expect('Slovak: the owner\'s menu is inside the window', await menuInside('app-top-bar .menu'));
 await screenshot('sk-360-owner-menu');
 // Through the menu, without a page load: the router says where the page is.
-await clickText('app-top-bar .menu a', 'Administrácia');
+await clickText('app-top-bar .menu a', 'Administrátorský panel');
 await waitFor(page, "location.pathname === '/admin' && !!document.querySelector('app-surveys-list .survey')", 15000);
 await sleep(400);
 expect('/admin as the owner: <html lang="en">', (await pageLanguage()) === 'en', await pageLanguage());
 expect('/admin as the owner: no language chooser', !(await js("!!document.querySelector('app-language-switcher')")));
-expect('/admin as the owner: the page and the tab in English', (await text('app-surveys-list'))?.includes('New survey') && (await js('document.title')) === 'Surveys · anotoki survey', `${(await text('app-surveys-list'))?.slice(0, 80)} / ${await js('document.title')}`);
+expect('/admin as the owner: the page and the tab in English', (await text('app-surveys-list'))?.includes('New survey') && (await js('document.title')) === 'Surveys · Admin panel · anotoki survey', `${(await text('app-surveys-list'))?.slice(0, 80)} / ${await js('document.title')}`);
 await openUserMenu();
 const menuAdmin = await text('app-top-bar .menu');
-expect('/admin as the owner: the shared top bar in English', ['Administrator', 'Your anotoki account', 'The open surveys', 'Sign out'].every((part) => menuAdmin?.includes(part)) && (await js("document.querySelector('app-top-bar app-theme-toggle [role=radiogroup]').getAttribute('aria-label')")) === 'Theme', menuAdmin);
+expect('/admin as the owner: the shared top bar in English', ['Administrator', 'Your anotoki account', 'Surveys', 'Translations', 'Languages', 'Back to the surveys', 'Sign out'].every((part) => menuAdmin?.includes(part)) && (await js("document.querySelector('app-top-bar app-theme-toggle [role=radiogroup]').getAttribute('aria-label')")) === 'Theme', menuAdmin);
 await expectBar('/admin, 360 px');
 await expectNoKeys('/admin');
 await screenshot('sk-360-admin-menu');
-await clickText('app-top-bar .menu a', 'The open surveys');
+await clickText('app-top-bar .menu a', 'Back to the surveys');
 await waitFor(page, "location.pathname === '/' && !!document.querySelector('app-survey-home h1')", 15000);
 await sleep(400);
 expect('back where people take surveys: Slovak again, with the chooser', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === SK.home && (await text('app-language-switcher .switcher')) === 'SK', `${await pageLanguage()}, ${await text('app-survey-home h1')}`);
@@ -769,28 +1077,40 @@ await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list .survey')", 15000);
 expect('/admin opened by its address: English, <html lang="en">, no chooser', (await pageLanguage()) === 'en' && !(await js("!!document.querySelector('app-language-switcher')")) && (await text('app-surveys-list'))?.includes('New survey'), await pageLanguage());
 await expectBar('/admin, 390 px');
+expect('/admin, 390 px: the brand is the mark and "survey", "admin panel" under it', same(await texts('app-top-bar app-brand .wordmark > span'), ['survey', '·', 'admin panel']), JSON.stringify(await texts('app-top-bar app-brand .wordmark > span')));
 await screenshots('sk-390-admin');
 
 // ── The language of the account, when nothing is stored here ────────────────
 await viewport(360);
-await signOut(SK);
+await setIam({ user: ZUZANA });
+await signedOutOn('/');
 await js('localStorage.clear(); sessionStorage.clear(); true');
-await setIamUser(ZUZANA);
 await go('/');
-expect('nothing stored, nobody signed in: the browser\'s language, English', (await pageLanguage()) === 'en' && (await text('app-top-bar button.btn-primary')) === 'Sign in', `${await pageLanguage()}, ${await text('app-top-bar button.btn-primary')}, ${await js('navigator.languages.join()')}`);
-await clickText('app-top-bar button', 'Sign in');
+await waitFor(page, "!!document.querySelector('app-participant-layout app-empty-state')", 15000);
+await js("document.querySelectorAll('.toast-close').forEach((b) => b.click()); true");
+expect('nothing stored, nobody signed in: the browser\'s language, English', (await pageLanguage()) === 'en' && (await text('app-participant-layout app-empty-state button')) === 'Sign in', `${await pageLanguage()}, ${await text('app-participant-layout app-empty-state button')}, ${await js('navigator.languages.join()')}`);
+await setIam({ deny: false });
+await clickText('app-participant-layout app-empty-state button', 'Sign in');
 await sleep(1500);
 await settle();
-await waitFor(page, "!!document.querySelector('app-top-bar .user-button')", 15000);
+await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
 expect('a token that says locale sk: Slovak', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === SK.home, `${await pageLanguage()}, ${await text('app-survey-home h1')}`);
 expect('used, not stored', (await storedLanguage()) === ' / ', await storedLanguage());
 await expectBar('Slovak, 360 px, a twenty-character name');
 await screenshot('sk-360-home-token', true);
-await viewport(561);
-await go('/');
-expect('561 px: the name is in the bar', (await js("getComputedStyle(document.querySelector('app-top-bar .user-name')).display")) !== 'none' && (await text('app-top-bar .user-name')) === ZUZANA.username, await text('app-top-bar .user-name'));
-await expectBar('Slovak, 561 px, a twenty-character name');
-await screenshot('sk-561-bar-signed-in');
+await openUserMenu();
+expect('360 px: the twenty-character name whole at the head of the phone menu, the menu inside the window', (await text('app-top-bar .menu .menu-name')) === ZUZANA.username && (await menuInside('app-top-bar .menu')), await text('app-top-bar .menu .menu-name'));
+await screenshots('sk-360-phone-menu', false);
+await escape();
+// The name is beside the round button from 961 px; up to 960 the button is the initial alone.
+for (const width of [960, 961]) {
+  await viewport(width);
+  await go('/');
+  const shown = (await js("getComputedStyle(document.querySelector('app-top-bar .user-name')).display")) !== 'none';
+  expect(`${width} px: the name is ${width > 960 ? '' : 'not '}in the bar`, shown === width > 960 && (await text('app-top-bar .user-name')) === ZUZANA.username, await text('app-top-bar .user-name'));
+  await expectBar(`Slovak, ${width} px, a twenty-character name`);
+  await screenshot(`sk-${width}-bar-signed-in`);
+}
 
 // ── The chooser: a choice made here is kept, and is stronger than the account ──
 await viewport(360);
@@ -939,7 +1259,7 @@ await js(`(() => {
 await clickText('app-translations .save-bar button', 'Save');
 await waitFor(page, "!document.querySelector('app-translations') && !!document.querySelector('app-top-bar button.btn-primary')", 15000);
 await sleep(400);
-const iamLog = (await (await fetch(`${iam}/_test/state`)).json()).log ?? [];
+const iamLog = await iamTrips();
 expect('the session ended - the IAM refused to renew it: the page is gone, where it was, and the bar offers to sign in', (await js('location.pathname')) === '/admin/translations' && !(await js("!!document.querySelector('app-top-bar .user-button')")) && iamLog.slice(-3).includes('POST /api/oidc/token'), `${await js('location.pathname')}; the IAM was asked: ${iamLog.slice(-3).join(', ')}`);
 expect('... and what was typed is kept for the tab, for the person it was typed by', (await draftsKept()) === `${OWNER.id}: ${DRAFT_SK[0]} sk, ${DRAFT_EN[0]} en`, await draftsKept());
 const signedOutCard = async () => text('app-admin-layout app-empty-state');
@@ -952,12 +1272,15 @@ await screenshot('admin-session-ended');
 await viewport(390);
 await sleep(400);
 await expectBar('signed out in the admin area, 390 px');
-expect('signed out in the admin area, 390 px: the mark without its words - the bar has no chooser to make room', !(await js("!!document.querySelector('app-top-bar app-brand .wordmark')")));
+expect(
+  'signed out in the admin area, 390 px: the brand, the theme, the menu button - and the card\'s own Sign in',
+  same(await barRow(), ['app-brand', 'app-theme-toggle', 'phone-menu']) && (await text('app-admin-layout app-empty-state button')) === 'Sign in',
+  JSON.stringify(await barRow()),
+);
 await screenshots('admin-session-ended-390');
-// Where the words come back (421 px), the bar still holds them beside the sign-in button.
-await viewport(421);
-await expectBar('signed out in the admin area, 421 px');
-expect('signed out in the admin area, 421 px: the words beside the mark are back', await js("!!document.querySelector('app-top-bar app-brand .wordmark')"));
+await openUserMenu();
+expect('... its menu: the admin area\'s sections, then Sign in', same(await texts('app-top-bar .menu [role=menuitem]'), ['Surveys', 'Translations', 'Languages', 'Sign in']), JSON.stringify(await texts('app-top-bar .menu [role=menuitem]')));
+await escape();
 await viewport(1280);
 await sleep(400);
 // The site's links and Back still work from here: the page is gone, so the router asks the Translations page's guard
@@ -1045,15 +1368,18 @@ await screenshots('sk-360-sign-out-unsaved', false);
 await clickText('dialog[open] button', 'Aj tak sa odhlásiť');
 await sleep(1500);
 await settle();
-expect('"Sign out anyway": signed out, and what was typed is given up - nothing of it is kept for the tab', (await text('app-top-bar button.btn-primary')) === SK.signIn && (await draftsKept()) === null, `${await text('app-top-bar button.btn-primary')} / ${await draftsKept()}`);
+// Signed out at the IAM, back at / - which is for somebody signed in, so the sign-in follows at once.
+await waitFor(page, SIGNED_IN, 15000);
+const signOutTrip = (await iamTrips()).slice(-10);
+expect(
+  '"Sign out anyway": signed out at the IAM, and what was typed is given up - nothing of it is kept for the tab',
+  signOutTrip.includes('GET /api/oidc/logout') && (await draftsKept()) === null,
+  `${signOutTrip.join(', ')} / ${await draftsKept()}`,
+);
 // Nothing is unsaved from here on: the browser's own question is a problem again.
 const browserAsked = leaving.length;
 leaving = null;
 await viewport(1280);
-await clickText('app-top-bar button', SK.signIn);
-await sleep(1500);
-await settle();
-await waitFor(page, "!!document.querySelector('app-top-bar .user-button')", 15000);
 await go('/admin/translations');
 await waitFor(page, "document.querySelectorAll('app-translations .block').length > 50", 15000);
 expect(
@@ -1090,7 +1416,7 @@ await screenshot('admin-languages-1280-slovak-hidden');
 // people take surveys on are English already.
 const toTheSurveys = async () => {
   await openUserMenu();
-  await clickText('app-top-bar .menu a', 'The open surveys');
+  await clickText('app-top-bar .menu a', 'Back to the surveys');
   await waitFor(page, "location.pathname === '/' && !!document.querySelector('app-survey-home h1')", 15000);
   await sleep(400);
 };
@@ -1313,14 +1639,12 @@ await dismissToasts();
 
 // ── A reader whose account is Slovak: one survey has no Slovak, one has all of it ──
 await viewport(360);
+await setIam({ user: ZUZANA, deny: false });
+// Out, and in again at once as Zuzana; then nothing stored - the page load signs her in again.
 await signOut(SK);
 await js('localStorage.clear(); sessionStorage.clear(); true');
-await setIamUser(ZUZANA);
 await go('/');
-await clickText('app-top-bar button', 'Sign in');
-await sleep(1500);
-await settle();
-await waitFor(page, "!!document.querySelector('app-top-bar .user-button')", 15000);
+await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
 expect('Zuzana reads Slovak, from her account', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === HOME_SK && (await storedLanguage()) === ' / ', `${await pageLanguage()}, ${await text('app-survey-home h1')}, ${await storedLanguage()}`);
 const list = await listed();
 expect('home, Slovak: the translated survey is listed in Slovak, with nothing said about its language', same(list[teaSlug], ['Čaj alebo káva?', null, null]), JSON.stringify(list[teaSlug]));
@@ -1831,6 +2155,400 @@ await sleep(500);
 await expectBar('the editor, an open survey past its last day, 390 px');
 await screenshots('editor-past-last-day-390');
 
+// ═══ A database behind the code: the Migrations page ═══════════════════════
+// A release that brings migrations nobody has applied yet: the database's record says 004 and 005 have not run
+// (their rows taken out of `migrations`). 004 cannot run again - its column is there - so the first Apply stops
+// on it; 005 brings back brand.adminPanel, taken out here, so the strings read while the database is behind lack
+// it. The site is closed meanwhile (503 not_set_up, update: true) but for signing in, the strings and the Migrations
+// page: somebody taking surveys and an EDITOR get "not set up yet" and nothing else; an ADMIN gets a link to the
+// Migrations page, sees what is pending, applies it, is shown where it stopped with the database's whole error,
+// applies again once 004 is out of the way - and the site runs where it stands, its strings read again.
+const FILE_004 = '004_response_language.sql';
+const FILE_005 = '005_top_bar_and_sign_in.sql';
+sql(`DELETE FROM migrations WHERE filename IN ('${FILE_004}', '${FILE_005}')`);
+sql("DELETE FROM translation_keys WHERE name = 'brand.adminPanel'");
+// The bar of the Migrations page, until 005 is applied: the key with no string shows as itself, and says so.
+expected = [/\[i18n\] no string for 'brand\.adminPanel'/];
+const behindAnswer = await (await fetch(`${origin}/api/surveys`)).json();
+const behindConfig = await (await fetch(`${origin}/api/auth/config`)).json();
+expect(
+  'the database behind: the API is not set up (update: true) - but the sign-in\'s settings answer, saying so',
+  behindAnswer.code === 'not_set_up' && behindAnswer.update === true && behindConfig.update === true && typeof behindConfig.issuer === 'string',
+  `${JSON.stringify(behindAnswer).slice(0, 160)} / ${JSON.stringify(behindConfig)}`,
+);
+/** The site holds a session (the SDK's stored tokens) - with no top bar to ask, on a page drawn instead of the site. */
+const HOLDS_SESSION = "Object.keys(localStorage).some((name) => name.startsWith('anotoki-auth:') && !!JSON.parse(localStorage.getItem(name) || 'null')?.access_token)";
+const migrationsLink = () => js("[...document.querySelectorAll('a')].filter((a) => a.getAttribute('href') === '/admin/migrations').length");
+/** Signed in afresh as `user`, opening `path`: the session forgotten, so the page goes to the IAM first - which works while the database is behind. */
+async function freshlyIn(user, path) {
+  await setIam({ user, deny: false });
+  await forgetSession();
+  await go(path);
+  await waitFor(page, `${HOLDS_SESSION} && !!document.querySelector('app-not-set-up h1')`, 15000);
+  await sleep(700);
+}
+
+await viewport(390);
+await freshlyIn(PAT, '/?lang=sk');
+expect(
+  'behind, somebody taking surveys, in Slovak: through the IAM, then "not set up yet" in their language - and no way to the Migrations page',
+  (await text('app-not-set-up h1')) === bundle.values['boot.notSetUp.title'] && (await migrationsLink()) === 0 && !(await js("!!document.querySelector('#not-set-up-update')")),
+  `${await text('app-not-set-up h1')} / links: ${await migrationsLink()}`,
+);
+await expectNoKeys('behind, somebody taking surveys, in Slovak');
+await expectNoSideways('behind, 390 px');
+await screenshots('sk-390-behind-participant');
+await viewport(1280);
+await go('/?lang=en');
+await waitFor(page, "!!document.querySelector('app-not-set-up h1')", 15000);
+await sleep(500);
+expect('... and in English', (await text('app-not-set-up h1')) === 'The survey site is not set up yet' && (await migrationsLink()) === 0, await text('app-not-set-up h1'));
+await screenshot('en-1280-behind-participant');
+
+await freshlyIn(EDITH, '/admin/migrations');
+expect(
+  'behind, an EDITOR - even at the Migrations page\'s address: "not set up yet", and no way to the Migrations page',
+  (await js('location.pathname')) === '/admin/migrations' && (await text('app-not-set-up h1')) === 'The survey site is not set up yet' && (await migrationsLink()) === 0 && !(await js("!!document.querySelector('app-migrations')")),
+  `${await js('location.pathname')} / ${await text('app-not-set-up h1')} / links: ${await migrationsLink()}`,
+);
+await screenshot('en-1280-behind-editor');
+
+await viewport(390);
+await freshlyIn(OWNER, '/?lang=sk');
+const adminNote = await text('#not-set-up-update p');
+expect(
+  'behind, an ADMIN on a Slovak page: the page in Slovak, and the way to the Migrations page in English - the admin panel\'s',
+  (await text('app-not-set-up h1')) === bundle.values['boot.notSetUp.title'] &&
+    (await js("document.querySelector('#not-set-up-update')?.getAttribute('lang')")) === 'en' &&
+    adminNote === "You are an administrator of the survey site: its database has an update waiting. See it and apply it on the admin panel's Migrations page. Back the database up first." &&
+    (await migrationsLink()) === 1,
+  `${await text('app-not-set-up h1')} / ${adminNote}`,
+);
+await expectNoSideways('behind, an ADMIN, 390 px');
+await screenshots('sk-390-behind-admin');
+await viewport(1280);
+await go('/?lang=en');
+await waitFor(page, "!!document.querySelector('#not-set-up-update a')", 15000);
+await sleep(500);
+await screenshot('en-1280-behind-admin');
+
+expect('"Open Migrations"', (await clickText('#not-set-up-update a', 'Open Migrations')) === true);
+await waitFor(page, "location.pathname === '/admin/migrations' && document.querySelectorAll('app-migrations #migrations-pending li').length === 2", 15000);
+await sleep(600);
+/** The Pending card's rows, each as its children's words with a space between ("004_….sql pending"). */
+const pendingRows = async () =>
+  (await js("[...document.querySelectorAll('app-migrations #migrations-pending li')].map((row) => [...row.children].map((child) => child.textContent.trim()).join(' '))")).join(' | ');
+const barLinks = async () => (await texts('app-top-bar .topbar-nav a')).join(' ');
+expect(
+  'the Migrations page: the two files pending, in the order they will run - and in the bar the one page that works',
+  (await pendingRows()) === `${FILE_004} pending | ${FILE_005} pending` && (await barLinks()) === 'Migrations' && (await js('document.title')).startsWith('Migrations · '),
+  `${await pendingRows()} / bar: ${await barLinks()} / ${await js('document.title')}`,
+);
+expect(
+  '... and the strings read while 005 waits lack what it brings: that key shows as itself (until the Apply reads them again)',
+  (await text('app-top-bar app-brand')).includes('brand.adminPanel'),
+  await text('app-top-bar app-brand'),
+);
+await screenshot('admin-migrations-behind-1280', true);
+
+/** "Apply pending", and Apply in the question it asks: what the question said. */
+async function applyPending() {
+  await clickText('app-migrations #migrations-apply', 'Apply pending');
+  await waitFor(page, "!!document.querySelector('dialog[open]')", 15000);
+  await sleep(300);
+  const asked = await question();
+  await clickText('dialog[open] .footer button', 'Apply');
+  await waitFor(page, "!!document.querySelector('app-migrations #migrations-result') && !document.querySelector('app-migrations #migrations-apply[aria-busy=\"true\"]')", 20000);
+  await sleep(800);
+  return asked;
+}
+const applyAsked = await applyPending();
+const failedWords = await text('app-migrations #migrations-result');
+const failedError = await js("document.querySelector('app-migrations #migrations-result pre code')?.textContent ?? ''");
+expect(
+  'a failed Apply: where it stopped, nothing applied first, the file rolled back whole - and the database\'s whole error',
+  applyAsked?.title === 'Apply 2 pending migrations?' &&
+    (await text('app-migrations #migrations-result .alert-heading')) === `Stopped at ${FILE_004}` &&
+    failedWords.includes('Nothing was applied. The failed file was rolled back as a whole.') &&
+    /^statement 1 of 1: SQLSTATE\[42701\]: .*column "language" of relation "responses" already exists\n\n {2}ALTER TABLE responses/s.test(failedError),
+  `${applyAsked?.title} / ${failedWords.slice(0, 120)} / ${failedError.slice(0, 160)}`,
+);
+expect('... and the database is still behind: both still pending, the bar the same', (await pendingRows()) === `${FILE_004} pending | ${FILE_005} pending` && (await barLinks()) === 'Migrations', `${await pendingRows()} / ${await barLinks()}`);
+await screenshot('admin-migrations-failed-1280', true);
+await viewport(390);
+await sleep(400);
+await expectBar('the Migrations page, a failed Apply, 390 px');
+await screenshots('admin-migrations-failed-390');
+await viewport(1280);
+
+// What was in the way is dealt with (here: 004's work is there, so its row goes back): the next Apply goes through.
+sql(`INSERT INTO migrations (filename) VALUES ('${FILE_004}') ON CONFLICT DO NOTHING`);
+await applyPending();
+await waitFor(page, "document.querySelectorAll('app-top-bar .topbar-nav a').length === 4 && !(document.querySelector('app-top-bar app-brand')?.textContent ?? '').includes('brand.adminPanel')", 15000);
+await sleep(500);
+expect(
+  'a good Apply: "Up to date", what was applied, nothing pending - and the site runs where it stands, every section in the bar',
+  (await text('app-migrations #migrations-result .alert-heading')) === 'Up to date' &&
+    (await text('app-migrations #migrations-result .alert-text')) === `Applied: ${FILE_005}.` &&
+    (await text('app-migrations #migrations-pending')).includes('Nothing pending') &&
+    (await barLinks()) === 'Surveys Translations Languages Migrations',
+  `${await text('app-migrations #migrations-result')} / ${await barLinks()}`,
+);
+expect('... and its strings read again: what 005 brought is a word, not a key', (await text('app-top-bar app-brand')).includes('admin panel'), await text('app-top-bar app-brand'));
+await expectNoKeys('the Migrations page, up to date');
+await screenshot('admin-migrations-up-to-date-1280', true);
+await viewport(390);
+await sleep(400);
+await expectBar('the Migrations page, up to date, 390 px');
+await screenshots('admin-migrations-up-to-date-390');
+await viewport(1280);
+await clickText('app-top-bar .topbar-nav a', 'Surveys');
+await waitFor(page, "location.pathname === '/admin' && !!document.querySelector('app-surveys-list')", 15000);
+await sleep(500);
+expect('the rest of the admin panel works again, with no reload', !(await js("!!document.querySelector('app-not-set-up')")), await js('location.pathname'));
+expect('the console said only what the stage made it say', heard.length > 0 && heard.every((message) => message.includes("no string for 'brand.adminPanel'")), heard.join(' | ').slice(0, 300));
+heard.splice(0);
+expected = [];
+
+// ═══ Visitors: the IAM's "Sign-in required" switched off ══════════════════
+// The IAM says sign-in is not required for the site (the stand-in's `login_required`), and the site's backend is
+// made to ask again (its kept answer - a minute in the work folder's config/cache - deleted). Then nobody signed in
+// may take surveys: their first kept answers make a visitor, whose key this browser keeps; the admin panel lists the
+// visitor as "Visitor N", "Not signed in"; signing in moves the visitor's answers into the account (the person's own
+// answers win where both answered) and their draft with them. The admin panel and the preview still sign in. Then
+// the switch goes on again: a browser holding a key is sent to sign in, and keeps the key. A second browser (a
+// context of its own) is a visitor of its own.
+const VISITOR_KEY = 'anotoki-survey:visitor';
+const KEY_SHAPE = /^[A-Za-z0-9_-]{43}$/;
+/** The IAM's switch, as the site will read it from the next request on. */
+function signInRequired(required) {
+  const cache = join(process.env.SURVEY_CHECK_CONFIG ?? '', 'cache');
+  for (const file of existsSync(cache) ? readdirSync(cache) : []) {
+    if (file.startsWith('anotoki-iam-application-')) rmSync(join(cache, file), { force: true });
+  }
+  return setIam({ login_required: required });
+}
+/** What the home page says of each survey, by its address: New, Started, Taken (in the page's language). */
+const statesOn = (target) =>
+  target.evaluate("Object.fromEntries([...document.querySelectorAll('app-survey-home a.survey')].map((a) => [a.getAttribute('href').slice(1), a.querySelector('.survey-state').textContent.trim()]))");
+const visitStates = async (target = page) => {
+  const states = await statesOn(target);
+  return ['visit-one', 'visit-two', 'visit-three'].map((slug) => states[slug] ?? '-').join(', ');
+};
+/** A survey of one question, open, with all of it in Slovak too. */
+const visitSurvey = (slug, title, slovak) => ({
+  slug,
+  title,
+  status: 'draft',
+  intro: '<p>One question about the sites.</p>',
+  thanks: '<p>Thank you!</p>',
+  askAboutYou: false,
+  closesOn: null,
+  language: 'en',
+  translations: { sk: { title: slovak, intro: '<p>Jedna otázka o stránkach.</p>', thanks: '<p>Ďakujeme!</p>', steps: { v1: { title: 'Otázka' } }, questions: { vq: { text: '<p>Obľúbený živel?</p>', placeholder: '', options: { a: { label: 'Anemo' }, g: { label: 'Geo' } }, images: {} } } } },
+  steps: [{ id: 'v1', title: 'Question', questions: [{ id: 'vq', type: 'single', text: '<p>Your favourite element?</p>', images: [], required: true, options: [{ id: 'a', label: 'Anemo', other: false, images: [] }, { id: 'g', label: 'Geo', other: false, images: [] }], layout: 'list', minChoices: null, maxChoices: null, multiline: true, maxLength: null, placeholder: '' }] }],
+});
+/** Through a survey on the page: Start, the first option, and - unless `send` is false - Send (by the words of the page). */
+async function takeVisit(slug, words, send = true) {
+  await go(`/${slug}`);
+  await waitFor(page, "!!document.querySelector('.start button')", 15000);
+  await js("document.querySelector('.start button').click(); true");
+  await waitFor(page, "!!document.querySelector('app-take-survey input[value=\"a\"]')", 15000);
+  await pick('a');
+  await sleep(400);
+  if (send) {
+    await clickText('button[type=submit]', words.send);
+    await waitFor(page, "!!document.querySelector('.done-heading')", 15000);
+  }
+}
+EN.send = 'Send my answers';
+SK.send = 'Odoslať odpovede';
+
+// The owner (signed in, from the stage before) makes three open surveys, and answers the second one as themselves.
+await setIam({ user: OWNER, deny: false });
+const visitIds = {};
+for (const [slug, title, slovak] of [
+  ['visit-one', 'Visit one', 'Návšteva jedna'],
+  ['visit-two', 'Visit two', 'Návšteva dva'],
+  ['visit-three', 'Visit three', 'Návšteva tri'],
+]) {
+  const made = await (await asOwner('POST', '/api/admin/surveys', { survey: visitSurvey(slug, title, slovak) })).json();
+  visitIds[slug] = made.survey?.id;
+  const opened = await asOwner('POST', `/api/admin/surveys/${visitIds[slug]}/status`, { status: 'open' });
+  if (!visitIds[slug] || !opened.ok) problems.push(`could not make and open ${slug}: ${JSON.stringify(made).slice(0, 200)} / ${opened.status}`);
+}
+const visitAnswer = { aboutYou: null, answers: { vq: { optionIds: ['g'], other: '', text: '' } }, language: 'en', startedAt: new Date().toISOString() };
+expect('the owner answers "Visit two" as themselves', (await asOwner('POST', '/api/surveys/visit-two/responses', visitAnswer)).status === 201);
+expect('switched off in the IAM', await signInRequired(false));
+const relayed = await (await fetch(`${origin}/api/auth/config`)).json();
+expect('the site relays it: sign-in not required, a visitor kept 30 days', relayed.loginRequired === false && relayed.visitorDays === 30, JSON.stringify(relayed));
+
+// A second browser, nothing stored: no trip to the IAM, the open surveys, all new; its answers make a visitor.
+const other = await openPageInNewContext(Number(port));
+await other.send('Page.enable');
+await other.send('Runtime.enable');
+await other.send('Network.enable');
+other.on('Runtime.exceptionThrown', (e) => problems.push('second browser, exception: ' + (e.exceptionDetails?.exception?.description ?? e.exceptionDetails?.text)));
+other.on('Runtime.consoleAPICalled', (e) => {
+  if (e.type === 'error' || e.type === 'warning') problems.push(`second browser, console.${e.type}: ` + e.args.map((a) => a.value ?? a.description).join(' '));
+});
+const otherRequested = [];
+other.on('Network.requestWillBeSent', (e) => {
+  try {
+    otherRequested.push(`${e.request.method} ${new URL(e.request.url).pathname}`);
+  } catch {
+    // not an address
+  }
+});
+await other.send('Page.navigate', { url: `${origin}/` });
+await waitFor(other, "!!document.querySelector('app-survey-home a.survey[href=\"/visit-three\"]')", 20000);
+expect(
+  'switched off, a browser with nothing stored: the surveys, no trip to the IAM, nothing taken, the notice',
+  (await other.evaluate('location.origin')) === origin && !otherRequested.includes('GET /api/oidc/authorize') && (await visitStates(other)) === 'New, New, New' && !!(await other.evaluate("document.querySelector('app-visitor-notice')?.textContent")),
+  `${await visitStates(other)} / ${otherRequested.filter((line) => line.includes('/api/')).join(', ').slice(0, 200)}`,
+);
+await other.send('Page.navigate', { url: `${origin}/visit-one` });
+await waitFor(other, "!!document.querySelector('.start button')", 15000);
+await other.evaluate("document.querySelector('.start button').click(); true");
+await waitFor(other, "!!document.querySelector('app-take-survey input[value=\"g\"]')", 15000);
+await other.evaluate("document.querySelector('app-take-survey input[value=\"g\"]').click(); true");
+await sleep(400);
+await other.evaluate("[...document.querySelectorAll('button[type=submit]')].find((b) => b.textContent.includes('Send my answers')).click(); true");
+await waitFor(other, "!!document.querySelector('.done-heading')", 15000);
+const otherKey = await other.evaluate(`localStorage.getItem(${JSON.stringify(VISITOR_KEY)})`);
+expect('the second browser\'s answers are kept, and made it a visitor: its key in localStorage', KEY_SHAPE.test(otherKey ?? ''), String(otherKey).length);
+
+// The admin panel (the owner, in the first browser): the visitor is "Visitor N", not signed in.
+const visitOneAnswers = async () => (await (await asOwner('GET', `/api/admin/surveys/${visitIds['visit-one']}/responses`)).json()).responses ?? [];
+const theVisitor = (await visitOneAnswers()).find((response) => response.person.visitor);
+const visitorName = theVisitor ? `Visitor ${-Number(theVisitor.person.id)}` : '(none)';
+expect('the results: the visitor\'s person is a negative id, "Visitor N", no address', !!theVisitor && Number(theVisitor.person.id) < 0 && theVisitor.person.name === visitorName && theVisitor.person.email === '', JSON.stringify(theVisitor?.person));
+await viewport(1280);
+await go(`/admin/surveys/${visitIds['visit-one']}/results?tab=people`);
+await waitFor(page, "!!document.querySelector('#results-panel-people tbody .who-name')", 15000);
+const peopleRows = () => js("[...document.querySelectorAll('#results-panel-people tbody tr')].map((row) => row.querySelector('.who-name')?.textContent.trim() + ' / ' + row.querySelector('.who-email')?.textContent.trim())");
+expect('the results\' people: the visitor by name, "Not signed in" where an address would be', same(await peopleRows(), [`${visitorName} / Not signed in`]), JSON.stringify(await peopleRows()));
+await screenshot('admin-results-visitor-1280', true);
+await clickText('#results-panel-people .person', visitorName);
+await waitFor(page, "!!document.querySelector('app-drawer .subtitle')", 15000);
+await sleep(400);
+expect('... and in the drawer of their answers', (await text('app-drawer h2')) === visitorName && (await text('app-drawer .subtitle')) === 'Not signed in', `${await text('app-drawer h2')} / ${await text('app-drawer .subtitle')}`);
+await screenshot('admin-results-visitor-drawer-1280');
+await viewport(390);
+await go(`/admin/surveys/${visitIds['visit-one']}/responses/${theVisitor?.id}`);
+await waitFor(page, "!!document.querySelector('app-response-page h1')", 15000);
+expect('... and on the page of their answers', (await text('app-response-page h1')) === visitorName && (await text('app-response-page .who .muted')) === 'Not signed in', `${await text('app-response-page h1')} / ${await text('app-response-page .who .muted')}`);
+await expectBar('the answers of a visitor, 390 px');
+await screenshots('admin-response-visitor-390');
+
+// The first browser forgets its session: a visitor, English, a phone.
+await forgetSession();
+await js('localStorage.clear(); sessionStorage.clear(); true');
+since = requested.length;
+await go('/?lang=en');
+await waitFor(page, "!!document.querySelector('app-survey-home a.survey[href=\"/visit-three\"]') && !!document.querySelector('app-visitor-notice')", 20000);
+trip = requested.slice(since);
+expect('nobody signed in, /: no trip to the IAM - the open surveys, nothing taken', !trip.includes('GET /api/oidc/authorize') && !(await js(SIGNED_IN)) && (await visitStates()) === 'New, New, New', `${await visitStates()} / ${trip.filter((line) => line.includes('/api/')).join(', ').slice(0, 200)}`);
+expect('the notice: kept for this browser 30 days, and Sign in', /for 30 days after your last visit/.test(await text('app-visitor-notice')) && (await text('app-visitor-notice button')) === EN.signIn, await text('app-visitor-notice'));
+await expectBar('a visitor\'s home page, 390 px');
+await expectNoKeys('a visitor\'s home page');
+await screenshots('en-390-visitor-home');
+await go('/visit-one');
+await waitFor(page, "!!document.querySelector('.start button')", 15000);
+expect('a survey\'s welcome: the visitor\'s line where a person\'s name would be, and the notice', (await text('app-take-survey .who')) === 'You are not signed in · your answers go without your name.' && !!(await text('app-take-survey app-visitor-notice')), await text('app-take-survey .who'));
+expect('no key before the first answers are kept', (await js(`localStorage.getItem(${JSON.stringify(VISITOR_KEY)})`)) === null);
+await screenshots('en-390-visitor-welcome');
+await takeVisit('visit-one', EN);
+const visitorKey = await js(`localStorage.getItem(${JSON.stringify(VISITOR_KEY)})`);
+expect('sent: thank you - and the answers made this browser a visitor (a key of its own)', (await text('.done-heading')) === 'Thank you!' && KEY_SHAPE.test(visitorKey ?? '') && visitorKey !== otherKey, `${await text('.done-heading')} / ${String(visitorKey).length}`);
+await expectNoKeys('a visitor\'s answers sent');
+await screenshots('en-390-visitor-sent');
+await go('/visit-one');
+await waitFor(page, "!!document.querySelector('.message-heading')", 15000);
+expect('the same survey again: taken already', /You have taken this survey/.test(await text('.message-heading')), await text('.message-heading'));
+await takeVisit('visit-two', EN);
+await takeVisit('visit-three', EN, false);
+await go('/');
+await waitFor(page, "!!document.querySelector('app-survey-home a.survey[href=\"/visit-three\"]')", 15000);
+expect('home, after a page load: taken, taken, started - the visitor\'s, kept in this browser', (await visitStates()) === 'Taken, Taken, Started', await visitStates());
+
+// The admin panel and the preview still sign in: the IAM turns the sign-in down here, and their cards are drawn.
+await setIam({ deny: true });
+await go('/admin');
+await waitFor(page, "location.origin === " + JSON.stringify(origin) + " && !!document.querySelector('app-admin-layout app-empty-state')", 20000);
+expect('switched off all the same, /admin goes to the IAM: refused, its card - nothing of the admin panel', /not signed in/i.test(await text('app-admin-layout app-empty-state')) && !(await js("!!document.querySelector('app-surveys-list')")), await text('app-admin-layout app-empty-state'));
+expect('... and the refusal is said', (await toasts()).some((toast) => /not completed/i.test(toast)), JSON.stringify(await toasts()));
+await dismissToasts();
+await go(`/preview/${visitIds['visit-one']}`);
+await waitFor(page, "location.origin === " + JSON.stringify(origin) + " && !!document.querySelector('app-participant-layout app-empty-state')", 20000);
+expect('... and so does the preview: the card, nothing of the survey', !(await js("!!document.querySelector('app-take-survey')")), await text('app-participant-layout app-empty-state'));
+await dismissToasts();
+await setIam({ deny: false });
+
+// In Slovak: the notice, the visitor's line, the draft offered - no key on the page.
+await go('/?lang=sk');
+await waitFor(page, "!!document.querySelector('app-survey-home a.survey[href=\"/visit-three\"]') && /Prieskumy vypĺňate/.test(document.querySelector('app-visitor-notice')?.textContent ?? '')", 15000);
+expect('Slovak: the notice, its days in Slovak', /ešte 30 dní po Vašej poslednej návšteve/.test(await text('app-visitor-notice')) && (await text('app-visitor-notice button')) === SK.signIn, await text('app-visitor-notice'));
+expect('Slovak: the visitor\'s surveys taken, taken, started', (await visitStates()) === 'Vyplnený, Vyplnený, Začatý', await visitStates());
+await expectNoKeys('a visitor\'s home page, Slovak');
+await screenshots('sk-390-visitor-home');
+await viewport(360);
+await expectBar('a visitor\'s home page, Slovak, 360 px');
+await screenshot('sk-360-visitor-home', true);
+await viewport(390);
+await go('/visit-three');
+await waitFor(page, "!!document.querySelector('app-take-survey .who')", 15000);
+expect('Slovak: the visitor\'s line, and their draft offered', (await text('app-take-survey .who')) === 'Nie ste prihlásení · odpovede odošlete bez svojho mena.' && (await texts('app-take-survey app-alert')).some((alert) => alert.includes('Pokračovať tam, kde ste prestali?')), `${await text('app-take-survey .who')} / ${(await texts('app-take-survey app-alert')).join(' | ')}`);
+await expectNoKeys('a visitor\'s welcome with a draft, Slovak');
+await screenshots('sk-390-visitor-welcome-draft');
+
+// Signing in from the notice - as the owner, who answered "Visit two" too: one survey moves, one keeps the owner's.
+await go('/');
+await waitFor(page, "!!document.querySelector('app-visitor-notice button')", 15000);
+await js("document.querySelector('app-visitor-notice button').click(); true");
+await waitFor(page, SIGNED_IN + " && !document.querySelector('app-visitor-notice') && document.querySelectorAll('.toast-message').length > 0", 20000);
+const movedToast = (await toasts()).join(' | ');
+expect(
+  'signed in: the toast says what moved into the account and what kept the person\'s earlier answers - in Slovak',
+  movedToast.includes('1 prieskum, ktorý ste vyplnili bez prihlásenia, je teraz vo Vašom účte.') && movedToast.includes('1 prieskum, ktorý ste vyplnili bez prihlásenia, ste už predtým vyplnili aj vo svojom účte'),
+  movedToast,
+);
+await screenshot('sk-390-visitor-signed-in-moved');
+await dismissToasts();
+expect('... the key is gone from this browser', (await js(`localStorage.getItem(${JSON.stringify(VISITOR_KEY)})`)) === null);
+await waitFor(page, "!!document.querySelector('app-survey-home a.survey[href=\"/visit-three\"]')", 15000);
+await sleep(500);
+expect('... and the home page is the owner\'s: taken, taken, and the visitor\'s draft is theirs now', (await visitStates()) === 'Vyplnený, Vyplnený, Začatý' && (await whoIsIn()) === OWNER.username, `${await visitStates()} / ${await whoIsIn()}`);
+const visitTwoAnswers = (await (await asOwner('GET', `/api/admin/surveys/${visitIds['visit-two']}/responses`)).json()).responses ?? [];
+const visitOneNow = (await visitOneAnswers()).map((response) => `${response.person.name}${response.person.visitor ? ' (visitor)' : ''}`).sort();
+expect(
+  'the answers: "Visit one" is the owner\'s now beside the other browser\'s visitor; "Visit two" kept the owner\'s own, the visitor\'s dropped',
+  same(visitOneNow, [`${visitorName} (visitor)`, OWNER.username].sort()) && same(visitTwoAnswers.map((response) => response.person.name), [OWNER.username]) && visitTwoAnswers[0]?.answers?.vq?.optionIds?.[0] === 'g',
+  `${JSON.stringify(visitOneNow)} / ${JSON.stringify(visitTwoAnswers.map((response) => [response.person.name, response.answers?.vq?.optionIds]))}`,
+);
+await go(`/admin/surveys/${visitIds['visit-one']}/results?tab=people`);
+await waitFor(page, "document.querySelectorAll('#results-panel-people tbody .who-name').length === 2", 15000);
+const bothRows = await peopleRows();
+expect('the results: the owner with their address, the visitor "Not signed in"', bothRows.includes(`${visitorName} / Not signed in`) && bothRows.some((row) => row.startsWith(`${OWNER.username} / `) && !row.endsWith('Not signed in')), JSON.stringify(bothRows));
+await expectBar('the results with a person and a visitor, 390 px');
+await screenshots('admin-results-visitor-390');
+
+// Switched on again: the second browser, holding its key, is sent to sign in (turned down here) - and keeps the key.
+expect('switched on in the IAM', await signInRequired(true));
+await setIam({ deny: true });
+otherRequested.splice(0);
+await other.send('Page.navigate', { url: `${origin}/` });
+await waitFor(other, "location.origin === " + JSON.stringify(origin) + " && !!document.querySelector('app-participant-layout app-empty-state')", 20000);
+expect(
+  'switched on: the visitor\'s page went to the IAM first, and draws its card - nothing of the surveys asked for',
+  otherRequested.includes('GET /api/oidc/authorize') && !otherRequested.includes('GET /api/surveys') && !(await other.evaluate("!!document.querySelector('app-survey-home a.survey')")),
+  otherRequested.filter((line) => line.includes('/api/')).join(', ').slice(0, 300),
+);
+expect('... and the key is kept for when the switch goes off again, or they sign in', (await other.evaluate(`localStorage.getItem(${JSON.stringify(VISITOR_KEY)})`)) === otherKey);
+await setIam({ deny: false });
+await other.close();
+await viewport(1280);
+
 // ═══ The pages drawn instead of the site ═══════════════════════════════════
 // A browser that has never been here - nothing stored, so no strings kept from an earlier visit - and a site that
 // is not set up: every request is answered as the backend's setup gate answers it. The tab is named by the site,
@@ -1870,7 +2588,7 @@ await stopIntercepting();
 expect('try again', (await clickText('app-load-error button', 'Try again')) === true);
 await waitFor(page, "location.pathname === '/admin/languages' && document.querySelectorAll('app-languages .language').length === 2", 20000);
 await sleep(400);
-expect('"Try again", the server back: the page that was asked for - through the sign-in - not a blank one', (await text('app-top-bar .user-name')) === OWNER.username && (await js('document.title')).startsWith('Languages · '), `${await text('app-top-bar .user-name')} / ${await js('document.title')}`);
+expect('"Try again", the server back: the page that was asked for - through the sign-in - not a blank one', (await whoIsIn()) === OWNER.username && (await js('document.title')).startsWith('Languages · '), `${await whoIsIn()} / ${await js('document.title')}`);
 expect('the console said only what a server out of reach makes it say', heard.length > 0 && heard.every((message) => message.includes('The sign-in settings could not be loaded')), heard.join(' | ').slice(0, 300));
 expected = [];
 

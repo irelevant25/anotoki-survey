@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
+use Psr\Http\Message\ServerRequestInterface as Request;
+
 /**
  * Filled surveys: sent by the people taking a survey - once each, while it
- * is open - and read by the admin area.
+ * is open - and read by the admin area. A visitor's (api/visitors.php) are
+ * the same rows, under the visitor's negative user id.
  */
 
 /**
@@ -12,22 +15,35 @@ declare(strict_types=1);
  * question as the page checked them (answerProblem), kept as cleanAnswer
  * would keep them.
  *
+ * $user null is nobody yet (the IAM said sign-in is not required here): when
+ * every check has passed, the answers make a visitor (visitorMake(), $request
+ * for its address) in the transaction that keeps them, and its key comes back
+ * as `visitorKey` - for the route's X-Visitor-Key header, never the body. A
+ * refusal before that makes no visitor and counts nothing; so does one after
+ * it, which rolls the visitor back with the answers.
+ *
  * `language` in the body is the language the survey's texts were shown in
  * when the answers were sent. It is kept when it is the survey's own or one
  * the survey is translated into, and left out (NULL) when it is anything
  * else. It is a note for whoever reads the results, never a reason to refuse
  * somebody's answers.
  *
- *   201  {id, submittedAt}
+ *   201  {id, submittedAt}  (+ visitorKey: a visitor made by these answers)
+ *   401  visitor_unknown    the visitor's row went while this was on its way (moved at
+ *                           sign-in in another tab, ended): nothing was kept
  *   404  no such survey
  *   409  not_open           it is not taking answers (closed, or its last day is over)
- *   409  already_answered   this person has answered it before
+ *   409  already_answered   this person (or visitor) has answered it before
  *   422  invalid_answer     with questionId: the question whose answer is not good enough
+ *   429  too_many_visitors  nobody's answers, past a limit on new visitors: nothing was kept
  *
- * @return array{id: string, submittedAt: string}
+ * @return array{id: string, submittedAt: string, visitorKey?: string}
  */
-function responseSubmit(SiteUser $user, string $slug, mixed $body): array
+function responseSubmit(?SiteUser $user, string $slug, mixed $body, ?Request $request = null): array
 {
+    if ($user === null && $request === null) {
+        throw new LogicException('Nobody\'s answers make a visitor, which needs the request.');
+    }
     $row = surveySlugOk($slug) ? dbOne('SELECT ' . SURVEY_COLUMNS . " FROM surveys s WHERE s.slug = ? AND s.status <> 'draft'", [$slug]) : null;
     if ($row === null) {
         throw surveyNotFound();
@@ -36,7 +52,8 @@ function responseSubmit(SiteUser $user, string $slug, mixed $body): array
         throw new ApiError(409, 'not_open', 'The survey closed before your answers arrived, so they could not be kept.');
     }
     $already = static fn(): ApiError => new ApiError(409, 'already_answered', 'You have already taken this survey - your first answers are the ones kept.');
-    if (dbValue('SELECT 1 FROM responses WHERE survey_id = ? AND user_id = ?', [$row['id'], $user->id])) {
+    // Nobody has answered nothing yet.
+    if ($user !== null && dbValue('SELECT 1 FROM responses WHERE survey_id = ? AND user_id = ?', [$row['id'], $user->id])) {
         throw $already();
     }
 
@@ -99,20 +116,37 @@ function responseSubmit(SiteUser $user, string $slug, mixed $body): array
     }
 
     try {
-        // The language through a look at the languages there are: one deleted
-        // in this very moment is no language (NULL), not a broken reference.
-        $saved = dbOne(
-            'INSERT INTO responses (survey_id, user_id, gender, age, answers, started_at, language)
-             VALUES (?, ?, ?, ?, ?::jsonb, ?, (SELECT code FROM languages WHERE code = ?))
-             RETURNING id, submitted_at',
-            [$row['id'], $user->id, $gender, $age, jsonText($kept === [] ? new stdClass() : $kept), $startedAt->format('Y-m-d H:i:s.uP'), $language]
-        );
+        [$saved, $key] = dbTx(static function () use ($user, $request, $row, $gender, $age, $kept, $startedAt, $language): array {
+            $key = null;
+            if ($user === null) {
+                [$user, $key] = visitorMake($request);
+            } else {
+                // The taker's row, held: a visitor's that went meanwhile is 401 visitor_unknown.
+                visitorHold($user);
+            }
+            // The language through a look at the languages there are: one deleted
+            // in this very moment is no language (NULL), not a broken reference.
+            $saved = dbOne(
+                'INSERT INTO responses (survey_id, user_id, gender, age, answers, started_at, language)
+                 VALUES (?, ?, ?, ?, ?::jsonb, ?, (SELECT code FROM languages WHERE code = ?))
+                 RETURNING id, submitted_at',
+                [$row['id'], $user->id, $gender, $age, jsonText($kept === [] ? new stdClass() : $kept), $startedAt->format('Y-m-d H:i:s.uP'), $language]
+            );
+
+            return [$saved, $key];
+        });
     } catch (PDOException $e) {
         // Sent twice at once: the second one finds the first.
         if ($e->getCode() === '23505') {
             throw $already();
         }
         throw $e;
+    }
+
+    if ($key !== null) {
+        visitorSweepSoon(true);
+
+        return ['id' => $saved['id'], 'submittedAt' => isoTime($saved['submitted_at']), 'visitorKey' => $key];
     }
 
     return ['id' => $saved['id'], 'submittedAt' => isoTime($saved['submitted_at'])];
@@ -135,6 +169,8 @@ function responsesOf(string $surveyId): array
 
     return array_map(static function (array $row): array {
         $answers = json_decode((string) $row['answers'], true, 64, JSON_THROW_ON_ERROR);
+        // A visitor (a negative id) has no name and no address: "Visitor 12", from its own id.
+        $visitor = (int) $row['user_id'] < 0;
 
         return [
             'id' => $row['id'],
@@ -142,8 +178,9 @@ function responsesOf(string $surveyId): array
             'person' => [
                 'id' => (string) $row['user_id'],
                 // The IAM always gives a username; the rest is for an account that has none any more.
-                'name' => $row['preferred_username'] ?? $row['email'] ?? 'Person ' . $row['user_id'],
-                'email' => $row['email'] ?? '',
+                'name' => $visitor ? 'Visitor ' . -(int) $row['user_id'] : ($row['preferred_username'] ?? $row['email'] ?? 'Person ' . $row['user_id']),
+                'email' => $visitor ? '' : ($row['email'] ?? ''),
+                'visitor' => $visitor,
             ],
             'aboutYou' => $row['gender'] !== null && $row['age'] !== null ? ['gender' => $row['gender'], 'age' => $row['age']] : null,
             'answers' => $answers === [] ? new stdClass() : $answers,
@@ -155,10 +192,21 @@ function responsesOf(string $surveyId): array
     }, $rows);
 }
 
-/** Deletes one filled survey: its person may take the survey again. */
+/**
+ * Deletes one filled survey: its person may take the survey again (a visitor
+ * too, while its key lives; an ended visitor left with no answers goes).
+ */
 function responseDelete(string $id): void
 {
-    if (!isUuid($id) || dbExec('DELETE FROM responses WHERE id = ?', [$id]) === 0) {
-        throw new ApiError(404, 'not_found', 'There are no such answers.');
+    $gone = static fn(): ApiError => new ApiError(404, 'not_found', 'There are no such answers.');
+    if (!isUuid($id)) {
+        throw $gone();
     }
+    dbTx(static function () use ($id, $gone): void {
+        $user = dbValue('DELETE FROM responses WHERE id = ? RETURNING user_id', [$id]);
+        if ($user === null) {
+            throw $gone();
+        }
+        visitorsForgetEmpty([(int) $user]);
+    });
 }

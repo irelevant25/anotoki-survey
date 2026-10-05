@@ -4,7 +4,7 @@ Surveys for the anotoki sites (survey.anotoki.eu): the survey people take, in
 steps; an editor; and results that open from a number to the people behind it
 and from a person to their whole survey. People sign in through the anotoki
 IAM (client `survey`): EDITOR writes surveys and reads the answers, ADMIN also
-deletes; everybody else takes surveys, once each.
+deletes; everybody else (MEMBER, which every account holds) takes surveys, once each.
 
 | Part | Folder | Stack |
 | --- | --- | --- |
@@ -31,27 +31,74 @@ IAM `http://localhost:4300` (repo `../anotoki-iam`: `backend/` on 8100,
 Run the tests (below) - and the browser check (skill `check-in-browser`) for
 anything a page shows. Then keep the knowledge base in step, as part of
 finishing the task: `docs/` pages the change makes wrong, the skills, this
-file, the agents, `README.md` ("Current state"), `DEV.md`.
+file, the agents, `README.md` ("Current state"), `DEV.md`, and
+`backend/README.md` / `frontend/README.md` (each folder's layout and commands).
 
 ## Essentials
 
 - **Settings are required and never committed**: `backend/config/database.local.php`
   and `iam.local.php` (gitignored), written by `backend/setup.php` - on this
   computer (no token, a nonce, re-runnable) and on the host (token, lock,
-  self-delete). Without them, or with a migration pending, the API answers
-  `503 {code: "not_set_up"}` and the site shows its "not set up yet" page.
+  self-delete). Without them the API answers `503 {code: "not_set_up"}` and
+  the site shows its "not set up yet" page. With a migration pending the same,
+  with `update: true` - but signing in (`/api/auth/config`, saying `update:
+  true`), the strings and the admin panel's Migrations page
+  (`/api/admin/migrations`, ADMIN only) keep working, and the "not set up yet"
+  page links a signed-in ADMIN there to apply it. Applying takes one lock
+  (`api/database_update.php`) shared with `setup.php` and `migration.php`.
   Never print the database password; never copy it anywhere git would publish.
+  A third file is optional and nobody's but the owner's:
+  `config/visitors.local.php` (the visitors' limits and trusted proxies; put
+  there by hand, never written by `setup.php`; defaults without it).
+- **Every page is for somebody signed in - unless the IAM says otherwise**:
+  the IAM's "Sign-in required" switch is read (`authLoginRequired()`, the
+  SDK's `anotoki_iam_login_required()`: kept a minute, **true unless the IAM
+  said false**) and relayed as `loginRequired` (and `visitorDays`) in
+  `/api/auth/config`. Required: somebody not signed in goes to the IAM first
+  (`signInGuard` on the admin panel, `takeSurveysGuard` on the pages people
+  take surveys on) and comes back to the page asked for. Switched off, those
+  pages take **visitors** (below): the browser keeps the key the server made
+  (`core/auth/visitor-key.ts`), and its next sign-in moves the visitor's
+  answers and drafts into the account. The admin panel and the editor's
+  preview sign in first whatever the switch. Only the boot pages (not set
+  up, cannot be reached) draw without either.
+- **Who a request is is decided when it is issued** (frontend): `ApiService`
+  marks each request `ISSUED_AS` person or visitor from the state at that
+  moment; the interceptor sends a person's with the token or not at all (a
+  null token fails locally as 401 `sign_in_required` - never as nobody's,
+  which would make a visitor), a visitor's with the key - only to
+  `/api/surveys`, only while sign-in is not required. The key is kept while
+  sign-in is required (never forgotten on `sign_in_required`), forgotten on
+  `visitor_unknown`. A sign-in waits for the sends on their way
+  (`SavesInFlight`).
 - **Who a request is comes only from a verified IAM token** (`api/auth.php`,
   the vendored `api/anotoki_iam.php`): never from a body, an address or a
-  header of the site's own. Roles: `requireRole(...ROLES_STAFF)` for the admin
-  area, `requireRole(ROLE_ADMIN)` for deleting. The frontend's `isStaff` /
-  `isAdmin` only hide what the server refuses anyway.
+  header of the site's own. Only `Authorization: Bearer` claims to be somebody
+  (`authSentCredentials()`): a bad or empty one is 401 `invalid_token`, another
+  scheme (`Basic`) is ignored. Roles: `requireRole(...ROLES_STAFF)` for the admin
+  panel, `requireRole(ROLE_ADMIN)` for deleting; MEMBER is an ordinary person,
+  asked for nowhere. The frontend's `isStaff` /
+  `isAdmin` only hide what the server refuses anyway. **The one exception is a
+  visitor** (`api/visitors.php`, migration 006): on the surveys' own routes
+  only (`requireTaker()`: a key makes somebody a visitor nowhere else; the one
+  other reader of `X-Visitor-Key` is `POST /api/visitor/move`, which needs a
+  verified token as well and only hands the key in), while the IAM
+  says sign-in is not required and no Bearer header was sent, the key the
+  server made for that browser (only its hash stored) is a `users` row with a
+  negative id, no name, no roles - made by its first answers that are kept, in
+  their transaction, within the limits. `requireUser()` / `requireRole()`
+  refuse a visitor; every other survey route is one of them, and nothing of a
+  survey reaches anybody without a token while sign-in is required, but its
+  pictures (an `<img>` sends no token; their addresses are random UUIDs). A
+  visitor unseen for 30 days ends and its answers stay as "Visitor N"; at
+  sign-in `POST /api/visitor/move` (token and key) moves its answers into the
+  account. The key is never logged, never in a body or an address.
 - **The rules are written twice, in the same words**: `frontend/src/app/core/survey/`
   (`answer-rules.ts`, `survey-problems.ts`, `localize.ts`) and
   `backend/api/survey_rules.php`. Change one, change the other, and their tests.
   In the frontend an answer's rule and problem are a kind and its numbers:
   `answerProblemText()` / `choiceRuleText()` say them in English - the server's
-  sentence, word for word, and what the admin area quotes - and the page a
+  sentence, word for word, and what the admin panel quotes - and the page a
   person answers on words the kind in their language
   (`core/i18n/answer-words.ts`), never with the server's sentence.
 - **A survey is one JSONB document** (`surveys.content`) checked on the way in
@@ -65,9 +112,9 @@ file, the agents, `README.md` ("Current state"), `DEV.md`.
 - **The site's own words are in the database** (`languages`, `translation_keys`,
   `translations`; `api/translations.php`), English and Slovak. Only what
   somebody taking a survey sees is translated: those pages name a key
-  (`'home.title' | translate`, `core/i18n/`) and the admin area stays English,
+  (`'home.title' | translate`, `core/i18n/`) and the admin panel stays English,
   written in its templates. Migrations write the keys and their first strings;
-  the admin area (`/admin/translations`, `/admin/languages`) only rewords them.
+  the admin panel (`/admin/translations`, `/admin/languages`) only rewords them.
   A key with no string shows as itself, on purpose. A string is text, never
   HTML. Slovak here addresses the reader formally (Vy, capital V) - unlike the
   other anotoki sites.
@@ -83,13 +130,16 @@ file, the agents, `README.md` ("Current state"), `DEV.md`.
   Data-changing ones end with a `DO $$` gate that fails loudly. A string the
   site gains, rewords or stops using is a migration too (`003_site_strings.sql`
   is the pattern: a key, its English and its Slovak string, inserts that never
-  write over what was reworded in the admin area);
+  write over what was reworded in the admin panel);
   `tests/unit/translations.test.php` fails when the frontend uses a key no
   migration wrote, or a migration wrote one nothing uses.
 - **PHP**: `declare(strict_types=1)`, functions by area (`survey*`, `response*`,
-  `image*`, `richText*`, `answer*`, `language*`, `translation*`), `?`
+  `image*`, `richText*`, `answer*`, `language*`, `translation*`, `database*`), `?`
   parameters in every query, identifiers only from literals. `setup.php` stays
   parseable by PHP 7.4.
+- **The top bar is the anotoki family's** (`layouts/top-bar`, the one the other
+  sites copy): one row - brand, links, language, theme, the person's menu; up
+  to 760 px one menu button holds the links and the person's menu.
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. The UI kit is the IAM's (`src/app/ui/`);

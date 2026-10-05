@@ -1,13 +1,14 @@
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { ApiError, ApiService } from '../../../core/api/api.service';
-import { AuthService } from '../../../core/auth/auth.service';
+import { AuthService, Taker } from '../../../core/auth/auth.service';
+import { VisitorKey } from '../../../core/auth/visitor-key';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { AGE_ID, GENDER_ID } from '../../../core/survey/about-you';
-import { readDraft } from '../../../core/survey/drafts';
+import { VISITOR_SLOT, readDraft, writeDraft } from '../../../core/survey/drafts';
 import { translationGaps } from '../../../core/survey/localize';
 import { newOption, newQuestion, newSurvey } from '../../../core/survey/survey-factory';
 import { Person, Question, Survey } from '../../../core/survey/survey.model';
@@ -31,9 +32,6 @@ const ENGLISH: Record<string, string> = {
   'take.closed.heading': 'This survey has closed',
   'take.closed.on': 'It closed on {date}.',
   'take.closed.thanks': 'Thank you for wanting to help - look out for the next one.',
-  'take.signIn.heading': 'Sign in to take this survey',
-  'take.signIn.text': 'Your anotoki account makes sure everyone answers once. Your answers go to the people who run the anotoki sites, and nowhere else.',
-  'take.signIn.button': 'Sign in with anotoki',
   'take.answered.heading': 'You have taken this survey',
   'take.answered.text': 'You sent your answers {when}. Everyone can answer a survey once.',
   'take.sent.heading': 'Thank you!',
@@ -49,6 +47,14 @@ const ENGLISH: Record<string, string> = {
   'take.minutes.other': 'About {count} minutes',
   'take.openUntil': 'Open until {day}',
   'take.signedInAs': 'Signed in as {name} · everyone can take this survey once.',
+  'take.asVisitor': 'You are not signed in · your answers go without your name.',
+  'visitor.notice.one':
+    'You are taking surveys without signing in. This browser remembers which ones you have answered for {count} day after your last visit - sign in, and your answers move into your anotoki account.',
+  'visitor.notice.few':
+    'You are taking surveys without signing in. This browser remembers which ones you have answered for {count} days after your last visit - sign in, and your answers move into your anotoki account.',
+  'visitor.notice.other':
+    'You are taking surveys without signing in. This browser remembers which ones you have answered for {count} days after your last visit - sign in, and your answers move into your anotoki account.',
+  'common.signIn': 'Sign in',
   'take.carryOn.heading': 'Carry on where you stopped?',
   'take.carryOn.text': 'You started this survey {when} and got to step {step} of {steps}. Your answers so far are kept in this browser.',
   'take.carryOn.button': 'Carry on',
@@ -69,6 +75,8 @@ const ENGLISH: Record<string, string> = {
   'take.refused.closed': 'The survey closed before your answers arrived, so they could not be kept. Sorry!',
   'take.refused.already': 'You have already taken this survey - your first answers are the ones kept.',
   'take.refused.signedOut': 'Your sign-in has run out. Sign in again - your answers are kept in this browser, and are still here when you come back.',
+  'take.refused.signInRequired': 'Sign in to send your answers - they are kept in this browser, and are still here when you come back.',
+  'take.refused.tooManyVisitors': 'Too many people have sent answers without signing in lately. Sign in to send yours, or try again later - they are kept in this browser.',
   'take.refused.gone':
     'This survey is no longer at this address, so your answers could not be sent. They are kept in this browser - if the survey has moved, open it from the list of surveys and carry on.',
   'take.answersKept': 'Your answers could not be sent. They are kept in this browser - try again.',
@@ -111,9 +119,6 @@ const SLOVAK: Record<string, string> = {
   'take.closed.heading': 'Tento prieskum je už uzavretý',
   'take.closed.on': 'Uzavreli sme ho {date}.',
   'take.closed.thanks': 'Ďakujeme, že ste chceli pomôcť – sledujte, kedy príde ďalší.',
-  'take.signIn.heading': 'Ak chcete tento prieskum vyplniť, prihláste sa',
-  'take.signIn.text': 'Váš anotoki účet zaručuje, že každý odpovie iba raz. Vaše odpovede sa dostanú k ľuďom, ktorí sa starajú o stránky anotoki, a nikam inam.',
-  'take.signIn.button': 'Prihlásiť sa cez anotoki',
   'take.answered.heading': 'Tento prieskum ste už vyplnili',
   'take.answered.text': 'Odpovede ste odoslali {when}. Každý môže prieskum vyplniť iba raz.',
   'take.sent.heading': 'Ďakujeme!',
@@ -129,6 +134,14 @@ const SLOVAK: Record<string, string> = {
   'take.minutes.other': 'Približne {count} minút',
   'take.openUntil': 'Otvorený do {day}',
   'take.signedInAs': 'Prihlásili ste sa ako {name} · prieskum môže každý vyplniť iba raz.',
+  'take.asVisitor': 'Nie ste prihlásení · odpovede odošlete bez svojho mena.',
+  'visitor.notice.one':
+    'Prieskumy vypĺňate bez prihlásenia. Tento prehliadač si pamätá, ktoré ste vyplnili, ešte 1 deň po Vašej poslednej návšteve – keď sa prihlásite, Vaše odpovede sa presunú do Vášho anotoki účtu.',
+  'visitor.notice.few':
+    'Prieskumy vypĺňate bez prihlásenia. Tento prehliadač si pamätá, ktoré ste vyplnili, ešte {count} dni po Vašej poslednej návšteve – keď sa prihlásite, Vaše odpovede sa presunú do Vášho anotoki účtu.',
+  'visitor.notice.other':
+    'Prieskumy vypĺňate bez prihlásenia. Tento prehliadač si pamätá, ktoré ste vyplnili, ešte {count} dní po Vašej poslednej návšteve – keď sa prihlásite, Vaše odpovede sa presunú do Vášho anotoki účtu.',
+  'common.signIn': 'Prihlásiť sa',
   'take.carryOn.heading': 'Pokračovať tam, kde ste prestali?',
   'take.carryOn.text': 'Tento prieskum ste začali vypĺňať {when} a dostali ste sa po krok {step} / {steps}. Doterajšie odpovede sú uložené v tomto prehliadači.',
   'take.carryOn.button': 'Pokračovať',
@@ -149,6 +162,8 @@ const SLOVAK: Record<string, string> = {
   'take.refused.closed': 'Prieskum sa uzavrel skôr, než Vaše odpovede dorazili, takže ich už nebolo možné uložiť. Mrzí nás to!',
   'take.refused.already': 'Tento prieskum ste už vyplnili – uložené zostávajú Vaše prvé odpovede.',
   'take.refused.signedOut': 'Vaše prihlásenie vypršalo. Prihláste sa znova – odpovede zostávajú uložené v tomto prehliadači a po návrate ich tu nájdete.',
+  'take.refused.signInRequired': 'Ak chcete odpovede odoslať, prihláste sa – zostávajú uložené v tomto prehliadači a po návrate ich tu nájdete.',
+  'take.refused.tooManyVisitors': 'V poslednom čase poslalo odpovede bez prihlásenia priveľa ľudí. Prihláste sa a odošlite tie svoje, alebo to skúste neskôr – zostávajú uložené v tomto prehliadači.',
   'take.refused.gone':
     'Tento prieskum sa už na tejto adrese nenachádza, takže odpovede sa nepodarilo odoslať. Zostávajú uložené v tomto prehliadači – ak sa prieskum presunul, otvorte ho zo zoznamu prieskumov a pokračujte.',
   'take.answersKept': 'Odpovede sa nepodarilo odoslať. Zostávajú uložené v tomto prehliadači – skúste to znova.',
@@ -260,6 +275,13 @@ describe('TakeSurveyComponent', () => {
   let warn: ReturnType<typeof vi.spyOn>;
 
   const person = signal<Person | null>(ZUZKA);
+  /** The IAM's switch is off for the site: nobody signed in takes surveys as this browser's visitor. */
+  const welcome = signal(false);
+  const taker = computed<Taker | null>(() => {
+    const me = person();
+    return me ? { id: me.id, visitor: false } : welcome() ? { id: VISITOR_SLOT, visitor: true } : null;
+  });
+  const visitor = { key: signal<string | null>(null), moves: signal(0) };
   const api = { surveyBySlug: vi.fn(), submit: vi.fn() };
 
   const text = (selector: string, within: ParentNode = host) => within.querySelector(selector)?.textContent?.replace(/\s+/g, ' ').trim();
@@ -279,7 +301,8 @@ describe('TakeSurveyComponent', () => {
         provideRouter([]),
         language === 'sk' ? provideTestTranslations(slovak, { language: 'sk', english: ENGLISH }) : provideTestTranslations(ENGLISH),
         { provide: ApiService, useValue: api },
-        { provide: AuthService, useValue: { person, signIn: vi.fn() } },
+        { provide: AuthService, useValue: { person, taker, visitorDays: () => 30, signIn: vi.fn() } },
+        { provide: VisitorKey, useValue: visitor },
         { provide: AdminStore, useValue: { survey: (id: string) => (id === preview?.survey.id ? preview.survey : undefined), loadError: () => null, load: vi.fn() } },
       ],
     });
@@ -324,6 +347,9 @@ describe('TakeSurveyComponent', () => {
   beforeEach(() => {
     localStorage.clear();
     person.set(ZUZKA);
+    welcome.set(false);
+    visitor.key.set(null);
+    visitor.moves.set(0);
     api.surveyBySlug.mockReset().mockResolvedValue({ survey: exampleSurvey(), answeredAt: null });
     api.submit.mockReset();
     // jsdom has no scrolling; the page scrolls to the first problem.
@@ -547,16 +573,6 @@ describe('TakeSurveyComponent', () => {
     expect(text('.alert-text')).toBe('You started this survey 25 minutes ago and got to step 2 of 3. Your answers so far are kept in this browser.');
   });
 
-  it('asks a person who is not signed in to sign in, in the language they read', async () => {
-    person.set(null);
-    await open();
-    expect(text('.sign-in-heading')).toBe('Ak chcete tento prieskum vyplniť, prihláste sa');
-    expect(text('.start button')).toBe('Prihlásiť sa cez anotoki');
-
-    await click('.start button');
-    expect(TestBed.inject(AuthService).signIn).toHaveBeenCalledWith(undefined, 'sk');
-  });
-
   it('says why a survey cannot be taken: not open yet, or closed - with the day', async () => {
     api.surveyBySlug.mockResolvedValue({ survey: { ...exampleSurvey(), status: 'draft' }, answeredAt: null });
     await open();
@@ -601,6 +617,124 @@ describe('TakeSurveyComponent', () => {
     api.surveyBySlug.mockResolvedValue({ survey: exampleSurvey(), answeredAt: null });
     await click('.message button');
     expect(text('.start button')).toBe('Začať prieskum');
+  });
+
+  describe('taken without signing in, while the site welcomes visitors', () => {
+    const draft = (stepIndex: number) => ({
+      stepIndex,
+      answers: { [GENDER_ID]: { optionIds: ['female'], other: '', text: '' } },
+      startedAt: new Date(Date.now() - 25 * 60_000).toISOString(),
+      savedAt: new Date().toISOString(),
+    });
+
+    beforeEach(() => {
+      person.set(null);
+      welcome.set(true);
+    });
+
+    it('says so on the welcome - in place of who is signed in - with the notice and its Sign in, and keeps the draft under the visitor’s slot', async () => {
+      await open();
+      expect(text('.who')).toBe('Nie ste prihlásení · odpovede odošlete bez svojho mena.');
+      expect(text('app-visitor-notice .alert-text')).toBe(SLOVAK['visitor.notice.other'].replace('{count}', '30'));
+      expect(text('app-visitor-notice button')).toBe('Prihlásiť sa');
+
+      await click('.start button');
+      await click('input[value="male"]', blocks()[0]);
+      // On the steps, nothing of the notice.
+      expect(host.querySelector('app-visitor-notice')).toBeNull();
+      expect(readDraft('s1', VISITOR_SLOT)?.answers[GENDER_ID]).toMatchObject({ optionIds: ['male'] });
+    });
+
+    it('sends the answers as the visitor, clears the visitor’s draft, and thanks - with the notice under the thanks', async () => {
+      api.submit.mockResolvedValue({ id: 'r1', submittedAt: new Date().toISOString() });
+      await open();
+      await answerEverything();
+      expect(readDraft('s1', VISITOR_SLOT)).not.toBeNull();
+      await next();
+
+      expect(api.submit).toHaveBeenCalledTimes(1);
+      expect(text('.done-heading')).toBe('Ďakujeme!');
+      expect(readDraft('s1', VISITOR_SLOT)).toBeNull();
+      expect(host.querySelector('.message app-visitor-notice')).not.toBeNull();
+    });
+
+    it('is "answered" for the visitor the server says has answered, with the notice', async () => {
+      api.surveyBySlug.mockResolvedValue({ survey: exampleSurvey(), answeredAt: new Date(Date.now() - 3 * 60 * 60_000).toISOString() });
+      await open();
+      expect(text('.message-heading')).toBe('Tento prieskum ste už vyplnili');
+      expect(host.querySelector('.message app-visitor-notice')).not.toBeNull();
+    });
+
+    it('offers the visitor’s own draft to carry on', async () => {
+      writeDraft('s1', VISITOR_SLOT, draft(1));
+      await open();
+      expect(text('.alert-heading')).toBe('Pokračovať tam, kde ste prestali?');
+    });
+
+    it('signing in on the page makes the visitor’s draft the person’s - before the page reads it - and asks for the survey again', async () => {
+      writeDraft('s1', VISITOR_SLOT, draft(1));
+      await open();
+      expect(api.surveyBySlug).toHaveBeenCalledTimes(1);
+
+      person.set(ZUZKA);
+      await settle();
+      expect(text('.who')).toBe('Prihlásili ste sa ako Zuzka · prieskum môže každý vyplniť iba raz.');
+      expect(text('.alert-heading')).toBe('Pokračovať tam, kde ste prestali?');
+      expect(readDraft('s1', ZUZKA.id)?.stepIndex).toBe(1);
+      expect(readDraft('s1', VISITOR_SLOT)).toBeNull();
+      expect(host.querySelector('app-visitor-notice')).toBeNull();
+      expect(api.surveyBySlug).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the person’s own draft when both have one: the visitor’s goes', async () => {
+      writeDraft('s1', VISITOR_SLOT, draft(1));
+      writeDraft('s1', ZUZKA.id, draft(2));
+      await open();
+      person.set(ZUZKA);
+      await settle();
+      expect(readDraft('s1', ZUZKA.id)?.stepIndex).toBe(2);
+      expect(readDraft('s1', VISITOR_SLOT)).toBeNull();
+    });
+
+    it('asks again when a visitor key comes or goes, and when a move after a sign-in has finished - "answered" is whoever’s it is now', async () => {
+      await open();
+      expect(api.surveyBySlug).toHaveBeenCalledTimes(1);
+      api.surveyBySlug.mockResolvedValue({ survey: exampleSurvey(), answeredAt: new Date().toISOString() });
+
+      visitor.key.set('k'.repeat(43));
+      await settle();
+      expect(api.surveyBySlug).toHaveBeenCalledTimes(2);
+      expect(text('.message-heading')).toBe('Tento prieskum ste už vyplnili');
+
+      visitor.moves.set(1);
+      await settle();
+      expect(api.surveyBySlug).toHaveBeenCalledTimes(3);
+    });
+
+    it('says to sign in when the site has come to require it since the page opened - not that a sign-in ran out', async () => {
+      api.submit.mockRejectedValue(new ApiError(401, 'sign_in_required', 'Sign in to continue.'));
+      await open();
+      await answerEverything();
+      await next();
+      expect(toasts().map((toast) => [toast.tone, toast.message])).toEqual([['danger', SLOVAK['take.refused.signInRequired']]]);
+      expect(readDraft('s1', VISITOR_SLOT)).not.toBeNull();
+    });
+
+    it('says to sign in, or to wait, when too many people lately answered without signing in - in its own words', async () => {
+      api.submit.mockRejectedValue(new ApiError(429, 'too_many_visitors', 'Too many new visitors from this address in the last hour. Sign in to continue, or try again later.'));
+      await open();
+      await answerEverything();
+      await next();
+      expect(toasts().map((toast) => [toast.tone, toast.message])).toEqual([['danger', SLOVAK['take.refused.tooManyVisitors']]]);
+      expect(host.textContent).not.toContain('Too many new visitors');
+      expect(text('button[type=submit]')).toBe('Odoslať odpovede');
+    });
+
+    it('shows a preview to nobody as a visitor: no notice, nothing kept', async () => {
+      await open('sk', { survey: { ...exampleSurvey(), id: 'p-1' } });
+      expect(host.querySelector('app-visitor-notice')).toBeNull();
+      expect(host.querySelector('.who')).toBeNull();
+    });
   });
 
   describe('a survey in more than one language', () => {
@@ -726,15 +860,7 @@ describe('TakeSurveyComponent', () => {
       expect(marked()).toEqual(['title: en', 'rich thanks: en']);
     });
 
-    it('marks the welcome and the thanks for somebody signed out, and for somebody who has answered', async () => {
-      person.set(null);
-      api.surveyBySlug.mockResolvedValue({ survey: halfTranslatedSurvey(), answeredAt: null });
-      await open();
-      expect(text('.sign-in-heading')).toBe('Ak chcete tento prieskum vyplniť, prihláste sa');
-      expect(marked()).toEqual(['title: en', 'intro rich: en']);
-      host.remove();
-      TestBed.resetTestingModule();
-
+    it('marks the thanks for somebody who has answered', async () => {
       person.set(ZUZKA);
       api.surveyBySlug.mockResolvedValue({ survey: halfTranslatedSurvey(), answeredAt: new Date().toISOString() });
       await open();

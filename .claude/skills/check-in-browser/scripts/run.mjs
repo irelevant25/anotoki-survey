@@ -6,7 +6,7 @@
 // (survey_test_browser, from survey_test_template - `php tests/run.php` keeps
 // that current), starts the stand-in IAM on 8597 and the site on 8590 (the
 // built app and the API on one origin, as on the hosting), starts headless
-// Chrome with a profile of its own on 9590 - in English (--lang=en-GB), so the
+// Chrome with a profile of its own on 8591 - in English (--lang=en-GB), so the
 // language the site starts in is never the computer's - runs flow.mjs, and then stops all
 // of it and drops the database - also when the check fails. --keep leaves the
 // work folder (settings, logs, screenshots) behind to look at; the screenshots
@@ -30,7 +30,7 @@ const windows = process.platform === 'win32';
 
 const SITE = 8590;
 const IAM = 8597;
-const CHROME_PORT = 9590;
+const CHROME_PORT = 8591;
 const DATABASE = 'survey_test_browser';
 
 const work = mkdtempSync(join(tmpdir(), 'survey-browser-'));
@@ -125,7 +125,11 @@ try {
   const picture = join(frontend, 'public', 'anotoki.png');
   const shots = join(work, 'shots');
   console.log(`Screenshots: ${shots}\n`);
-  const flow = spawn(process.execPath, [join(here, 'flow.mjs'), String(CHROME_PORT), `http://127.0.0.1:${SITE}`, `http://127.0.0.1:${IAM}`, picture, shots], { stdio: 'inherit' });
+  // The flow changes the check's own database once (a database behind the code): it is told how to reach it.
+  const flow = spawn(process.execPath, [join(here, 'flow.mjs'), String(CHROME_PORT), `http://127.0.0.1:${SITE}`, `http://127.0.0.1:${IAM}`, picture, shots], {
+    stdio: 'inherit',
+    env: { ...process.env, SURVEY_CHECK_PHP: php, SURVEY_CHECK_BACKEND: backend, SURVEY_CHECK_CONFIG: join(work, 'config') },
+  });
   code = await new Promise((done) => flow.on('exit', (exitCode) => done(exitCode ?? 1)));
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);

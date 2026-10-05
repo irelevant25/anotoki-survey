@@ -34,6 +34,11 @@
   outline: none;
 }
 
+.signed-out {
+  max-width: 34rem;
+  margin: 2.5rem auto 0;
+}
+
 @media (max-width: 560px) {
   .page {
     padding: 0.9rem 0.6rem 5rem;

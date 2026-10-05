@@ -2,6 +2,7 @@ import { Component, EnvironmentProviders, Provider, signal } from '@angular/core
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { AuthService, BootStatus } from '../core/auth/auth.service';
+import { VisitorKey } from '../core/auth/visitor-key';
 import { BOOTED } from '../core/boot';
 import { TranslationService } from '../core/i18n/translation.service';
 import { provideTestTranslations } from '../core/testing/test-translations';
@@ -27,11 +28,14 @@ class TestPageComponent {}
 describe('The pages drawn instead of the site', () => {
   const status = signal<BootStatus>('error');
   const detail = signal<string | null>(null);
+  const onlyMigrations = signal(false);
   const auth = {
     status,
     user: signal(null),
     signedIn: () => false,
+    person: () => null,
     signInFailure: signal(null),
+    onlyMigrations,
     notSetUpDetail: detail,
     onAuthChange: () => () => undefined,
     init: vi.fn(async () => undefined),
@@ -40,12 +44,15 @@ describe('The pages drawn instead of the site', () => {
   const words = (element: Element | null) => element?.textContent?.replace(/\s+/g, ' ').trim();
 
   function provide(values: Record<string, string>, language = 'en', more: (Provider | EnvironmentProviders)[] = []): void {
-    TestBed.configureTestingModule({ providers: [provideTestTranslations(values, { language, english: {} }), { provide: AuthService, useValue: auth }, ...more] });
+    TestBed.configureTestingModule({
+      providers: [provideTestTranslations(values, { language, english: {} }), { provide: AuthService, useValue: auth }, { provide: VisitorKey, useValue: {} }, ...more],
+    });
   }
 
   beforeEach(() => {
     status.set('error');
     detail.set(null);
+    onlyMigrations.set(false);
     auth.init.mockReset().mockImplementation(async () => undefined);
   });
 
@@ -122,6 +129,39 @@ describe('The pages drawn instead of the site', () => {
       expect(words(host.querySelector('h1'))).toBe('Stránka s prieskumami je nedostupná');
       expect(words(host.querySelector('p'))).toBe('The server did not answer. It may be down for a moment, or the connection may be. Try again in a little while.');
       expect(words(host.querySelector('button'))).toBe('Skúsiť znova');
+    });
+  });
+
+  describe('while only a migration waits', () => {
+    it('shows an ADMIN the way to the Migrations page - in English, as the admin panel is, on a Slovak page too', async () => {
+      provide(KEPT, 'sk', [provideRouter([{ path: '**', component: TestPageComponent }])]);
+      onlyMigrations.set(true);
+      const fixture = TestBed.createComponent(NotSetUpComponent);
+      await fixture.whenStable();
+      const host: HTMLElement = fixture.nativeElement;
+
+      expect(words(host.querySelector('h1'))).toBe('Stránka s prieskumami ešte nie je nastavená');
+      const update = host.querySelector('#not-set-up-update')!;
+      expect(update.getAttribute('lang')).toBe('en');
+      expect(words(update.querySelector('p'))).toBe(
+        "You are an administrator of the survey site: its database has an update waiting. See it and apply it on the admin panel's Migrations page. Back the database up first.",
+      );
+      const link = update.querySelector('a')!;
+      expect(words(link)).toBe('Open Migrations');
+      expect(link.getAttribute('href')).toBe('/admin/migrations');
+      // The setup page stays the other way.
+      expect(host.querySelector('a[href="/setup.php"]')).not.toBeNull();
+    });
+
+    it('shows nobody else the link: an EDITOR, or somebody taking surveys, gets the page as it always was', async () => {
+      provide(KEPT, 'sk', [provideRouter([{ path: '**', component: TestPageComponent }])]);
+      const fixture = TestBed.createComponent(NotSetUpComponent);
+      await fixture.whenStable();
+      const host: HTMLElement = fixture.nativeElement;
+
+      expect(host.querySelector('#not-set-up-update')).toBeNull();
+      expect(host.querySelector('a[href="/admin/migrations"]')).toBeNull();
+      expect(Array.from(host.querySelectorAll('a')).map(words)).toEqual(['Otvoriť stránku nastavenia']);
     });
   });
 

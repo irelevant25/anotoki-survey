@@ -1,5 +1,5 @@
 import { Routes } from '@angular/router';
-import { signInGuard } from './core/auth/sign-in.guard';
+import { signInGuard, takeSurveysGuard } from './core/auth/sign-in.guard';
 import { ParticipantLayoutComponent } from './layouts/participant-layout/participant-layout.component';
 import { AuthCallbackPageComponent } from './pages/auth-callback/auth-callback-page.component';
 
@@ -8,7 +8,11 @@ import { AuthCallbackPageComponent } from './pages/auth-callback/auth-callback-p
  *
  *   /, /{slug}, /preview/{id}   what people see: the open surveys, a survey to
  *                               take, and the editor's preview of one - the
- *                               survey, under the top bar
+ *                               survey, under the top bar; signed in
+ *                               (takeSurveysGuard on each child) - or a
+ *                               visitor, while the IAM says sign-in is not
+ *                               required here; the preview signed in always
+ *                               (its own signInGuard)
  *   /admin/**                   the surveys, the editor and the results -
  *                               signed in (signInGuard), for EDITOR and ADMIN
  *   /auth/callback              where the IAM sends the browser back
@@ -31,13 +35,15 @@ export const routes: Routes = [
   {
     path: '',
     component: ParticipantLayoutComponent,
+    canActivateChild: [takeSurveysGuard],
     children: [
       { path: '', title: 'title.surveys', loadComponent: () => import('./pages/participant/survey-home/survey-home.component').then((m) => m.SurveyHomeComponent) },
       {
         // No title: the survey page writes its own ("Preview: ..."), and is the only writer there.
+        // The editor's: signed in even while visitors are welcome (the layout draws its card for nobody here too).
         path: 'preview/:surveyId',
-        data: { preview: true },
         canActivate: [signInGuard],
+        data: { preview: true },
         loadComponent: () => import('./pages/participant/take-survey/take-survey.component').then((m) => m.TakeSurveyComponent),
       },
       { path: ':slug', loadComponent: () => import('./pages/participant/take-survey/take-survey.component').then((m) => m.TakeSurveyComponent) },

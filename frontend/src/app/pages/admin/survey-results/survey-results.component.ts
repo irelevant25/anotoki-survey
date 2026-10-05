@@ -268,7 +268,11 @@ export class SurveyResultsComponent {
   protected readonly drawerSubheading = computed(() => {
     const view = this.responseView();
     if (view) {
-      return view.response ? view.response.person.email : null;
+      if (!view.response) {
+        return null;
+      }
+      // A visitor has no address: say what they are, as the lists do.
+      return view.response.person.visitor ? 'Not signed in' : view.response.person.email;
     }
     return this.listView()?.subtitle ?? null;
   });

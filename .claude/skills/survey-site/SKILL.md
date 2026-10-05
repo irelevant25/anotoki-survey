@@ -9,7 +9,7 @@ survey.anotoki.eu: surveys in steps, an editor, results with a drill-down.
 Angular 21 in `frontend/`, PHP 8.2 + Slim 4 + PostgreSQL in `backend/`, sign-in
 through the anotoki IAM (client `survey`; roles EDITOR and ADMIN). What people
 taking a survey read is in English and Slovak - the site's own words from the
-database, a survey's texts from the survey; the admin area is English. `docs/` is the
+database, a survey's texts from the survey; the admin panel is English. `docs/` is the
 full knowledge base - [architecture](../../../docs/architecture.md),
 [API](../../../docs/api.md), [operations](../../../docs/operations.md),
 [decisions](../../../docs/decisions.md); this file is the implementer's map and
@@ -27,14 +27,33 @@ backend/
   api/bootstrap.php        what every entry point loads: settings, error handling (warnings throw,
                            display_errors off), the site's functions
   api/routes/              public.php (health, auth config, pictures, the strings of a language),
-                           surveys.php (people), admin.php (/api/admin/..., EDITOR/ADMIN: surveys,
-                           answers, pictures, languages, strings)
-  api/meddleware/          security.php, setup.php (503 not_set_up: settings or a pending migration),
-                           auth.php (optionalUser, requireUser, requireRole, currentUser)
-  api/auth.php             the token -> SiteUser {id, name, email, roles}; users row upkeep;
-                           isThisComputer() (setup.php and the health details)
+                           surveys.php (people - requireTaker), visitor.php (POST /api/visitor/move:
+                           token and key), admin.php (/api/admin/..., EDITOR/ADMIN: surveys,
+                           answers, pictures, languages, strings; ADMIN: the migrations)
+  api/meddleware/          security.php, setup.php (503 not_set_up: settings, or a pending migration -
+                           then update: true, and SETUP_GATE_OPEN_WHILE_BEHIND still answered: the
+                           auth config, the strings, /api/admin/migrations[/apply]),
+                           auth.php (requireUser, requireRole, requireTaker, currentUser): every
+                           route but the public ones takes one - a visitor's key makes somebody
+                           a visitor only in requireTaker (the three survey routes); the one
+                           other reader is POST /api/visitor/move, which needs a token as well
+                           and only hands the key in; nothing of a survey
+                           without a token while sign-in is required, but its pictures (an
+                           <img> sends none; UUID addresses)
+  api/auth.php             the token -> SiteUser {id, name, email, roles, visitor}; users row upkeep;
+                           authSentCredentials() (only Bearer claims to be somebody);
+                           authLoginRequired() (the IAM's "Sign-in required", relayed by
+                           /api/auth/config with visitorDays); isThisComputer() (setup.php and
+                           the health details)
+  api/visitors.php         visitors (the switch off): visitorFind / visitorMake (in the answers'
+                           transaction, after the limits - counters that are rows) / visitorHold /
+                           visitorSweep (+ visitorSweepSoon: after the answer, hourly) /
+                           visitorsForgetEmpty / visitorMoveInto
+  api/client_address.php   the address the limits count: REMOTE_ADDR unless a trusted proxy's
+                           header says otherwise; IPv6 by its /64
   api/helpers.php          JSON in and out, and the text helpers: TEXT_SPACE (what the browser's trim()
-                           takes for a space), textTrim(), textBlank() (nothing in it to see), textClean()
+                           takes for a space), textTrim(), textBlank() (nothing in it to see), textClean();
+                           afterAnswerAdd() / afterAnswerRun() (work after the answer: the clean-up)
   api/surveys.php          survey rows <-> the frontend's Survey; summaries; create/save (revision)/
                            status/delete; surveyLanguagesLock() (a save holds its languages);
                            SURVEY_TAKING_ANSWERS_SQL
@@ -48,10 +67,17 @@ backend/
                            grid, translationsCheck() - every save, import and the command line go
                            through it
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
-  api/anotoki_iam.php      the IAM's verifier, vendored byte for byte (sdk/php, v1.0.1)
-  config/config.php        database.local.php + iam.local.php; SURVEY_TEST_CONFIG for the tests
+  api/migration_runner.php the family's engine (never changed here); api/database_update.php: one
+                           update at a time (databaseUpdateLocked() - the advisory lock setup.php,
+                           migration.php and the Apply take), databaseStatus(), databaseApplyUpdate()
+  api/anotoki_iam.php      the IAM's PHP SDK, vendored byte for byte (sdk/php, v1.1.0): the
+                           verifier and anotoki_iam_login_required() - never a fetch of our own
+  config/config.php        database.local.php + iam.local.php; visitors.local.php (optional, by hand:
+                           VISITOR_DEFAULTS, visitorSettings(); visitorSettingsFile() - a file that
+                           does not parse is logged, the defaults hold); SURVEY_TEST_CONFIG for the tests
   migrations/survey/       the schema - and the site's strings (002 the tables and the two languages,
-                           003 every key with its English and Slovak string: the pattern for the next)
+                           003 every key with its English and Slovak string: the pattern for the next;
+                           006 the visitors: visitor_ids, users.visitor_key_hash, visitor_counters)
   setup.php                the installer (this computer: nonce, re-runnable; a host: token, lock, self-delete)
   router.php               php -S behaving like the hosting's Apache (+ the built app)
   translations.php         command line only, never uploaded: --status (the frontend's keys against the
@@ -62,11 +88,27 @@ backend/
                            string - and a language as a file; for translations.php and the tests
   tests/                   run.php, lib.php, unit/, api/, tools/ (testdb, testenv, fake-iam)
 frontend/src/app/
-  core/auth/               AuthService (IAM SDK in signals; status: loading/ready/not-set-up/error),
-                           authInterceptor, signInGuard, the vendored SDK (anotoki-auth.mjs v1.1.1)
-  core/api/api.service.ts  one method a route; ApiError {status, code, message, body}
-  core/boot.ts             boot(): the theme, the sign-in, then the language and its strings, then BOOTED -
-                           the app initializer, and the load error page's "Try again"
+  core/auth/               AuthService (IAM SDK in signals; status: loading/ready/not-set-up/error;
+                           needsUpdate - the auth config's update: true - and onlyMigrations for an
+                           ADMIN, databaseUpdated(); loginRequired - its loginRequired, true
+                           unless false - visitorDays, visitorsWelcome (both needed), visiting,
+                           taker {id, visitor}, noteLoginRequired(); MIGRATIONS_PATH; signIn()
+                           waits for SavesInFlight, answers false and sets signInFailure when it
+                           cannot start), authInterceptor (who a request is: ISSUED_AS - a
+                           person's with the token or never sent, a visitor's with the key to
+                           /api/surveys), visitor-key.ts (VisitorKey: the key in localStorage,
+                           the move after a sign-in, moves / moved / lost), saves-in-flight.ts,
+                           signInGuard (canActivate on /admin and the preview) and
+                           takeSurveysGuard (canActivateChild on the participant layout: anybody
+                           while visitors are welcome), sign-in-failure.ts (the toast that says
+                           why; signInOrSayWhy() for a Sign in button), the vendored SDK
+                           (anotoki-auth.mjs v1.1.1)
+  core/api/api.service.ts  one method a route, each marked ISSUED_AS person / visitor as it is made;
+                           ApiError {status, code, message, body, retryAfter}
+  core/boot.ts             boot(): the theme, the sign-in (VisitorKey made before the first await;
+                           a visitor's drafts adopted right after a sign-in), then the language and
+                           its strings, then BOOTED - the app initializer, and the load error
+                           page's "Try again"
   core/i18n/               TranslationService (language, effectiveLanguage, t / plural / around / has,
                            setLanguage, init, reload, noteAddress), the translate / translatePlural /
                            localDate pipes, error-text.ts (a failed request's key), answer-words.ts (a
@@ -75,7 +117,7 @@ frontend/src/app/
   core/title.strategy.ts   the tab's title in the language on the page (the site's name alone while
                            there are no strings); tells the service where the page is - which is also
                            when a page without its strings asks for them again
-  core/admin/admin-store.service.ts   the admin area's cache and the editor's saving (revision, conflict
+  core/admin/admin-store.service.ts   the admin panel's cache and the editor's saving (revision, conflict
                            - keepMine / keepMyTranslations bring translations together against
                            _server, the survey as the server last had it from this page;
                            unsavedChanges() says what kind of change is unsaved, from the documents;
@@ -87,32 +129,81 @@ frontend/src/app/
                            sessionStorage, let go only when another person signs in
   core/survey/             the model and every rule (pure TS, unit-tested); localize.ts: a survey's
                            translations (translationGaps, localizedSurvey, pruneTranslations, the
-                           writers, mergeTranslations for a conflict)
+                           writers, mergeTranslations for a conflict); drafts.ts (by survey and
+                           taker - VISITOR_SLOT for a visitor; adoptVisitorDraft(s) at a sign-in)
   core/images/             prepareImage (browser-side), ImageUploader
-  core/testing/            for the unit tests only: example data, provideTestTranslations()
-  layouts/                 top-bar (brand, language chooser, theme, user menu with the way into the admin
-                           area), participant, admin (English; "You are signed out" for a session that
-                           ended in place, the no-access card for somebody signed in without a role)
-  boot/                    not-set-up, load-error (its "Try again" also opens the page that was asked
-                           for): drawn instead of the site; kept-word.ts (the cached string, or the
-                           English written in the page)
+  core/testing/            for the unit tests only: example data, provideTestTranslations(),
+                           answersOf() (a person's answers, or a visitor's)
+  layouts/                 top-bar (the anotoki family's bar: brand, links, language, theme, the person's
+                           menu - on a phone one menu button; docs/architecture.md "The top bar"),
+                           participant ("You are not signed in" where the page would be - for a
+                           visitor only on the preview; the toasts of the move and of a lost
+                           visit), admin
+                           (English; "You are signed out" for a session that ended in place, "You
+                           are not signed in" for a sign-in that came back without one or could
+                           not start, the no-access card for somebody signed in without a role)
+  boot/                    not-set-up (+ for a signed-in ADMIN while only a migration waits, an
+                           English block linking the Migrations page), load-error (its "Try again"
+                           also opens the page that was asked for): drawn instead of the site
+                           (app.component.ts decides - while behind, the Migrations page alone for
+                           an ADMIN); kept-word.ts (the cached string, or the English written in
+                           the page)
   pages/participant/       survey-home, take-survey (+ question-block, survey-hero, send-failure.ts,
-                           shown-language.ts)
+                           shown-language.ts), visitor-notice (what a visitor is told, with Sign in)
   pages/admin/             surveys-list, survey-editor (+ parts, SurveyEditing, the translation mode:
                            editor-languages, translated-text, translating.ts; ?language= opens a tab),
-                           survey-results, response-view, response-page, survey-header, localization/
+                           survey-results, response-view, response-page (a visitor everywhere
+                           there: "Visitor N", "Not signed in" where a person's address is -
+                           Person.visitor), survey-header, localization/
                            (translations: the strings' grid, translation-grid.ts its pure half -
-                           blankText(), textBlank()'s twin; languages; unsaved-changes.guard.ts)
+                           blankText(), textBlank()'s twin; languages; unsaved-changes.guard.ts),
+                           migrations (ADMIN: the IAM's page - Pending, Applied, Apply pending)
   ui/                      the IAM's UI kit + rich-text-editor (TipTap), drawer, lightbox, survey-image,
                            language-switcher (the chooser in the top bar)
 ```
 
 ## Rules
 
-- **Who**: only a verified IAM token says who a request is. Roles from the token
-  (`anotoki_iam_roles`): `ROLES_STAFF` = ADMIN, EDITOR for `/api/admin`;
+- **Signed in, every page - or a visitor while the IAM says so**: somebody
+  not signed in goes to the IAM before anything of a page is drawn
+  (`signInGuard`; on the pages people take surveys on `takeSurveysGuard`,
+  which lets them through while `visitorsWelcome`) and comes back to it. The
+  admin panel and the editor's preview sign in whatever the switch (the
+  preview has `signInGuard` of its own, and the layout draws its card there
+  for anybody not signed in). Every route of the site is `requireUser()` or `requireRole()` but the
+  public ones and the three survey routes, which are `requireTaker()`: the
+  person of a token; else, while the IAM says sign-in is required, 401; else
+  the visitor of `X-Visitor-Key`; else nobody (who reads the open surveys, and
+  whose kept answers make a visitor). No route of a survey answers without a
+  token while sign-in is required, but the pictures' (`/api/images/...`: an
+  `<img>` sends no token, and their addresses are random UUIDs -
+  `docs/decisions.md`). Only the boot pages draw without a sign-in. A new page
+  goes under one of the two layouts (their guard), a new route under
+  `requireUser()` - `requireTaker()` only for what a visitor must reach, and
+  then it reads and writes `currentUser()`'s own rows and nobody else's.
+- **A visitor** (`api/visitors.php`): a `users` row with a negative id, no
+  name, no roles; the key the server made, sent once in a response header,
+  only its hash stored, never logged, in a body or an address. Made only in
+  the transaction that keeps its first answers, after the limits; a write for
+  any taker holds the taker's row first (`visitorHold()`); ended (key cleared)
+  after `keep_days` unseen, answers kept as "Visitor N"; deleted only with no
+  answers left. `signedInUser()` treats a visitor as nobody.
+- **Who**: only a verified IAM token says who a request is (a visitor's key
+  aside, above: `requireTaker()` only), and only an
+  `Authorization: Bearer` header claims to be somebody: a bad or empty one is
+  401 `invalid_token` (never "nobody", never a visitor), another scheme is ignored. Roles from the token
+  (`anotoki_iam_roles`): MEMBER - every account's - is an ordinary person and
+  nothing asks for it; `ROLES_STAFF` = ADMIN, EDITOR for `/api/admin`;
   ADMIN alone for the three deletes (a survey, somebody's answers, a
-  language). The frontend hides; the server refuses.
+  language) and the migrations (the family's split: applying database
+  updates is ADMIN's). The frontend hides; the server refuses.
+- **A database behind the code closes the site, but not to the ADMIN who
+  applies it**: the setup gate's "migration pending" check skips exactly
+  `SETUP_GATE_OPEN_WHILE_BEHIND` (never the "settings missing" one); a new
+  route that must work then goes there, and nothing that writes the site's
+  data does. The Apply runs on a connection of its own under
+  `databaseUpdateLocked()`; anything else that applies migrations takes the
+  same lock.
 - **Both sides say the same**: `answer-rules.ts` ↔ `answerProblem()` /
   `answerClean()`; `survey-problems.ts` ↔ `surveyProblems()` (same sentences,
   same order, the translations' too); `localize.ts` ↔ `surveyTranslationGaps()`
@@ -129,7 +220,7 @@ frontend/src/app/
   whether a box is a change). Same sentences, too: in the frontend a rule or a problem of an
   answer is a kind and its
   numbers, and `answerProblemText()` / `choiceRuleText()` must say in English
-  exactly what PHP says. The admin area shows the server's sentences; somebody
+  exactly what PHP says. The admin panel shows the server's sentences; somebody
   taking a survey never sees one - the page words its own
   (`core/i18n/answer-words.ts`, `take-survey/send-failure.ts`).
 - **A new field on a survey or question**: the model (`survey.model.ts`), the
@@ -199,7 +290,7 @@ frontend/src/app/
   `@if (x()[2])`, for a translation may leave the placeholder out. On the server a string has no
   brace that is not a `{placeholder}` (422 `invalid_placeholder`), and one
   with nothing in it to see is an empty one (`textBlank()`).
-- **The admin area is English**: literal words in the templates under
+- **The admin panel is English**: literal words in the templates under
   `pages/admin` and `layouts/admin-layout`, no `translate` pipe there. The
   pieces both areas share (top bar, UI kit, toasts) read through
   `effectiveLanguage`, which is `en` under `/admin`.
@@ -210,7 +301,7 @@ frontend/src/app/
   back later. Never apply a save's answer to the content. What "mine" is in a
   conflict is what differs from `_server` - keep it what the server has
   (loaded, saved, settled, a change of status).
-- **Anything typed and not saved in the admin area lives outside its page**:
+- **Anything typed and not saved in the admin panel lives outside its page**:
   the admin layout draws the outlet only for staff, so a session that ends
   takes the page away with no navigation - no guard runs, and a component's
   state and its `beforeunload` listener go with it (the layout then says "You
@@ -234,7 +325,7 @@ frontend/src/app/
 - **Migrations**: new file, next number; data-changing ones end with a `DO $$`
   gate; the replayed schema is what `survey_test_template` is. Strings after
   003: key rows `ON CONFLICT (name) DO NOTHING`, one insert a language
-  `ON CONFLICT DO NOTHING` (never over what was reworded in the admin area), a
+  `ON CONFLICT DO NOTHING` (never over what was reworded in the admin panel), a
   gate that raises when a key of the file lacks its `en` or `sk`; a changed
   English default is `UPDATE ... WHERE value = '<the old default>'`; a key the
   code stops using is deleted by a migration. A language a migration writes
@@ -358,7 +449,7 @@ frontend/src/app/
   ids and bounds the work) - `surveyMap(..., true)` takes a list where a map by
   id is expected, and a key read back from an array is cast to a string.
 - **The placeholder rule**: which `{placeholders}` a key has is the code's,
-  fixed by its stored English string. English reworded in the admin area must
+  fixed by its stored English string. English reworded in the admin panel must
   keep exactly those (422 `placeholder_changed`); another language may leave one
   out but never add one (422 `unknown_placeholder`). `t()` fills them in one
   pass - a parameter's text is never scanned again - and `around()` cuts the
@@ -406,11 +497,66 @@ frontend/src/app/
 - **A test of a lock must fail without the lock.** Holding a row from a second
   connection and expecting a lock timeout also passed with the old
   one-statement delete (it waits on the row just the same). The tests send the
-  request to the real server without waiting for it (`begin_as()`), hold the
-  other side from a second connection (`somebody_else()`), see it wait
-  (`pg_stat_activity`), commit, and assert what is answered *after* - always
-  ask for `answer` before the next request: the test server answers one at a
-  time.
+  request to the real server without waiting for it (`begin_call()` in
+  `tests/lib.php`, any headers - a token, a visitor key, none; the files'
+  `begin_as()` wraps it), hold the other side from a second connection
+  (`somebody_else()`), see it wait (`pg_stat_activity`), commit, and assert
+  what is answered *after* - always ask for `answer` before the next request:
+  the test server answers one at a time, so two HTTP requests never race;
+  one side is always a transaction the test holds.
+- **Every request of a person waits on a lock held on their `users` row**:
+  `usersSeen()` is an `INSERT … ON CONFLICT DO UPDATE`, which locks the row it
+  meets even when its `WHERE` then updates nothing. A test that held the
+  person's row `FOR SHARE` saw the move at sign-in wait - in `usersSeen()`,
+  not at the move's own `FOR UPDATE` - and stayed green with that lock taken
+  out. Hold what the real other side holds: an answer being inserted holds
+  the row `FOR KEY SHARE` (its foreign key), which the upsert passes and
+  `FOR UPDATE` does not.
+- **A visitor's row can go while its answers are on their way** - a move in
+  another tab, the clean-up. The insert then failed on its foreign key, and
+  every `PDOException` is answered 503 "database unavailable". Every send holds
+  its taker's row first (`visitorHold()`, `FOR SHARE`, with the condition that
+  it still has its key): a row that went is 401 `visitor_unknown`, which the
+  browser knows what to do with.
+- **A limit is a row, or it is no limit**: two new visitors counted with a
+  `SELECT` and then written both pass at the edge. The counters are one
+  upsert each (`visitorCounterHit()`), held to the end of the transaction,
+  taken in one order (the address's, then everybody's); the count of visitors
+  with a key comes after everybody's counter is held, so it sees one made
+  meanwhile.
+- **Who a request is was decided by whether a token was there as it left**
+  (the analyzer's interceptor): a person whose refresh was refused sent their
+  answers with no token - as nobody, which with visitors welcome made a
+  visitor no browser held. A request says whom it is for as it is made
+  (`ISSUED_AS`, set by `ApiService`); a person's with no token is never sent
+  (a local 401 `sign_in_required`). A new participant route in `ApiService`
+  takes `_asTaker()`; one only a person may call, `issuedAs('person')`.
+- **The key is kept on `sign_in_required`**, forgotten only on
+  `visitor_unknown` (compare-and-delete: only the key that was sent). Forgot
+  it on the switch, and the visitor who signed in later had nothing moved.
+  And `noteLoginRequired()` only for `/api/surveys`: the preview's admin calls
+  answer nobody 401 `sign_in_required` whatever the switch.
+- **The visitor's drafts must be the person's before a page reads them**:
+  the take page reads its draft when `taker` changes, and a component's
+  effect may run before or after a root service's. So `boot()` adopts them
+  before the first page, `VisitorKey`'s effect for a sign-in in another tab,
+  and the take page adopts the one it is about to read itself
+  (`adoptVisitorDraft()`) - else "carry on" was missing and the next
+  keystroke wrote an empty person's draft that then won over the visitor's.
+- **After the move, the pages must ask again** (`VisitorKey.moves`, and the
+  key itself): `answeredAt` was the visitor's a moment ago. Without it the
+  survey page offered a survey the visitor had answered, and answering it
+  again as the person made the move "keep" the person's and drop the
+  visitor's.
+- **A sign-in leaves only after the sends on their way** (`SavesInFlight`):
+  a visitor's first answers bring the key in their answer; left before it,
+  the browser never kept it and the move found nothing.
+- **A `before()` that throws** used to skip the test file's clean-up: its
+  `php -S` kept running, and `tests/run.php` waited for it for ever. The lib
+  now reports it as a failure and stops the servers; if a run still hangs,
+  look for a `php -S … router.php` whose parent is gone, stop it by its
+  command line, and drop its `survey_test_` database
+  (`php tests/tools/testdb.php drop NAME`).
 - **Focus on something a change is about to draw**:
   `afterNextRender(() => ...focus(), { injector })`. With no zone a microtask
   runs before the render, and the element is not there yet. A rich text field
@@ -502,11 +648,36 @@ frontend/src/app/
   (`htmlWhitespaceSensitivity: 'ignore'`), so "no space before this dot"
   cannot be written in the markup: the separator of the plural label is the
   numbers' own `::before`, tied to their first word by a no-break space.
-- **The top bar has three widths at which the words beside the mark go**: 380
-  px always, 520 px with the language chooser in it, 420 px signed out with
-  no chooser (the admin area once a session has ended) - there the bar with
-  them needs some 400 px, and "Sign in" was squeezed at 390. A new state of
-  the bar is measured at its phone widths (`expectBar`), not assumed.
+- **The top bar folds at 760 px** (`PHONE_BAR_MAX`, and the same number in
+  its styles): up to it the brand is the mark and the site's name, then the
+  language, the theme and the menu button that holds the links and the
+  person's menu; from 961 px the person's name is beside the initial. Before
+  the fold the words beside the mark went at three different widths and
+  "Sign in" was squeezed at 390. A new state of the bar is measured at its
+  phone widths (`expectBar`), not assumed - and at 360 px, the narrowest.
+  In the admin panel the wordmark is longer: "anotoki survey · admin panel"
+  from 961 px; up to 960 (`NARROW_BAR_MAX`) and on a phone "survey" with
+  "admin panel" small under it (`.is-short.has-panel`) - in one row the bar
+  overflowed at 761 and at 360. Measured at 360, 390, 761, 960 and 961.
+- **Every anotoki site calls its admin area the admin panel**: "Admin panel"
+  ("Administrátorský panel") in the person's menu (`topbar.admin`),
+  `brand.adminPanel` after the wordmark, "<page> · Admin panel · anotoki
+  survey" in the tab (`core/title.strategy.ts`). The wordmark's spans are
+  separated by CSS `gap`, not spaces: a test reads them one by one.
+- **A sign-in that came back without one is let through** for the rest of
+  that page load (`signInFailure` is never cleared): every page draws its
+  signed-out card. The IAM refused (`access_denied`) or the person went back,
+  and the guard sending the browser to the IAM again would go round for ever.
+  `signInGuard` lets every navigation through while `signInFailure()` is set,
+  and the layouts draw their signed-out card instead of the outlet - so
+  nothing of the page (a survey) is made or asked for. A sign-in that cannot
+  even start - the browser refuses the site's storage, where the SDK keeps
+  the sign-in in progress (`storage_unavailable`) - is a `signInFailure` too:
+  `AuthService.signIn()` answers false and sets it, and the guard (and the
+  Sign in buttons) say why in a toast (`signIn.storageUnavailable`) - it was a
+  blank page, the first navigation cancelled with nothing said. While the
+  site cannot run (`status` not `ready`) the guard lets nothing through and
+  sends nobody anywhere: the boot pages are drawn.
 - **A long tag in a row that scrolls sideways is cut off on a phone**: the
   editor's language tabs wrap from 560 px down ("7 / 8 shown in English").
 - **A guard that reads text reads less than it seems**: the key scan took a
@@ -523,6 +694,37 @@ frontend/src/app/
   that held with or without `Object.hasOwn`, the seeded strings never meeting
   the check a save makes. Take the fix out once and watch the named test go
   red.
+- **A pending migration closed the whole site, the sign-in with it**:
+  `/api/auth/config` was 503 too, so the SDK was never made and nobody -
+  the ADMIN who had to apply it included - could sign in. While only a
+  migration waits the auth config answers (with `update: true`), the
+  status is `ready` (the guard sends a visitor to the IAM as ever), and
+  `AuthService.needsUpdate` makes `app.component.ts` draw "not set up yet"
+  everywhere but the Migrations page of an ADMIN. The strings answer too:
+  without them the Migrations page's bar was keys.
+- **The strings read while behind lack what the pending migration brings**:
+  after an Apply that applied anything the page calls
+  `TranslationService.reload()`, or the new keys show as themselves until
+  the next page load.
+- **The Apply's lock is never on `db()`**: under `php -S` that connection is
+  pooled, and an advisory lock left by a request that died would outlive it.
+  `databaseApplyUpdate()` connects for itself; the lock goes with its
+  connection.
+- **No test asks an IAM whether sign-in is required**: anything that reaches
+  `authLoginRequired()` (`/api/auth/config`) asks
+  `{issuer}/api/public/applications/survey` and keeps the answer in
+  `cache_dir`. Run with the development settings (`http://localhost:4300`,
+  `storage/cache`), an in-process test asked the developer's own IAM and wrote
+  into the running site's cache. Every test's IAM settings carry
+  `application_file` (`test_iam()`, the in-process config, `good_iam()`;
+  `test_application_file(true|false|null)` - null: no file, the IAM out of
+  reach, "required"); only `tests/api/auth.test.php` asks, and only the
+  stand-in IAM.
+- **A test never writes a file into `migrations/survey/`**: the owner's
+  running site reads that folder, and a stray file closes it. Tests (and the
+  browser check's `sql()`) make a database "behind" by taking rows out of its
+  `migrations` table; a failure part way through a file is a trigger that
+  raises (`tests/api/migrations.test.php`).
 - **A migration edited while it is still being written** is not applied again
   by the tests' template, which has seen it:
   `php tests/tools/testdb.php template --fresh` (not while tests are running -
@@ -537,8 +739,9 @@ frontend/src/app/
 
 1. `cd backend && php tests/run.php` - all pass; add tests for new rules,
    routes and refusals (`tests/api/surveys.test.php` is the pattern; two
-   requests at the same moment: `begin_as()` / `somebody_else()` in
-   `tests/api/translations.test.php`). A new or removed string: its migration,
+   requests at the same moment: `begin_call()` / `somebody_else()` in
+   `tests/lib.php`, used by `tests/api/translations.test.php` and
+   `tests/api/visitors.test.php`). A new or removed string: its migration,
    then `tests/unit/translations.test.php` is green again
    (`php tests/tools/testdb.php template --fresh` first, when the migration
    was edited after the template applied it). The PHP runner takes files:
@@ -562,7 +765,7 @@ frontend/src/app/
    - [ ] components in three files; colours from tokens; works at 390 px;
    - [ ] nothing the site says to somebody taking a survey is written in a
          template or kept worded in state: a key, with its English and formal
-         Slovak string in a migration; the admin area English, in its templates;
+         Slovak string in a migration; the admin panel English, in its templates;
    - [ ] no site string into `[innerHTML]`; no key built from anything open,
          nor from a prefix `dynamic-keys.ts` does not declare; a family asked
          for as a family, one string as one; a value `around()` marks up drawn
@@ -573,7 +776,7 @@ frontend/src/app/
          `\s` / `\p{Z}` in PHP; no PCRE result cast to a string unasked;
    - [ ] a check followed by a write holds a lock between them, in the
          transaction; rows are taken in one order;
-   - [ ] nothing typed in the admin area lives only in a component: a session
+   - [ ] nothing typed in the admin panel lives only in a component: a session
          that ends takes the page away without asking;
    - [ ] a failure is said where the person who caused it is looking, and a
          refusal says what they can do;

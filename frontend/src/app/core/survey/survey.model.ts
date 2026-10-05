@@ -177,11 +177,17 @@ export interface Answer {
   text: string;
 }
 
-/** Who took a survey: their anotoki account - the IAM's user id, name and address. */
+/**
+ * Who took a survey: their anotoki account - the IAM's user id, name and
+ * address - or a visitor who answered without signing in (while the IAM says
+ * sign-in is not required): a negative id, "Visitor 12", no address.
+ */
 export interface Person {
   id: string;
   name: string;
   email: string;
+  /** Answered without signing in: the admin panel says "Not signed in" where the address would be. */
+  visitor?: boolean;
 }
 
 export interface AboutYou {

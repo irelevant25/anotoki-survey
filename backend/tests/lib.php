@@ -70,8 +70,9 @@ function test_write_config(string $dir, array $database, array $iam): string
         $name = TEST_DB_PREFIX . getmypid() . '_' . bin2hex(random_bytes(3));
     }
     $dir = test_temp_dir('config');
-    // The app in this process checks no tokens: an IAM address that goes nowhere.
-    test_write_config($dir, ['name' => $name] + machineDatabaseSettings(), ['issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => 'storage/cache']);
+    // The app in this process checks no tokens: an IAM address that goes nowhere,
+    // and an answer about sign-in that is not there (required, nobody asked).
+    test_write_config($dir, ['name' => $name] + machineDatabaseSettings(), ['issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => 'storage/cache', 'application_file' => test_application_file()]);
     putenv("SURVEY_TEST_CONFIG=$dir");
     $GLOBALS['TEST_CONFIG_DIR'] = $dir;
 })();
@@ -241,8 +242,16 @@ function test_where(Throwable $e): string
 register_shutdown_function(static function (): void {
     if (!isset($GLOBALS['TEST_RAN']) && $GLOBALS['TESTS']['tests']) {
         $GLOBALS['TEST_RAN'] = true;
-        $code = test_run();
-        test_cleanup();
+        try {
+            $code = test_run();
+        } catch (Throwable $e) {
+            // A before() that threw: no test ran - but its servers must stop (tests/run.php would wait for them).
+            printf("  FAIL before the tests: %s\n    (%s:%d)\n", $e->getMessage(), basename($e->getFile()), $e->getLine());
+            echo '##survey ' . json_encode(['file' => basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')), 'pass' => 0, 'fail' => 1]) . "\n";
+            $code = 1;
+        } finally {
+            test_cleanup();
+        }
         exit($code);
     }
     test_cleanup();
@@ -451,14 +460,22 @@ function test_frontend_build(): string
 
 /**
  * The real server (router.php) with the given IAM settings (the tests' own key
- * set unless said otherwise), against this file's database. Checks it says it
- * uses that database before any test talks to it.
+ * set unless said otherwise), against this file's database - and, with
+ * $visitors, a config/visitors.local.php holding them. Checks it says it uses
+ * that database before any test talks to it. 'config' is its settings folder
+ * (its storage/ is in there).
+ *
+ * @return array{base: string, log: string, stop: callable, config: string}
  */
-function start_app(?array $iam = null, array $env = []): array
+function start_app(?array $iam = null, array $env = [], ?array $visitors = null): array
 {
     test_db();
+    $config = test_config_dir($iam ?? test_iam());
+    if ($visitors !== null) {
+        file_put_contents("$config/visitors.local.php", '<?php return ' . var_export($visitors, true) . ";\n");
+    }
     $app = test_start_server(TEST_BACKEND, TEST_BACKEND . '/router.php', $env + [
-        'SURVEY_TEST_CONFIG' => test_config_dir($iam ?? test_iam()),
+        'SURVEY_TEST_CONFIG' => $config,
         'SURVEY_FRONTEND_DIST' => test_frontend_build(),
     ], '/api/health');
     $health = call($app['base'], 'GET', '/api/health')['body'];
@@ -466,7 +483,90 @@ function start_app(?array $iam = null, array $env = []): array
         throw new RuntimeException('The server uses ' . ($health['database'] ?? '?') . ', not this test\'s database.');
     }
 
-    return $app;
+    return $app + ['config' => $config];
+}
+
+/* ------------------------------------------------ two at the same moment */
+
+/** Somebody else at the same moment: a second connection to this file's database, for a transaction left open. */
+function somebody_else(): PDO
+{
+    return dbConnect(databaseSettings());
+}
+
+/**
+ * A request that is sent and not waited for - for what has to wait for
+ * somebody else (somebody_else() holding a row, say). $headers are the
+ * request's: a bearer() token, an X-Visitor-Key, or none - nobody. (The server
+ * answers one request at a time, and this one keeps it busy until it is
+ * answered: ask for 'answer' before the next call.)
+ *
+ *   'waits'   is it held up by a lock somebody else has? True as soon as the
+ *             database shows a connection waiting for one while the request
+ *             is unanswered; false when the answer comes first - it did not
+ *             wait - or nothing of either is seen in ten seconds
+ *   'answer'  waits for the answer: ['status' => int, 'body' => mixed, 'headers' => [lower-case name => value]]
+ *
+ * @return array{waits: callable(): bool, answer: callable(): array}
+ */
+function begin_call(string $base, string $method, string $url, mixed $body = null, array $headers = []): array
+{
+    $curl = curl_init($base . $url);
+    $headers = array_merge($headers, ['Expect:'], $body === null ? [] : ['Content-Type: application/json']);
+    $received = [];
+    curl_setopt_array($curl, [
+        CURLOPT_CUSTOMREQUEST => $method, CURLOPT_RETURNTRANSFER => true, CURLOPT_HTTPHEADER => $headers, CURLOPT_TIMEOUT => 30,
+        CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$received): int {
+            if (str_contains($line, ':')) {
+                [$name, $value] = explode(':', $line, 2);
+                $received[strtolower(trim($name))] = trim($value);
+            }
+
+            return strlen($line);
+        },
+    ]);
+    if ($body !== null) {
+        curl_setopt($curl, CURLOPT_POSTFIELDS, jsonText($body));
+    }
+    $multi = curl_multi_init();
+    curl_multi_add_handle($multi, $curl);
+
+    // Lets the request go on for a moment; true once it is answered.
+    $answered = static function () use ($multi): bool {
+        curl_multi_exec($multi, $running);
+        if ($running > 0 && curl_multi_select($multi, 0.05) === -1) {
+            usleep(20000); // nothing to wait on yet
+        }
+
+        return $running === 0;
+    };
+    $answer = null;
+
+    return [
+        'waits' => static function () use ($answered): bool {
+            for ($until = microtime(true) + 10; microtime(true) < $until;) {
+                if ($answered()) {
+                    return false;
+                }
+                if ((int) dbValue("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock'") > 0) {
+                    return true;
+                }
+            }
+
+            return false;
+        },
+        'answer' => static function () use ($answered, $multi, $curl, &$answer, &$received): array {
+            if ($answer === null) {
+                for ($until = microtime(true) + 35; !$answered() && microtime(true) < $until;) {
+                    // until it is answered (or its own 30 seconds are over)
+                }
+                $answer = ['status' => (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 'body' => json_decode((string) curl_multi_getcontent($curl), true), 'headers' => $received];
+                curl_multi_remove_handle($multi, $curl);
+            }
+
+            return $answer;
+        },
+    ];
 }
 
 /** What the server wrote to its error output that is not its request log: PHP warnings, [server] errors. */
@@ -578,10 +678,33 @@ function test_keys(): array
     return $keys;
 }
 
-/** The IAM settings with the tests' key set. */
+/**
+ * The IAM settings with the tests' key set, and the tests' answer about sign-in
+ * (test_application_file(): by default none - required, the IAM never asked).
+ */
 function test_iam(array $extra = []): array
 {
-    return $extra + ['issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => test_temp_dir('cache'), 'jwks_file' => test_keys()['jwks_file']];
+    return $extra + [
+        'issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => test_temp_dir('cache'),
+        'jwks_file' => test_keys()['jwks_file'], 'application_file' => test_application_file(),
+    ];
+}
+
+/**
+ * The IAM's answer about this application as a file (the SDK's
+ * application_file: its content is the answer, read on every request): one
+ * that says login_required $required, $answer changing or adding fields - or,
+ * with null, a path where there is no file, which reads as an IAM out of reach:
+ * sign-in required. No test ever asks a real issuer.
+ */
+function test_application_file(?bool $required = null, array $answer = []): string
+{
+    $file = test_temp_dir('application') . '/application.json';
+    if ($required !== null) {
+        file_put_contents($file, json_encode($answer + ['client_id' => TEST_CLIENT, 'name' => 'Test', 'login_required' => $required]));
+    }
+
+    return $file;
 }
 
 /**

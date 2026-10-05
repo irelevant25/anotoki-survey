@@ -1,6 +1,6 @@
 ---
 name: check-in-browser
-description: Check the survey site in a real browser, signed in, end to end - the owner writes and opens a survey with a picture, somebody takes it once, the results and the roles; the pages people take surveys on in Slovak (the top bar on a phone, a survey step by step, no key where a word should be, the admin area English all the same); and the translating itself (the Translations and Languages pages, a survey translated in the editor, read in Slovak, in English where a text is missing, and which language each person read it in); and what goes wrong (a save the server fails on, a session that ends over unsaved strings, a save over a translator's save, the site not set up or out of reach) - with headless Chrome and the stand-in IAM, on a throwaway database. Use after any change to the frontend, the API, sign-in, the site's strings or a survey's translations, before saying a change works, when a page renders blank or looks broken, or when the user asks to see or screenshot the site.
+description: Check the survey site in a real browser, signed in, end to end - every page signed in first (to the IAM and back, nothing of a survey before), the family's top bar at 360, 390 and 1280 px with its phone menu; the owner writes and opens a survey with a picture, somebody takes it once, the results and the roles; the pages people take surveys on in Slovak (the top bar on a phone, a survey step by step, no key where a word should be, the admin panel English all the same); and the translating itself (the Translations and Languages pages, a survey translated in the editor, read in Slovak, in English where a text is missing, and which language each person read it in); and what goes wrong (a save the server fails on, a session that ends over unsaved strings, a save over a translator's save, the site not set up or out of reach, a database behind the code and the admin panel's Migrations page that applies it); and visitors - the IAM's "Sign-in required" switched off: surveys taken without signing in, in two browsers, "Visitor N" / "Not signed in" in the admin panel, the answers and the draft moved into the account at a sign-in, and a visitor sent to sign in once the switch is on again - with headless Chrome and the stand-in IAM, on a throwaway database. Use after any change to the frontend, the API, sign-in, the site's strings or a survey's translations, before saying a change works, when a page renders blank or looks broken, or when the user asks to see or screenshot the site.
 ---
 
 # Check the survey site in a browser
@@ -12,11 +12,12 @@ signed in as the kinds of people the site has:
 
 | Who | IAM user | Roles | Account's language | Checked |
 | --- | --- | --- | --- | --- |
-| owner | 1 | `ADMIN` | en | writes a survey with a picture, opens it, reads the answer, may delete it; the admin area is English for them in a Slovak tab too; rewords a string of the site, hides Slovak and offers it again; writes a second survey and translates it into Slovak in the editor; reads which language each person read it in; is told where Save is when a save of the strings fails; loses the session over two unsaved boxes and finds them again; is asked before signing out over them; adds a language (hidden) and deletes it; saves the survey over a translator's save and keeps the translator's texts; previews the main tab from a Slovak tab; saves over a version that removed a question and keeps its Slovak; meets a conflict in which "Save mine over it" is not offered; moves a survey's address; sets a past last day |
-| pat | 101 | none | en | takes the survey once; the admin area says it is not theirs; at the end, on a Slovak page, gets the second survey whole in English - one of its texts is not translated any more; later carries on in it, sends to the address it has just left, and sends again from the new one |
-| edith | 2 | `EDITOR` | en | sees the surveys and the answers, no Delete anywhere |
-| nina | 102 | none | en | follows a link with `?lang=sk`: takes the survey in Slovak; in the second survey changes to English in the middle of a step, and keeps her answer |
-| zuzana-kovacova-2026 | 103 | none | sk | nothing stored here: gets Slovak from her account; a twenty-character name in the bar; then chooses English; later reads the survey that has no Slovak (in English, and told so) and the translated one (in Slovak, to the thank-you) |
+| owner | 1 | `MEMBER`, `ADMIN` | en | writes a survey with a picture, opens it, reads the answer, may delete it; the admin panel is English for them in a Slovak tab too; rewords a string of the site, hides Slovak and offers it again; writes a second survey and translates it into Slovak in the editor; reads which language each person read it in; is told where Save is when a save of the strings fails; loses the session over two unsaved boxes and finds them again; is asked before signing out over them; adds a language (hidden) and deletes it; saves the survey over a translator's save and keeps the translator's texts; previews the main tab from a Slovak tab; saves over a version that removed a question and keeps its Slovak; meets a conflict in which "Save mine over it" is not offered; moves a survey's address; sets a past last day; with the database behind, finds the way to the Migrations page, applies - stopped by a file that fails, with its error - and applies again |
+| pat | 101 | `MEMBER` | en | takes the survey once; the admin panel says it is not theirs; at the end, on a Slovak page, gets the second survey whole in English - one of its texts is not translated any more; later carries on in it, sends to the address it has just left, and sends again from the new one |
+| edith | 2 | `MEMBER`, `EDITOR` | en | sees the surveys and the answers, no Delete anywhere, no Migrations; with the database behind, "not set up yet" and no link |
+| nina | 102 | `MEMBER` | en | follows a link with `?lang=sk`: takes the survey in Slovak; in the second survey changes to English in the middle of a step, and keeps her answer |
+| a visitor (nobody signed in) | - | - | the browser's, then `?lang=sk` | with "Sign-in required" off: takes two surveys and leaves a draft in a third, without signing in; is kept out of the admin panel and the preview; signs in from the notice - as the owner - and their answers and draft are the owner's; a second browser is a visitor of its own, listed as "Visitor N", and is sent to sign in once the switch is on again |
+| zuzana-kovacova-2026 | 103 | `MEMBER` | sk | nothing stored here: gets Slovak from her account; a twenty-character name in the bar; then chooses English; later reads the survey that has no Slovak (in English, and told so) and the translated one (in Slovak, to the thank-you) |
 
 ## Run it
 
@@ -39,16 +40,27 @@ With `--keep` it names the work folder: `shots/` holds a screenshot per stage,
 numbered in the order of the flow (three digits: there are more than a
 hundred). Look at them - a check can pass on a page that looks wrong:
 
-- `001`-`009`: the English pass on a desktop window (the home page, the admin
-  area, the user menu, the editor, the welcome, the thanks, the no-access page,
-  the results);
+- `en-1280-bar-*`: the top bar on a desktop, signed in (brand, Surveys, EN, the
+  theme, the person); `en-1280-signed-out-*`: a sign-in the IAM turned down -
+  the card "You are not signed in", Sign in in the bar;
+- then the English pass on a desktop window (the admin panel, the user menu,
+  the editor, the welcome, the thanks, the no-access page, the results);
+  `admin-761-bar`, `admin-960-bar`, `admin-961-bar`: the admin panel's bar on
+  a narrow desktop - "survey" with "admin panel" small under it up to 960 px,
+  "anotoki survey · admin panel" from 961 - with the three links, the theme, the person;
 - `en-360-*`, `en-390-*`: English on a phone, each page `-light` and `-dark`;
-- `sk-360-*`, `sk-390-*`: the same pages in Slovak - the home page signed out,
-  the chooser's menu, a survey signed out, the person's menu, the welcome, a
+  `en-390-home-*` and `en-390-phone-menu-*` the phone's bar and its menu (the
+  links, then the person's menu), `en-360-home-signed-out-*` and
+  `en-360-phone-menu-signed-out-*` the card and the menu with Sign in;
+- `sk-360-*`, `sk-390-*`: the same pages in Slovak - signed out (the card, and
+  the phone menu with "Prihlásiť sa"), the chooser's menu, a survey signed
+  out (the card, nothing of the survey), the person's menu, the welcome, a
   step with its errors, the last step, carrying on, sent, already taken,
-  nothing here; `sk-520-bar-*` / `sk-521-bar-*` / `sk-561-bar-*`: the top bar
-  where the words beside the mark go and come back; `sk-*-admin-*`: the admin
-  area opened from a Slovak tab;
+  nothing here; `sk-760-bar-*` / `sk-761-bar-*`: the top bar where it folds
+  into the menu button and where the links come back; `sk-360-phone-menu-*`
+  a twenty-character name in the phone menu, `sk-960-bar-*` / `sk-961-bar-*`
+  where the name goes beside the initial; `sk-*-admin-*`: the admin panel
+  opened from a Slovak tab;
 - `admin-translations-*`, `admin-languages-*`: the two pages of the site's own
   words, at `1280` and `390` px, `-light` and `-dark` - the top of the
   Translations page, a plural family (`-plural`), a refused save beside its key
@@ -59,10 +71,10 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   blame, said in the bar Save is in (the server's 500 at `1280`, no answer at
   all at `390`); `admin-session-ended`, `admin-session-ended-390-*`: what is
   left of the Translations page when the session ends - "You are signed out",
-  the mark without its words at 390; `admin-translations-1280-drafts-back-*`: the two boxes
+  with its own Sign in, the menu button at 390; `admin-translations-1280-drafts-back-*`: the two boxes
   holding what was typed, after signing in again; `admin-sign-out-unsaved-*`
   and `sk-360-sign-out-unsaved-*`: the question before signing out over them,
-  in English in the admin area and in Slovak where people take surveys;
+  in English in the admin panel and in Slovak where people take surveys;
 - `editor-translating-1280-*`, `editor-translating-390-*`: the editor on the
   Slovak tab with five of seven texts written, the whole page, light and dark;
   `editor-translated-1280`: every text written; `editor-open-untranslated-1280`:
@@ -84,6 +96,32 @@ hundred). Look at them - a check can pass on a page that looks wrong:
 - `editor-past-last-day-1280`, `editor-past-last-day-390-*`: an open survey
   whose last day is over, a text untranslated - "Closed", nothing said of its
   readers, "1 to fix before it reopens";
+- `admin-migrations-editor`: the Migrations page's address opened by an EDITOR
+  - "Migrations are for administrators";
+- the database behind: `sk-390-behind-participant-*` and
+  `en-1280-behind-participant` ("not set up yet" for somebody taking surveys,
+  no link), `en-1280-behind-editor` (the same at `/admin/migrations`),
+  `sk-390-behind-admin-*` and `en-1280-behind-admin` (the English block with
+  "Open Migrations" under the Slovak / English page);
+  `admin-migrations-behind-1280` (two files pending, only Migrations in the
+  bar, `brand.adminPanel` shown as a key - expected there),
+  `admin-migrations-failed-1280` / `-390-*` ("Stopped at
+  004_response_language.sql" and the database's error in its box - look at the
+  box on a phone: the error wraps, nothing wider than the window),
+  `admin-migrations-up-to-date-1280` / `-390-*` ("Up to date", the four links,
+  "admin panel" in the brand);
+- visitors ("Sign-in required" off): `admin-results-visitor-1280` (the
+  results' people: "Visitor N", "Not signed in"), `-drawer-1280` (the drawer
+  of their answers), `admin-response-visitor-390-*` (the page of their
+  answers); `en-390-visitor-home-*` (the list with no sign-in and the notice
+  above it), `en-390-visitor-welcome-*` ("You are not signed in · your
+  answers go without your name." and the notice), `en-390-visitor-sent-*`;
+  `sk-390-visitor-home-*`, `sk-360-visitor-home` and
+  `sk-390-visitor-welcome-draft-*` (the notice, the line, "Pokračovať" for
+  the visitor's draft - in Slovak, the longer words); `sk-390-visitor-signed-in-moved`
+  (the toast after the sign-in: one survey moved, one kept the owner's
+  answers); `admin-results-visitor-390-*` (the owner and the other browser's
+  visitor side by side);
 - `en-390-not-set-up-*`, `en-390-load-error-*`: the two pages drawn instead of
   the site, in a browser with nothing stored;
 - `sk-360-home-two-surveys-*`: the home page listing a translated survey and
@@ -104,7 +142,7 @@ it on a phone, nothing wider than a phone.
 What it needs: the site set up once on this computer (`backend/config/database.local.php`
 - the tests borrow its PostgreSQL server and user), PHP 8.2 or later on the
 PATH (or `PHP=` naming it), and Chrome or Edge (or `CHROME=`). Ports 8590 (the
-site), 8597 (the stand-in IAM) and 9590 (Chrome) must be free.
+site), 8597 (the stand-in IAM) and 8591 (Chrome) must be free.
 
 ## What it does, and never does
 
@@ -139,48 +177,74 @@ depends on an earlier one says so by its place.
 In English - pinned through the site itself: storage cleared, then `/?lang=en`,
 which holds for the tab and is taken out of the address:
 
-1. Signed out: the Sign in button, the chooser saying `EN`, the tab's title;
-   `/admin` signs in through the IAM and comes back; no chooser in the admin area.
-2. The user menu; a new survey with a picture, saved, reloaded, opened.
-3. Pat takes it once (no way into the admin area in their menu; the admin area
+1. Signed in first: `/` with nothing stored goes to the IAM and comes back to
+   `/` signed in - no `GET /api/surveys` before the IAM's `authorize`; a
+   survey's address comes back to that address; the API answers 401 without a
+   token for the surveys, a survey and the admin panel. The chooser says `EN` (named "Language: English (EN)"),
+   the tab's title. The bar at 1280 px: one row - brand ("anotoki survey",
+   linking `/`), Surveys (the page), the chooser, the theme, the person. A
+   sign-in the IAM turns down (`deny`): on `/admin` the card says "You are
+   not signed in" (never "Your session has ended"); on `/` the card and the
+   bar's Sign in, which signs in. The browser refusing the site the storage
+   the sign-in needs (a script makes the SDK's `setItem` throw): the card,
+   and a toast that says why - not a blank page. `/admin` signs in through the IAM and comes back; no chooser
+   there, its links Surveys, Translations, Languages and - the owner is an
+   ADMIN - Migrations (the bar measured at 761, 960 and 961 px with all four).
+2. The user menu: focus on its first item, ArrowDown, End, round to the
+   first, Escape gives the focus back to the button; Tab from the first, a
+   middle and the last item (and Shift+Tab) closes it with the focus on the
+   button, and the next Tab moves on (never to `<body>`); a click outside
+   closes it; a new survey with a picture, saved, reloaded, opened.
+3. Pat takes it once (no way into the admin panel in their menu; the admin panel
    is not theirs - on the Translations page too, whose "See the open surveys"
    still leaves it). The owner's menu has the way in; the owner reads the answer
-   and may delete it. Edith sees everything but the deletes.
-4. A phone, 360 and 390 px, signed in and signed out: the top bar fits, no
-   sideways scroll, a step's error, no key on the page.
+   and may delete it. Edith sees everything but the deletes - and no
+   Migrations: not in her bar, at its address the page says it is for
+   administrators (and asks the server nothing), and the API refuses her.
+4. A phone, 360 and 390 px, signed in and signed out: the top bar fits (brand
+   with "survey" alone, chooser, theme, menu button), no sideways scroll, a
+   step's error, no key on the page; the phone menu - the links, then the
+   person's menu; focus in, arrows, Home, Escape back to its button, a click
+   outside, Tab and Shift+Tab from the first, a middle and the last item back
+   to its button, a link chosen; signed out the card, and Sign in in the
+   menu.
 
 In Slovak:
 
 - First, a browser set to Slovak (`browserLanguage('sk-SK')`), nothing stored,
-  nobody signed in, no `?lang=`: the site is Slovak, and its strings took one
-  request - `GET /api/translations/sk-sk`, which the server answers by the
-  base language. The browser is put back to English afterwards.
+  nobody signed in (the IAM turns the sign-in down), no `?lang=`: the card is
+  Slovak, and its strings were asked for in Slovak alone -
+  `GET /api/translations/sk-sk` (which the server answers by the base
+  language), and after the IAM the cached `sk` again; never English first.
+  The browser is put back to English afterwards.
 
-5. Storage cleared, `/?lang=sk`, signed out, 360 px: `<html lang="sk">`,
-   "Prihlásiť sa", the chooser `SK` (named "Jazyk: Slovenčina") and its menu,
-   the home page and the tab's title, the bar at 360, 390, 520 and 521 px (the
-   words beside the mark are hidden up to 520 px while the chooser is there;
-   signed out with no chooser - the admin area after a session ended - up to
-   420 px, stage 10),
-   a survey signed out.
-6. Nina signs in - her account is English, the tab stays Slovak through the
-   IAM and back: her menu, the welcome, the step about her with its errors
+5. Storage cleared, `/?lang=sk`, signed out (turned down), 360 px:
+   `<html lang="sk">` through the IAM and back, the card "Nie ste
+   prihlásení" with "Prihlásiť sa", the chooser `SK` (named "Jazyk:
+   Slovenčina (SK)") and its menu, the tab's title, the brand "prieskum", the menu
+   button "Ponuka" and its menu; the bar at 390, 760 and 761 px (the menu
+   button up to 760, the links and Sign in in the row from 761); a survey
+   signed out - the card, nothing of the survey drawn or asked of the API.
+6. Nina signs in from that card - her account is English, the tab stays
+   Slovak through the IAM and back, and she is back on the survey's page:
+   her menu, the welcome, the step about her with its errors
    (360 and 390 px), the last step, the home page's "Začatý", carrying on,
    sending, "already taken", the two not-found pages. After each: no key of
    the bundle, and nothing shaped like one, in the page's text, its spoken
    attributes or the tab's title.
-7. The admin area from a Slovak tab: the no-access page for Nina, then the
-   owner - through the menu's "Administrácia" and by the address - English,
+7. The admin panel from a Slovak tab: the no-access page for Nina, then the
+   owner - through the menu's "Administrátorský panel" and by the address - English,
    `<html lang="en">`, no chooser, the shared top bar in English; back to `/`
    it is Slovak again.
 8. Storage cleared, Zuzana (her token says `locale: sk`): English while signed
-   out (the browser's), Slovak once signed in, and nothing stored; the bar at
-   561 px with her twenty-character name.
+   out (the browser's), Slovak once signed in, and nothing stored; her
+   twenty-character name whole in the phone menu at 360 px, and in the bar at
+   960 / 961 px (the initial alone, then the name).
 9. The chooser: English chosen, at once, kept on the device, and still there
    after a reload - stronger than the account's language.
 
 The translating itself - from a clean start again (signed out, storage
-cleared, `/?lang=en`), the owner in the admin area:
+cleared, `/?lang=en`), the owner in the admin panel:
 
 10. The Translations page, from the link in the surveys list: a row for every
     key, a column for each language, both languages whole; a plural family as
@@ -193,13 +257,15 @@ cleared, `/?lang=en`), the owner in the admin area:
     the bar Save is in, in view, at 1280 and 390 px - nothing at the top of
     the page. Two boxes typed and not saved; the session ends (the IAM
     refuses to renew it) and the page is gone: the layout says "You are
-    signed out" (not "no editor role"), the bar fits at 390 and 421 px, the
+    signed out" (not "no editor role") with its own Sign in, the bar fits at
+    390 px (brand, theme, the menu button - its menu the sections and Sign in), the
     brand link and Back still navigate (the guard is asked with no page);
     the browser does not ask "Leave site?" on the way to the sign-in; signed
     in again, both boxes
     hold what was typed, marked as changed. Signing out over them asks first
     ("Stay" keeps everything) - in Slovak too, from the home page at 360 px,
-    where "sign out anyway" gives them up: signed in again, no box is marked.
+    where "sign out anyway" gives them up: out at the IAM and - every page
+    asks for a sign-in first - in again at once, no box is marked.
 11. The Languages page: English the fallback and not switchable, nothing to
     delete; Slovak hidden - the site answers in English, a tab that asked for
     Slovak reads English and the chooser is gone, through the menu with no
@@ -270,9 +336,62 @@ cleared, `/?lang=en`), the owner in the admin area:
     reopens", and the Slovak tab's banner says what holds for it now - at
     1280 and 390 px.
 
+A database behind the code - the one stage that changes the database itself
+(`sql()`, on `survey_test_browser` through the settings run.mjs wrote:
+`SURVEY_CHECK_PHP`, `SURVEY_CHECK_BACKEND`, `SURVEY_CHECK_CONFIG`):
+
+22. The rows of `004_response_language.sql` and `005_top_bar_and_sign_in.sql`
+    taken out of `migrations`, and the key `brand.adminPanel` (which 005
+    writes) deleted. The API is 503 `not_set_up` with `update: true`, the
+    sign-in's settings answer with `update: true`. Pat, signed in afresh
+    (through the IAM, which works while behind) with `?lang=sk` at 390 px: the
+    "not set up yet" page in Slovak, no link to the Migrations page; in
+    English at 1280. Edith at `/admin/migrations`: the same page, no link. The
+    owner on a Slovak page: Slovak, and the English block with "Open
+    Migrations"; at 1280 the link opens the Migrations page - 004 and 005
+    pending, only "Migrations" in the bar, the tab "Migrations · …", and the
+    brand showing `brand.adminPanel` (the strings read while behind lack it;
+    the warning is expected). "Apply pending", asked "Apply 2 pending
+    migrations?": "Stopped at 004_response_language.sql", nothing applied,
+    rolled back, and PostgreSQL's error ("column "language" of relation
+    "responses" already exists", with the statement) in its box - at 1280 and
+    390. 004's row put back; Apply again: "Up to date - Applied:
+    005_top_bar_and_sign_in.sql.", nothing pending, the bar's four links back
+    and "admin panel" in the brand (the strings read again), no key on the
+    page; at 1280 and 390; Surveys opens the list, no reload.
+
+Visitors - the IAM's "Sign-in required" switched off (the stand-in's
+`login_required`, and the kept answer in the work folder's `config/cache`
+deleted, so the site asks again at once):
+
+23. The owner makes three open surveys through the API ("Visit one", "two",
+    "three" - one question, Slovak whole) and answers "Visit two" as
+    themselves. `/api/auth/config` says `loginRequired: false`,
+    `visitorDays: 30`. A **second browser** (a context of its own, nothing
+    stored) opens `/`: no trip to the IAM, the three surveys "New", the
+    notice; it answers "Visit one" - a key in its `localStorage`. The owner's
+    results of "Visit one" list it as "Visitor N" (N from its negative id),
+    "Not signed in" where the address is - in the table, the drawer, and on
+    the page of its answers at 390 px. Then the first browser forgets its
+    session: `/?lang=en` at 390 px is the list with no trip to the IAM, the
+    notice ("for 30 days after your last visit", Sign in), the welcome's
+    visitor line; no key before the first answers, one after; "already
+    taken" again; "Visit two" sent, "Visit three" started and left; after a
+    page load "Taken, Taken, Started". `/admin` and `/preview/{id}` still go
+    to the IAM (turned down here): their cards, the refusal's toast. In
+    Slovak: the notice ("ešte 30 dní"), "Vyplnený, Vyplnený, Začatý", the
+    line, "Pokračovať" for the draft, at 390 and 360 px, no key on the page.
+    Sign in from the notice, as the owner: the toast says one survey moved
+    and one kept the owner's earlier answers (in Slovak); the key is gone;
+    the home page is the owner's, the draft with it; "Visit one" is the
+    owner's beside the other browser's visitor, "Visit two" kept the owner's
+    own answer only. Switched on again: the second browser, holding its key,
+    goes to the IAM before anything of a survey is asked for (turned down
+    here: the card), and keeps its key.
+
 The pages drawn instead of the site - storage cleared, 390 px:
 
-22. Every request to the API answered 503 `not_set_up` by the check: the "not
+24. Every request to the API answered 503 `not_set_up` by the check: the "not
     set up yet" page in English, and the tab named by the site ("anotoki
     survey") - never by a key - for `/`, an unknown address and `/admin`.
     Then no answer at all, for `/admin/languages`: the "cannot be reached"
@@ -284,9 +403,18 @@ The pages drawn instead of the site - storage cleared, 390 px:
 Helpers at the top of `flow.mjs`: `go(path)`, `clickText(selector, text)`,
 `focus(selector, n)` + `typeText(text)` (real input events - TipTap and Angular
 both see them), `setFiles(selector, n, files)` (a file input, through
-`DOM.setFileInputFiles`), `signInAs(user, words)` (signs out through the top
-bar's menu, then in again through the stand-in IAM - `words` is `EN` or `SK`,
-the language the page is in), `signOut(words)`, `viewport(width)`,
+`DOM.setFileInputFiles`), `signInAs(user, words)` (the stand-in told to sign
+in `user`, then out through the top bar's menu - and in again at once, for `/`
+asks first; `words` is `EN` or `SK`, the language the page is in),
+`signOut(words)` (out, and in again as whoever the stand-in signs in now),
+`signedOutOn(path)` (nobody signed in on `path`: the session forgotten and the
+stand-in told to `deny`, so the page comes back without a sign-in and draws
+its card; `setIam({ deny: false })` and a Sign in end it), `forgetSession()`,
+`SIGNED_IN` (an expression: the site holds tokens and the bar is drawn),
+`whoIsIn()` (the name the bar says - on a phone read from its menu),
+`openUserMenu()` (the person's button, or the phone's menu button),
+`barRow()` (the bar's row in order: brand, links, controls), `focused()`,
+`press(key)` (ArrowDown, ArrowUp, Home, End, Tab), `viewport(width)`,
 `screenshot(name, whole)` and `screenshots(name)` (the same page light, then
 dark), `expect(what, ok, detail)`, `expectBar(where)` (the top bar holds what
 is in it, and nothing scrolls sideways), `expectNoSideways(where)`,
@@ -336,6 +464,13 @@ Things that cost time to find out:
 - A bar with too much in it does not scroll, it squeezes the sign-in button
   (its words pressed into its padding): `expectBar` measures that, not only
   the window's width.
+- Nobody is ever signed out for long (but in the visitors' stage, with the
+  switch off): every page sends somebody not signed in to the IAM, and the
+  stand-in signs in at once. A signed-out page is one the IAM turned
+  down (`setIam({ deny: true })` - the stand-in answers `access_denied`): the
+  guard lets that page load through, the layout draws its card, and a toast
+  says the sign-in did not go through (`signedOutOn()` dismisses it). Forget
+  `deny: false` and every later sign-in is turned down.
 - `signInAs(user, words)` reads the page it is on: after `/?lang=sk` the tab is
   Slovak whoever is signed in (`SK`), after the chooser it is what was chosen,
   and with nothing stored it is the account's language while signed in and
@@ -361,6 +496,27 @@ Things that cost time to find out:
   `access_expires_at` set to 0 with a `storage` event (as another tab would
   write it - the SDK listens), then anything that needs a token. Set `refuse`
   back before signing in again.
+- Every account holds MEMBER (the IAM gives it to everyone): an ordinary
+  person's roles are `['MEMBER']`, never `[]`.
+- The stand-in also answers the IAM's public question about the site
+  (`GET /api/public/applications/survey`: `login_required`, default true;
+  `application_missing` makes it 404). The site's backend asks it when a page
+  loads (`/api/auth/config` relays it) and keeps the answer a minute in the
+  work folder's `config/cache`, so that line turns up in the stand-in's `log`:
+  read the browser's trips with `iamTrips()`, which leaves it out (the log
+  keeps only its last 200 lines: a stage that asks "no trip to the IAM" counts
+  the page's own `requested` instead). Only the visitors' stage switches it,
+  through `signInRequired(false | true)`, which deletes the kept
+  `anotoki-iam-application-*.json` there - or the site would go by its old
+  answer for up to a minute - and puts it back on before the next stage.
+- The visitor's key is `localStorage['anotoki-survey:visitor']`; clearing
+  `localStorage` makes a browser a new visitor, and a second browser is
+  `openPageInNewContext(port)` (`cdp.mjs`: a browser context of its own,
+  disposed with `close()`), whose requests and console the stage watches
+  itself.
+- A visitor answered by the flow and the same survey answered by the person
+  who then signs in is the "kept" half of the move's toast; a survey only the
+  visitor answered is the "moved" half - the stage has one of each.
 - A save that failed says so where `.save-state` is; the boxes marked as
   changed are listed by `marks()` in the grid's order - by key - not in the
   order they were typed.
@@ -391,9 +547,11 @@ php -r 'require "api/anotoki_iam.php"; @mkdir("storage/manual-iam", 0777, true);
 php tests/tools/testenv.php storage/manual --db=survey_test_manual --issuer=http://127.0.0.1:8597
 FAKE_IAM_DIR=storage/manual-iam FAKE_IAM_ISSUER=http://127.0.0.1:8597 php -S 127.0.0.1:8597 tests/tools/fake-iam.php
 SURVEY_TEST_CONFIG=storage/manual php -S 127.0.0.1:8590 router.php     # in another terminal
-# who signs in: curl -X POST -d '{"user":{"id":1,"username":"owner","roles":["ADMIN"]}}' http://127.0.0.1:8597/_test/state
-# with an account set to Slovak: ... -d '{"user":{"id":103,"username":"zuzana","roles":[],"locale":"sk"}}' ...
+# who signs in: curl -X POST -d '{"user":{"id":1,"username":"owner","roles":["MEMBER","ADMIN"]}}' http://127.0.0.1:8597/_test/state
+# with an account set to Slovak: ... -d '{"user":{"id":103,"username":"zuzana","roles":["MEMBER"],"locale":"sk"}}' ...
 # the site in a language, for this tab: http://127.0.0.1:8590/?lang=sk
+# visitors welcome ("Sign-in required" off): curl -X POST -d '{"login_required":false}' http://127.0.0.1:8597/_test/state
+#   then delete storage/manual/cache/anotoki-iam-application-*.json (or wait a minute) - and the same with true to switch back
 # afterwards: stop both, php tests/tools/testdb.php drop survey_test_manual, delete storage/manual*
 ```
 
