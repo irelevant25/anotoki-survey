@@ -4,7 +4,7 @@
 // has already been drawn once - and somebody who chose dark would see it flash
 // light on every visit. A few lines here, loaded synchronously from <head>,
 // close that gap. It is a file rather than an inline script so that a
-// Content-Security-Policy allowing scripts from this origin only lets it run.
+// Content-Security-Policy allowing no inline script lets it run.
 //
 // Keep the key and the values in step with src/app/core/theme/theme.service.ts.
 (function () {

@@ -283,6 +283,23 @@ and its own guard and the layout keep it to somebody signed in.
 number of the frontend's that a host's settings could make a lie. A backend
 that does not say it is one from before visitors, and the pages welcome none.
 
+**The family's visitor counter counts the pages, without the query string.**
+The owner (2026-10-06) asked for Umami - the family's own, at
+`umami.anotoki.eu` - on every anotoki site. `frontend/src/index.html` loads its
+script, and the upload's policy (`backend/tools/build.php`) allows it in
+`script-src`; what it sends goes to its own origin, which `connect-src`'s
+`https:` already allows. It sets no cookie and stores nothing in the browser.
+It is told to leave the query string and the fragment out
+(`data-exclude-search`, `data-exclude-hash`): the sign-in comes back to
+`/auth/callback?code=...&state=...`, and the script may read the address
+before the app has run - a counter that kept it would hold every sign-in's
+code. It is `async`, not the snippet's `defer`: a deferred script and the
+app's module run in order, so the site would wait for the counter - for as
+long as a slow or unreachable `umami.anotoki.eu` takes to give up. The paths
+still go: a survey's address is its slug. The price: the script runs in the
+site's pages, beside the sign-in's tokens in localStorage, so the site trusts
+whoever controls what `umami.anotoki.eu` serves that far.
+
 ## Languages
 
 The first five are the owner's, made before any of it was built.

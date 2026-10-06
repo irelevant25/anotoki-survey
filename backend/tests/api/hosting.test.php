@@ -89,6 +89,7 @@ test('the build: exactly what to upload - no settings, no tools, no composer fil
     assert_match('~RewriteRule \^ index\.html \[L\]~', $htaccess, 'the app\'s routes get the app');
     assert_match('~SetEnvIf Authorization "\(\.\+\)" HTTP_AUTHORIZATION=\$1~', $htaccess, 'the token reaches PHP under CGI too');
     assert_match("~img-src 'self' data: blob:~", $htaccess);
+    assert_match("~Content-Security-Policy \"default-src 'self'; script-src 'self' https://umami\\.anotoki\\.eu;~", $htaccess, 'scripts from this origin and the family\'s visitor counter, nothing else');
     assert_true(str_contains($htaccess, '<FilesMatch "^(index\.html|theme-boot\.js)$">') && str_contains($htaccess, 'Header set Cache-Control "no-cache"'), 'the shell is asked for again each time');
     assert_true(str_contains($htaccess, "<FilesMatch \"^\\.\">\n    Require all denied"), 'dot-files - the build\'s marker too - are never served');
 
