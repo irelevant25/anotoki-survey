@@ -38,6 +38,7 @@ describe('boot(): the whole start', () => {
     signedIn: () => person() !== null,
     person,
     signInFailure: failure,
+    preferences: () => null,
     onAuthChange: () => () => undefined,
     init: vi.fn(async () => {
       order.push('auth');

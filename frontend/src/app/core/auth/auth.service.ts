@@ -3,15 +3,21 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { VISITOR_SLOT } from '../survey/drafts';
 import { Person } from '../survey/survey.model';
-import { type AnotokiAuth, type AnotokiUser, createAuth } from './anotoki-auth';
+import { type AnotokiAuth, type AnotokiPreferenceChanges, type AnotokiPreferences, type AnotokiSavedPreferences, type AnotokiUser, createAuth } from './anotoki-auth';
 import { SavesInFlight } from './saves-in-flight';
 
 /**
  * Signing in, through the anotoki IAM - the only way in; the site has no
- * login of its own. The vendored browser SDK (anotoki-auth.mjs v1.1.1, copied
+ * login of its own. The vendored browser SDK (anotoki-auth.mjs v1.2.0, copied
  * unchanged from the IAM's sdk/js/) does the OpenID Connect code flow with
  * PKCE and keeps the tokens in localStorage, shared by every tab; this wraps
  * it in signals.
+ *
+ * The account also says how every anotoki site should look - the theme, the
+ * date order, the clock - beside its language (`preferences`; IAM migration
+ * 015, the owner's decision of 2026-10-06), and the site's own controls save
+ * a signed-in person's choice to it (`savePreferences()`): ThemeService,
+ * TranslationService, the date pipes.
  *
  * The IAM's address and this site's client id come from the backend
  * (GET /api/auth/config), which says 503 not_set_up until setup.php has run -
@@ -113,6 +119,15 @@ export class AuthService {
    * everybody else anyway.
    */
   readonly onlyMigrations = computed(() => this._needsUpdate() && this.isAdmin());
+  /**
+   * How the signed-in person's anotoki account says every anotoki site should
+   * look: the theme, the date order and the clock - followed everywhere on
+   * this site, the admin panel included. Null while nobody is signed in, and
+   * for a sign-in the IAM sends none with (an IAM from before its migration
+   * 015, or a sign-in without the `profile` scope): the site then keeps its
+   * own settings, as before, and saves nothing to the account.
+   */
+  readonly preferences = computed<AnotokiPreferences | null>(() => (this.signedIn() ? (this.user()?.preferences ?? null) : null));
   /** The signed-in person as the survey knows people: the IAM's id, name and address. */
   readonly person = computed<Person | null>(() => {
     const user = this.signedIn() ? this.user() : null;
@@ -261,7 +276,23 @@ export class AuthService {
     return this._client ? this._client.refresh() : Promise.resolve(null);
   }
 
-  /** Signed in, out or refreshed - in this tab or another. Returns an unsubscribe. */
+  /**
+   * Saves the person's choice to their anotoki account - for every anotoki
+   * site, not only this one: `theme`, `date_format`, `time_format` or
+   * `language` (a code the IAM offers). The SDK puts the answer in `user()`
+   * at once, in every tab, and calls the change listeners. Rejects with the
+   * SDK's error, whose `code` is the IAM's: `invalid_request` for a value it
+   * does not take (a language it does not offer), `network` when it cannot
+   * be reached, `login_required` with nobody signed in.
+   *
+   * Callers save only while `preferences()` is not null: an IAM that sends
+   * none has no such account to save to.
+   */
+  savePreferences(changes: AnotokiPreferenceChanges): Promise<AnotokiSavedPreferences> {
+    return this._client ? this._client.savePreferences(changes) : Promise.reject(Object.assign(new Error('Nobody is signed in'), { code: 'login_required' }));
+  }
+
+  /** Signed in, out or refreshed, or a preference saved - in this tab or another. Returns an unsubscribe. */
   onAuthChange(listener: () => void): () => void {
     this._listeners.add(listener);
     return () => this._listeners.delete(listener);

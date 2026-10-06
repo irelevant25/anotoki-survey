@@ -1,4 +1,7 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { type AnotokiDateFormat, type AnotokiPreferences } from '../auth/anotoki-auth';
+import { AuthService } from '../auth/auth.service';
 import { provideTestTranslations } from '../testing/test-translations';
 import { LocalDatePipe } from './local-date.pipe';
 import { TranslatePluralPipe } from './translate-plural.pipe';
@@ -28,10 +31,26 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
+/** AuthService.preferences(): the signed-in person's anotoki account's, or null - nobody signed in, an IAM that sends none. */
+const preferences = signal<AnotokiPreferences | null>(null);
+
+/** An account that has chosen how dates are written - and, to show it changes nothing on these pages, a clock. */
+function account(dateFormat: AnotokiDateFormat | null): AnotokiPreferences {
+  return { theme: 'auto', date_format: dateFormat, time_format: '12' };
+}
+
+beforeEach(() => preferences.set(null));
+
 function pipes(language: 'en' | 'sk') {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    providers: [language === 'sk' ? provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }) : provideTestTranslations(ENGLISH), TranslatePipe, TranslatePluralPipe, LocalDatePipe],
+    providers: [
+      language === 'sk' ? provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }) : provideTestTranslations(ENGLISH),
+      { provide: AuthService, useValue: { preferences } },
+      TranslatePipe,
+      TranslatePluralPipe,
+      LocalDatePipe,
+    ],
   });
   return {
     i18n: TestBed.inject(TranslationService),
@@ -184,5 +203,52 @@ describe('the localDate pipe', () => {
     i18n.noteAddress('/admin/surveys');
     expect(date.transform('2026-10-20', 'day')).toBe('20 October 2026');
     expect(date.transform(new Date(NOW - 3 * HOUR).toISOString(), 'ago')).toBe('3 hours ago');
+  });
+
+  describe('for somebody whose anotoki account has chosen how dates are written', () => {
+    const noon = new Date(2026, 9, 6, 12).toISOString();
+
+    it('writes every date in that order, whatever the language - a day in full and a short date alike', () => {
+      for (const language of ['en', 'sk'] as const) {
+        const { date } = pipes(language);
+        preferences.set(account('dmy_dot'));
+        expect([date.transform(noon, 'day'), date.transform(noon, 'date'), date.transform(noon)]).toEqual(['6.10.2026', '6.10.2026', '6.10.2026']);
+        preferences.set(account('dmy_slash'));
+        expect(date.transform(noon, 'day')).toBe('06/10/2026');
+        preferences.set(account('mdy_slash'));
+        expect(date.transform(noon, 'date')).toBe('10/06/2026');
+        preferences.set(account('ymd_dash'));
+        expect(date.transform(noon, 'day')).toBe('2026-10-06');
+      }
+    });
+
+    it('reads a calendar day as that day here, in that order too', () => {
+      preferences.set(account('ymd_dash'));
+      expect(pipes('sk').date.transform('2026-01-01', 'day')).toBe('2026-01-01');
+      preferences.set(account('dmy_dot'));
+      expect(pipes('en').date.transform('2026-10-20', 'day')).toBe('20.10.2026');
+    });
+
+    it('keeps "how long ago" a phrase, and writes its date from two weeks on in that order', () => {
+      preferences.set(account('ymd_dash'));
+      expect(ago('en', 3 * HOUR)).toBe('3 hours ago');
+      expect(ago('sk', DAY)).toBe('včera');
+      expect(ago('en', 14 * DAY)).toBe('on 2026-09-16');
+      preferences.set(account('dmy_dot'));
+      expect(ago('sk', 30 * DAY)).toBe('31.8.2026');
+    });
+
+    it('is the language’s own way while the account has chosen no order - its clock alone changes nothing here, where no time is written', () => {
+      preferences.set(account(null));
+      expect(pipes('en').date.transform(noon, 'day')).toBe('6 October 2026');
+      expect(pipes('sk').date.transform(noon, 'date')).toBe('6. 10. 2026');
+    });
+
+    it('follows the account under the same value - a change saved on another site', () => {
+      const { date } = pipes('sk');
+      expect(date.transform(noon, 'day')).toBe('6. októbra 2026');
+      preferences.set(account('mdy_slash'));
+      expect(date.transform(noon, 'day')).toBe('10/06/2026');
+    });
   });
 });

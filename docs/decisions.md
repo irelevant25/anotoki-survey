@@ -300,6 +300,41 @@ still go: a survey's address is its slug. The price: the script runs in the
 site's pages, beside the sign-in's tokens in localStorage, so the site trusts
 whoever controls what `umami.anotoki.eu` serves that far.
 
+**The theme, the dates, the clock and the language are the anotoki
+account's.** The owner's decision of 2026-10-06 for the whole family
+(`../anotoki-iam`, its `docs/decisions.md`): "it should be in the iam only and
+apply for every project/application" - and, asked, that a site's own controls
+save to the account for somebody signed in, and one theme everywhere: every
+site, every part of each. The IAM's migration 015 keeps them on the account
+and sends them in the tokens (`preferences`, beside `locale`); the vendored
+SDK 1.2.0 reads them (`AuthService.preferences`) and saves them
+(`savePreferences()`). Here:
+
+- **Signed in, the account's - the admin panel too.** The theme in the top
+  bar is the account's, and choosing one there saves it (`ThemeService`). Dates
+  follow the account's order (`localDate` where people take surveys; the admin
+  panel's English dates through `AdminDates`, with its clock as well - the
+  pages people take surveys on write no time of day). The account's language
+  outranks what this device remembered; only `?lang=` and a choice made on the
+  page come before it, and the chooser saves a choice to the account.
+- **A choice is shown at once, saved one at a time, the last one last** - the
+  IAM's own pattern: two saves in flight could land in either order. A theme
+  the account refuses goes back to the account's, with a toast
+  (`theme.notSaved`); a language stays on the page for the visit - silently
+  when the IAM does not offer it (it is this site's own, then), with a toast
+  (`language.notSaved`) when the IAM could not be reached. The answer to an
+  earlier save never turns the page back while a later one is on its way.
+- **Signed out, the device's, as before.** A visitor's theme and language stay
+  in this browser's storage; the account's take over at sign-in. The theme
+  shown last is kept on the device either way, so `theme-boot.js` paints it
+  before the account is read.
+- **An IAM that sends none - before its migration 015, or a sign-in without
+  the `profile` scope - changes nothing**: the site keeps its own settings
+  exactly as before, the device's language first, and saves nothing to the
+  account. The browser check's stand-in IAM is such an IAM.
+- **What is data stays data**: the answers' CSV keeps its ISO times, and the
+  file's name its ISO day.
+
 ## Languages
 
 The first five are the owner's, made before any of it was built.
@@ -370,7 +405,12 @@ language they chose in the chooser on this device, the language their anotoki
 account is set to, the browser's languages, English. The account's language is
 used, never stored: a change on the account page arrives with the next token.
 At the browser step alone Czech counts as Slovak while no Czech is on offer -
-Czech readers read Slovak far more easily than English.
+Czech readers read Slovak far more easily than English. Since the family's
+decision of 2026-10-06 (above: the account's preferences), for somebody signed
+in through an IAM that sends the account's preferences the account's language
+comes before what this device remembered - only `?lang=` and a choice made on
+the page come before it - and a change of it is followed when it comes; the
+chooser saves their choice to the account.
 
 **People get a translation of a survey only when it is whole.** Otherwise the
 survey is shown whole in the language it was written in, and the page says

@@ -27,7 +27,7 @@ describe('MigrationsComponent: what the database has and lacks, and applying it 
   let host: HTMLElement;
   const roles = signal<string[]>(['ADMIN']);
   const api = { migrations: vi.fn(), applyMigrations: vi.fn() };
-  const auth = { isAdmin: () => roles().includes('ADMIN'), databaseUpdated: vi.fn() };
+  const auth = { isAdmin: () => roles().includes('ADMIN'), preferences: () => null, databaseUpdated: vi.fn() };
 
   const words = (element: Element | null | undefined) => element?.textContent?.replace(/\s+/g, ' ').trim() ?? null;
   const text = (selector: string) => words(host.querySelector(selector));

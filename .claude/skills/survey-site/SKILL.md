@@ -77,7 +77,8 @@ backend/
                            does not parse is logged, the defaults hold); SURVEY_TEST_CONFIG for the tests
   migrations/survey/       the schema - and the site's strings (002 the tables and the two languages,
                            003 every key with its English and Slovak string: the pattern for the next;
-                           006 the visitors: visitor_ids, users.visitor_key_hash, visitor_counters)
+                           006 the visitors: visitor_ids, users.visitor_key_hash, visitor_counters;
+                           008 the toasts of a choice the anotoki account did not take)
   setup.php                the installer (this computer: nonce, re-runnable; a host: token, lock, self-delete)
   router.php               php -S behaving like the hosting's Apache (+ the built app)
   translations.php         command line only, never uploaded: --status (the frontend's keys against the
@@ -102,7 +103,9 @@ frontend/src/app/
                            takeSurveysGuard (canActivateChild on the participant layout: anybody
                            while visitors are welcome), sign-in-failure.ts (the toast that says
                            why; signInOrSayWhy() for a Sign in button), the vendored SDK
-                           (anotoki-auth.mjs v1.1.1)
+                           (anotoki-auth.mjs + .d.ts v1.2.0); preferences (the anotoki account's
+                           theme, date order and clock - null while nobody is signed in or the IAM
+                           sends none) and savePreferences() (the SDK's, for every anotoki site)
   core/api/api.service.ts  one method a route, each marked ISSUED_AS person / visitor as it is made;
                            ApiError {status, code, message, body, retryAfter}
   core/boot.ts             boot(): the theme, the sign-in (VisitorKey made before the first await;
@@ -110,10 +113,17 @@ frontend/src/app/
                            its strings, then BOOTED - the app initializer, and the load error
                            page's "Try again"
   core/i18n/               TranslationService (language, effectiveLanguage, t / plural / around / has,
-                           setLanguage, init, reload, noteAddress), the translate / translatePlural /
-                           localDate pipes, error-text.ts (a failed request's key), answer-words.ts (a
+                           setLanguage - the chooser's, saved to the account too -, init, reload,
+                           noteAddress; the account's language over the device's choice), the
+                           translate / translatePlural / localDate (the account's date order) pipes,
+                           error-text.ts (a failed request's key), answer-words.ts (a
                            rule or a problem in the reader's language), dynamic-keys.ts (keys put
                            together at run time - the backend's scan reads it)
+  core/theme/              ThemeService: the account's theme signed in (adopted, and saved from the
+                           bar's toggle), the device's signed out; the theme shown last in
+                           localStorage for public/theme-boot.js
+  core/util/               dates.ts (the admin panel's English dates, with the account's choices when
+                           passed), date-patterns.ts (the four date orders, the two clocks), storage.ts
   core/title.strategy.ts   the tab's title in the language on the page (the site's name alone while
                            there are no strings); tells the service where the page is - which is also
                            when a page without its strings asks for them again
@@ -127,6 +137,9 @@ frontend/src/app/
   core/admin/localization-drafts.service.ts   LocalizationDrafts: what is typed on the Translations and
                            Languages pages and not saved - outside the pages, mirrored to the tab's
                            sessionStorage, let go only when another person signs in
+  core/admin/admin-dates.service.ts   AdminDates: core/util/dates.ts bound to the account's date order
+                           and clock - what every admin page writes its dates with
+                           (`formatDateTime = inject(AdminDates).formatDateTime`)
   core/survey/             the model and every rule (pure TS, unit-tested); localize.ts: a survey's
                            translations (translationGaps, localizedSurvey, pruneTranslations, the
                            writers, mergeTranslations for a conflict); drafts.ts (by survey and
@@ -294,6 +307,18 @@ frontend/src/app/
   `pages/admin` and `layouts/admin-layout`, no `translate` pipe there. The
   pieces both areas share (top bar, UI kit, toasts) read through
   `effectiveLanguage`, which is `en` under `/admin`.
+- **The account's preferences** (the IAM's migration 015, SDK 1.2.0): signed
+  in, the theme, the date order, the clock and the language are the anotoki
+  account's - read from `AuthService.preferences` and the token's `locale`,
+  never kept as this site's own (the device keeps only what it shows, for the
+  next first paint and for a visitor). A control that changes one (the bar's
+  theme, the chooser) saves it with `savePreferences()` only while
+  `preferences()` is not null, shows the choice at once, saves one at a time
+  with the latest choice last, and lets no earlier save's answer turn the page
+  back. A new place that writes a date or a time for somebody signed in takes
+  the account's order (and clock): `localDate` where people take surveys,
+  `AdminDates` in the admin panel - never `core/util/dates.ts`'s functions bare
+  in a page. Data stays ISO (the CSV, a file's name, an `<input type="date">`).
 - **A language code from an address** is checked with `languageCodeOk()` before
   any query; **who saved a string** is `currentUser($request)->id`, nothing else.
 - **Saving**: every editor change through `AdminStore.updateSurvey()` (or
@@ -693,7 +718,20 @@ frontend/src/app/
   with only one request pending, an "inherited name" assertion
   that held with or without `Object.hasOwn`, the seeded strings never meeting
   the check a save makes. Take the fix out once and watch the named test go
-  red.
+  red - one fix at a time: two taken out together can hide each other (a
+  choice on the page left uncleared did not show while the page's choice was
+  out of the ranking as well).
+- **The answer to an earlier save turned the page back**: the SDK puts each
+  answer of `savePreferences()` in `user()` - and tells the listeners - before
+  the promise resolves, and the theme's effect and the language's watcher
+  adopt a change of the account's value. Two quick choices showed the first
+  one again when its answer came. While a save made here is out (`_saving`,
+  `_savingLanguage`) neither adopts; the next choice waits for it, and only the
+  latest is saved.
+- **A spec's stand-in for AuthService must answer `preferences()`**: the
+  theme (the top bar, `boot()`), the `localDate` pipe and every admin page's
+  dates (`AdminDates`) read it while drawing, and a fake without it throws in
+  an effect or a template. `preferences: () => null` is the site as before.
 - **A pending migration closed the whole site, the sign-in with it**:
   `/api/auth/config` was 503 too, so the SDK was never made and nobody -
   the ADMIN who had to apply it included - could sign in. While only a
@@ -780,5 +818,8 @@ frontend/src/app/
          that ends takes the page away without asking;
    - [ ] a failure is said where the person who caused it is looking, and a
          refusal says what they can do;
+   - [ ] the theme, a date or a time, the language: the anotoki account's while
+         somebody is signed in (`preferences`, `AdminDates`, `localDate`), saved
+         to it only while it sends preferences, one save at a time;
    - [ ] every new test fails with its fix taken out;
    - [ ] `docs/`, this skill, `CLAUDE.md`, `README.md`, `DEV.md` in step.

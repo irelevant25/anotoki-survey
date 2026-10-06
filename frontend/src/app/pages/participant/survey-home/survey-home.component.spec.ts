@@ -109,7 +109,7 @@ describe('SurveyHomeComponent', () => {
       providers: [
         provideRouter([]),
         { provide: ApiService, useValue: { openSurveys } },
-        { provide: AuthService, useValue: { person, taker, visitorDays: () => 30, signIn: vi.fn(async () => true) } },
+        { provide: AuthService, useValue: { person, taker, visitorDays: () => 30, preferences: () => null, signIn: vi.fn(async () => true) } },
         { provide: VisitorKey, useValue: visitor },
         language === 'sk' ? provideTestTranslations(slovak, { language: 'sk', english: ENGLISH }) : provideTestTranslations(ENGLISH),
       ],

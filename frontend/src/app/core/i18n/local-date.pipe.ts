@@ -1,4 +1,7 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
+import { type AnotokiDateFormat } from '../auth/anotoki-auth';
+import { AuthService } from '../auth/auth.service';
+import { formatDatePattern } from '../util/date-patterns';
 import { calendarDays } from '../util/dates';
 import { TranslationService } from './translation.service';
 
@@ -32,11 +35,20 @@ const RELATIVE_FORMATS = new Map<string, Intl.RelativeTimeFormat>();
  * hours round to. A calendar day (`2026-10-20`, a survey's closing day) is
  * that day wherever the reader is - not midnight UTC.
  *
- * Impure, like the translate pipe: the language changes under the same value.
+ * Somebody signed in whose anotoki account has chosen how dates are written
+ * (`date_format`, which every anotoki site follows - IAM migration 015) reads
+ * every date in that order instead, 'day' and 'date' alike: 20.10.2026,
+ * 20/10/2026, 10/20/2026, 2026-10-20. 'ago' stays a phrase, and its date from
+ * two weeks on is in that order too. These pages write no time of day, so the
+ * account's clock has nothing to change here.
+ *
+ * Impure, like the translate pipe: the language - or the account's date
+ * order - changes under the same value.
  */
 @Pipe({ name: 'localDate', pure: false })
 export class LocalDatePipe implements PipeTransform {
   private readonly _i18n = inject(TranslationService);
+  private readonly _auth = inject(AuthService);
 
   transform(value: string | null | undefined, style: LocalDateStyle = 'date'): string {
     if (!value) {
@@ -47,10 +59,14 @@ export class LocalDatePipe implements PipeTransform {
       return value;
     }
     const locale = this._i18n.locale();
-    return style === 'ago' ? this._ago(date, locale) : dateFormat(locale, style).format(date);
+    const order = this._auth.preferences()?.date_format ?? null;
+    if (style === 'ago') {
+      return this._ago(date, locale, order);
+    }
+    return order ? formatDatePattern(date, order) : dateFormat(locale, style).format(date);
   }
 
-  private _ago(date: Date, locale: string): string {
+  private _ago(date: Date, locale: string, order: AnotokiDateFormat | null): string {
     const seconds = Math.round((Date.now() - date.getTime()) / 1000);
     if (seconds < 60) {
       return this._i18n.t('time.justNow');
@@ -66,7 +82,10 @@ export class LocalDatePipe implements PipeTransform {
     if (hours < 24 || days < 1) {
       return relative.format(-hours, 'hour');
     }
-    return days < 14 ? relative.format(-days, 'day') : this._i18n.t('time.onDate', { date: dateFormat(locale, 'date').format(date) });
+    if (days < 14) {
+      return relative.format(-days, 'day');
+    }
+    return this._i18n.t('time.onDate', { date: order ? formatDatePattern(date, order) : dateFormat(locale, 'date').format(date) });
   }
 }
 

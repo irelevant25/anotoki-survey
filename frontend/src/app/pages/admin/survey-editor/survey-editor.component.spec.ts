@@ -144,7 +144,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
         provideRouter([]),
         provideTestTranslations(),
         { provide: ApiService, useValue: api },
-        { provide: AuthService, useValue: { person, isAdmin: signal(true), onAuthChange: () => () => undefined } },
+        { provide: AuthService, useValue: { person, isAdmin: signal(true), preferences: () => null, onAuthChange: () => () => undefined } },
       ],
     });
     store = TestBed.inject(AdminStore);

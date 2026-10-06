@@ -25,7 +25,7 @@ describe('SurveyResultsComponent: a visitor among everybody', () => {
       loadResponses: () => Promise.resolve(),
     };
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: AdminStore, useValue: store }, { provide: AuthService, useValue: { isAdmin: () => false } }],
+      providers: [provideRouter([]), { provide: AdminStore, useValue: store }, { provide: AuthService, useValue: { isAdmin: () => false, preferences: () => null } }],
     });
     const fixture = TestBed.createComponent(SurveyResultsComponent);
     fixture.componentRef.setInput('surveyId', 's1');

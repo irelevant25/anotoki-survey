@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
+import { AdminDates } from '../../../../core/admin/admin-dates.service';
 import { ageLabel, genderLabel } from '../../../../core/survey/about-you';
 import { SurveyResponse } from '../../../../core/survey/survey.model';
-import { timeAgo } from '../../../../core/util/dates';
 import { IconComponent } from '../../../../ui/icon/icon.component';
 
 /** A person in a list, with what they wrote there when it matters ("Other", a text answer). */
@@ -37,7 +37,7 @@ export class PeopleListComponent {
   readonly open = output<string>();
 
   protected readonly hueOf = hueOf;
-  protected readonly timeAgo = timeAgo;
+  protected readonly timeAgo = inject(AdminDates).timeAgo;
   protected readonly genderLabel = genderLabel;
   protected readonly ageLabel = ageLabel;
 }

@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { AdminDates } from '../../../core/admin/admin-dates.service';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
 import { problemsHeading, surveyProblems } from '../../../core/survey/survey-problems';
 import { currentStatus } from '../../../core/survey/survey-outline';
 import { Survey, SurveyStatus } from '../../../core/survey/survey.model';
-import { formatDay } from '../../../core/util/dates';
 import { BadgeComponent, BadgeTone } from '../../../ui/badge/badge.component';
 import { ButtonComponent } from '../../../ui/button/button.component';
 import { ConfirmService } from '../../../ui/confirm/confirm.service';
@@ -63,7 +63,7 @@ export class SurveyHeaderComponent {
     return language ? { language } : null;
   });
   protected readonly changing = signal(false);
-  protected readonly formatDay = formatDay;
+  protected readonly formatDay = inject(AdminDates).formatDay;
 
   protected async open(): Promise<void> {
     const survey = this.survey();

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { AdminDates } from '../../../core/admin/admin-dates.service';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -10,7 +11,7 @@ import { plainText } from '../../../core/survey/plain-text';
 import { ResultFilter, aboutYouSummary, choiceSummary, describeFilter, durationSeconds, filterResponses, matchesFilter, medianDuration, writtenAnswers } from '../../../core/survey/results';
 import { numberedQuestions } from '../../../core/survey/survey-outline';
 import { SurveyResponse } from '../../../core/survey/survey.model';
-import { formatDateTime, formatDuration, timeAgo, todayIsoDay } from '../../../core/util/dates';
+import { formatDuration, todayIsoDay } from '../../../core/util/dates';
 import { ButtonComponent } from '../../../ui/button/button.component';
 import { ConfirmService } from '../../../ui/confirm/confirm.service';
 import { DrawerComponent } from '../../../ui/drawer/drawer.component';
@@ -94,8 +95,8 @@ export class SurveyResultsComponent {
   protected readonly genderId = GENDER_ID;
   protected readonly ageId = AGE_ID;
   protected readonly none = NONE;
-  protected readonly timeAgo = timeAgo;
-  protected readonly formatDateTime = formatDateTime;
+  protected readonly timeAgo = inject(AdminDates).timeAgo;
+  protected readonly formatDateTime = inject(AdminDates).formatDateTime;
   protected readonly formatDuration = formatDuration;
   protected readonly durationSeconds = durationSeconds;
   protected readonly genderLabel = genderLabel;

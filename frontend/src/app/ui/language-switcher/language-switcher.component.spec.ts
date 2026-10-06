@@ -1,4 +1,6 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { AuthService } from '../../core/auth/auth.service';
 import { TranslationService } from '../../core/i18n/translation.service';
 import { provideTestTranslations } from '../../core/testing/test-translations';
 import { ToastService } from '../toast/toast.service';
@@ -153,6 +155,38 @@ describe('LanguageSwitcherComponent', () => {
     expect(button().textContent?.trim()).toBe('SK');
     expect(TestBed.inject(ToastService).toasts()).toEqual([]);
     vi.restoreAllMocks();
+    localStorage.clear();
+  });
+});
+
+describe('LanguageSwitcherComponent, for somebody whose anotoki account says how every site should look', () => {
+  const savePreferences = vi.fn();
+  /** Signed in, the account in Slovak - and the IAM sends its preferences (its migration 015). */
+  const auth = {
+    user: signal({ locale: 'sk' }),
+    signedIn: () => true,
+    preferences: () => ({ theme: 'auto', date_format: null, time_format: null }),
+    savePreferences,
+    onAuthChange: () => () => undefined,
+  };
+
+  it('saves the choice to the account as well, so every anotoki site follows it', async () => {
+    localStorage.clear();
+    savePreferences.mockReset().mockResolvedValue({});
+    TestBed.configureTestingModule({ providers: [provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }), { provide: AuthService, useValue: auth }] });
+    const fixture = TestBed.createComponent(LanguageSwitcherComponent);
+    const host: HTMLElement = fixture.nativeElement;
+    document.body.appendChild(host);
+    await fixture.whenStable();
+
+    host.querySelector<HTMLButtonElement>('button.switcher')!.click();
+    await fixture.whenStable();
+    host.querySelector<HTMLButtonElement>('[role="menuitemradio"][lang="en"]')!.click();
+    await fixture.whenStable();
+
+    expect(TestBed.inject(TranslationService).language()).toBe('en');
+    expect(savePreferences.mock.calls).toEqual([[{ language: 'en' }]]);
+    host.remove();
     localStorage.clear();
   });
 });

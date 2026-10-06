@@ -140,6 +140,18 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **The top bar is the anotoki family's** (`layouts/top-bar`, the one the other
   sites copy): one row - brand, links, language, theme, the person's menu; up
   to 760 px one menu button holds the links and the person's menu.
+- **The theme, the date order, the clock and the language are the anotoki
+  account's** for somebody signed in (the IAM's migration 015, the owner's
+  decision of 2026-10-06; the vendored SDK 1.2.0 - `AuthService.preferences`,
+  `savePreferences()`): one theme for every site and every part of each, the
+  admin panel too (`ThemeService`); dates in the account's order on both sides
+  (`localDate`; the admin panel's through `AdminDates`, with its clock); its
+  language over the device's choice (`TranslationService`). The bar's theme
+  and the chooser save a choice to the account - shown at once, one save at a
+  time, the last choice last, never turned back by an earlier save's answer.
+  Signed out, the device's, as before; and while `preferences` is null (an IAM
+  before 015) the site keeps its own settings exactly as before and saves
+  nothing to the account.
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. The UI kit is the IAM's (`src/app/ui/`);

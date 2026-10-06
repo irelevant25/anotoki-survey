@@ -6,6 +6,10 @@
 // close that gap. It is a file rather than an inline script so that a
 // Content-Security-Policy allowing no inline script lets it run.
 //
+// What is stored is the theme the page showed last: this device's choice, or,
+// for somebody signed in, their anotoki account's - which the app writes here
+// too, so the next visit starts in it before the account is read again.
+//
 // Keep the key and the values in step with src/app/core/theme/theme.service.ts.
 (function () {
   var theme = null;

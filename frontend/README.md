@@ -16,22 +16,28 @@ src/
     boot/                            the pages drawn instead of the site: not set up (with the way to the
                                      Migrations page for an ADMIN while only a migration waits), cannot be reached
     core/
-      auth/                          AuthService (the IAM's SDK, vendored); signInGuard (the admin panel,
-                                     the preview) and takeSurveysGuard (the surveys: open to visitors
-                                     while the IAM says sign-in is not required); authInterceptor (the
-                                     token, or the visitor key); VisitorKey (the key, the move at sign-in);
-                                     SavesInFlight; the toast when a sign-in fails or cannot start
+      auth/                          AuthService (the IAM's SDK 1.2.0, vendored: who is signed in, and the
+                                     account's preferences - theme, date order, clock - and saving them);
+                                     signInGuard (the admin panel, the preview) and takeSurveysGuard (the
+                                     surveys: open to visitors while the IAM says sign-in is not required);
+                                     authInterceptor (the token, or the visitor key); VisitorKey (the key,
+                                     the move at sign-in); SavesInFlight; the toast when a sign-in fails
       api/                           ApiService: one method a route of ../backend
-      i18n/                          the site's words: TranslationService, the translate pipes
+      i18n/                          the site's words: TranslationService (the account's language, the
+                                     chooser's save to it), the translate and localDate pipes
+      theme/                         ThemeService: the account's theme signed in, the device's signed out
       survey/                        the model and every rule (the twin of backend/api/survey_rules.php)
-      admin/                         AdminStore (the editor's saving), LocalizationDrafts
+      admin/                         AdminStore (the editor's saving), LocalizationDrafts, AdminDates (the
+                                     admin panel's dates in the account's order and clock)
+      util/                          dates.ts (the admin panel's English dates), date-patterns.ts (the
+                                     account's four date orders and two clocks), storage
       images/                        pictures made small in the browser
     layouts/                         top-bar (the anotoki family's bar), participant, admin
     pages/participant/               the open surveys, a survey to take, the visitor notice
     pages/admin/                     the surveys, the editor, the results (a visitor: "Visitor N",
                                      "Not signed in"), Translations, Languages, Migrations (ADMIN)
     ui/                              the IAM's UI kit, the rich text editor, the language chooser
-public/                              the mark, the favicon, theme-boot.js
+public/                              the mark, the favicon, theme-boot.js (the theme shown last, before first paint)
 proxy.conf.json                      /api and /setup.php to the backend on :8500
 .nvmrc                               the Node version
 ```

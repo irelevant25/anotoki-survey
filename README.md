@@ -46,7 +46,10 @@ person by person.
   admin panel always asks).
   The top bar is the anotoki family's: the site's sections, the language, the
   theme and the person's menu (their account, the admin panel, signing out); on
-  a phone one menu button holds the sections and the person's menu.
+  a phone one menu button holds the sections and the person's menu. Signed in,
+  the theme, how dates are written, the clock and the language are the
+  person's anotoki account's - the same on every anotoki site, the admin panel
+  included - and the bar's theme and language save a choice to the account.
   **EDITOR**s write and translate surveys, open and close them, read the
   answers and reword the site's strings; **ADMIN**s also delete surveys,
   answers and languages. The roles are given in the IAM's
@@ -94,8 +97,13 @@ limits per address and in all ([docs/api.md](docs/api.md#visitors)) - and so
 do the pages: a visitor reads a notice of how long this browser remembers
 what they answered, takes surveys, and signing in moves their answers and
 unfinished drafts into the account; the admin panel lists a visitor as
-"Visitor N", "Not signed in". On the hosting this version brings new migrations (up to
-`007_visitor_strings.sql`): after the upload an ADMIN applies them on the
+"Visitor N", "Not signed in". And the anotoki account's preferences (the IAM's
+SDK 1.2.0): signed in, the site shows the account's theme, writes dates in its
+order (and the admin panel's times on its clock) and reads in its language;
+the top bar's theme and language save a choice to the account, for every
+anotoki site - while an IAM that does not send them yet leaves everything as
+it was. On the hosting this version brings new migrations (up to
+`008_account_preferences_strings.sql`): after the upload an ADMIN applies them on the
 Migrations page (or the setup page does) - [docs/operations.md](docs/operations.md).
 
 ## Trying it out

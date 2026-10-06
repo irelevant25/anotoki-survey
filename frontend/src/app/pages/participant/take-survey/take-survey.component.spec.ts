@@ -301,7 +301,7 @@ describe('TakeSurveyComponent', () => {
         provideRouter([]),
         language === 'sk' ? provideTestTranslations(slovak, { language: 'sk', english: ENGLISH }) : provideTestTranslations(ENGLISH),
         { provide: ApiService, useValue: api },
-        { provide: AuthService, useValue: { person, taker, visitorDays: () => 30, signIn: vi.fn() } },
+        { provide: AuthService, useValue: { person, taker, visitorDays: () => 30, preferences: () => null, signIn: vi.fn() } },
         { provide: VisitorKey, useValue: visitor },
         { provide: AdminStore, useValue: { survey: (id: string) => (id === preview?.survey.id ? preview.survey : undefined), loadError: () => null, load: vi.fn() } },
       ],

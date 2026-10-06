@@ -34,6 +34,7 @@ describe('The pages drawn instead of the site', () => {
     user: signal(null),
     signedIn: () => false,
     person: () => null,
+    preferences: () => null,
     signInFailure: signal(null),
     onlyMigrations,
     notSetUpDetail: detail,

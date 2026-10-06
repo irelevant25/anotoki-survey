@@ -77,6 +77,14 @@ Security and correctness first:
   Nothing typed in the admin panel lives only in a component (a session that
   ends takes the page away without a navigation): `AdminStore`,
   `LocalizationDrafts`. A failed save is said where the person is looking.
+- **The anotoki account's preferences** (theme, date order, clock, language -
+  the IAM's migration 015): read from `AuthService.preferences` and the
+  token's `locale` while somebody is signed in, never kept as the site's own;
+  saved with `savePreferences()` only while `preferences()` is not null, one
+  save at a time with the latest choice last, and an earlier save's answer
+  never turns the page back; an IAM that sends none leaves the site exactly as
+  before. A new date or time on a page goes through `localDate` or
+  `AdminDates`; data (the CSV, a file's name) stays ISO.
 - **A survey's translations**: a save sends `language` and `translations`, and
   the server gives neither a default on the way in; a language the site does
   not have is refused, not dropped; a translation is built by walking the

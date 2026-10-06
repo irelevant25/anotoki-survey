@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { AdminDates } from '../../../core/admin/admin-dates.service';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { currentStatus } from '../../../core/survey/survey-outline';
 import { SurveyStatus, SurveySummary } from '../../../core/survey/survey.model';
-import { formatDate, formatDay, timeAgo } from '../../../core/util/dates';
 import { AlertComponent } from '../../../ui/alert/alert.component';
 import { BadgeComponent } from '../../../ui/badge/badge.component';
 import { ButtonComponent } from '../../../ui/button/button.component';
@@ -69,9 +69,9 @@ export class SurveysListComponent {
 
   protected readonly statusLabel = STATUS_LABEL;
   protected readonly statusTone = STATUS_TONE;
-  protected readonly timeAgo = timeAgo;
-  protected readonly formatDate = formatDate;
-  protected readonly formatDay = formatDay;
+  protected readonly timeAgo = inject(AdminDates).timeAgo;
+  protected readonly formatDate = inject(AdminDates).formatDate;
+  protected readonly formatDay = inject(AdminDates).formatDay;
 
   constructor() {
     void this._store.loadSummaries();

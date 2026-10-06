@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { AdminStore } from '../../core/admin/admin-store.service';
 import { LOCALIZATION_DRAFTS_KEY, LocalizationDrafts } from '../../core/admin/localization-drafts.service';
+import { type AnotokiPreferences } from '../../core/auth/anotoki-auth';
 import { AuthService } from '../../core/auth/auth.service';
 import { TranslationService } from '../../core/i18n/translation.service';
 import { Person } from '../../core/survey/survey.model';
@@ -82,6 +83,8 @@ describe('TopBarComponent', () => {
   const roles = signal<string[]>([]);
   /** The database waits for a migration (AuthService.needsUpdate). */
   const behind = signal(false);
+  /** How the person's anotoki account says every anotoki site should look: null - an IAM that sends none - unless a spec says. */
+  const preferences = signal<AnotokiPreferences | null>(null);
   const auth = {
     status: signal('ready'),
     user: signal(null),
@@ -91,6 +94,8 @@ describe('TopBarComponent', () => {
     onlyMigrations: () => behind() && roles().includes('ADMIN'),
     isStaff: () => roles().includes('ADMIN') || roles().includes('EDITOR'),
     accountUrl: () => 'https://iam.example.test/account',
+    preferences,
+    savePreferences: vi.fn(async (_changes: object) => ({})),
     onAuthChange: () => () => undefined,
     signIn: vi.fn(async (_returnTo?: string, _uiLocales?: string) => true),
     signOut: vi.fn(),
@@ -155,6 +160,8 @@ describe('TopBarComponent', () => {
     person.set({ id: '7', name: 'owner', email: 'owner@example.test' });
     roles.set(['ADMIN']);
     behind.set(false);
+    preferences.set(null);
+    auth.savePreferences.mockClear();
     auth.signIn.mockClear();
     auth.signOut.mockClear();
     store.flushAll.mockReset().mockResolvedValue(true);
@@ -369,6 +376,21 @@ describe('TopBarComponent', () => {
     expect(menuButton().getAttribute('aria-label')).toBe('Your menu: owner');
     expect(words(host.querySelector('app-brand .area'))).toBe('survey');
     expect(links().map(words)).toEqual(['Surveys']);
+  });
+
+  it('shows the anotoki account’s theme - one for every site and every part of each - and saves a choice to it, in the admin panel too', async () => {
+    localStorage.removeItem('anotoki-survey:theme');
+    preferences.set({ theme: 'dark', date_format: null, time_format: null });
+    TestBed.inject(TranslationService).noteAddress('/admin/surveys');
+    await draw('admin');
+    const option = (name: string) => host.querySelector<HTMLButtonElement>(`app-theme-toggle [aria-label="${name}"]`)!;
+    expect(option('Dark').getAttribute('aria-checked')).toBe('true');
+
+    option('Light').click();
+    await fixture.whenStable();
+    expect(option('Light').getAttribute('aria-checked')).toBe('true');
+    expect(auth.savePreferences.mock.calls).toEqual([[{ theme: 'light' }]]);
+    localStorage.removeItem('anotoki-survey:theme');
   });
 
   it('signed out: the button to sign in, which opens the IAM in the person’s language', async () => {

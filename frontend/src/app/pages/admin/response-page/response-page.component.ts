@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { AdminDates } from '../../../core/admin/admin-dates.service';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { ageLabel, genderLabel } from '../../../core/survey/about-you';
 import { durationSeconds } from '../../../core/survey/results';
-import { formatDateTime, formatDuration } from '../../../core/util/dates';
+import { formatDuration } from '../../../core/util/dates';
 import { ButtonComponent } from '../../../ui/button/button.component';
 import { ConfirmService } from '../../../ui/confirm/confirm.service';
 import { EmptyStateComponent } from '../../../ui/empty-state/empty-state.component';
@@ -49,7 +50,7 @@ export class ResponsePageComponent {
 
   protected readonly genderLabel = genderLabel;
   protected readonly ageLabel = ageLabel;
-  protected readonly formatDateTime = formatDateTime;
+  protected readonly formatDateTime = inject(AdminDates).formatDateTime;
   protected readonly formatDuration = formatDuration;
   protected readonly durationSeconds = durationSeconds;
   protected readonly hueOf = hueOf;

@@ -174,3 +174,60 @@ describe("AuthService.init(): what the sign-in settings say - an update waiting,
     expect(auth.onlyMigrations()).toBe(false);
   });
 });
+
+describe('AuthService: the account’s preferences - the theme, the date order and the clock every anotoki site follows', () => {
+  let auth: AuthService;
+  let http: HttpTestingController;
+  const client = { init: async () => ({}), user: vi.fn(), isAuthenticated: vi.fn(), savePreferences: vi.fn() };
+  const PREFERENCES = { theme: 'dark', date_format: 'ymd_dash', time_format: '24' };
+
+  beforeEach(() => {
+    client.user.mockReset();
+    client.isAuthenticated.mockReset();
+    client.savePreferences.mockReset();
+    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    auth = TestBed.inject(AuthService);
+    http = TestBed.inject(HttpTestingController);
+    // The SDK, already made: init() only restores the session here.
+    (auth as unknown as { _client: object })._client = client;
+  });
+
+  /** The site started with this person signed in - or nobody. */
+  async function startedWith(user: object | null): Promise<void> {
+    client.user.mockReturnValue(user);
+    client.isAuthenticated.mockReturnValue(user !== null);
+    const done = auth.init();
+    http.expectOne('/api/auth/config').flush({ issuer: 'https://iam.example.test', clientId: 'survey' });
+    await done;
+  }
+
+  it('are the signed-in person’s, as the IAM sends them', async () => {
+    await startedWith({ sub: '7', preferred_username: 'owner', roles: ['MEMBER'], locale: 'sk', preferences: PREFERENCES });
+    expect(auth.preferences()).toEqual(PREFERENCES);
+  });
+
+  it('are null while nobody is signed in, and for an IAM that sends none - the site keeps its own then', async () => {
+    await startedWith(null);
+    expect(auth.preferences()).toBeNull();
+    await startedWith({ sub: '7', preferred_username: 'owner', roles: ['MEMBER'], locale: 'sk', preferences: null });
+    expect(auth.preferences()).toBeNull();
+    // A session kept by a copy of the SDK from before preferences.
+    await startedWith({ sub: '7', preferred_username: 'owner', roles: ['MEMBER'], locale: 'sk' });
+    expect(auth.preferences()).toBeNull();
+  });
+
+  it('are saved through the SDK - for every anotoki site - and its refusal, with the IAM’s code, is the caller’s', async () => {
+    await startedWith({ sub: '7', preferred_username: 'owner', roles: ['MEMBER'], locale: 'sk', preferences: PREFERENCES });
+    client.savePreferences.mockResolvedValue({ locale: 'sk', preferences: { ...PREFERENCES, theme: 'light' } });
+    await expect(auth.savePreferences({ theme: 'light' })).resolves.toEqual({ locale: 'sk', preferences: { ...PREFERENCES, theme: 'light' } });
+    expect(client.savePreferences).toHaveBeenCalledWith({ theme: 'light' });
+
+    client.savePreferences.mockRejectedValue(Object.assign(new Error('Not a language the IAM offers'), { code: 'invalid_request' }));
+    await expect(auth.savePreferences({ language: 'de' })).rejects.toMatchObject({ code: 'invalid_request' });
+  });
+
+  it('cannot be saved before the sign-in is set up: login_required', async () => {
+    (auth as unknown as { _client: null })._client = null;
+    await expect(auth.savePreferences({ theme: 'light' })).rejects.toMatchObject({ code: 'login_required' });
+  });
+});

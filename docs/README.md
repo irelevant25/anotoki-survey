@@ -6,7 +6,7 @@ pages are for changing it.
 
 | Page | What it holds |
 | --- | --- |
-| [architecture.md](architecture.md) | the parts and how a request goes through them: sign-in and roles (and the IAM's "Sign-in required" switch, and the visitors it lets in - on the server and in the browser), the data model, saving in the editor, pictures, the rules both sides keep, the site's own words in two languages, a survey in more than one language, a database behind the code and the Migrations page, what is held when two requests meet |
+| [architecture.md](architecture.md) | the parts and how a request goes through them: sign-in and roles (and the IAM's "Sign-in required" switch, and the visitors it lets in - on the server and in the browser), the top bar, the anotoki account's preferences (its theme, date order, clock and language), the data model, saving in the editor, pictures, the rules both sides keep, the site's own words in two languages, a survey in more than one language, a database behind the code and the Migrations page, what is held when two requests meet |
 | [api.md](api.md) | every route of the API: who may call it, what it takes, what it answers, how it refuses |
 | [operations.md](operations.md) | the hosting: the upload, the installer, later versions (and their migrations, applied on the Migrations page), the site's strings and languages on the live site, the IAM's registration of the site, visitors (their settings file, limits and clean-up), what goes wrong |
 | [decisions.md](decisions.md) | the choices made, with their reasons - read before undoing one |

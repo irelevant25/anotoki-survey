@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { AdminDates } from '../../../../core/admin/admin-dates.service';
 import { WrittenAnswer } from '../../../../core/survey/results';
 import { Question } from '../../../../core/survey/survey.model';
-import { timeAgo } from '../../../../core/util/dates';
 import { IconComponent } from '../../../../ui/icon/icon.component';
 import { ImageStripComponent } from '../../../../ui/image-strip/image-strip.component';
 
@@ -51,5 +51,5 @@ export class TextResultComponent {
       .slice(0, 10);
   });
 
-  protected readonly timeAgo = timeAgo;
+  protected readonly timeAgo = inject(AdminDates).timeAgo;
 }

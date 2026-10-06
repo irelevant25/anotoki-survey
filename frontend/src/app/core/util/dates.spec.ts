@@ -1,4 +1,5 @@
-import { calendarDays, timeAgo } from './dates';
+import { type DateChoices } from './date-patterns';
+import { calendarDays, formatDate, formatDateTime, formatDay, timeAgo } from './dates';
 
 /**
  * Every moment here is built with the local-time constructor and read back by
@@ -69,5 +70,41 @@ describe('timeAgo(): how long ago, in English', () => {
 
   it('gives back what is not a date as it came', () => {
     expect(timeAgo('soon')).toBe('soon');
+  });
+});
+
+describe('the admin panel’s dates in the order and on the clock the anotoki account has chosen', () => {
+  /** 29 September 2026, 14:30 by this computer's clock. */
+  const MOMENT = new Date(2026, 8, 29, 14, 30).toISOString();
+  const chosen = (dateFormat: NonNullable<DateChoices>['date_format'], timeFormat: NonNullable<DateChoices>['time_format']): DateChoices => ({ date_format: dateFormat, time_format: timeFormat });
+
+  it('writes a date, and a day in full, in the order chosen - and English’s own way with none', () => {
+    expect(formatDate(MOMENT)).toBe('29 Sept 2026');
+    expect(formatDate(MOMENT, chosen('dmy_dot', null))).toBe('29.9.2026');
+    expect(formatDate(MOMENT, chosen('mdy_slash', null))).toBe('09/29/2026');
+    expect(formatDay('2026-10-20')).toBe('20 October 2026');
+    expect(formatDay('2026-10-20', chosen('ymd_dash', null))).toBe('2026-10-20');
+    expect(formatDay('2026-10-20', chosen('dmy_slash', null))).toBe('20/10/2026');
+    // A clock alone changes no date.
+    expect(formatDate(MOMENT, chosen(null, '12'))).toBe('29 Sept 2026');
+  });
+
+  it('puts a date and its time side by side when either is chosen, and leaves English’s way alone when neither is', () => {
+    expect(formatDateTime(MOMENT)).toBe('29 Sept 2026, 14:30');
+    expect(formatDateTime(MOMENT, chosen(null, null))).toBe('29 Sept 2026, 14:30');
+    expect(formatDateTime(MOMENT, chosen('dmy_dot', null))).toBe('29.9.2026 14:30');
+    expect(formatDateTime(MOMENT, chosen(null, '12'))).toBe('29 Sept 2026 2:30 pm');
+    expect(formatDateTime(MOMENT, chosen('ymd_dash', '24'))).toBe('2026-09-29 14:30');
+    const morning = new Date(2026, 8, 29, 9, 5).toISOString();
+    expect(formatDateTime(morning, chosen('ymd_dash', '24'))).toBe('2026-09-29 09:05');
+    expect(formatDateTime(morning, chosen('mdy_slash', '12'))).toBe('09/29/2026 9:05 am');
+    expect(formatDateTime('soon', chosen('ymd_dash', '24'))).toBe('soon');
+  });
+
+  it('keeps "how long ago" in words, and writes its date from two weeks on in the order chosen', () => {
+    const now = new Date(2026, 8, 30, 10, 0).getTime();
+    expect(timeAgo(new Date(2026, 8, 30, 7, 0).toISOString(), now, chosen('ymd_dash', '12'))).toBe('3 hours ago');
+    expect(timeAgo(new Date(2026, 8, 16, 10, 0).toISOString(), now, chosen('ymd_dash', null))).toBe('2026-09-16');
+    expect(timeAgo(new Date(2026, 8, 16, 10, 0).toISOString(), now)).toBe('16 Sept 2026');
   });
 });

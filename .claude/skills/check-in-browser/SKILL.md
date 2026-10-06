@@ -159,8 +159,14 @@ site), 8597 (the stand-in IAM) and 8591 (Chrome) must be free.
 3. The stand-in IAM, `backend/tests/tools/fake-iam.php`, with a key of its own:
    it signs in whoever `POST /_test/state {user}` says, at once, with PKCE and
    refresh tokens like the real one. The user's `locale` (default `en`) is the
-   token's `locale` claim - the language the account is set to. **Never the
-   real IAM**, and never your account.
+   token's `locale` claim - the language the account is set to. A user given
+   `preferences` (`{theme, date_format, time_format}`) has them in the tokens,
+   as an IAM with its migration 015 sends them, and `POST
+   /api/oidc/preferences` changes them; without them - the default, and every
+   tour here today - it is an IAM from before 015, answers that address 503,
+   and the site keeps its own theme, dates and language order, as before (the
+   account's preferences are the unit tests'; the build analyzer's verify-ui
+   has a tour of them). **Never the real IAM**, and never your account.
 4. Headless Chrome with a profile of its own in the temp folder - never your
    browser's - started with `--lang=en-GB`: the browser's language is one of
    the things the site reads, so it is said, not left to the computer.

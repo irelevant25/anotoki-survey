@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { AdminDates } from '../../../../core/admin/admin-dates.service';
 import { slugify, uniqueSlug } from '../../../../core/survey/survey-factory';
 import { translationCodes } from '../../../../core/survey/localize';
 import { Survey } from '../../../../core/survey/survey.model';
-import { formatDateTime, todayIsoDay } from '../../../../core/util/dates';
+import { todayIsoDay } from '../../../../core/util/dates';
 import { ButtonComponent } from '../../../../ui/button/button.component';
 import { IconComponent } from '../../../../ui/icon/icon.component';
 import { SwitchComponent } from '../../../../ui/switch/switch.component';
@@ -42,7 +43,7 @@ export class EditorSettingsComponent {
 
   protected readonly host = globalThis.location?.host ?? 'survey.anotoki.eu';
   protected readonly today = todayIsoDay();
-  protected readonly formatDateTime = formatDateTime;
+  protected readonly formatDateTime = inject(AdminDates).formatDateTime;
   protected readonly suggested = computed(() => uniqueSlug(this.survey().title, this.takenSlugs()));
 
   /** The languages to choose from - with the survey's own, even if the site no longer has it (by its code). */

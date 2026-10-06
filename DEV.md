@@ -127,6 +127,13 @@ address: 30 new visitors an hour from it.
 (and is taken out of the address); the chooser in the top bar remembers a
 choice on the device. The admin panel is English whichever it is.
 
+Signed in through an IAM that sends the account's preferences (its migration
+015 applied - `../anotoki-iam`), the theme, the date order, the clock and the
+language are the account's: set them on the IAM's account page
+(`http://localhost:4300/account`) or with the top bar here, which saves the
+theme and the language to the account. An IAM before 015 sends none, and the
+site keeps its own settings, as before.
+
 The results keep their state in the address, so Back steps out of it and every
 view can be linked: `?filter=question:option,…` narrows the page,
 `?chose=question:option` opens the people who chose an answer, `?wrote=question`

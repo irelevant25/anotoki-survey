@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { AdminDates } from '../../../../core/admin/admin-dates.service';
 import { ChoiceSummary, Tally } from '../../../../core/survey/results';
 import { Question } from '../../../../core/survey/survey.model';
-import { timeAgo } from '../../../../core/util/dates';
 import { IconComponent } from '../../../../ui/icon/icon.component';
 import { ImageStripComponent } from '../../../../ui/image-strip/image-strip.component';
 import { BarListComponent } from '../bar-list/bar-list.component';
@@ -34,7 +34,7 @@ export class ChoiceResultComponent {
   protected readonly kind = computed(() => QUESTION_TYPES.find((item) => item.type === this.question().type) ?? QUESTION_TYPES[0]);
   protected readonly otherOption = computed(() => this.question().options.find((option) => option.other) ?? null);
   protected readonly firstOthers = computed(() => this.summary().others.slice(0, 3));
-  protected readonly timeAgo = timeAgo;
+  protected readonly timeAgo = inject(AdminDates).timeAgo;
 
   protected onSelect(tally: Tally): void {
     this.select.emit(tally.key);

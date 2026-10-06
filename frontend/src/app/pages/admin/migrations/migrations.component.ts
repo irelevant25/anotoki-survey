@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AdminDates } from '../../../core/admin/admin-dates.service';
 import { ApiService, MigrationsApplyResult, MigrationsStatus, toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { TranslationService } from '../../../core/i18n/translation.service';
-import { formatDateTime } from '../../../core/util/dates';
 import { AlertComponent } from '../../../ui/alert/alert.component';
 import { BadgeComponent } from '../../../ui/badge/badge.component';
 import { ButtonComponent } from '../../../ui/button/button.component';
@@ -58,7 +58,7 @@ export class MigrationsComponent {
   protected readonly result = signal<MigrationsApplyResult | null>(null);
   /** Apply was refused before anything ran: another update was running, the sign-in ended, the server was out of reach. */
   protected readonly applyError = signal<string | null>(null);
-  protected readonly formatDateTime = formatDateTime;
+  protected readonly formatDateTime = inject(AdminDates).formatDateTime;
 
   constructor() {
     if (this.auth.isAdmin()) {

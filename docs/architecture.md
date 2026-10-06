@@ -23,8 +23,8 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. The frontend signs people in through the
-anotoki IAM with its vendored browser SDK (`frontend/src/app/core/auth/anotoki-auth.mjs`,
-v1.1.1, byte for byte the IAM's `sdk/js/`), as client `survey`:
+anotoki IAM with its vendored browser SDK (`frontend/src/app/core/auth/anotoki-auth.mjs`
+and `.d.ts`, v1.2.0, byte for byte the IAM's `sdk/js/`), as client `survey`:
 
 - `AuthService.init()` runs before the first page (the app initializer,
   `boot()` in `core/boot.ts`): it reads
@@ -267,6 +267,44 @@ them in English (`effectiveLanguage`) - but the Migrations link, which only an
 ADMIN in the admin panel ever sees: its English word is written in the code
 (`label`), as the admin panel's pages are.
 
+## The account's preferences
+
+The theme, how dates are written, the clock and the language are the
+person's anotoki account's (the IAM's migration 015, the owner's decision of
+2026-10-06 - [decisions](decisions.md)): one choice that every anotoki site
+follows, every part of each - the admin panel here too. The IAM sends them in
+the tokens beside `locale` (`preferences`: `theme` `auto` / `light` / `dark`;
+`date_format` `dmy_dot` 6.10.2026, `dmy_slash` 06/10/2026, `mdy_slash`
+10/06/2026, `ymd_dash` 2026-10-06, or null; `time_format` `24` / `12`, or
+null - null being the page language's own way), and the SDK reads them into
+`user().preferences`. `AuthService.preferences` is them while somebody is
+signed in, and null otherwise - also for an IAM that sends none (before its
+migration 015, or a sign-in without the `profile` scope): then the site keeps
+its own settings exactly as before, and saves nothing to the account.
+`AuthService.savePreferences()` saves a choice through the SDK
+(`POST {issuer}/api/oidc/preferences` with the person's token); the SDK puts
+the answer into `user()` at once, in every tab, and the next token carries it.
+
+- **The theme** (`core/theme/theme.service.ts`, the toggle in the top bar):
+  the account's while it has one - adopted at sign-in and whenever it changes
+  (a refresh after a change on another site, a save in another tab), but not
+  while a choice made here is still being saved, whose earlier answer would
+  turn the page back. A choice is shown at once and saved; one save at a time,
+  the last choice last; a refusal puts the account's theme back and says so
+  (`theme.notSaved`). Signed out, the device's, as ever. Either way the theme
+  shown last is kept in localStorage (`anotoki-survey:theme`), where
+  `public/theme-boot.js` paints it before the app has loaded.
+- **Dates and times**: the pages people take surveys on write dates through
+  `localDate`, the admin panel through `AdminDates`
+  (`core/admin/admin-dates.service.ts`, the English `core/util/dates.ts` with
+  the account's choices) - both in the account's order when it has chosen one
+  (`core/util/date-patterns.ts`), the admin panel's times on its clock too
+  ("2026-09-29 2:30 pm"; a date and a time side by side when either is
+  chosen). Nothing chosen - or nobody signed in - is each language's own way.
+  The pages people take surveys on write no time of day. The answers' CSV
+  stays ISO: it is data.
+- **The language** (*The site's own words*, below): the account's outranks
+  what this device remembered, and the chooser saves a choice to the account.
 
 ## The data
 
@@ -308,7 +346,8 @@ adds `responses.language`, `005` the top bar's and the sign-in's strings,
 `006` the visitors (their sequence, `users.visitor_key_hash` and its rules,
 `visitor_counters`, and `responses_by_user` - answers by person), `007` what
 the pages say to a visitor (`visitor.*`, `take.asVisitor`, two refusals, three
-`error.*`).
+`error.*`), `008` the two toasts of a choice the anotoki account did not take
+(`theme.notSaved`, `language.notSaved`).
 
 ## A database behind the code
 
@@ -518,7 +557,8 @@ token goes with it. It is answered with an `ETag`, so asking again is a 304. A
 code with a region that is not offered itself is answered by its language
 (`sk-sk` by `sk`), so a Slovak browser's first visit is one request.
 
-**The start** (`boot()` in `core/boot.ts`, the app initializer): the theme,
+**The start** (`boot()` in `core/boot.ts`, the app initializer): the theme
+(the one shown last, until the sign-in brings the account's),
 `await auth.init()`, `await i18n.init()`, then a failed sign-in's toast - worded
 now that there are words - and last `BOOTED`. `app.component` draws the site
 only when the sign-in is ready *and* `BOOTED` is true; otherwise the first page
@@ -539,7 +579,10 @@ leave a blank page), the address in the bar otherwise.
   English. Only a code of the right shape is ever stored or sent. The first
   two are held in memory as well for as long as the page lives, so a browser
   whose storage refuses to be written still follows a `?lang=` link and a
-  choice until it reloads;
+  choice until it reloads. For somebody signed in whose account sends its
+  preferences (*The account's preferences*, above), the token's `locale` comes
+  before what the device remembered: `?lang=`, a choice made on this page,
+  the account's language, the device's choice, the browser's, English;
 - starts from the cached bundle (localStorage `anotoki-survey:language-cache`)
   when it is a bundle and is in the language settled on (a cache that is not
   is removed), and still asks the server, waiting up to a second for the answer
@@ -604,7 +647,10 @@ it.
   an address, the IAM's answer or what a person typed. A failed request is
   worded from its code (`error-text.ts`), never with the server's sentence.
 - Dates and "5 minutes ago" go through `Intl` in the language on the page
-  (`localDate`); `core/util/dates.ts` keeps the English ones for the admin panel.
+  (`localDate`); `core/util/dates.ts` keeps the English ones for the admin panel
+  (through `AdminDates`). Both take the order - and the admin panel the clock -
+  the person's anotoki account has chosen, when it has (*The account's
+  preferences*, above).
 
 **The admin panel is English whatever the person reads.** `effectiveLanguage`
 is `en` while the address is `/admin` or under it, and everything that words a
@@ -631,6 +677,19 @@ Choosing one loads its bundle, then switches and remembers. The button stays
 usable while a language is on its way, and the last choice wins - going back
 to the language on the page included, which drops the one still loading; an
 overtaken choice is not called a failure.
+
+For somebody signed in whose account sends its preferences, a choice that won
+is saved to the account as well (`setLanguage()` -> `savePreferences({
+language })`), so every anotoki site follows it: one save at a time, the
+latest choice last, and the answer to an earlier save never turns the page
+back. The page stays in the chosen language for the visit whatever the
+account answers - silently when the IAM does not offer that language
+(`invalid_request`: it is this site's own, then), with a toast
+(`language.notSaved`) when the IAM could not be reached. A change of the
+account's language made elsewhere (its page, another site, another tab) is
+followed when it comes, over the device's choice and an earlier choice on the
+page - not over this tab's `?lang=`, and not while a choice made here is on
+its way to the account.
 
 **Editing them** (`pages/admin/localization`, EDITOR and ADMIN): *Translations*
 is a grid - a key a row, a language a column - that saves only the cells that
