@@ -11,20 +11,21 @@ it in [`../DEV.md`](../DEV.md).
 ```
 api/
   index.php            the front controller: buildSurveyApp() - security headers, error handler,
-                       the setup gate (503 not_set_up; with update: true while a migration
-                       waits - signing in, the strings and the migrations routes still answer),
-                       the routes
+                       the anotoki family's site gate (anotoki/lib's SiteGate: 503 not_set_up -
+                       the setup page offered only to a site never installed; 503 update_pending
+                       while a migration waits, but signing in, the strings, the health check
+                       and the migrations routes still answer), the routes
   bootstrap.php        what every entry point loads: settings, error handling, the site's functions
-  routes/              public.php (health, sign-in settings, pictures, a language's strings),
-                       surveys.php (the people taking surveys - signed in, or a visitor
-                       while the IAM says sign-in is not required: requireTaker),
+  routes/              public.php (health, the site's status, sign-in settings, pictures, a
+                       language's strings), surveys.php (the people taking surveys - signed in,
+                       or a visitor while the IAM says sign-in is not required: requireTaker),
                        visitor.php (POST /api/visitor/move: at sign-in, a visitor's answers
                        into the account), admin.php (/api/admin/..., EDITOR / ADMIN; the
-                       migrations, ADMIN)
-  meddleware/          security.php, setup.php, auth.php (requireUser, requireRole,
-                       requireTaker - where a visitor's key makes a visitor; the move
-                       (routes/visitor.php) only hands one in, with a token - signedInUser,
-                       currentUser)
+                       migrations - the family's routes - ADMIN from the token alone)
+  meddleware/          security.php, auth.php (requireUser, requireRole, requireTokenRole -
+                       the migrations', which asks the database nothing - requireTaker, where
+                       a visitor's key makes a visitor; the move (routes/visitor.php) only
+                       hands one in, with a token - signedInUser, currentUser)
   auth.php             the IAM token -> the person and their roles; the IAM's
                        "Sign-in required" switch (authLoginRequired())
   anotoki_iam.php      the IAM's PHP SDK (v1.1.0): the token verifier and the switch's
@@ -37,9 +38,12 @@ api/
   rich_text.php        richTextClean(): the editor's HTML and nothing else
   helpers.php          JSON in and out, text, and afterAnswer* (work done after the answer:
                        the visitors' clean-up)
-  db.php, migration_runner.php (the family's engine)
-  database_update.php  one update at a time (the lock setup.php, migration.php and the Migrations
-                       page's Apply take), the Migrations page's status and Apply
+  db.php               the connection (dbConnect(), db()), queries, ensureDatabase()
+  migrations.php       the database's migrations through the family's library (vendor/anotoki/lib):
+                       surveyMigrator() - the engine on the site's one set, under the one lock
+                       setup.php, migration.php, the Migrations page's Apply and the tests' template
+                       take; surveySiteState() - where the site stands, for the gate and
+                       /api/site-status; SITE_OPEN_WHILE_UPDATING
 config/
   config.php           reads database.local.php and iam.local.php - both written by setup.php,
                        gitignored, never committed - and visitors.local.php when it is there
@@ -49,7 +53,8 @@ storage/               cache (the IAM's keys, its "Sign-in required" answer), vi
                        the visitors' clean-up last ran); gitignored
 tests/                 run.php, lib.php; unit/, api/; tools/ (testdb.php, testenv.php, fake-iam.php)
 tools/                 build.php (the upload -> ../dist/), translation_keys.php (the frontend's keys)
-vendor/                Slim and its pieces - committed: the hosting cannot run Composer
+vendor/                Slim and its pieces, and anotoki/lib (the family's library, from GitHub -
+                       ../DEV.md says how it is updated) - committed: the hosting cannot run Composer
 ```
 
 ## Entry points
@@ -82,13 +87,16 @@ Each run works on throwaway `survey_test_*` databases copied from
 `survey_test_template` (on the server and with the user of
 `config/database.local.php`) - never on `anotoki_survey`. Signing in is the
 stand-in IAM's (`tests/tools/fake-iam.php`), never the real one. `unit/` holds
-the rules, the rich text, the migrations, the key scan, the switch's reader and
+the rules, the rich text, the migrations (the engine and `php migration.php`,
+each from nothing), the key scan, the switch's reader and
 a request's address (`client_address`); `api/` the routes
 end to end through a real `php -S` (`surveys`, `translations`, `auth`, `visitors`
 (who a request is, the limits, the clean-up, the move - and what happens when
 two requests meet: `somebody_else()` holds a row, `begin_call()` sends and
 sees it wait),
-`migrations`: the Migrations page's routes and a database behind the code, and
+`migrations`: the site gate in each state (not set up - installed or not -, an
+update waiting, the database out of reach, ready), the status, and the
+Migrations page's routes, and
 `hosting`: the setup page and the upload as a host runs them). A test never
 writes a file into `migrations/survey/` (a running site reads that folder): it
 makes its database "behind" by taking rows out of its `migrations` table.

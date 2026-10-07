@@ -1,10 +1,15 @@
 <?php
 
-// The admin panel's Migrations page, through the real server: what the
-// database has and lacks, and applying what it lacks - an ADMIN's alone. A
-// database behind the code closes the site (503 not_set_up, update: true) but
-// for what an administrator needs to apply it: the sign-in's settings, the
-// strings and these routes. One update at a time, whoever starts it.
+// The site gate and the admin panel's Migrations page, through the real
+// server - the anotoki family's library (anotoki/lib, api/migrations.php):
+// where the site stands (GET /api/site-status, answered in every state), and
+// what everything else answers in each - not set up (the setup page offered
+// only to a site never installed), a migration waiting (503 update_pending,
+// but for what an administrator needs to sign in and apply it), the database
+// out of reach (the site's own answer), ready. And the Migrations page's
+// routes, an ADMIN's alone, judged from the token: what the database has and
+// lacks, a file's SQL, and applying what it lacks - one update at a time,
+// whoever starts it.
 //
 // The files are the repository's own (migrations/survey/): a database is made
 // "behind" by taking a file's row out of its migrations table, never by
@@ -21,6 +26,9 @@ const PAT = 101;    // takes surveys
 const FILE_004 = '004_response_language.sql';
 const FILE_005 = '005_top_bar_and_sign_in.sql';
 const FILE_006 = '006_visitors.sql';
+
+/** What every closed address answers while a migration waits - the library's words, nothing of the site's. */
+const UPDATING = ['code' => 'update_pending', 'message' => 'The site is being updated. Try again in a few minutes.'];
 
 $GLOBALS['app'] = null;
 before(function (): void {
@@ -49,6 +57,37 @@ function as_user(int $user, string $method, string $url, mixed $body = null): ar
 function anonymous(string $method, string $url): array
 {
     return call($GLOBALS['app']['base'], $method, $url);
+}
+
+/**
+ * A request with its path sent exactly as written - its dot segments and
+ * escapes as a crafted request has them (curl would tidy them away first) - by
+ * $user (null: nobody). The status and the JSON body.
+ *
+ * @return array{status: int, body: mixed}
+ */
+function as_written(?int $user, string $method, string $path): array
+{
+    $curl = curl_init($GLOBALS['app']['base'] . $path);
+    curl_setopt_array($curl, [
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_PATH_AS_IS => true,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => array_merge($user === null ? [] : bearer(test_token($user, roles_of($user))), ['Expect:']),
+        CURLOPT_TIMEOUT => 60,
+    ]);
+    $raw = curl_exec($curl);
+    if ($raw === false) {
+        throw new RuntimeException("$method $path: no answer (" . curl_error($curl) . ')');
+    }
+
+    return ['status' => (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 'body' => json_decode((string) $raw, true) ?? $raw];
+}
+
+/** A file as the routes name it: with its set, the site's one. */
+function file_entry(string $name): array
+{
+    return ['set' => 'survey', 'name' => $name];
 }
 
 /** The pending files, as the Migrations page lists them. */
@@ -95,80 +134,177 @@ function current_again(): void
     }
     if (dbValue("SELECT to_regclass('visitor_counters')") === null) {
         undo_006();
-        foreach (splitSqlStatements((string) file_get_contents(TEST_BACKEND . '/migrations/survey/' . FILE_006)) as $statement) {
+        foreach (\Anotoki\Lib\Migrations\Splitter::split(migration_sql(FILE_006)) as $statement) {
             dbExec($statement);
         }
     }
-    foreach (migrationFiles() as $file) {
+    foreach (migration_files() as $file) {
         dbExec('INSERT INTO migrations (filename) VALUES (?) ON CONFLICT DO NOTHING', [$file]);
     }
 }
 
-test('up to date: every file applied, in the order it ran, with when - nothing pending, nothing to apply', function (): void {
+/**
+ * A server of this file's with the settings folder $config (and its database), and nothing checked of it.
+ * Up once it serves the app's page, which asks nothing of the database: one out of reach takes seconds
+ * to refuse a connection (on Windows), longer than the start waits for an answer.
+ */
+function start_with(string $config): array
+{
+    return test_start_server(TEST_BACKEND, TEST_BACKEND . '/router.php', ['SURVEY_TEST_CONFIG' => $config, 'SURVEY_FRONTEND_DIST' => test_frontend_build()], '/index.html');
+}
+
+test('ready: the status says so, and the site answers as ever - the sign-in saying nothing of the database', function (): void {
+    $status = anonymous('GET', '/api/site-status');
+    assert_same([200, ['state' => 'ready', 'installed' => false]], [$status['status'], $status['body']], 'never installed on a real host: this computer');
+    assert_same('no-store', $status['headers']['cache-control'] ?? null);
+    assert_same(200, as_user(PAT, 'GET', '/api/surveys')['status']);
+    assert_same([200, ['issuer' => TEST_ISSUER, 'clientId' => 'survey', 'loginRequired' => true, 'visitorDays' => 30]], [anonymous('GET', '/api/auth/config')['status'], anonymous('GET', '/api/auth/config')['body']]);
+});
+
+test('up to date: every file applied, in the order it ran, with when - nothing pending, nothing missing, nothing to apply', function (): void {
     $status = as_user(ADA, 'GET', '/api/admin/migrations');
     assert_same(200, $status['status']);
-    assert_same(['applied', 'pending'], array_keys($status['body']));
-    assert_same(migrationFiles(), array_column($status['body']['applied'], 'name'), 'every file, in the order it ran');
+    assert_same(['sets', 'applied', 'pending', 'missing'], array_keys($status['body']));
+    assert_same(['survey'], $status['body']['sets']);
+    assert_same(array_map('file_entry', migration_files()), array_map(static fn(array $row): array => ['set' => $row['set'], 'name' => $row['name']], $status['body']['applied']), 'every file, in the order it ran');
     foreach ($status['body']['applied'] as $row) {
         assert_match('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/D', (string) $row['applied_at'], 'when, in UTC');
     }
-    assert_same([], $status['body']['pending']);
+    assert_same([[], []], [$status['body']['pending'], $status['body']['missing']]);
     assert_same('no-store', $status['headers']['cache-control'] ?? null);
 
     $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-    assert_same([200, ['applied' => [], 'failed' => null, 'error' => null]], [$apply['status'], $apply['body']]);
+    assert_same([200, ['applied' => [], 'failed' => null, 'error' => null, 'note' => null]], [$apply['status'], $apply['body']]);
 });
 
-test('ADMIN alone: nobody is asked to sign in, a participant and an EDITOR are refused - the list and the Apply, behind or not', function (): void {
+test('the status answers anybody, whatever the request carries and whatever the IAM says of signing in - while the site runs and while an update waits', function (): void {
+    /** What a browser may send with it: nothing, a token that does not check out, one that has run out, a visitor's key, an ADMIN's token. */
+    $senders = [
+        'nobody' => [],
+        'a token that is no token' => bearer('not-a-token'),
+        'a token that has run out' => bearer(test_token(PAT, ['MEMBER'], ['exp' => time() - 120])),
+        'a visitor key' => ['X-Visitor-Key: ' . str_repeat('k', 43)],
+        'an ADMIN' => bearer(test_token(ADA, ['ADMIN'])),
+    ];
+    // The IAM says sign-in is required here - and, on the second server, that it is not.
+    $required = start_app(test_iam(['application_file' => test_application_file(true)]));
+    $open = start_app(test_iam(['application_file' => test_application_file(false)]));
+    try {
+        // The site's own rule bites where it should: nothing of a survey for nobody while sign-in is required...
+        $surveys = call($required['base'], 'GET', '/api/surveys');
+        assert_same([401, 'sign_in_required'], [$surveys['status'], $surveys['body']['code'] ?? null], 'the surveys, nobody, sign-in required');
+        // ...but never on the status, which the pages must be able to read before anybody can sign in.
+        foreach (['ready' => null, 'update_pending' => FILE_005] as $state => $file) {
+            if ($file !== null) {
+                behind($file);
+            }
+            foreach ([$required, $open] as $i => $site) {
+                foreach ($senders as $who => $headers) {
+                    $status = call($site['base'], 'GET', '/api/site-status', null, $headers);
+                    assert_same([200, ['state' => $state, 'installed' => false]], [$status['status'], $status['body']], "$state, sign-in " . ($i === 0 ? 'required' : 'not required') . ", $who");
+                }
+            }
+        }
+    } finally {
+        current_again();
+        ($required['stop'])();
+        ($open['stop'])();
+    }
+});
+
+test('a file\'s SQL, for the page\'s View - and nothing that is not a file of the set', function (): void {
+    $file = as_user(ADA, 'GET', '/api/admin/migrations/file?set=survey&name=' . FILE_004);
+    assert_same([200, ['set' => 'survey', 'name' => FILE_004, 'sql' => migration_sql(FILE_004)]], [$file['status'], $file['body']]);
+    foreach (['set=survey&name=' . rawurlencode('../../config/config.php'), 'set=survey&name=' . rawurlencode('../survey/' . FILE_004), 'set=other&name=' . FILE_004, 'set=survey&name=nothing.sql', 'set=survey', 'name=' . FILE_004, ''] as $query) {
+        $refused = as_user(ADA, 'GET', '/api/admin/migrations/file?' . $query);
+        assert_same([404, ['code' => 'not_found', 'message' => 'No such migration file.']], [$refused['status'], $refused['body']], "?$query");
+    }
+});
+
+test('ADMIN alone, from the token: nobody is asked to sign in, a participant and an EDITOR are refused - the list, a file and the Apply, behind or not', function (): void {
     foreach ([false, true] as $isBehind) {
         if ($isBehind) {
             behind(FILE_005);
         }
-        foreach (['GET /api/admin/migrations', 'POST /api/admin/migrations/apply'] as $route) {
+        foreach (['GET /api/admin/migrations', 'GET /api/admin/migrations/file?set=survey&name=' . FILE_005, 'POST /api/admin/migrations/apply'] as $route) {
             [$method, $url] = explode(' ', $route);
             $nobody = anonymous($method, $url);
             assert_same([401, 'sign_in_required'], [$nobody['status'], $nobody['body']['code'] ?? null], "$route, nobody");
             foreach ([PAT => 'a participant', EDITH => 'an EDITOR'] as $user => $who) {
                 $refused = as_user($user, $method, $url);
-                assert_same([403, 'forbidden'], [$refused['status'], $refused['body']['code'] ?? null], "$route, $who" . ($isBehind ? ', behind' : ''));
+                assert_same([403, 'forbidden', 'Only an administrator of the survey site may do this.'], [$refused['status'], $refused['body']['code'] ?? null, $refused['body']['error'] ?? null], "$route, $who" . ($isBehind ? ', behind' : ''));
             }
             $bad = call($GLOBALS['app']['base'], $method, $url, null, bearer(test_token(ADA, ['ADMIN'], ['exp' => time() - 120])));
-            assert_same(401, $bad['status'], "$route: an ADMIN's token that has run out");
+            assert_same([401, 'invalid_token'], [$bad['status'], $bad['body']['code'] ?? null], "$route: an ADMIN's token that has run out");
         }
     }
     assert_same([FILE_005], pending_now(), 'nothing a refused Apply would have applied was applied');
     current_again();
 });
 
-test('a database behind: the site is not set up (update: true) - but signing in, the strings and the migrations answer', function (): void {
+test('a migration waiting: 503 update_pending with Retry-After everywhere - but signing in, the strings, the health and the Migrations page', function (): void {
     behind(FILE_005);
 
-    $surveys = as_user(PAT, 'GET', '/api/surveys');
-    assert_same([503, 'not_set_up', true, '/setup.php'], [$surveys['status'], $surveys['body']['code'], $surveys['body']['update'] ?? null, $surveys['body']['setup'] ?? null]);
-    assert_match('/Migrations page/', (string) $surveys['body']['error']);
-    foreach (['GET /api/admin/surveys', 'GET /api/admin/translations', 'GET /api/admin/languages'] as $route) {
+    $status = anonymous('GET', '/api/site-status');
+    assert_same([200, ['state' => 'update_pending', 'installed' => false]], [$status['status'], $status['body']], 'the status always answers');
+    foreach ([
+        [PAT, 'GET /api/surveys'], [PAT, 'GET /api/surveys/x'], [PAT, 'POST /api/visitor/move'],
+        [ADA, 'GET /api/admin/surveys'], [ADA, 'GET /api/admin/translations'], [ADA, 'GET /api/admin/languages'],
+        [null, 'GET /api/images/00000000-0000-0000-0000-000000000000.png'], [null, 'GET /api/translations'], [null, 'GET /api/no-such-address'],
+    ] as [$user, $route]) {
         [$method, $url] = explode(' ', $route);
-        $closed = as_user(ADA, $method, $url);
-        assert_same([503, true], [$closed['status'], $closed['body']['update'] ?? null], "$route, even for an ADMIN");
+        $closed = $user === null ? anonymous($method, $url) : as_user($user, $method, $url);
+        assert_same([503, UPDATING], [$closed['status'], $closed['body']], "$route" . ($user === ADA ? ', even for an ADMIN' : '') . ': no error of the site\'s, no setup page');
+        assert_same(['60', 'no-store'], [$closed['headers']['retry-after'] ?? null, $closed['headers']['cache-control'] ?? null], $route);
     }
-    $picture = anonymous('GET', '/api/images/00000000-0000-0000-0000-000000000000.png');
-    assert_same(503, $picture['status'], 'a picture too');
 
     $config = anonymous('GET', '/api/auth/config');
-    assert_same([200, ['issuer' => TEST_ISSUER, 'clientId' => 'survey', 'loginRequired' => true, 'visitorDays' => 30, 'update' => true]], [$config['status'], $config['body']], 'the sign-in, saying an update waits');
+    assert_same([200, ['issuer' => TEST_ISSUER, 'clientId' => 'survey', 'loginRequired' => true, 'visitorDays' => 30]], [$config['status'], $config['body']], 'the sign-in: an administrator must be able to sign in to apply it');
     $strings = anonymous('GET', '/api/translations/sk');
-    assert_same([200, 'sk'], [$strings['status'], $strings['body']['language'] ?? null], 'the strings: the boot page and the admin panel\'s bar are worded with them');
-    assert_same(503, anonymous('GET', '/api/translations')['status'], 'only a language\'s strings - an address beside them is closed like the rest');
+    assert_same([200, 'sk'], [$strings['status'], $strings['body']['language'] ?? null], 'the strings: the pages are worded with them');
+    $health = anonymous('GET', '/api/health');
+    assert_same([200, [FILE_005]], [$health['status'], $health['body']['pending'] ?? null], 'the health check, and - asked from this computer - what waits');
 
-    $status = as_user(ADA, 'GET', '/api/admin/migrations');
-    assert_same(200, $status['status']);
-    assert_same([['name' => FILE_005]], $status['body']['pending']);
-    assert_false(in_array(FILE_005, array_column($status['body']['applied'], 'name'), true));
+    $list = as_user(ADA, 'GET', '/api/admin/migrations');
+    assert_same(200, $list['status']);
+    assert_same([['set' => 'survey', 'name' => FILE_005, 'ready' => true, 'blocked' => false]], $list['body']['pending']);
+    assert_false(in_array(FILE_005, array_column($list['body']['applied'], 'name'), true));
+    assert_same(200, as_user(ADA, 'GET', '/api/admin/migrations/file?set=survey&name=' . FILE_005)['status']);
 
     current_again();
-    $open = as_user(PAT, 'GET', '/api/surveys');
-    assert_same(200, $open['status'], 'current again: the site runs');
-    assert_same(['issuer' => TEST_ISSUER, 'clientId' => 'survey', 'loginRequired' => true, 'visitorDays' => 30], anonymous('GET', '/api/auth/config')['body'], 'and the sign-in says nothing of an update');
+    assert_same(['state' => 'ready', 'installed' => false], anonymous('GET', '/api/site-status')['body']);
+    assert_same(200, as_user(PAT, 'GET', '/api/surveys')['status'], 'current again: the site runs');
+});
+
+test('a migration waiting: an address dressed up as an open one stays closed - dot segments, escaped slashes, anything under the Migrations page that is not its route', function (): void {
+    behind(FILE_005);
+
+    foreach ([
+        '/api/admin/migrations/../../surveys',
+        '/api/admin/migrations/%2e%2e/%2e%2e/surveys',
+        '/api/admin/migrations%2F..%2F..%2Fsurveys',
+        '/api/admin/migrations/file/../../../surveys',
+        '/api/admin/migrations/apply/..',
+        '/api/admin/migrations/',
+        '/api/admin/migrations/anything',
+        '/api/translations/sk/../../surveys',
+        '/api/translations/..%2F..%2Fsurveys',
+        '/api/auth/config/../../surveys',
+        '/api/health/../surveys',
+        '/api/site-status/../surveys',
+    ] as $path) {
+        foreach ([ADA, null] as $user) {
+            $closed = as_written($user, 'GET', $path);
+            assert_same([503, UPDATING], [$closed['status'], $closed['body']], "$path, " . ($user === null ? 'nobody signed in' : 'an ADMIN') . ': closed by the gate, not left to the routes');
+        }
+    }
+    $write = as_written(ADA, 'POST', '/api/admin/migrations/apply/../../surveys');
+    assert_same([503, UPDATING], [$write['status'], $write['body']], 'nor a write');
+
+    // The routes themselves are open as they are - to an ADMIN, as ever.
+    assert_same(200, as_written(ADA, 'GET', '/api/admin/migrations')['status']);
+    assert_same(200, as_written(ADA, 'GET', '/api/admin/migrations/file?set=survey&name=' . FILE_005)['status']);
+    current_again();
 });
 
 test('several pending, in the order they will run; Apply runs them all and the site runs again', function (): void {
@@ -179,9 +315,10 @@ test('several pending, in the order they will run; Apply runs them all and the s
     assert_same([FILE_004, FILE_005], pending_now());
 
     $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-    assert_same([200, ['applied' => [FILE_004, FILE_005], 'failed' => null, 'error' => null]], [$apply['status'], $apply['body']]);
+    assert_same([200, ['applied' => [file_entry(FILE_004), file_entry(FILE_005)], 'failed' => null, 'error' => null, 'note' => null]], [$apply['status'], $apply['body']]);
     assert_same([], pending_now());
     assert_same('You are not signed in', dbValue("SELECT value FROM translations WHERE key_name = 'signedOut.heading' AND language_code = 'en'"));
+    assert_same('ready', anonymous('GET', '/api/site-status')['body']['state']);
     assert_same(200, as_user(PAT, 'GET', '/api/surveys')['status']);
     $last = array_slice(as_user(ADA, 'GET', '/api/admin/migrations')['body']['applied'], -2);
     assert_same([FILE_004, FILE_005], array_column($last, 'name'), 'applied, last in the order they ran');
@@ -196,8 +333,8 @@ test('a file that fails: what ran before it stands, it is rolled back whole and 
     dbExec("CREATE TRIGGER survey_test_refuse BEFORE UPDATE ON translation_keys FOR EACH ROW WHEN (OLD.name = 'language.button') EXECUTE FUNCTION survey_test_refuse()");
 
     $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-    assert_same(200, $apply['status']);
-    assert_same([[FILE_004], FILE_005], [$apply['body']['applied'], $apply['body']['failed']], 'what ran first, and the file that failed');
+    assert_same(200, $apply['status'], 'a failed file is still an answer: the page shows it');
+    assert_same([[file_entry(FILE_004)], file_entry(FILE_005), null], [$apply['body']['applied'], $apply['body']['failed'], $apply['body']['note']], 'what ran first, and the file that failed');
     $error = (string) $apply['body']['error'];
     assert_match('/^statement \d+ of \d+: SQLSTATE\[P0001\]: Raise exception: 7 ERROR:  the test refuses to change language\.button/', $error, 'PostgreSQL\'s own words, with the statement\'s number');
     assert_match('/\n\n  UPDATE translation_keys/', $error, 'and the statement\'s first lines');
@@ -206,12 +343,12 @@ test('a file that fails: what ran before it stands, it is rolled back whole and 
     assert_same(null, dbValue("SELECT name FROM translation_keys WHERE name = 'signedOut.heading'"), 'the keys 005 wrote before it failed were rolled back with it');
     $log = implode("\n", server_problems($GLOBALS['app']));
     assert_match('/\[db\] the migration ' . preg_quote(FILE_005, '/') . ' failed: statement \d+ of \d+: SQLSTATE\[P0001\]/', $log, 'the server\'s log has it too');
-    assert_same(503, as_user(PAT, 'GET', '/api/surveys')['status'], 'still behind');
+    assert_same([503, UPDATING], [as_user(PAT, 'GET', '/api/surveys')['status'], as_user(PAT, 'GET', '/api/surveys')['body']], 'still waiting');
 
     // Whatever was in the way is gone: the next Apply goes through.
     dbExec('DROP TRIGGER survey_test_refuse ON translation_keys');
     $again = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-    assert_same(['applied' => [FILE_005], 'failed' => null, 'error' => null], $again['body']);
+    assert_same(['applied' => [file_entry(FILE_005)], 'failed' => null, 'error' => null, 'note' => null], $again['body']);
     assert_same('You are not signed in', dbValue("SELECT value FROM translations WHERE key_name = 'signedOut.heading' AND language_code = 'en'"));
     assert_same(200, as_user(PAT, 'GET', '/api/surveys')['status']);
 });
@@ -222,8 +359,7 @@ test('one update at a time: while another holds the lock, Apply and php migratio
     dbValue('SELECT pg_advisory_lock(?::bigint)', [DATABASE_UPDATE_LOCK]);
     try {
         $busy = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-        assert_same([409, 'busy'], [$busy['status'], $busy['body']['code'] ?? null]);
-        assert_match('/Nothing was applied/', (string) $busy['body']['error']);
+        assert_same([409, ['code' => 'busy', 'message' => 'Another database update is running. Nothing was applied. Wait a moment, then look again.']], [$busy['status'], $busy['body']]);
         assert_same([FILE_005], pending_now(), 'nothing was applied');
         assert_same(200, as_user(ADA, 'GET', '/api/admin/migrations')['status'], 'the list is read all the same');
 
@@ -239,7 +375,7 @@ test('one update at a time: while another holds the lock, Apply and php migratio
     }
 
     $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-    assert_same(['applied' => [FILE_005], 'failed' => null, 'error' => null], $apply['body'], 'the lock let go: the Apply goes through');
+    assert_same(['applied' => [file_entry(FILE_005)], 'failed' => null, 'error' => null, 'note' => null], $apply['body'], 'the lock let go: the Apply goes through');
 });
 
 test('006 on a database with people and their answers: the Apply runs it, its gate passes, and nothing of theirs changes', function (): void {
@@ -253,14 +389,14 @@ test('006 on a database with people and their answers: the Apply runs it, its ga
     assert_same([FILE_006], pending_now());
 
     $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-    assert_same([200, ['applied' => [FILE_006], 'failed' => null, 'error' => null]], [$apply['status'], $apply['body']]);
+    assert_same([200, ['applied' => [file_entry(FILE_006)], 'failed' => null, 'error' => null, 'note' => null]], [$apply['status'], $apply['body']]);
     assert_same($people, dbAll('SELECT id, preferred_username, email, first_seen_at, last_seen_at FROM users ORDER BY id'), 'the people as they were');
     assert_same([0, $answers], [(int) dbValue('SELECT count(*) FROM users WHERE visitor_key_hash IS NOT NULL'), dbAll('SELECT * FROM responses ORDER BY id')], 'no key, the answers as they were');
     assert_same([-1, 'responses_by_user'], [(int) dbValue("SELECT nextval('visitor_ids')"), dbValue("SELECT to_regclass('responses_by_user')::text")], 'visitors count down from -1; answers are found by person');
     dbExec('DELETE FROM surveys WHERE id = ?', [$survey]);
 });
 
-test('a database behind by 006: the surveys are not set up for nobody, a visitor key or a person alike - nor the move at sign-in', function (): void {
+test('a database waiting for 006: the surveys are closed for nobody, a visitor key or a person alike - nor the move at sign-in', function (): void {
     current_again();
     // A site where visitors are welcome: the IAM says sign-in is not required.
     $site = start_app(test_iam(['application_file' => test_application_file(false)]));
@@ -271,11 +407,11 @@ test('a database behind by 006: the surveys are not set up for nobody, a visitor
             foreach (['GET /api/surveys', 'GET /api/surveys/x', 'POST /api/surveys/x/responses'] as $route) {
                 [$method, $url] = explode(' ', $route);
                 $answer = call($site['base'], $method, $url, $method === 'POST' ? ['answers' => new stdClass()] : null, $headers);
-                assert_same([503, 'not_set_up', true], [$answer['status'], $answer['body']['code'] ?? null, $answer['body']['update'] ?? null], "$route, $who");
+                assert_same([503, UPDATING], [$answer['status'], $answer['body']], "$route, $who");
             }
         }
         $move = call($site['base'], 'POST', '/api/visitor/move', null, array_merge(bearer(test_token(PAT, ['MEMBER'])), $key));
-        assert_same([503, 'not_set_up'], [$move['status'], $move['body']['code'] ?? null], 'the move');
+        assert_same([503, 'update_pending'], [$move['status'], $move['body']['code'] ?? null], 'the move');
         assert_same(false, call($site['base'], 'GET', '/api/auth/config')['body']['loginRequired'], 'the sign-in still answers, and says what the IAM says');
         assert_same(0, (int) dbValue('SELECT count(*) FROM users WHERE id < 0'), 'nobody was made a visitor');
     } finally {
@@ -284,15 +420,72 @@ test('a database behind by 006: the surveys are not set up for nobody, a visitor
     }
 });
 
-test('the settings missing: the migrations routes are not set up either - the database is setup.php\'s', function (): void {
+test('a database with nothing in it: an ADMIN builds it on the Migrations page - the check asks nothing of its tables', function (): void {
+    $site = start_with(test_config_dir(test_iam(), test_empty_db('empty')));
+    $admin = bearer(test_token(ADA, ['ADMIN']));
+    try {
+        assert_same(['state' => 'update_pending', 'installed' => false], call($site['base'], 'GET', '/api/site-status')['body']);
+        $list = call($site['base'], 'GET', '/api/admin/migrations', null, $admin);
+        assert_same([200, migration_files(), [], []], [$list['status'], array_column($list['body']['pending'], 'name'), $list['body']['applied'], $list['body']['missing']]);
+        $editor = call($site['base'], 'POST', '/api/admin/migrations/apply', null, bearer(test_token(EDITH, ['EDITOR'])));
+        assert_same([403, 'forbidden'], [$editor['status'], $editor['body']['code'] ?? null]);
+
+        $apply = call($site['base'], 'POST', '/api/admin/migrations/apply', null, $admin);
+        assert_same([200, array_map('file_entry', migration_files()), null], [$apply['status'], $apply['body']['applied'], $apply['body']['failed']]);
+        assert_same(['state' => 'ready', 'installed' => false], call($site['base'], 'GET', '/api/site-status')['body']);
+        assert_same(200, call($site['base'], 'GET', '/api/surveys', null, bearer(test_token(PAT, ['MEMBER'])))['status'], 'and the site runs');
+    } finally {
+        ($site['stop'])();
+    }
+});
+
+test('not set up and never installed: 503 not_set_up everywhere but the status - with the way to the setup page', function (): void {
     $dir = test_temp_dir('no-iam');
     // Only the database's settings: the IAM's are missing.
     file_put_contents("$dir/database.local.php", '<?php return ' . var_export(['name' => dbName()] + machineDatabaseSettings(), true) . ";\n");
-    $site = test_start_server(TEST_BACKEND, TEST_BACKEND . '/router.php', ['SURVEY_TEST_CONFIG' => $dir, 'SURVEY_FRONTEND_DIST' => test_frontend_build()], '/api/health');
-    foreach (['GET /api/admin/migrations', 'POST /api/admin/migrations/apply', 'GET /api/auth/config'] as $route) {
-        [$method, $url] = explode(' ', $route);
-        $answer = call($site['base'], $method, $url, null, bearer(test_token(ADA, ['ADMIN'])));
-        assert_same([503, 'not_set_up', null], [$answer['status'], $answer['body']['code'] ?? null, $answer['body']['update'] ?? null], $route);
+    $site = start_with($dir);
+    $routes = ['GET /api/health', 'GET /api/auth/config', 'GET /api/translations/en', 'GET /api/surveys', 'GET /api/admin/migrations', 'POST /api/admin/migrations/apply'];
+    // Whatever comes with the question - nothing, a token nothing can check now, a visitor's key - the status answers it.
+    $senders = [[], bearer(test_token(ADA, ['ADMIN'])), bearer('not-a-token'), ['X-Visitor-Key: ' . str_repeat('k', 43)]];
+    try {
+        foreach ($senders as $headers) {
+            $status = call($site['base'], 'GET', '/api/site-status', null, $headers);
+            assert_same([200, ['state' => 'not_set_up', 'installed' => false]], [$status['status'], $status['body']], implode(', ', $headers) ?: 'nobody');
+        }
+        foreach ($routes as $route) {
+            [$method, $url] = explode(' ', $route);
+            $answer = call($site['base'], $method, $url, null, bearer(test_token(ADA, ['ADMIN'])));
+            assert_same([503, ['code' => 'not_set_up', 'installed' => false, 'message' => 'This site is not set up yet. Its setup page connects it to its database.', 'setup' => '/setup.php']], [$answer['status'], $answer['body']], $route);
+        }
+
+        // Installed once on a real host (setup.php wrote storage/installed.lock): never the setup page again.
+        mkdir("$dir/storage", 0777, true);
+        file_put_contents("$dir/storage/installed.lock", "{}\n");
+        foreach ($senders as $headers) {
+            $status = call($site['base'], 'GET', '/api/site-status', null, $headers);
+            assert_same([200, ['state' => 'not_set_up', 'installed' => true]], [$status['status'], $status['body']], (implode(', ', $headers) ?: 'nobody') . ', installed');
+        }
+        foreach ($routes as $route) {
+            [$method, $url] = explode(' ', $route);
+            $answer = call($site['base'], $method, $url, null, bearer(test_token(ADA, ['ADMIN'])));
+            assert_same([503, ['code' => 'not_set_up', 'installed' => true, 'message' => 'The site is not available right now. Try again in a few minutes.']], [$answer['status'], $answer['body']], "$route, installed");
+        }
+    } finally {
+        ($site['stop'])();
     }
-    ($site['stop'])();
+});
+
+test('the database out of reach: the status says unavailable, and everything else is the site\'s own answer', function (): void {
+    $dir = test_config_dir(test_iam());
+    // This file's database, on a port where nothing listens.
+    file_put_contents("$dir/database.local.php", '<?php return ' . var_export(['name' => dbName(), 'port' => test_free_port()] + machineDatabaseSettings(), true) . ";\n");
+    $site = start_with($dir);
+    try {
+        assert_same([200, ['state' => 'unavailable', 'installed' => false]], [call($site['base'], 'GET', '/api/site-status')['status'], call($site['base'], 'GET', '/api/site-status')['body']]);
+        assert_same(200, call($site['base'], 'GET', '/api/auth/config')['status'], 'the sign-in needs no database');
+        $surveys = call($site['base'], 'GET', '/api/surveys', null, bearer(test_token(PAT, ['MEMBER'])));
+        assert_same([503, 'database_unavailable'], [$surveys['status'], $surveys['body']['code'] ?? null]);
+    } finally {
+        ($site['stop'])();
+    }
 });

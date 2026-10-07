@@ -34,8 +34,9 @@ export const ADMIN_ROUTES: Routes = [
         canDeactivate: [unsavedChangesGuard],
         loadComponent: () => import('./localization/languages/languages.component').then((m) => m.LanguagesComponent),
       },
-      // ADMIN alone (the page says so to an EDITOR); the one page drawn while the database waits for a migration.
-      { path: 'migrations', title: 'Migrations', loadComponent: () => import('./migrations/migrations.component').then((m) => m.MigrationsComponent) },
+      // The anotoki family's Migrations page (@anotoki/lib/migrations): ADMIN alone (it says so to an EDITOR, and asks
+      // nothing); the one page of the site drawn while a database update waits - for an ADMIN (<anotoki-site-gate>).
+      { path: 'migrations', title: 'Migrations', loadComponent: () => import('@anotoki/lib/migrations').then((m) => m.MigrationsPageComponent) },
       { path: '**', title: 'Not found', loadComponent: () => import('../not-found/not-found.component').then((m) => m.NotFoundComponent) },
     ],
   },

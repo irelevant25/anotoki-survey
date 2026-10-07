@@ -54,17 +54,21 @@
 // page's language; answers sent to an address the survey has left are said to
 // be kept, and offered again at its new address; a database behind the code
 // (two files' rows taken out of its record - the one stage that changes the
-// database itself, through sql()): "not set up yet" for somebody taking
-// surveys and an EDITOR, and for an ADMIN the way to the Migrations page, an
-// Apply that stops at a failing file with the database's error, and one that
-// brings the site back where it stands, its strings read again; visitors -
+// database itself, through sql()): the anotoki family's page - "being
+// updated", with no error and nothing to press but a quiet Sign in, for
+// somebody taking surveys and an EDITOR; for the site's ADMIN the way to the
+// Migrations page, which a Sign in at its address comes back to, an Apply that
+// stops at a failing file with the database's error, and one that brings the
+// site back where it stands, its strings read again; visitors -
 // the IAM's "Sign-in required" switched off: nobody signed in takes surveys
 // (a second browser too), the admin panel lists them as "Visitor N", "Not
 // signed in", the admin panel and the preview still sign in, a sign-in moves
 // the visitor's answers and draft into the account (the person's own answers
 // win), and switched on again a visitor is sent to sign in and keeps the key;
-// and the two pages drawn instead of the site - not set up, out of reach - name the tab by
-// the site, never by a key, and "Try again" opens the page that was asked for.
+// and the pages drawn instead of the site - not set up (the setup page offered
+// only to a site never installed), out of reach (the family's page, and the
+// site's own card when only the sign-in cannot be had) - name the tab by the
+// site, never by a key, and "Try again" opens the page that was asked for.
 //
 // Prints ok/FAIL per check and every page error. A console warning is a
 // problem too - "[i18n] no string for ..." is how a missing string shows.
@@ -758,12 +762,14 @@ expect('an editor sees the surveys', (await text('app-surveys-list .title')) ===
 expect('but no Delete button', !(await js("!![...document.querySelectorAll('app-surveys-list button')].find(b => b.getAttribute('aria-label') === 'Delete')")));
 expect('nor Migrations in the bar: applying the database\'s updates is an ADMIN\'s', (await texts('app-top-bar .topbar-nav a')).join(' ') === 'Surveys Translations Languages', (await texts('app-top-bar .topbar-nav a')).join(' '));
 await go('/admin/migrations');
-await waitFor(page, "!!document.querySelector('app-migrations')", 15000);
+await waitFor(page, "!!document.querySelector('anotoki-migrations-page')", 15000);
 await sleep(500);
 expect(
-  '... and at its address the page says whose it is, asking the server nothing',
-  (await text('app-migrations .empty-heading')) === 'Migrations are for administrators' && !(await js("!!document.querySelector('#migrations-apply')")) && !requested.slice(-10).some((request) => request.includes('/api/admin/migrations')),
-  await text('app-migrations .empty-heading'),
+  "... and at its address the family's Migrations page says whose it is, asking the server nothing",
+  (await text('anotoki-migrations-page .notice')) === 'Migrations are for administrators.' &&
+    !(await js("!!document.querySelector('anotoki-migrations-page [data-apply]')")) &&
+    !requested.slice(-10).some((request) => request.includes('/api/admin/migrations')),
+  await text('anotoki-migrations-page'),
 );
 /** The access token the site holds for whoever is signed in. */
 const heldToken = () =>
@@ -2155,94 +2161,135 @@ await sleep(500);
 await expectBar('the editor, an open survey past its last day, 390 px');
 await screenshots('editor-past-last-day-390');
 
-// ═══ A database behind the code: the Migrations page ═══════════════════════
+// ═══ A database behind the code: the family's page, and the Migrations page ═══
 // A release that brings migrations nobody has applied yet: the database's record says 004 and 005 have not run
 // (their rows taken out of `migrations`). 004 cannot run again - its column is there - so the first Apply stops
-// on it; 005 brings back brand.adminPanel, taken out here, so the strings read while the database is behind lack
-// it. The site is closed meanwhile (503 not_set_up, update: true) but for signing in, the strings and the Migrations
-// page: somebody taking surveys and an EDITOR get "not set up yet" and nothing else; an ADMIN gets a link to the
-// Migrations page, sees what is pending, applies it, is shown where it stopped with the database's whole error,
-// applies again once 004 is out of the way - and the site runs where it stands, its strings read again.
+// on it; 005 brings back brand.adminPanel, taken out here, so the strings read while the update waits lack it.
+// The backend's gate (the anotoki family's, @anotoki/lib) answers 503 update_pending to everything but signing in,
+// the strings, the health check and the Migrations page's routes. What people see is the family's page: nobody
+// signed in and signed-in people "The site is being updated" in their language - no error, no code, nothing to
+// press but a quiet Sign in while nobody is signed in, and nobody sent to the IAM; that Sign in goes through the
+// IAM and back to the same address; an EDITOR gets the same; the site's ADMIN "A database update is waiting" and
+// the way to the Migrations page, which works - signed out at its address, Sign in comes back to it - an Apply that
+// stops at a failing file with the database's whole error, then one that brings the site back where it stands,
+// its strings read again.
 const FILE_004 = '004_response_language.sql';
 const FILE_005 = '005_top_bar_and_sign_in.sql';
 sql(`DELETE FROM migrations WHERE filename IN ('${FILE_004}', '${FILE_005}')`);
 sql("DELETE FROM translation_keys WHERE name = 'brand.adminPanel'");
 // The bar of the Migrations page, until 005 is applied: the key with no string shows as itself, and says so.
 expected = [/\[i18n\] no string for 'brand\.adminPanel'/];
-const behindAnswer = await (await fetch(`${origin}/api/surveys`)).json();
+const behindResponse = await fetch(`${origin}/api/surveys`);
+const behindAnswer = await behindResponse.json();
 const behindConfig = await (await fetch(`${origin}/api/auth/config`)).json();
+const behindStatus = await (await fetch(`${origin}/api/site-status`)).json();
 expect(
-  'the database behind: the API is not set up (update: true) - but the sign-in\'s settings answer, saying so',
-  behindAnswer.code === 'not_set_up' && behindAnswer.update === true && behindConfig.update === true && typeof behindConfig.issuer === 'string',
-  `${JSON.stringify(behindAnswer).slice(0, 160)} / ${JSON.stringify(behindConfig)}`,
+  "an update waiting: the API answers 503 update_pending, Retry-After 60 - but the sign-in's settings answer, and the status says so",
+  behindResponse.status === 503 &&
+    behindAnswer.code === 'update_pending' &&
+    behindResponse.headers.get('retry-after') === '60' &&
+    typeof behindConfig.issuer === 'string' &&
+    !('update' in behindConfig) &&
+    behindStatus.state === 'update_pending',
+  `${behindResponse.status} ${JSON.stringify(behindAnswer)} / ${JSON.stringify(behindConfig)} / ${JSON.stringify(behindStatus)}`,
 );
-/** The site holds a session (the SDK's stored tokens) - with no top bar to ask, on a page drawn instead of the site. */
+/** The site holds a session (the SDK's stored tokens) - with no top bar to ask, on the family's page. */
 const HOLDS_SESSION = "Object.keys(localStorage).some((name) => name.startsWith('anotoki-auth:') && !!JSON.parse(localStorage.getItem(name) || 'null')?.access_token)";
 const migrationsLink = () => js("[...document.querySelectorAll('a')].filter((a) => a.getAttribute('href') === '/admin/migrations').length");
-/** Signed in afresh as `user`, opening `path`: the session forgotten, so the page goes to the IAM first - which works while the database is behind. */
-async function freshlyIn(user, path) {
-  await setIam({ user, deny: false });
+const setupLink = () => js("[...document.querySelectorAll('a')].filter((a) => (a.getAttribute('href') ?? '').includes('setup')).length");
+/** The family's page drawn instead of the site (<anotoki-site-status>): its heading, and what there is to press on it. */
+const statusHeading = () => text('anotoki-site-status h1');
+const statusActions = async () => (await texts('anotoki-site-status button, anotoki-site-status a')).join(' | ');
+/** What nobody but the site's ADMIN may read there: the server's words, an error, a code, the setup page, the migrations - and no toast. */
+const quiet = async () =>
+  !/error|503|update_pending|not_set_up|setup|migration/i.test((await text('anotoki-site-status')) ?? '') && (await js("document.querySelectorAll('app-toast-host .toast').length")) === 0;
+/**
+ * Nobody signed in, opening `path` while the update waits: how many times the page went to the IAM's sign-in
+ * meanwhile - none. Counted from the page's own requests (the stand-in's log also has the check's own questions).
+ */
+async function signedOutBehind(path) {
   await forgetSession();
+  const from = requested.length;
   await go(path);
-  await waitFor(page, `${HOLDS_SESSION} && !!document.querySelector('app-not-set-up h1')`, 15000);
+  await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
   await sleep(700);
+  return requested.slice(from).filter((request) => request === 'GET /api/oidc/authorize').length;
+}
+/** The family's page's quiet Sign in, pressed as `user`: through the IAM - which works while the update waits - and back. */
+async function signInThere(user, words) {
+  await setIam({ user, deny: false });
+  const pressed = await clickText('anotoki-site-status button', words);
+  await waitFor(page, `${HOLDS_SESSION} && !!document.querySelector('anotoki-site-status h1, anotoki-migrations-page h1')`, 15000);
+  await sleep(900);
+  return pressed;
 }
 
+// Nobody signed in, in Slovak, on a phone.
 await viewport(390);
-await freshlyIn(PAT, '/?lang=sk');
+const visitorTrips = await signedOutBehind('/?lang=sk');
 expect(
-  'behind, somebody taking surveys, in Slovak: through the IAM, then "not set up yet" in their language - and no way to the Migrations page',
-  (await text('app-not-set-up h1')) === bundle.values['boot.notSetUp.title'] && (await migrationsLink()) === 0 && !(await js("!!document.querySelector('#not-set-up-update')")),
-  `${await text('app-not-set-up h1')} / links: ${await migrationsLink()}`,
+  'an update waiting, nobody signed in, in Slovak: "being updated" in their language, nobody sent to the IAM - no error, nothing to press but a quiet Sign in',
+  visitorTrips === 0 &&
+    (await statusHeading()) === 'Stránku práve aktualizujeme' &&
+    (await text('anotoki-site-status p')) === 'O pár minút bude späť. Táto stránka sa obnoví sama.' &&
+    (await statusActions()) === 'Prihlásiť sa' &&
+    (await migrationsLink()) === 0 &&
+    (await setupLink()) === 0 &&
+    (await quiet()),
+  `IAM trips ${visitorTrips} / ${await statusHeading()} / [${await statusActions()}]`,
 );
-await expectNoKeys('behind, somebody taking surveys, in Slovak');
-await expectNoSideways('behind, 390 px');
+await expectNoKeys('an update waiting, nobody signed in, in Slovak');
+await expectNoSideways('an update waiting, 390 px');
+await screenshots('sk-390-behind-visitor');
+
+// Somebody taking surveys signs in from it: back at the same address, the same page - and nothing to press.
+const patPressed = await signInThere(PAT, 'Prihlásiť sa');
+expect(
+  'its quiet Sign in: through the IAM and back to the same address - signed in now, the same page, nothing to press',
+  patPressed === true && (await js('location.pathname')) === '/' && (await statusHeading()) === 'Stránku práve aktualizujeme' && (await statusActions()) === '' && (await quiet()),
+  `${patPressed} / ${await js('location.pathname')} / ${await statusHeading()} / [${await statusActions()}]`,
+);
 await screenshots('sk-390-behind-participant');
 await viewport(1280);
 await go('/?lang=en');
-await waitFor(page, "!!document.querySelector('app-not-set-up h1')", 15000);
+await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
 await sleep(500);
-expect('... and in English', (await text('app-not-set-up h1')) === 'The survey site is not set up yet' && (await migrationsLink()) === 0, await text('app-not-set-up h1'));
+expect('... and in English', (await statusHeading()) === 'The site is being updated' && (await statusActions()) === '' && (await quiet()), await statusHeading());
 await screenshot('en-1280-behind-participant');
 
-await freshlyIn(EDITH, '/admin/migrations');
+// An EDITOR, at the Migrations page's address: the page everybody gets.
+const edithTrips = await signedOutBehind('/admin/migrations');
+const edithPressed = await signInThere(EDITH, 'Sign in');
 expect(
-  'behind, an EDITOR - even at the Migrations page\'s address: "not set up yet", and no way to the Migrations page',
-  (await js('location.pathname')) === '/admin/migrations' && (await text('app-not-set-up h1')) === 'The survey site is not set up yet' && (await migrationsLink()) === 0 && !(await js("!!document.querySelector('app-migrations')")),
-  `${await js('location.pathname')} / ${await text('app-not-set-up h1')} / links: ${await migrationsLink()}`,
+  "an EDITOR, signed in at the Migrations page's address from the family's page: back there - \"being updated\", and no Migrations page",
+  edithTrips === 0 &&
+    edithPressed === true &&
+    (await js('location.pathname')) === '/admin/migrations' &&
+    (await statusHeading()) === 'The site is being updated' &&
+    !(await js("!!document.querySelector('anotoki-migrations-page')")) &&
+    (await migrationsLink()) === 0 &&
+    (await quiet()),
+  `${edithTrips} / ${await js('location.pathname')} / ${await statusHeading()} / [${await statusActions()}]`,
 );
 await screenshot('en-1280-behind-editor');
 
-await viewport(390);
-await freshlyIn(OWNER, '/?lang=sk');
-const adminNote = await text('#not-set-up-update p');
-expect(
-  'behind, an ADMIN on a Slovak page: the page in Slovak, and the way to the Migrations page in English - the admin panel\'s',
-  (await text('app-not-set-up h1')) === bundle.values['boot.notSetUp.title'] &&
-    (await js("document.querySelector('#not-set-up-update')?.getAttribute('lang')")) === 'en' &&
-    adminNote === "You are an administrator of the survey site: its database has an update waiting. See it and apply it on the admin panel's Migrations page. Back the database up first." &&
-    (await migrationsLink()) === 1,
-  `${await text('app-not-set-up h1')} / ${adminNote}`,
-);
-await expectNoSideways('behind, an ADMIN, 390 px');
-await screenshots('sk-390-behind-admin');
-await viewport(1280);
-await go('/?lang=en');
-await waitFor(page, "!!document.querySelector('#not-set-up-update a')", 15000);
-await sleep(500);
-await screenshot('en-1280-behind-admin');
-
-expect('"Open Migrations"', (await clickText('#not-set-up-update a', 'Open Migrations')) === true);
-await waitFor(page, "location.pathname === '/admin/migrations' && document.querySelectorAll('app-migrations #migrations-pending li').length === 2", 15000);
+// The site's ADMIN, signed out at the Migrations page's address: Sign in there, and back to it - the Migrations page.
+const ownerTrips = await signedOutBehind('/admin/migrations');
+const ownerPressed = await signInThere(OWNER, 'Sign in');
+await waitFor(page, "location.pathname === '/admin/migrations' && document.querySelectorAll('anotoki-migrations-page [data-pending] li').length === 2", 15000);
 await sleep(600);
 /** The Pending card's rows, each as its children's words with a space between ("004_….sql pending"). */
 const pendingRows = async () =>
-  (await js("[...document.querySelectorAll('app-migrations #migrations-pending li')].map((row) => [...row.children].map((child) => child.textContent.trim()).join(' '))")).join(' | ');
+  (await js("[...document.querySelectorAll('anotoki-migrations-page [data-pending] li')].map((row) => [...row.children].map((child) => child.textContent.trim()).join(' '))")).join(' | ');
 const barLinks = async () => (await texts('app-top-bar .topbar-nav a')).join(' ');
 expect(
-  'the Migrations page: the two files pending, in the order they will run - and in the bar the one page that works',
-  (await pendingRows()) === `${FILE_004} pending | ${FILE_005} pending` && (await barLinks()) === 'Migrations' && (await js('document.title')).startsWith('Migrations · '),
-  `${await pendingRows()} / bar: ${await barLinks()} / ${await js('document.title')}`,
+  'a signed-out ADMIN: Sign in on the family\'s page, and back at the address - the Migrations page, the two files pending in the order they will run, and in the bar the one page that works',
+  ownerTrips === 0 &&
+    ownerPressed === true &&
+    (await pendingRows()) === `${FILE_004} pending | ${FILE_005} pending` &&
+    (await barLinks()) === 'Migrations' &&
+    (await js('document.title')).startsWith('Migrations · '),
+  `${ownerTrips} / ${await pendingRows()} / bar: ${await barLinks()} / ${await js('document.title')}`,
 );
 expect(
   '... and the strings read while 005 waits lack what it brings: that key shows as itself (until the Apply reads them again)',
@@ -2251,27 +2298,54 @@ expect(
 );
 await screenshot('admin-migrations-behind-1280', true);
 
-/** "Apply pending", and Apply in the question it asks: what the question said. */
-async function applyPending() {
-  await clickText('app-migrations #migrations-apply', 'Apply pending');
-  await waitFor(page, "!!document.querySelector('dialog[open]')", 15000);
+// Anywhere else the ADMIN reads that an update waits, with the way to the Migrations page - in English, the admin
+// panel's, on a Slovak page too - and nothing of the page.
+await viewport(390);
+await go('/?lang=sk');
+await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
+await sleep(500);
+expect(
+  'the ADMIN anywhere else, on a Slovak page: "A database update is waiting", in English, and "Open Migrations" - nothing of the page',
+  (await statusHeading()) === 'A database update is waiting' &&
+    (await js("document.querySelector('anotoki-site-status section')?.getAttribute('lang')")) === 'en' &&
+    (await text('anotoki-site-status p')) === 'This site is closed to everybody else until the update is applied. Back the database up first.' &&
+    (await statusActions()) === 'Open Migrations' &&
+    (await migrationsLink()) === 1 &&
+    !(await js("!!document.querySelector('app-survey-home')")),
+  `${await statusHeading()} / [${await statusActions()}]`,
+);
+await expectNoSideways('an update waiting, the ADMIN, 390 px');
+await screenshots('sk-390-behind-admin');
+await viewport(1280);
+await go('/?lang=en');
+await waitFor(page, "!!document.querySelector('anotoki-site-status a')", 15000);
+await sleep(500);
+await screenshot('en-1280-behind-admin');
+expect('"Open Migrations"', (await clickText('anotoki-site-status a', 'Open Migrations')) === true);
+await waitFor(page, "location.pathname === '/admin/migrations' && document.querySelectorAll('anotoki-migrations-page [data-pending] li').length === 2", 15000);
+await sleep(600);
+
+/** "Apply pending", and Apply in the question it asks: what the question said. Then the answer, `heading` in it. */
+async function applyPending(heading) {
+  await clickText('anotoki-migrations-page button[data-apply]', 'Apply pending');
+  await waitFor(page, "!!document.querySelector('anotoki-migrations-page dialog[data-confirm][open]')", 15000);
   await sleep(300);
-  const asked = await question();
-  await clickText('dialog[open] .footer button', 'Apply');
-  await waitFor(page, "!!document.querySelector('app-migrations #migrations-result') && !document.querySelector('app-migrations #migrations-apply[aria-busy=\"true\"]')", 20000);
+  const asked = await text('anotoki-migrations-page dialog[data-confirm] h2');
+  await clickText('anotoki-migrations-page dialog[data-confirm] button[data-confirm-apply]', 'Apply');
+  await waitFor(page, `(document.querySelector('anotoki-migrations-page [data-result] h2')?.textContent ?? '').includes(${JSON.stringify(heading)})`, 20000);
   await sleep(800);
   return asked;
 }
-const applyAsked = await applyPending();
-const failedWords = await text('app-migrations #migrations-result');
-const failedError = await js("document.querySelector('app-migrations #migrations-result pre code')?.textContent ?? ''");
+const applyAsked = await applyPending('Stopped at');
+const failedWords = await text('anotoki-migrations-page [data-result]');
+const failedError = await js("document.querySelector('anotoki-migrations-page [data-result] pre')?.textContent ?? ''");
 expect(
-  'a failed Apply: where it stopped, nothing applied first, the file rolled back whole - and the database\'s whole error',
-  applyAsked?.title === 'Apply 2 pending migrations?' &&
-    (await text('app-migrations #migrations-result .alert-heading')) === `Stopped at ${FILE_004}` &&
+  "a failed Apply: where it stopped, nothing applied first, the file rolled back whole - and the database's whole error",
+  applyAsked === 'Apply 2 pending migrations?' &&
+    (await text('anotoki-migrations-page [data-result] h2')) === `Stopped at ${FILE_004}` &&
     failedWords.includes('Nothing was applied. The failed file was rolled back as a whole.') &&
     /^statement 1 of 1: SQLSTATE\[42701\]: .*column "language" of relation "responses" already exists\n\n {2}ALTER TABLE responses/s.test(failedError),
-  `${applyAsked?.title} / ${failedWords.slice(0, 120)} / ${failedError.slice(0, 160)}`,
+  `${applyAsked} / ${failedWords.slice(0, 120)} / ${failedError.slice(0, 160)}`,
 );
 expect('... and the database is still behind: both still pending, the bar the same', (await pendingRows()) === `${FILE_004} pending | ${FILE_005} pending` && (await barLinks()) === 'Migrations', `${await pendingRows()} / ${await barLinks()}`);
 await screenshot('admin-migrations-failed-1280', true);
@@ -2283,16 +2357,16 @@ await viewport(1280);
 
 // What was in the way is dealt with (here: 004's work is there, so its row goes back): the next Apply goes through.
 sql(`INSERT INTO migrations (filename) VALUES ('${FILE_004}') ON CONFLICT DO NOTHING`);
-await applyPending();
+await applyPending('Up to date');
 await waitFor(page, "document.querySelectorAll('app-top-bar .topbar-nav a').length === 4 && !(document.querySelector('app-top-bar app-brand')?.textContent ?? '').includes('brand.adminPanel')", 15000);
 await sleep(500);
 expect(
   'a good Apply: "Up to date", what was applied, nothing pending - and the site runs where it stands, every section in the bar',
-  (await text('app-migrations #migrations-result .alert-heading')) === 'Up to date' &&
-    (await text('app-migrations #migrations-result .alert-text')) === `Applied: ${FILE_005}.` &&
-    (await text('app-migrations #migrations-pending')).includes('Nothing pending') &&
+  (await text('anotoki-migrations-page [data-result] h2')) === 'Up to date' &&
+    (await text('anotoki-migrations-page [data-result] p')) === `Applied: ${FILE_005}.` &&
+    (await text('anotoki-migrations-page [data-pending]')).includes('Nothing pending') &&
     (await barLinks()) === 'Surveys Translations Languages Migrations',
-  `${await text('app-migrations #migrations-result')} / ${await barLinks()}`,
+  `${await text('anotoki-migrations-page [data-result]')} / ${await barLinks()}`,
 );
 expect('... and its strings read again: what 005 brought is a word, not a key', (await text('app-top-bar app-brand')).includes('admin panel'), await text('app-top-bar app-brand'));
 await expectNoKeys('the Migrations page, up to date');
@@ -2305,7 +2379,7 @@ await viewport(1280);
 await clickText('app-top-bar .topbar-nav a', 'Surveys');
 await waitFor(page, "location.pathname === '/admin' && !!document.querySelector('app-surveys-list')", 15000);
 await sleep(500);
-expect('the rest of the admin panel works again, with no reload', !(await js("!!document.querySelector('app-not-set-up')")), await js('location.pathname'));
+expect('the rest of the admin panel works again, with no reload', !(await js("!!document.querySelector('anotoki-site-status')")), await js('location.pathname'));
 expect('the console said only what the stage made it say', heard.length > 0 && heard.every((message) => message.includes("no string for 'brand.adminPanel'")), heard.join(' | ').slice(0, 300));
 heard.splice(0);
 expected = [];
@@ -2551,38 +2625,95 @@ await viewport(1280);
 
 // ═══ The pages drawn instead of the site ═══════════════════════════════════
 // A browser that has never been here - nothing stored, so no strings kept from an earlier visit - and a site that
-// is not set up: every request is answered as the backend's setup gate answers it. The tab is named by the site,
-// never by a key ("title.surveys"), whichever page was asked for.
+// is not set up: every request answered as the backend's gate answers it (the family's, @anotoki/lib). Never
+// installed: the family's page "This site is not set up yet", with the way to the setup page; set up once on a real
+// host (storage/installed.lock) and its settings gone since: never the setup page again - "not available right
+// now", asking again by itself. The tab is named by the site, never by a key, whichever page was asked for.
 await viewport(390);
 await js('localStorage.clear(); sessionStorage.clear(); true');
-await intercept('*/api/*', () => ({ status: 503, body: { error: 'The survey site is not set up yet. Open /setup.php to set it up.', code: 'not_set_up', setup: '/setup.php' } }));
+/** The backend of a site that is not set up, as its gate answers: the status, and every other address. */
+const notSetUp = (installed) => (request) =>
+  new URL(request.url).pathname === '/api/site-status'
+    ? { status: 200, body: { state: 'not_set_up', installed } }
+    : {
+        status: 503,
+        body: installed
+          ? { code: 'not_set_up', installed, message: 'The site is not available right now. Try again in a few minutes.' }
+          : { code: 'not_set_up', installed, message: 'This site is not set up yet. Its setup page connects it to its database.', setup: '/setup.php' },
+      };
+/** A tab's title with nothing shaped like a key in it, that ends with the site's name. */
+const titled = (title) => title.endsWith('anotoki survey') && !/[a-z][A-Za-z0-9]*\.[A-Za-z0-9]/.test(title);
+await intercept('*/api/*', notSetUp(false));
 for (const [path, what] of [
   ['/', 'the home page'],
   ['/nothing/here', 'an address the site does not know'],
   ['/admin', 'the admin area'],
 ]) {
   await go(path);
-  await waitFor(page, "!!document.querySelector('app-not-set-up h1')", 15000);
+  await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
   await sleep(900);
   const title = await js('document.title');
-  expect(`not set up, nothing stored, ${what}: the page says so in English, and the tab is the site's name - not a key`, (await text('app-not-set-up h1')) === 'The survey site is not set up yet' && title === 'anotoki survey' && (await pageLanguage()) === 'en', `${await text('app-not-set-up h1')} / tab: ${title} / ${await pageLanguage()}`);
+  expect(
+    `not set up and never installed, nothing stored, ${what}: the family's page says so in English, with the way to the setup page - and the tab is named by the site, not a key`,
+    (await text('anotoki-site-status h1')) === 'This site is not set up yet' &&
+      (await js("document.querySelector('anotoki-site-status a')?.getAttribute('href')")) === '/setup.php' &&
+      titled(title) &&
+      (await pageLanguage()) === 'en',
+    `${await text('anotoki-site-status h1')} / [${await statusActions()}] / tab: ${title} / ${await pageLanguage()}`,
+  );
   await expectNoKeys(`not set up, ${what}`);
   if (path === '/') {
     await expectNoSideways('not set up, 390 px');
     await screenshots('en-390-not-set-up');
   }
 }
-// The same with a server that does not answer at all - and then one that does: "Try again" opens the page that
-// was asked for. It is a page of the admin area, so the way there is through the sign-in; never a blank page.
+await intercept('*/api/*', notSetUp(true));
+await go('/');
+await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
+await sleep(900);
+expect(
+  'not set up, but installed once: "not available right now", asking again by itself - and never the way to the setup page',
+  (await text('anotoki-site-status h1')) === 'The site is not available right now' && (await statusActions()) === 'Try again' && (await setupLink()) === 0 && titled(await js('document.title')),
+  `${await text('anotoki-site-status h1')} / [${await statusActions()}] / tab: ${await js('document.title')}`,
+);
+await expectNoKeys('not set up, installed once');
+await screenshots('en-390-not-available');
+
+// A server that does not answer at all - its status neither: the family's page, "not available right now". The
+// server back, "Try again": the page loads again, and the page that was asked for is drawn - through the sign-in.
 expected = [/The sign-in settings could not be loaded/];
 await intercept('*/api/*', () => 'unreachable');
 await setIamUser(OWNER);
 await go('/admin/languages');
-await waitFor(page, "!!document.querySelector('app-load-error h1')", 15000);
+await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
 await sleep(900);
-expect('out of reach, nothing stored: the page says so in English, and the tab is not a key', (await text('app-load-error h1')) === 'The survey site cannot be reached' && !/\w\.\w/.test(await js('document.title')), `${await text('app-load-error h1')} / tab: ${await js('document.title')}`);
+expect(
+  'out of reach, nothing stored: "not available right now" in English, at the address asked for - and the tab is not a key',
+  (await text('anotoki-site-status h1')) === 'The site is not available right now' && (await statusActions()) === 'Try again' && (await js('location.pathname')) === '/admin/languages' && titled(await js('document.title')),
+  `${await text('anotoki-site-status h1')} / ${await js('location.pathname')} / tab: ${await js('document.title')}`,
+);
 await expectNoKeys('out of reach');
 await expectNoSideways('out of reach, 390 px');
+await screenshots('en-390-unavailable');
+await stopIntercepting();
+expect('try again', (await clickText('anotoki-site-status button', 'Try again')) === true);
+await waitFor(page, "location.pathname === '/admin/languages' && document.querySelectorAll('app-languages .language').length === 2", 20000);
+await sleep(400);
+expect('"Try again", the server back: the page asked for - through the sign-in - not a blank one', (await whoIsIn()) === OWNER.username && (await js('document.title')).startsWith('Languages · '), `${await whoIsIn()} / ${await js('document.title')}`);
+
+// A server whose status answers while the sign-in's settings do not: the site's own card, "cannot be reached" - whose
+// "Try again" opens the page that was asked for, though the router never reached it.
+await js('localStorage.clear(); sessionStorage.clear(); true');
+await intercept('*/api/*', (request) => (new URL(request.url).pathname === '/api/site-status' ? null : 'unreachable'));
+await go('/admin/languages');
+await waitFor(page, "!!document.querySelector('app-load-error h1')", 15000);
+await sleep(900);
+expect(
+  "the status answering, the sign-in's settings not: the site's own card, in English, and the tab is not a key",
+  (await text('app-load-error h1')) === 'The survey site cannot be reached' && !(await js("!!document.querySelector('anotoki-site-status')")) && !/\w\.\w/.test(await js('document.title')),
+  `${await text('app-load-error h1')} / tab: ${await js('document.title')}`,
+);
+await expectNoKeys('the sign-in out of reach');
 await screenshots('en-390-load-error');
 await stopIntercepting();
 expect('try again', (await clickText('app-load-error button', 'Try again')) === true);

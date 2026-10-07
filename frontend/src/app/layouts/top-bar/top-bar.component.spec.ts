@@ -1,6 +1,7 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { SiteStatus } from '@anotoki/lib/migrations';
 import { AdminStore } from '../../core/admin/admin-store.service';
 import { LOCALIZATION_DRAFTS_KEY, LocalizationDrafts } from '../../core/admin/localization-drafts.service';
 import { type AnotokiPreferences } from '../../core/auth/anotoki-auth';
@@ -81,8 +82,9 @@ class PageComponent {}
 describe('TopBarComponent', () => {
   const person = signal<Person | null>(null);
   const roles = signal<string[]>([]);
-  /** The database waits for a migration (AuthService.needsUpdate). */
+  /** A database update waits (the family's SiteStatus says update-pending). */
   const behind = signal(false);
+  const siteStatus = { state: computed(() => (behind() ? 'update-pending' : 'ready')) };
   /** How the person's anotoki account says every anotoki site should look: null - an IAM that sends none - unless a spec says. */
   const preferences = signal<AnotokiPreferences | null>(null);
   const auth = {
@@ -91,7 +93,6 @@ describe('TopBarComponent', () => {
     person,
     signedIn: () => person() !== null,
     isAdmin: () => roles().includes('ADMIN'),
-    onlyMigrations: () => behind() && roles().includes('ADMIN'),
     isStaff: () => roles().includes('ADMIN') || roles().includes('EDITOR'),
     accountUrl: () => 'https://iam.example.test/account',
     preferences,
@@ -171,6 +172,7 @@ describe('TopBarComponent', () => {
         provideRouter([{ path: '**', component: PageComponent }]),
         { provide: AuthService, useValue: auth },
         { provide: AdminStore, useValue: store },
+        { provide: SiteStatus, useValue: siteStatus },
       ],
     });
   });
@@ -219,14 +221,14 @@ describe('TopBarComponent', () => {
     expect(links().map(words)).toEqual(['Surveys', 'Translations', 'Languages']);
   });
 
-  it('while the database waits for a migration, an ADMIN’s bar in the admin panel links Migrations alone - the one page that works', async () => {
+  it('while a database update waits, an ADMIN’s bar in the admin panel links Migrations alone - the one page that works', async () => {
     behind.set(true);
     TestBed.inject(TranslationService).noteAddress('/admin/migrations');
     await draw('admin');
     await at('/admin/migrations');
     expect(links().map(described)).toEqual(['Migrations /admin/migrations [page] [here]']);
 
-    // Applied: the bar has every section again, without being drawn anew.
+    // Applied (the Migrations page marks the site ready): every section again, without being drawn anew.
     behind.set(false);
     await fixture.whenStable();
     expect(links().map(words)).toEqual(['Surveys', 'Translations', 'Languages', 'Migrations']);

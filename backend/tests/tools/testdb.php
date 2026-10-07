@@ -13,10 +13,12 @@ declare(strict_types=1);
  *                                                 (left behind by a run that was killed)
  *
  * The template only ever gets the migrations it has not seen - as every
- * database does. So a migration edited after the template applied it (one
- * still being written; never one that has been released) is not applied
- * again: --fresh is for exactly that. It is the only thing that drops the
- * template, so not while tests are running - they copy it.
+ * database does, through the same engine (surveyMigrator(), api/migrations.php).
+ * So a migration edited after the template applied it (one still being
+ * written; never one that has been released) is not applied again: --fresh is
+ * for exactly that. It is the only thing that drops the template, so not while
+ * tests are running - they copy it. Two runs that start at the same moment
+ * (the PHP tests and the browser check) take turns: the engine's lock.
  *
  * It only ever touches databases whose name starts with survey_test_, on the
  * server named in config/database.local.php.
@@ -60,14 +62,22 @@ switch ($command) {
             dbServer($server)->exec('DROP DATABASE IF EXISTS "' . TEMPLATE . '" WITH (FORCE)');
         }
         ensureDatabase($server, TEMPLATE);
-        $pdo = dbConnect($server, TEMPLATE);
-        $result = applyPendingMigrations($pdo);
-        $pdo = null;
-        if ($result['failed'] !== null) {
-            fwrite(STDERR, "testdb: {$result['failed']} failed: {$result['error']}\n");
+        $migrator = surveyMigrator(dbConnect($server, TEMPLATE));
+        // Another run updating the template at this moment: wait for it (half a minute at most), then look again.
+        for ($tries = 1; ($result = $migrator->apply())['busy'] && $tries < 60; $tries++) {
+            usleep(500000);
+        }
+        $migrator = null;
+        if ($result['busy']) {
+            fwrite(STDERR, "testdb: another run kept updating " . TEMPLATE . " for half a minute: try again.\n");
             exit(1);
         }
-        echo TEMPLATE . ': ' . ($result['applied'] ? ($name === '--fresh' ? 'built again (' : 'updated (') . implode(', ', $result['applied']) . ')' : 'up to date') . "\n";
+        if ($result['failed'] !== null) {
+            fwrite(STDERR, "testdb: {$result['failed']['name']} failed: {$result['error']}\n");
+            exit(1);
+        }
+        $applied = array_column($result['applied'], 'name');
+        echo TEMPLATE . ': ' . ($applied ? ($name === '--fresh' ? 'built again (' : 'updated (') . implode(', ', $applied) . ')' : 'up to date') . "\n";
         break;
 
     case 'create':

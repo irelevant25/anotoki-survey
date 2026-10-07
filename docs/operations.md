@@ -47,33 +47,42 @@ Things the hosting does that matter here:
 ## Later versions
 
 Upload the new build over the old one: FTP never deletes, and the settings
-stay. A version with a new migration closes the whole site (503; people see
-"The survey site is not set up yet") until it is applied. **An administrator
-applies it on the admin panel's Migrations page**: back the database up
-(`pg_dump`), open the site and sign in with an account that has `ADMIN` - the
-"not set up yet" page then has "Open Migrations" (nobody else sees it) - and
-press **Apply pending**. The pending files run in order, each in its own
-transaction; one that fails is rolled back whole and the page says "Stopped at
-<file>" with what was applied before it and the database's whole error (the
-server's log has it too); fix what is in the way and Apply again. Once nothing
-is pending the site runs again, at once, for everybody.
+stay. (The old version's `api/migration_runner.php`, `api/database_update.php`
+and `api/meddleware/setup.php` stay on the host after the version that brought
+the anotoki family's library, read by nothing: delete them over FTP when
+convenient.) A version with a new migration closes the site until it is
+applied: people - visitors and signed-in alike - see the anotoki family's page,
+"The site is being updated", in their language, which asks again by itself and
+comes back on its own once the update is in; no error, no setup page. **An
+administrator applies it on the admin panel's Migrations page**: back the
+database up (`pg_dump`), open the site - the page there has a quiet "Sign in":
+sign in with an account that has `ADMIN` (straight at
+`https://survey.anotoki.eu/admin/migrations`, the sign-in comes back to the
+Migrations page) - "A database update is waiting" then has "Open Migrations"
+(nobody else sees it) - and press **Apply pending**. The pending files run in
+order, each in its own transaction; one that fails is rolled back whole and the
+page says "Stopped at <file>" with what was applied before it and the
+database's whole error (the server's log has it too); fix what is in the way
+and Apply again. Once nothing is pending the site runs again, at once, for
+everybody (an open page reloads by itself within half a minute).
 
-The setup page is still a way to do the same (and the only one for a database
-with nothing in it yet), in this order: **delete `storage/installed.lock` over
-FTP first**, then upload (the upload carries `setup.php`), then open
-`/setup.php`, give the token it writes and the same details - it applies what
-is missing, keeps every survey and answer, and locks and deletes itself again.
-The order matters: opened while the lock is still there - by anybody; the
-closed site's own button leads to it - `setup.php` deletes itself and says
-"Already set up"; then delete the lock and upload `setup.php` again. A version
-with no new migration leaves the lock where it is. The Apply, the setup page
-and `php migration.php` never run at the same time: they take one lock, and
-the second says another update is running and applies nothing.
+The setup page is still a way to do the same, in this order: **delete
+`storage/installed.lock` over FTP first**, then upload (the upload carries
+`setup.php`), then open `/setup.php`, give the token it writes and the same
+details - it applies what is missing, keeps every survey and answer, and locks
+and deletes itself again. The order matters: opened while the lock is still
+there - by anybody - `setup.php` deletes itself and says "Already set up"; then
+delete the lock and upload `setup.php` again. A version with no new migration
+leaves the lock where it is. The Apply, the setup page and `php migration.php`
+never run at the same time: they take one lock, and the second says another
+update is running and applies nothing. Once installed (the lock there), a site
+whose settings files go missing never offers the setup page to anybody: it is
+"not available right now" until the files are back.
 
 The version that brings the languages is such a version: migrations `002`
 (the tables for the site's words, English and Slovak), `003` (every string)
 and `004` (the language an answer was read in). Until they are applied (the
-Migrations page, or `/setup.php`) the site is closed ("not set up yet"). The surveys there need nothing: one
+Migrations page, or `/setup.php`) the site is closed. The surveys there need nothing: one
 stored before is read as written in English, with no translations. An editor
 page left open across that upload cannot save any more: the server asks every
 save for the survey's language, the old page does not send it, and "Try again"
@@ -100,6 +109,14 @@ preferences the site keeps its own settings as before and saves nothing to
 the account; once it does, somebody signed in gets the account's theme, dates
 and language here, and the top bar's theme and language save to the account.
 Nothing else on the server changes.
+
+The version that brings the anotoki family's library (anotoki-lib 0.1.0: the
+migrations engine, the gate, the page drawn while the site cannot run, the
+Migrations page - `vendor/anotoki/lib` in the upload) has migration `009`
+(it deletes the four strings of the "not set up yet" page it replaced -
+nothing else). It is the first update applied the new way: upload, then sign in
+as ADMIN on the family's page and apply 009 on the Migrations page. Delete the
+three old `api/` files named above.
 
 ## The site's words and languages
 
@@ -302,10 +319,11 @@ connection and the IAM's address; setup.php writes them again - all but
 
 | Symptom | Likely cause |
 | --- | --- |
-| The whole site says it is not set up | `config/database.local.php` or `config/iam.local.php` is missing or incomplete, or a migration is pending (`/api/health` asked from the server's own computer says which; a visitor only reads "not set up yet"). A pending migration: sign in as an ADMIN - the page then links to the Migrations page, which applies it. |
+| The whole site says "The site is being updated" | A migration is pending (`GET /api/site-status` says `update_pending`). Sign in as an ADMIN from that page's quiet "Sign in" - the page then says "A database update is waiting" and links to the Migrations page, which applies it. |
+| The whole site says it is not set up, or "not available right now" | `config/database.local.php` or `config/iam.local.php` is missing or incomplete (`/api/site-status` says `not_set_up`) - "not set up yet" with the way to the setup page only while the site was never installed; once `storage/installed.lock` is there, "not available right now": put the file back, or run the setup again (above). `unavailable`: the database cannot be reached. |
 | The Migrations page says "Stopped at <file>" | That file failed and was rolled back whole; the box under it is PostgreSQL's own error (also in the server's log). The files before it stand. Fix the cause in the database (or the file, in a new version), then Apply again. |
 | Apply says another database update is running | Another Apply, the setup page or `php migration.php` is applying right now: wait a moment and look again. |
-| `/setup.php` shows the site's "not set up yet" page instead of the installer | `setup.php` is not on the host: it deleted itself when somebody opened it while `storage/installed.lock` was there. Delete the lock, upload `setup.php` again, open it. |
+| `/setup.php` shows the site's page instead of the installer | `setup.php` is not on the host: it deleted itself when somebody opened it while `storage/installed.lock` was there. Delete the lock, upload `setup.php` again, open it. |
 | 500 on every page after an upload | The host refused a line of the root `.htaccess` (`Options -Indexes`, `CGIPassAuth`): remove it. |
 | Signing in ends at the IAM with an error about the redirect URI | The IAM does not have `https://survey.anotoki.eu/auth/callback` for `survey`. |
 | Signed in, but every request says the sign-in ran out | `config/iam.local.php`'s issuer is not exactly `https://iam.anotoki.eu`, or the server cannot fetch the IAM's keys (`storage/cache/` not writable). |

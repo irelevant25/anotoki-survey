@@ -99,30 +99,101 @@ The IAM, Japanese, Piano and the build analyzer say the same.
 
 **The admin panel has the family's Migrations page.** The owner (2026-10-05):
 "The survey admin panel does not contain migrations page" - the other sites
-gained one with the "admin panel" round, and this one now has the same, the
-IAM's page as the model: `/admin/migrations`, Pending (in the order they will
-run) and Applied (with when), "Apply pending" behind a question, and after it
-"Up to date", "There was nothing to apply" or "Stopped at <file>" with what was
-applied first and **the database's whole error** in a box - PostgreSQL's own
-words, to an ADMIN, on this computer and on a host alike (the owner's decision
-for every site: on a host with only FTP that page is where the error can be
-read; it is logged too). Applying the database's updates is an ADMIN's, not an
-EDITOR's - the server refuses an EDITOR, and the frontend shows them neither
-the link nor the page. One update at a time, whoever starts it: the Apply,
-`setup.php`'s Save and `php migration.php` take one PostgreSQL advisory lock
-(`api/database_update.php`), and the second is told another is running. A
-pending migration still closes the site to everybody (503 `not_set_up`, now
-with `update: true`), but not to the ADMIN who must apply it: signing in, the
-site's strings and the two migrations routes keep answering, and the "not set
-up yet" page links a signed-in ADMIN to the Migrations page (in English - it
-is the admin panel's; somebody taking surveys and an EDITOR keep the page as it
-was). After an Apply that applied something the strings are read again
-(`TranslationService.reload()`), so a key it brought never shows as itself,
-and once nothing is pending the site runs where it stands, without a reload.
-The bar's Migrations link is English in the code rather than a key: the admin
-panel is English, and a key would have needed a migration with a Slovak string
-nobody ever reads. `setup.php` stays a way to apply them (and the only one for
-a database with nothing in it yet).
+gained one with the "admin panel" round, and this one now has the same: since
+2026-10-07 the page itself is the family's, from the shared library
+(`<anotoki-migrations-page>`, below): `/admin/migrations`, Pending (in the
+order they will run) and Applied (with when, in the anotoki account's date
+order, each file's SQL behind "View"), "Apply pending" behind a question, and
+after it "Up to date", "There was nothing to apply" or "Stopped at <file>" with
+what was applied first and **the database's whole error** in a box -
+PostgreSQL's own words, to an ADMIN, on this computer and on a host alike (the
+owner's decision for every site: on a host with only FTP that page is where
+the error can be read; it is logged too). Applying the database's updates is
+an ADMIN's, not an EDITOR's - the server refuses an EDITOR, and the frontend
+shows them neither the link nor the page. One update at a time, whoever starts
+it: the Apply, `setup.php`'s Save, `php migration.php` and the tests' template
+take one PostgreSQL advisory lock - the site's own key, kept from before the
+library (`DATABASE_UPDATE_LOCK`, `api/migrations.php`), so a version from
+before it and one from after it still take turns during an upload - and the
+second is told another is running. Once nothing is pending the site runs
+where it stands, without a reload, its strings read again (a key the update
+brought never shows as itself). The bar's Migrations link is English in the
+code rather than a key: the admin panel is English, and a key would have
+needed a migration with a Slovak string nobody ever reads. `setup.php` stays a
+way to apply them.
+
+**While the site cannot run, every anotoki site behaves the same: the family's
+library says so.** The owner (2026-10-07): "When there is a new migration, some
+sites behave differently than others. Japanese won't let me go to the admin or
+anywhere if I am not logged in, but I cannot log in because a migration is
+waiting. Genshin gives me no warning. Piano and survey show me a setup error
+with buttons to the setup page or the migrations page. This needs to be
+consistent. I do not want logged-in users or visitors to see the error about
+what is going on. The admin should see it. If the setup was already done it
+should never offer that button again, especially as setup.php is no longer
+there." So the database's migrations - the engine, the gate in front of every
+route, the status the pages ask, the page drawn instead of the site and the
+Migrations page - are the shared library's, anotoki-lib (`anotoki/lib` from
+Composer, `@anotoki/lib` from its release tarball; README.md says how both are
+updated), and this site adopted version 0.1.0 whole:
+
+- **The server decides where the site stands, for every request**:
+  `not_set_up` (the settings missing), `update_pending` (a migration file
+  waits), `unavailable` (the database out of reach), `ready`. Not set up, every
+  address but `GET /api/site-status` answers 503 `not_set_up` - with the way to
+  `/setup.php` only while the site was never installed (`storage/installed.lock`,
+  which the setup writes on a real host and never on this computer); an update
+  waiting, every address answers 503 `update_pending` (`Retry-After: 60`) but
+  the sign-in's settings, a language's strings, the health check and the
+  Migrations page's routes (`SITE_OPEN_WHILE_UPDATING`). The site's own "not
+  set up" gate and its `update: true` went; so did `/api/health`'s "what is
+  missing" while not set up - the gate answers that address too, and the setup
+  page and `php migration.php` say what is missing on the computer that runs
+  them.
+- **What people see is the family's page**, around the router outlet
+  (`<anotoki-site-gate>`): visitors and signed-in people "The site is being
+  updated", in their language, with no error, no code and no button but a
+  quiet "Sign in" while nobody is signed in; the site's ADMIN "A database
+  update is waiting" and "Open Migrations", and the Migrations page works while
+  nothing else does; never installed, "This site is not set up yet" and the
+  setup page; installed, or the database out of reach, "The site is not
+  available right now", asking again by itself. Its words are the library's
+  (English, and Slovak written for the sites that say "ty"): the one sentence
+  of it that addresses the reader is said this site's way, formally ("Skúste to,
+  prosím, znova o pár minút.", `core/migrations.ts`) - library words, not the
+  site's strings, because they must read while the database that holds the
+  strings is what is not ready. The site's "not set up yet" card and its four
+  strings went (migration 009).
+- **Nobody is sent to the IAM while the site cannot run**: the guards let every
+  page through, the family's page stands instead of each, and its quiet Sign in
+  is the way in - for the ADMIN who applies an update above all. So the address
+  stays the one asked for: the sign-in comes back to it (the Migrations page's
+  address, for the ADMIN, opens the page), and the page reloads there once the
+  site runs.
+- **No page runs out of sight**: the library's gate shows what it wraps inside
+  an `@if`, but a component's projected content is made whether it is shown or
+  not - a bare `<router-outlet>` inside would put the page behind the family's
+  one in place, asking the API and raising toasts over it. The outlet is made
+  only when the gate shows it (`AppComponent.pagesOpen`, the gate's own
+  decision). And once the site could not run in a page load, its pages stay
+  away until an update applied in that tab opens them (`PAGES_CLOSED`,
+  `core/migrations.ts`): any other way back to ready, the family's page reloads
+  the page at once, and a page made in that moment would only flash. Answers
+  to a survey sent just as an update closes the site raise no toast either
+  (`siteClosed`, `send-failure.ts`): the family's page has taken the survey's
+  place, and the answers wait in the draft.
+- **Only what an update needs answers while it waits, each address exactly**:
+  `SITE_OPEN_WHILE_UPDATING` names the Migrations page's three routes, not
+  everything under `/api/admin/migrations` - an address dressed up as one of
+  them (`/api/admin/migrations/../../surveys`, escaped or not) is closed by the
+  gate itself, never left to the routes not matching it.
+- **The Migrations page's routes judge ADMIN from the token alone**
+  (`requireTokenRole()`): the rest of the API records each visit in `users`, and
+  these must work on a database a pending migration has yet to build - from
+  nothing at all, where `users` is not there either.
+- The card for a server that did not answer as the site started stays, for the
+  one case the family's page does not cover: the status answered, the sign-in's
+  settings did not.
 
 **Every page is for somebody signed in - while the IAM says sign-in is
 required.** The owner: the survey (like the IAM, Japanese and Piano) requires
@@ -130,7 +201,8 @@ a sign-in at minimum - nothing but the sign-in prompt for anybody else. So
 every page goes to the IAM first and comes back to the address asked for, and
 the API answers nothing of a survey without a token; a survey's welcome is no
 longer shown to visitors before they sign in (it was, until the family's
-change). Only the boot pages (not set up, cannot be reached) draw without it.
+change). Only the pages drawn while the site cannot run (the family's page,
+the card for a server out of reach) draw without it.
 Later (2026-10-05) the owner made that the IAM's switch, per site (below):
 switched off, the pages people take surveys on welcome visitors; the admin
 panel and the editor's preview never do. One exception, kept on purpose: a

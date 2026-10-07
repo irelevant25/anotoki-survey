@@ -498,6 +498,17 @@ describe('TakeSurveyComponent', () => {
     expect(text('button[type=submit]')).toBe('Send my answers');
   });
 
+  it('says nothing when the site closes as the answers go - an update began: the family’s page stands instead - and keeps them', async () => {
+    api.submit.mockRejectedValue(new ApiError(503, 'update_pending', 'THE SERVER’S SENTENCE'));
+    await open();
+    await answerEverything();
+    await next();
+    // No toast drawn over the calm page: no error, no code, nothing of the server's.
+    expect(api.submit).toHaveBeenCalledTimes(1);
+    expect(toasts()).toEqual([]);
+    expect(readDraft('s1', ZUZKA.id)).toMatchObject({ answers: { q1: { optionIds: ['o1'] } } });
+  });
+
   it('becomes "there is no survey here" when the survey is gone from its address by the time the answers are sent - and keeps them for where it is now', async () => {
     api.submit.mockRejectedValue(new ApiError(404, 'not_found', 'There is no such survey.'));
     await open();

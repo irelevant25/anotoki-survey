@@ -176,6 +176,27 @@
   @include palette-dark;
 }
 
+// The anotoki family's library (@anotoki/lib - the page drawn while the site
+// cannot run, the admin panel's Migrations page) colours itself with
+// --anotoki-* properties: this site's tokens. One mapping for both themes - it
+// sits on :root beside the palettes, so each property follows the palette in
+// force there, light or dark.
+:root {
+  --anotoki-bg: var(--bg);
+  --anotoki-surface: var(--surface);
+  --anotoki-text: var(--text);
+  --anotoki-muted: var(--muted);
+  --anotoki-border: var(--border);
+  --anotoki-primary: var(--primary);
+  --anotoki-primary-contrast: var(--primary-contrast);
+  --anotoki-danger: var(--danger);
+  --anotoki-danger-contrast: var(--danger-contrast);
+  --anotoki-success: var(--success);
+  --anotoki-warning: var(--warning);
+  --anotoki-radius: var(--radius);
+  --anotoki-font-mono: var(--font-mono);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Base
 // ─────────────────────────────────────────────────────────────────────────────

@@ -29,7 +29,7 @@ declare(strict_types=1);
  *                          administrator applies it on the admin panel's
  *                          Migrations page (or: delete the lock, upload
  *                          setup.php again, and run it once more). Both take
- *                          one lock (api/database_update.php), as does
+ *                          one lock (api/migrations.php), as does
  *                          php migration.php.
  *
  * "Test" tries the database, and the IAM's discovery document
@@ -375,7 +375,7 @@ function setupTestDatabase(array $db): array
     try {
         $pdo = dbConnect($db);
         $tables = (int) $pdo->query("SELECT count(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'")->fetchColumn();
-        $pending = count(pendingMigrationsReadOnly($pdo));
+        $pending = count(surveyMigrator($pdo)->applicable());
 
         return [true, 'Connected to the database "' . $db['name'] . '": '
             . ($tables === 0 ? 'it is empty - Save makes the tables.' : ($pending > 0 ? "$pending update(s) to apply - Save applies them." : 'it is up to date.'))];
@@ -476,18 +476,14 @@ if ($method === 'POST') {
                 // Most hosting will not let the site's user create databases;
                 // the one made in the hosting panel is what the connection finds.
             }
-            $pdo = dbConnect($db);
-            // The lock an administrator's Apply and php migration.php take too (api/database_update.php).
-            $migrated = databaseUpdateLocked($pdo, function () use ($pdo) {
-                return applyPendingMigrations($pdo);
-            });
-            if ($migrated === null) {
+            // A connection of its own, and the lock an administrator's Apply and php migration.php take too (api/migrations.php).
+            $migrated = surveyMigrator(dbConnect($db))->apply();
+            if ($migrated['busy']) {
                 throw new RuntimeException('Another database update is running (an administrator\'s Apply on the Migrations page, or php migration.php). Nothing was saved. Wait a moment, then press Save again.');
             }
             if ($migrated['failed'] !== null) {
-                throw new RuntimeException('The database update ' . $migrated['failed'] . ' failed: ' . $migrated['error']);
+                throw new RuntimeException('The database update ' . $migrated['failed']['name'] . ' failed: ' . $migrated['error']);
             }
-            $pdo = null;
         } catch (PDOException $e) {
             $errors[] = 'Cannot connect to the database "' . $db['name'] . '" with these details: ' . setupShortError($e->getMessage());
         } catch (Throwable $e) {
@@ -504,7 +500,7 @@ if ($method === 'POST') {
             }
             $log = [
                 'Saved the database connection and the IAM in config/database.local.php and config/iam.local.php.',
-                $migrated['applied'] ? 'Made the tables (' . implode(', ', $migrated['applied']) . ').' : 'The tables were up to date.',
+                $migrated['applied'] ? 'Made the tables (' . implode(', ', array_column($migrated['applied'], 'name')) . ').' : 'The tables were up to date.',
                 'People sign in through the IAM at ' . $form['issuer'] . ', where this site is "' . $form['client_id'] . '". '
                     . 'Who may write surveys (EDITOR) and administer them (ADMIN) is set there, in the admin panel.',
             ];

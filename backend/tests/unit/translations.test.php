@@ -23,8 +23,8 @@ require TEST_BACKEND . '/tools/translation_keys.php';
 function string_migrations(): array
 {
     return array_values(array_filter(
-        migrationFiles(),
-        static fn(string $file): bool => (bool) preg_match('/INSERT\s+INTO\s+translation_keys\b/i', (string) file_get_contents(migrationsRoot() . '/' . MIGRATIONS_ALIAS . '/' . $file))
+        migration_files(),
+        static fn(string $file): bool => (bool) preg_match('/INSERT\s+INTO\s+translation_keys\b/i', migration_sql($file))
     ));
 }
 
@@ -94,7 +94,7 @@ function check(mixed $values, array $english = ['test.hello' => 'Hello, {name}!'
  */
 function migration_keys(string $file): array
 {
-    $sql = str_replace("\r\n", "\n", (string) file_get_contents(migrationsRoot() . '/' . MIGRATIONS_ALIAS . '/' . $file));
+    $sql = str_replace("\r\n", "\n", migration_sql($file));
     // The first thing of a row: its key, at the start of a line.
     $rows = static function (string $block): array {
         preg_match_all("/^\\s*\\('([^']+)',/m", $block, $m);

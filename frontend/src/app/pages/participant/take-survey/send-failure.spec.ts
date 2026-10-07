@@ -81,6 +81,13 @@ describe('sendFailure(): why the answers were not kept', () => {
   it('takes everything else as a request that failed', () => {
     expect(sendFailure(refusal(0, 'offline'))).toBe('other');
     expect(sendFailure(refusal(500, 'server_error'))).toBe('other');
+    expect(sendFailure(refusal(503, 'database_unavailable'))).toBe('other');
+  });
+
+  it('knows the site closing under the person - an update waiting, the settings gone - from a request that failed: the family’s page says that one', () => {
+    expect(sendFailure(refusal(503, 'update_pending'))).toBe('siteClosed');
+    expect(sendFailure(refusal(503, 'not_set_up'))).toBe('siteClosed');
+    expect(sendFailure(refusal(503, 'not_set_up'), true)).toBe('siteClosed');
   });
 
   it('takes a 404 that is not the API’s own for a request that failed: it says nothing about the survey', () => {

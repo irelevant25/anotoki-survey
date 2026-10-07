@@ -1,4 +1,5 @@
 import { InjectionToken, WritableSignal, inject, signal } from '@angular/core';
+import { SiteStatus } from '@anotoki/lib/migrations';
 import { ToastService } from '../ui/toast/toast.service';
 import { AuthService } from './auth/auth.service';
 import { sayWhySignInFailed } from './auth/sign-in-failure';
@@ -19,13 +20,21 @@ export const BOOTED = new InjectionToken<WritableSignal<boolean>>('the start has
 });
 
 /**
- * The whole start of the site, before the first page is drawn: the theme (so
- * nothing flashes); the sign-in - which, back from the IAM, puts the address
- * the person came from back in the address bar before the router reads it;
- * the language and its strings, which need to know who is signed in and what
- * the address is; and only then a failed sign-in, said in words that exist by
- * now. Last of all it says the start is over (BOOTED) - which always comes:
- * neither the sign-in nor the language ever rejects.
+ * The whole start of the site, before the first page is drawn: where the site
+ * stands (GET /api/site-status - the anotoki family's SiteStatus); the theme
+ * (so nothing flashes); the sign-in - which, back from the IAM, puts the
+ * address the person came from back in the address bar before the router
+ * reads it; the language and its strings, which need to know who is signed in
+ * and what the address is; and only then a failed sign-in, said in words that
+ * exist by now. Last of all it says the start is over (BOOTED) - which always
+ * comes: neither the status, the sign-in nor the language ever rejects.
+ *
+ * Where the site stands comes first, so the first navigation knows it: while
+ * the site cannot run (not set up, a database update waiting, the database out
+ * of reach) the family's page stands instead of every page
+ * (<anotoki-site-gate>), and the guards send nobody to the IAM. Nothing after
+ * it stops on it: while an update waits the sign-in's settings and the strings
+ * still answer, so the site's ADMIN can sign in - and apply it.
  *
  * The visitor key (core/auth/visitor-key.ts) is made here too, so its effect
  * is there for the first sign-in: back from the IAM with a key held, what the
@@ -39,6 +48,7 @@ export const BOOTED = new InjectionToken<WritableSignal<boolean>>('the start has
  */
 export async function boot(): Promise<void> {
   inject(ThemeService);
+  const status = inject(SiteStatus);
   const auth = inject(AuthService);
   inject(VisitorKey);
   const i18n = inject(TranslationService);
@@ -47,6 +57,7 @@ export async function boot(): Promise<void> {
 
   // Starting again (the load error page's "Try again"): the site waits for its strings again.
   booted.set(false);
+  await status.check();
   await auth.init();
   const person = auth.person();
   if (person) {

@@ -164,7 +164,7 @@ if ($problem !== null) {
 }
 
 try {
-    $pending = pendingMigrationsReadOnly(db());
+    $pending = array_column(surveyMigrator(db())->applicable(), 'name');
 } catch (Throwable $e) {
     refuse('Cannot reach the database ' . dbName() . ': ' . $e->getMessage());
 }

@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Anotoki\Lib\Migrations\Http\MigrationsRoutes;
+use Anotoki\Lib\Migrations\Migrator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Routing\RouteCollectorProxy;
@@ -34,21 +36,25 @@ use Slim\Routing\RouteCollectorProxy;
  *   GET    /api/admin/translations/{code}/export  that language's own strings: {key: text}
  *   PUT    /api/admin/translations/{code}/import  {key: text} -> the grid as it is now
  *
- * The database (api/database_update.php) - ADMIN alone, the admin panel's
- * Migrations page, the IAM's shape. These two are answered while the database
- * is behind the code, when every other route but signing in and the strings
- * is 503 not_set_up with update: true (meddleware/setup.php):
+ * The database - ADMIN alone, the admin panel's Migrations page: the anotoki
+ * family's routes (MigrationsRoutes::admin, api/migrations.php). They answer
+ * while a migration waits, when every other route but signing in and the
+ * strings is 503 update_pending (SITE_OPEN_WHILE_UPDATING):
  *
- *   GET    /api/admin/migrations                  {applied: [{name, applied_at}], pending: [{name}]} - applied in the
- *                                                 order they ran (applied_at ISO 8601, UTC), pending in the order they will
- *   POST   /api/admin/migrations/apply            {applied: [file], failed: file | null, error: string | null} - in order,
- *                                                 each in its own transaction, stopping at the first that fails (rolled back
- *                                                 whole; error is the database's whole error, as the IAM's page shows it, and
- *                                                 it is logged too); 409 busy while another update runs (setup.php,
- *                                                 php migration.php, or this route)
+ *   GET    /api/admin/migrations                  {sets, applied: [{set, name, applied_at}], pending: [{set, name, ready,
+ *                                                 blocked}], missing: [{set, name, applied_at}]} - applied in the order they
+ *                                                 ran (applied_at ISO 8601, UTC), pending in the order they will; writes nothing
+ *   GET    /api/admin/migrations/file?set=&name=  {set, name, sql}: an applied or pending file's SQL; 404 not_found for
+ *                                                 anything that is not a file of the set
+ *   POST   /api/admin/migrations/apply            {applied: [{set, name}], failed: {set, name} | null, error: string | null,
+ *                                                 note: null} - in order, each in its own transaction, stopping at the first
+ *                                                 that fails (rolled back whole; error is the database's whole error, and it is
+ *                                                 logged too); 409 busy while another update runs (setup.php, php
+ *                                                 migration.php, or this route)
  *
- * (The users table, which the role check writes to, is there from 001: a
- * database without even that is not set up, and setup.php is the way.)
+ * Their ADMIN is judged from the token alone (requireTokenRole()): the role
+ * check of the rest records the visit in `users`, and these must work on a
+ * database a pending migration has yet to build - from nothing at all.
  *
  * @var \Slim\App $app
  */
@@ -145,17 +151,18 @@ $app->group('/api/admin', function (RouteCollectorProxy $group): void {
 
         return respondJson($response, translationGrid());
     });
-
-    $group->get('/migrations', function (Request $request, Response $response): Response {
-        return respondJson($response, databaseStatus(db()));
-    })->add(requireRole(ROLE_ADMIN));
-
-    $group->post('/migrations/apply', function (Request $request, Response $response): Response {
-        $result = databaseApplyUpdate();
-        if ($result === null) {
-            throw new ApiError(409, 'busy', 'Another database update is running (another Apply, setup.php or php migration.php). Nothing was applied. Wait a moment, then look again.');
-        }
-
-        return respondJson($response, $result);
-    })->add(requireRole(ROLE_ADMIN));
 })->add(requireRole(...ROLES_STAFF));
+
+// The Migrations page's routes. Each request has a connection of its own
+// (surveyMigrator()'s rule: an Apply's lock must never sit on the pooled db()),
+// and a file that fails is in the server's log as well as on the page.
+MigrationsRoutes::admin(
+    $app,
+    '/api/admin/migrations',
+    static fn(): Migrator => surveyMigrator(dbConnect(databaseSettings())),
+    static function (Request $request, array $result): void {
+        if ($result['failed'] !== null) {
+            error_log('[db] the migration ' . $result['failed']['name'] . ' failed: ' . $result['error']);
+        }
+    },
+)->add(requireTokenRole(ROLE_ADMIN));

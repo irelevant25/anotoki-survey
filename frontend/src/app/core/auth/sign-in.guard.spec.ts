@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { SiteStatus } from '@anotoki/lib/migrations';
 import { ToastService } from '../../ui/toast/toast.service';
 import { provideTestTranslations } from '../testing/test-translations';
 import { AuthService, BootStatus, SignInFailure } from './auth.service';
@@ -15,12 +16,15 @@ describe('signInGuard and takeSurveysGuard', () => {
   const failure = signal<SignInFailure | null>(null);
   const welcome = signal(false);
   const auth = { signedIn: () => signedIn(), visitorsWelcome: () => welcome(), status, signInFailure: failure, signIn: vi.fn(async (_returnTo?: string, _uiLocales?: string) => true) };
+  /** The site cannot run, and the server said why (the family's SiteStatus: not set up, an update waiting, out of reach). */
+  const blocked = signal(false);
 
   beforeEach(() => {
     signedIn.set(false);
     status.set('ready');
     failure.set(null);
     welcome.set(false);
+    blocked.set(false);
     auth.signIn.mockReset().mockResolvedValue(true);
     TestBed.configureTestingModule({
       providers: [
@@ -37,6 +41,7 @@ describe('signInGuard and takeSurveysGuard', () => {
         ]),
         provideTestTranslations({ 'signIn.storageUnavailable': 'Tento prehliadač nedovolil stránke zapamätať si prebiehajúce prihlásenie.' }, { language: 'sk' }),
         { provide: AuthService, useValue: auth },
+        { provide: SiteStatus, useValue: { blocked } },
       ],
     });
   });
@@ -107,10 +112,26 @@ describe('signInGuard and takeSurveysGuard', () => {
     expect(auth.signIn).toHaveBeenCalledTimes(1);
   });
 
-  it('sends nobody anywhere while the site cannot run - the boot pages are drawn then', async () => {
+  it('sends nobody anywhere while the site cannot run and nobody said why - the load error card is drawn then', async () => {
     for (const state of ['loading', 'not-set-up', 'error'] as const) {
       status.set(state);
       expect(await go('/genshin-6-1')).toBe(false);
+    }
+    expect(auth.signIn).not.toHaveBeenCalled();
+  });
+
+  it('lets every page through and sends nobody to the IAM while the site cannot run and the server said why: the family’s page stands instead, with its own Sign in', async () => {
+    blocked.set(true);
+    // A database update waiting: the sign-in's settings answer (ready), nobody is signed in.
+    for (const url of ['/genshin-6-1?x=1', '/admin', '/preview/survey-1']) {
+      expect(await go(url)).toBe(true);
+      expect(TestBed.inject(Router).url).toBe(url);
+    }
+    // Not set up, or out of reach: the same - the address stays the one asked for, for the page to reload once the site runs.
+    for (const state of ['not-set-up', 'error'] as const) {
+      status.set(state);
+      expect(await go(`/genshin-${state}`)).toBe(true);
+      expect(TestBed.inject(Router).url).toBe(`/genshin-${state}`);
     }
     expect(auth.signIn).not.toHaveBeenCalled();
   });

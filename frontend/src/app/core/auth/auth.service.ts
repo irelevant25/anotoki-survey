@@ -21,11 +21,12 @@ import { SavesInFlight } from './saves-in-flight';
  *
  * The IAM's address and this site's client id come from the backend
  * (GET /api/auth/config), which says 503 not_set_up until setup.php has run -
- * and, while the database waits for a migration, answers with `update: true`:
- * an administrator must still be able to sign in and apply it. It also relays
- * the IAM's "Sign-in required" switch for this site (`loginRequired`), so the
- * browser never asks the IAM for it, and how many days the site keeps a
- * visitor unseen (`visitorDays`).
+ * and answers while a database update waits, when nothing else of the site
+ * does: the site's ADMIN must still be able to sign in and apply it (where the
+ * site stands is the anotoki family's SiteStatus's to say, not this
+ * service's). It also relays the IAM's "Sign-in required" switch for this site
+ * (`loginRequired`), so the browser never asks the IAM for it, and how many
+ * days the site keeps a visitor unseen (`visitorDays`).
  *
  * With the switch off, somebody who is not signed in takes surveys as a
  * visitor (`visiting`, `taker`): core/auth/visitor-key.ts keeps the key the
@@ -56,9 +57,6 @@ export interface SignInFailure {
 /** The IAM's redirect URI: a route of this app, registered in the IAM for each origin. */
 export const CALLBACK_PATH = '/auth/callback';
 
-/** The admin panel's Migrations page: the one page of the site an ADMIN reaches while the database waits for a migration. */
-export const MIGRATIONS_PATH = '/admin/migrations';
-
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly _http = inject(HttpClient);
@@ -69,17 +67,6 @@ export class AuthService {
   private readonly _authenticated = signal(false);
 
   readonly status = signal<BootStatus>('loading');
-  /** What the backend said is missing, when it says it (to the computer it runs on only). */
-  readonly notSetUpDetail = signal<string | null>(null);
-  /**
-   * The site is set up, but its database waits for a migration (the sign-in's
-   * settings said `update: true`). Signing in works - the status is `ready` -
-   * but nothing else of the site does: the app draws its "not set up yet"
-   * page, and for an ADMIN the admin panel's Migrations page, which applies it
-   * (`onlyMigrations`). False again once it is applied (databaseUpdated()).
-   */
-  private readonly _needsUpdate = signal(false);
-  readonly needsUpdate = this._needsUpdate.asReadonly();
   /**
    * The IAM's "Sign-in required" switch for this site, as the backend relays
    * it: true unless it says false - a backend from before the switch, or one
@@ -112,13 +99,6 @@ export class AuthService {
   readonly isAdmin = computed(() => this.roles().includes('ADMIN'));
   /** May use the admin area: the surveys, the editor, the results. */
   readonly isStaff = computed(() => this.isAdmin() || this.roles().includes('EDITOR'));
-  /**
-   * The database waits for a migration and the person is an ADMIN: the one
-   * page of the site that works is the admin panel's Migrations page, and the
-   * "not set up yet" page links to it. Only hides what the server refuses
-   * everybody else anyway.
-   */
-  readonly onlyMigrations = computed(() => this._needsUpdate() && this.isAdmin());
   /**
    * How the signed-in person's anotoki account says every anotoki site should
    * look: the theme, the date order and the clock - followed everywhere on
@@ -156,12 +136,12 @@ export class AuthService {
    */
   async init(): Promise<void> {
     this.status.set('loading');
-    let config: { issuer?: string; clientId?: string; loginRequired?: boolean; visitorDays?: number; update?: boolean };
+    let config: { issuer?: string; clientId?: string; loginRequired?: boolean; visitorDays?: number };
     try {
       config = await firstValueFrom(this._http.get<typeof config>('/api/auth/config'));
     } catch (error) {
+      // Not set up: the family's gate says so (siteStatusInterceptor heard the same answer).
       if (error instanceof HttpErrorResponse && error.status === 503 && error.error?.code === 'not_set_up') {
-        this.notSetUpDetail.set(typeof error.error?.detail === 'string' ? error.error.detail : null);
         this.status.set('not-set-up');
         return;
       }
@@ -201,7 +181,6 @@ export class AuthService {
       console.error('The sign-in could not be restored.', error);
     }
     this._sync();
-    this._needsUpdate.set(config.update === true);
     this._loginRequired.set(config.loginRequired !== false);
     const days = config.visitorDays;
     this._visitorDays.set(typeof days === 'number' && Number.isInteger(days) && days >= 1 ? days : null);
@@ -216,11 +195,6 @@ export class AuthService {
    */
   noteLoginRequired(): void {
     this._loginRequired.set(true);
-  }
-
-  /** The Migrations page applied every pending migration: the site runs where it stands, with no reload. */
-  databaseUpdated(): void {
-    this._needsUpdate.set(false);
   }
 
   /**

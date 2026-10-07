@@ -244,6 +244,20 @@ describe('authInterceptor: who a request is', () => {
     request.flush({});
   });
 
+  it('leaves the site’s status alone - no token, no key, no waiting - and sends it when the token is gone: it must never fail unsent', () => {
+    held = KEY;
+    auth.accessToken.mockResolvedValue(null);
+    for (const signedIn of [true, false]) {
+      auth.signedIn.mockReturnValue(signedIn);
+      http.get('/api/site-status').subscribe();
+      // At once - not after a token was asked for, which would have come back null and failed the request unsent.
+      const request = server.expectOne('/api/site-status');
+      expect([request.request.headers.has('Authorization'), request.request.headers.has('X-Visitor-Key')]).toEqual([false, false]);
+      request.flush({ state: 'ready', installed: true });
+    }
+    expect(auth.accessToken).not.toHaveBeenCalled();
+  });
+
   it('leaves the sign-in settings and the pictures alone, as before', () => {
     http.get('/api/auth/config').subscribe();
     http.get('/api/images/12.webp').subscribe();

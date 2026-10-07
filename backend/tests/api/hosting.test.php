@@ -69,9 +69,10 @@ test('the build: exactly what to upload - no settings, no tools, no composer fil
     $top = array_values(array_unique(array_map(static fn(string $file): string => explode('/', $file)[0], $files)));
     sort($top);
     assert_same(['.htaccess', '.survey-build', 'api', 'config', 'index.html', 'main-TEST.js', 'media', 'migrations', 'setup.php', 'storage', 'styles-TEST.css', 'theme-boot.js', 'vendor'], $top);
-    foreach (['api/index.php', 'api/.htaccess', 'api/bootstrap.php', 'api/anotoki_iam.php', 'api/translations.php', 'api/routes/admin.php', 'api/meddleware/setup.php',
+    foreach (['api/index.php', 'api/.htaccess', 'api/bootstrap.php', 'api/anotoki_iam.php', 'api/translations.php', 'api/routes/admin.php', 'api/migrations.php',
         'config/config.php', 'config/.htaccess', 'migrations/survey/001_initial_schema.sql', 'migrations/.htaccess', 'vendor/autoload.php',
-        'vendor/slim/slim/Slim/App.php', 'vendor/.htaccess', 'storage/.htaccess', 'media/font-TEST.woff2'] as $file) {
+        'vendor/slim/slim/Slim/App.php', 'vendor/anotoki/lib/php/src/Migrations/Migrator.php', 'vendor/anotoki/lib/php/src/Migrations/Http/SiteGate.php',
+        'vendor/.htaccess', 'storage/.htaccess', 'media/font-TEST.woff2'] as $file) {
         assert_true(in_array($file, $files, true), "$file is in the upload");
     }
     foreach ($files as $file) {
@@ -111,8 +112,9 @@ test('the setup page on a real host: the token, the tests, the database - and th
 
     $notYet = site($site, 'GET', '/api/auth/config');
     assert_same(503, $notYet['status'], 'not set up: the API says so');
-    assert_same(['not_set_up', '/setup.php'], [$notYet['body']['code'], $notYet['body']['setup']]);
+    assert_same(['not_set_up', false, '/setup.php'], [$notYet['body']['code'], $notYet['body']['installed'], $notYet['body']['setup']], 'never installed: the way to the setup page');
     assert_false(isset($notYet['body']['detail']), 'and tells a stranger nothing more');
+    assert_same(['state' => 'not_set_up', 'installed' => false], site($site, 'GET', '/api/site-status')['body']);
 
     $first = site($site, 'GET', '/setup.php');
     assert_match('/<h1>Install the survey site<\/h1>/', $first['raw']);
@@ -147,6 +149,16 @@ test('the setup page on a real host: the token, the tests, the database - and th
     assert_same(401, site($site, 'GET', '/api/surveys')['status'], 'nothing of a survey without a sign-in');
     assert_same(401, site($site, 'GET', '/api/admin/surveys')['status']);
     assert_same(['ok' => true], site($site, 'GET', '/api/health')['body'], 'a stranger learns only that it is up');
+    assert_same(['state' => 'ready', 'installed' => true], site($site, 'GET', '/api/site-status')['body']);
+
+    // Its settings lost after the install (a file deleted on the host): not set up - and never the setup page
+    // again, which has deleted itself; the site is "not available right now" until the file is back.
+    rename("$dist/config/iam.local.php", "$dist/config/iam.local.php.away");
+    $lost = site($site, 'GET', '/api/auth/config');
+    assert_same([503, ['code' => 'not_set_up', 'installed' => true, 'message' => 'The site is not available right now. Try again in a few minutes.']], [$lost['status'], $lost['body']]);
+    assert_same(['state' => 'not_set_up', 'installed' => true], site($site, 'GET', '/api/site-status')['body']);
+    rename("$dist/config/iam.local.php.away", "$dist/config/iam.local.php");
+    assert_same(200, site($site, 'GET', '/api/auth/config')['status'], 'back: the site runs');
 
     // uploaded again by mistake: refuses, and deletes itself again
     copy(TEST_BACKEND . '/setup.php', "$dist/setup.php");

@@ -10,11 +10,16 @@ and the results (the admin panel, in English). How it works and why is in
 
 ```
 src/
-  main.ts, index.html, styles.scss   the start, the page, the colour tokens (light and dark)
+  main.ts, index.html, styles.scss   the start, the page, the colour tokens (light and dark - and mapped
+                                     onto the family's library's --anotoki-* properties)
   app/
     app.config.ts, app.routes.ts     providers, the boot (core/boot.ts) and the routes
-    boot/                            the pages drawn instead of the site: not set up (with the way to the
-                                     Migrations page for an ADMIN while only a migration waits), cannot be reached
+    app.component.*                  the pages behind the anotoki family's gate (<anotoki-site-gate>): while
+                                     the site cannot run - not set up, a database update waiting, out of
+                                     reach - the family's page stands instead, and the Migrations page for
+                                     the site's ADMIN while an update waits
+    boot/                            the card drawn when the server could not be reached as the site started
+                                     (its status answered, the sign-in's settings not)
     core/
       auth/                          AuthService (the IAM's SDK 1.2.0, vendored: who is signed in, and the
                                      account's preferences - theme, date order, clock - and saving them);
@@ -23,6 +28,9 @@ src/
                                      authInterceptor (the token, or the visitor key); VisitorKey (the key,
                                      the move at sign-in); SavesInFlight; the toast when a sign-in fails
       api/                           ApiService: one method a route of ../backend
+      migrations.ts                  the anotoki family's library (@anotoki/lib/migrations - the site's
+                                     status, its gate, the Migrations page) wired to this site's sign-in,
+                                     words and dates: provideSiteMigrations(), MIGRATIONS_PATH
       i18n/                          the site's words: TranslationService (the account's language, the
                                      chooser's save to it), the translate and localDate pipes
       theme/                         ThemeService: the account's theme signed in, the device's signed out
@@ -35,7 +43,8 @@ src/
     layouts/                         top-bar (the anotoki family's bar), participant, admin
     pages/participant/               the open surveys, a survey to take, the visitor notice
     pages/admin/                     the surveys, the editor, the results (a visitor: "Visitor N",
-                                     "Not signed in"), Translations, Languages, Migrations (ADMIN)
+                                     "Not signed in"), Translations, Languages; Migrations (ADMIN) is the
+                                     family's page (<anotoki-migrations-page>, admin.routes.ts)
     ui/                              the IAM's UI kit, the rich text editor, the language chooser
 public/                              the mark, the favicon, theme-boot.js (the theme shown last, before first paint)
 proxy.conf.json                      /api and /setup.php to the backend on :8500

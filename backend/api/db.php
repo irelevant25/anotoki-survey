@@ -135,3 +135,30 @@ function dbIsUniqueViolation(PDOException $e, string $index): bool
 {
     return $e->getCode() === '23505' && str_contains($e->getMessage(), $index);
 }
+
+/**
+ * Makes the database when it is not there, and answers whether it had to -
+ * before its migrations run (setup.php's Save, `php migration.php`, the
+ * tests' databases).
+ *
+ * On most shared hosting the application's database user cannot CREATE
+ * DATABASE at all; there it is made in the control panel first and this finds
+ * it already there.
+ */
+function ensureDatabase(array $settings, string $name): bool
+{
+    if (!preg_match('/^[A-Za-z0-9_]{1,63}$/D', $name)) {
+        throw new RuntimeException("Database names here use letters, digits and _ only: $name");
+    }
+
+    if (dbExists($settings, $name)) {
+        return false;
+    }
+
+    // The name is the installation's own setting, never anything a request
+    // reaches, and CREATE DATABASE takes no parameters: it is checked above
+    // and quoted as an identifier.
+    dbServer($settings)->exec('CREATE DATABASE "' . $name . '" ENCODING \'UTF8\' TEMPLATE template0');
+
+    return true;
+}

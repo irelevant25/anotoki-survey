@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Anotoki\Lib\Migrations\Http\MigrationsRoutes;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -10,22 +11,27 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *
  *   GET /api/health               is the API up - and, asked from this computer,
  *                                 which database it uses and what it still needs
+ *   GET /api/site-status          where the site stands: {state, installed} - state
+ *                                 ready | not_set_up | update_pending | unavailable
+ *                                 (the anotoki family's, api/migrations.php); answered
+ *                                 in every state, and it says nothing else
  *   GET /api/auth/config          how the browser signs in: {issuer, clientId,
  *                                 loginRequired, visitorDays} - the IAM's "Sign-in
  *                                 required", true unless it said otherwise; visitorDays
  *                                 is keep_days, the days the visitor notice tells people
- *                                 their browser is remembered - and update: true
- *                                 while a migration waits
+ *                                 their browser is remembered
  *   GET /api/images/{id}.{ext}    a survey's picture (see api/images.php)
  *   GET /api/translations/{code}  the site's own words in a language, with the
  *                                 languages on offer (see api/translations.php);
  *                                 "sk-sk" is answered by "sk" when only that is offered
  *
- * The health, the sign-in settings and the strings are answered while the
- * database waits for a migration as well (meddleware/setup.php); a picture,
- * like everything else of the site, is 503 not_set_up then.
+ * Without the settings everything but the status is 503 not_set_up (the site
+ * gate). The health, the sign-in settings and the strings are answered while a
+ * migration waits (SITE_OPEN_WHILE_UPDATING); a picture, like everything else
+ * of the site, is 503 update_pending then.
  *
  * @var \Slim\App $app
+ * @var \Anotoki\Lib\Migrations\Http\SiteState $siteState
  */
 
 $app->get('/api/health', function (Request $request, Response $response): Response {
@@ -36,21 +42,23 @@ $app->get('/api/health', function (Request $request, Response $response): Respon
         $health['problem'] = $problem;
         if ($problem === null) {
             $health['database'] = dbName();
-            $health['pending'] = pendingMigrationsReadOnly(db());
+            $health['pending'] = array_column(surveyMigrator(db())->status()['pending'], 'name');
         }
     }
 
     return respondJson($response, $health, $problem === null ? 200 : 503);
 });
 
-// Answered while the database waits for a migration too (the setup gate lets
-// it through): an administrator must be able to sign in to apply it. It then
-// says so - `update: true` - and the site draws its "not set up yet" page,
-// with a link to the Migrations page for an ADMIN. `loginRequired` relays the
-// IAM's "Sign-in required" switch (authLoginRequired()), so the browser never
-// asks the IAM for it.
+// What the pages ask before anything else: the site gate lets it through in
+// every state, and the frontend draws the site - or the page that says why not.
+MigrationsRoutes::status($app, $siteState);
+
+// Answered while a migration waits too (SITE_OPEN_WHILE_UPDATING): an
+// administrator must be able to sign in to apply it. `loginRequired` relays
+// the IAM's "Sign-in required" switch (authLoginRequired()), so the browser
+// never asks the IAM for it.
 $app->get('/api/auth/config', function (Request $request, Response $response): Response {
-    return respondJson($response, authPublicConfig() + ($request->getAttribute('databaseBehind') === true ? ['update' => true] : []));
+    return respondJson($response, authPublicConfig());
 });
 
 $app->get('/api/images/{file}', function (Request $request, Response $response, array $args): Response {

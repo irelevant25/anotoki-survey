@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { CanActivateChildFn, CanActivateFn, Router } from '@angular/router';
+import { SiteStatus } from '@anotoki/lib/migrations';
 import { ToastService } from '../../ui/toast/toast.service';
 import { TranslationService } from '../i18n/translation.service';
 import { AuthService } from './auth.service';
@@ -21,9 +22,17 @@ import { sayWhySignInFailed } from './sign-in-failure';
  * instead of the page, and the toast says what went wrong. A sign-in that
  * cannot even start (the browser refuses the site's storage) is the same: the
  * page goes through to its card, with a toast saying why - not a blank page,
- * the first navigation cancelled and nothing said. While the site cannot run
- * (not set up, out of reach) it lets nothing through and sends nobody
- * anywhere: the boot pages are drawn then.
+ * the first navigation cancelled and nothing said.
+ *
+ * While the site cannot run and the server said why - not set up, a database
+ * update waiting, the database out of reach (SiteStatus.blocked()) - it lets
+ * every page through and sends nobody anywhere: the family's page stands
+ * instead of the pages (<anotoki-site-gate>; none of them is drawn), with a
+ * quiet Sign in of its own while an update waits - for the site's ADMIN, who
+ * applies it. So the address stays the one asked for, for that sign-in to
+ * come back to, and the page for its reload once the site runs. Otherwise,
+ * while the site cannot run (out of reach as it started) it lets nothing
+ * through: the load error card is drawn then.
  *
  * A guard on activation, not on matching: refused, the navigation stops where
  * it is, rather than going on to the next route that would match - a survey
@@ -32,6 +41,9 @@ import { sayWhySignInFailed } from './sign-in-failure';
 export const signInGuard: CanActivateFn & CanActivateChildFn = () => {
   const auth = inject(AuthService);
   if (auth.signedIn() || auth.signInFailure()) {
+    return true;
+  }
+  if (inject(SiteStatus).blocked()) {
     return true;
   }
   if (auth.status() !== 'ready') {

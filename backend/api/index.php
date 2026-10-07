@@ -10,8 +10,8 @@ declare(strict_types=1);
  * Under PHP's built-in server router.php does the same. Slim routes on the
  * original path, so every route starts with /api/.
  *
- *   routes/public.php    GET /api/health, GET /api/auth/config, GET /api/images/{id}.{ext},
- *                        GET /api/translations/{code}
+ *   routes/public.php    GET /api/health, GET /api/site-status, GET /api/auth/config,
+ *                        GET /api/images/{id}.{ext}, GET /api/translations/{code}
  *   routes/surveys.php   the surveys for the people taking them, and their answers - signed
  *                        in, or as a visitor while the IAM says sign-in is not required
  *   routes/visitor.php   POST /api/visitor/move: at sign-in, a visitor's answers into the account
@@ -19,18 +19,20 @@ declare(strict_types=1);
  *                        and the site's own strings (EDITOR, ADMIN); the migrations (ADMIN)
  *
  * The middleware, outermost first: security headers -> the error handler ->
- * the setup gate (503 not_set_up without config/database.local.php and
- * iam.local.php, or with a migration not applied - then with update: true, and
- * the sign-in's settings, the strings and the migrations routes still
- * answered) -> routing -> on each route, who is asking. After the answer, what
- * a request left for then (afterAnswerRun(): the visitors' clean-up).
+ * the site gate (the anotoki family's SiteGate, api/migrations.php: 503
+ * not_set_up without config/database.local.php and iam.local.php - offering
+ * the setup page only while the site was never installed; 503 update_pending
+ * while a migration waits, but for the paths that must answer then:
+ * SITE_OPEN_WHILE_UPDATING) -> routing -> on each route, who is asking. After
+ * the answer, what a request left for then (afterAnswerRun(): the visitors'
+ * clean-up).
  */
 
 require_once __DIR__ . '/bootstrap.php';
 require_once __DIR__ . '/meddleware/security.php';
-require_once __DIR__ . '/meddleware/setup.php';
 require_once __DIR__ . '/meddleware/auth.php';
 
+use Anotoki\Lib\Migrations\Http\SiteGate;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Exception\HttpMethodNotAllowedException;
@@ -51,6 +53,8 @@ function buildSurveyApp(): \Slim\App
     }
 
     $app = AppFactory::create();
+    // Where the site stands: the gate below asks it on every request, and GET /api/site-status (routes/public.php) says it.
+    $siteState = surveySiteState();
 
     require __DIR__ . '/routes/public.php';
     require __DIR__ . '/routes/surveys.php';
@@ -58,7 +62,7 @@ function buildSurveyApp(): \Slim\App
     require __DIR__ . '/routes/admin.php';
 
     // Added in this order, so they run the other way round.
-    $app->add(setupGate());
+    $app->add(new SiteGate($siteState, $app->getResponseFactory(), SITE_OPEN_WHILE_UPDATING));
 
     $errorMiddleware = $app->addErrorMiddleware(false, false, false);
     $errorMiddleware->setDefaultErrorHandler(function (Request $request, Throwable $exception) use ($app): Response {
@@ -73,8 +77,10 @@ function buildSurveyApp(): \Slim\App
         if ($exception instanceof HttpMethodNotAllowedException) {
             return respondError($response, 405, 'method_not_allowed', 'Method not allowed', ['Allow' => implode(', ', $exception->getAllowedMethods())]);
         }
+        // The settings found wanting past the gate, which answers that itself before any route - and offers
+        // the setup page only to a site never installed. This one never does.
         if ($exception instanceof NotSetUp) {
-            return respondError($response, 503, 'not_set_up', notSetUpMessage(), [], ['setup' => '/setup.php']);
+            return respondError($response, 503, 'not_set_up', 'The site is not available right now. Try again in a few minutes.');
         }
         if ($exception instanceof PDOException) {
             error_log('[db] ' . $exception->getMessage());

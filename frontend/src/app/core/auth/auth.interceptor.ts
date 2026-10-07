@@ -10,9 +10,11 @@ import { VisitorKey } from './visitor-key';
  * Who a request to the site's own API is - decided when it was ISSUED
  * (`ISSUED_AS`, which ApiService sets from the app's state as it makes the
  * request; a request without it is decided here, as it is handed over), never
- * from whether a token happens to be there when it leaves. The sign-in
- * settings, the pictures and the site's words (the same for everybody, and
- * wanted before the first page - not after a token refresh) are nobody's.
+ * from whether a token happens to be there when it leaves. The site's status,
+ * the sign-in settings, the pictures and the site's words (the same for
+ * everybody, and wanted before the first page - not after a token refresh)
+ * are nobody's: a status asked as a person whose token is gone would fail here
+ * unsent, and the page would say the site is out of reach.
  *
  * - **A person's**: the IAM access token - refreshed before it runs out, and
  *   once more after a 401 to a token that looked valid - never the visitor
@@ -42,7 +44,7 @@ import { VisitorKey } from './visitor-key';
  * (SavesInFlight): a sign-in waits for them before it leaves the page.
  */
 export const authInterceptor: HttpInterceptorFn = (request, next) => {
-  const forAnybody = request.url === '/api/auth/config' || request.url.startsWith('/api/images/') || request.url.startsWith('/api/translations/');
+  const forAnybody = request.url === '/api/site-status' || request.url === '/api/auth/config' || request.url.startsWith('/api/images/') || request.url.startsWith('/api/translations/');
   if (!request.url.startsWith('/api/') || forAnybody) {
     return next(request);
   }

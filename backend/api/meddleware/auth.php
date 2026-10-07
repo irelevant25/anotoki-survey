@@ -58,13 +58,41 @@ function requireRole(string ...$roles): callable
     return function (Request $request, RequestHandler $handler) use ($roles): Response {
         $user = signedInUser($request);
         if (!$user->has(...$roles)) {
-            throw new ApiError(403, 'forbidden', in_array(ROLE_EDITOR, $roles, true)
-                ? 'This is for the people who write the surveys. Ask the site\'s administrator for the editor role.'
-                : 'Only an administrator of the survey site may do this.');
+            throw roleRefused($roles);
         }
 
         return $handler->handle($request->withAttribute('user', $user));
     };
+}
+
+/**
+ * requireRole() judged from the token alone: the same 401 and 403, but
+ * nothing read from or written to the database - requireRole() records the
+ * visit in `users`. For the Migrations page's routes (routes/admin.php),
+ * which must work on a database a pending migration has yet to build, from
+ * nothing at all.
+ */
+function requireTokenRole(string ...$roles): callable
+{
+    return function (Request $request, RequestHandler $handler) use ($roles): Response {
+        $user = requestUser($request, false);
+        if ($user === null) {
+            throw signInRequired();
+        }
+        if (!$user->has(...$roles)) {
+            throw roleRefused($roles);
+        }
+
+        return $handler->handle($request->withAttribute('user', $user));
+    };
+}
+
+/** The 403 of somebody signed in without one of $roles. */
+function roleRefused(array $roles): ApiError
+{
+    return new ApiError(403, 'forbidden', in_array(ROLE_EDITOR, $roles, true)
+        ? 'This is for the people who write the surveys. Ask the site\'s administrator for the editor role.'
+        : 'Only an administrator of the survey site may do this.');
 }
 
 /**

@@ -19,15 +19,40 @@ Each folder says what is in it and its own commands:
 is only needed to change PHP dependencies - and for `composer start`.
 `frontend/.npmrc` sets `legacy-peer-deps`.
 
+### The anotoki family's library
+
+The database's migrations - the engine, the gate in front of the API, the page
+drawn while the site cannot run and the admin panel's Migrations page - are
+the shared library **anotoki-lib** (`https://github.com/irelevant25/anotoki-lib`,
+its README), one version for both halves:
+
+| Half | Where it is declared | Installed into |
+| --- | --- | --- |
+| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.1"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.1.0/anotoki-lib-0.1.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+
+To update to a new release, both halves together (0.x: a minor version may
+break - read its CHANGELOG first):
+
+```bash
+cd backend && php composer.phar update anotoki/lib --prefer-dist   # the constraint in composer.json first, if the version needs it
+cd frontend && bun install && npm install                          # after the tarball's address in package.json
+```
+
+Then commit `backend/composer.json`, `composer.lock`, `vendor/` and
+`frontend/package.json`, `bun.lock`, `package-lock.json`, and run every test.
+Always from GitHub, never from a local copy of the library.
+
 ## First setup
 
 Everything that belongs to one installation - the database connection, the
 IAM's address and this site's client id there - lives in
 `backend/config/database.local.php` and `backend/config/iam.local.php`. They
 are gitignored and **required**: without them the API answers every request
-`503 {code: "not_set_up"}`, and the site shows "The survey site is not set up
-yet" with a link to the setup page. Nothing falls back to a committed default.
-The setup page writes them.
+`503 {code: "not_set_up"}`, and the site shows the family's page "This site is
+not set up yet" with a link to the setup page (on this computer always: the
+link goes only once the setup has finished on a real host). Nothing falls back
+to a committed default. The setup page writes them.
 
 ### 1. The setup page
 
@@ -75,9 +100,10 @@ scratch has no accounts yet when its migrations run, so there its own
 administrators are given the site's ADMIN that way too.
 
 Without the IAM nobody gets past the sign-in - every page of the site goes
-there first (only the "not set up" and "cannot be reached" pages draw
-without it; with "Sign-in required" off, the pages people take surveys on
-do too); the tests and the browser check (below) sign in through a
+there first (only the pages drawn while the site cannot run draw without it:
+the family's page - not set up, an update waiting, out of reach - and the
+"cannot be reached" card; with "Sign-in required" off, the pages people take
+surveys on do too); the tests and the browser check (below) sign in through a
 stand-in instead. The backend also asks the IAM whether the site requires
 sign-in (its "Sign-in required" switch, kept a minute in `storage/cache/`):
 an IAM that does not answer that yet means "required". The stand-in answers
@@ -150,9 +176,12 @@ php translations.php --import sk file     # and back in, checked as a save in th
 php tools/build.php [--out=DIR]           # the upload (see Building and deploying)
 ```
 
-The database is `migrations/survey/NNN_name.sql`, applied in order by the same
-engine as the other anotoki sites' (`api/migration_runner.php`). Never edit an
-applied migration; add the next number.
+The database is `migrations/survey/NNN_name.sql`, applied in order by the
+anotoki family's engine (anotoki-lib's `Migrator`, through
+`api/migrations.php`). Never edit an applied migration; add the next number.
+While one waits, the site is closed - every page shows the family's "The site
+is being updated" - but for its ADMIN, who signs in there and applies it on the
+Migrations page; `GET /api/site-status` says where the site stands.
 
 ### The site's words
 
@@ -169,8 +198,8 @@ people take surveys on is:
    Slovak on this site addresses the reader formally
    ([docs/decisions.md](docs/decisions.md), *Languages*);
 3. `php migration.php` for your own database - or, signed in as an ADMIN,
-   "Apply pending" on the admin panel's Migrations page (the site says it
-   needs an update until then, and links an ADMIN there). Writing the file is
+   "Apply pending" on the admin panel's Migrations page (until then the site
+   says it is being updated, and shows an ADMIN the way there). Writing the file is
    the moment the running site closes: write it whole, last. A key no
    migration has written yet shows on the page as
    itself - which is how a missing string is meant to look.
@@ -252,7 +281,9 @@ It also walks the states a happy path never draws: a save of strings that
 fails, a session ending over boxes typed and not saved (they are back after
 signing in again), signing out over them, a language added hidden, an open
 survey with a text not translated yet, an author saving over a translator's
-save, the site not set up or out of reach - with "Try again" - and visitors:
+save, a database behind the code (the family's page for everybody, the
+Migrations page for the ADMIN who signs in from it), the site not set up or
+out of reach - with "Try again" - and visitors:
 the stand-in's "Sign-in required" switched off, surveys taken without signing
 in (in a second browser too), "Visitor N" / "Not signed in" in the results,
 a sign-in that moves the answers and the draft into the account, and the
@@ -289,10 +320,11 @@ No settings file, no tests or tools, no command-line scripts (`migration.php`,
 5. Sign in on the site.
 
 **Later versions**: build and upload again (the settings stay). A
-version with a new migration closes the site ("not set up yet") until it is
-applied: sign in as an ADMIN, follow "Open Migrations" from that page, and
-press "Apply pending" (back the database up first) - it applies what is
-missing and keeps every survey and answer. The setup page still does the same:
+version with a new migration closes the site until it is applied - everybody
+reads "The site is being updated": sign in as an ADMIN from that page's quiet
+"Sign in", follow "Open Migrations", and press "Apply pending" (back the
+database up first) - it applies what is missing and keeps every survey and
+answer. The setup page still does the same:
 delete `storage/installed.lock` first, then build and upload, then open
 `/setup.php` (the upload carries it) with the same details. Opened while the
 lock is there, `setup.php` deletes itself - delete the lock and upload it
@@ -309,8 +341,9 @@ remove that line.
 
 | Symptom | Likely cause |
 | --- | --- |
-| "The survey site is not set up yet"; the API answers 503 `not_set_up` | The setup page has not run, a `config/*.local.php` is missing - or the database needs an update (`update: true`): `php migration.php`, the setup page, or - signed in as an ADMIN - the Migrations page the "not set up yet" page links to. |
-| "Another database update is running" | An Apply, the setup page or `php migration.php` is applying at this moment (one lock for the three): wait and try again. |
+| "This site is not set up yet"; the API answers 503 `not_set_up` | The setup page has not run, or a `config/*.local.php` is missing (`php migration.php` says which). |
+| "The site is being updated"; the API answers 503 `update_pending` | The database needs an update - a migration not applied (a new file, a pull): `php migration.php`, the setup page, or - signed in as an ADMIN, from that page's "Sign in" - the Migrations page it links to. |
+| "Another database update is running" | An Apply, the setup page or `php migration.php` is applying at this moment (one lock for them all): wait and try again. |
 | The setup page asks for a token on this computer | It was not asked as `localhost` / `127.0.0.1` straight from PHP's built-in server: a LAN address, another name, or a proxy that adds forwarding headers makes it a real host's install. |
 | "The survey site cannot be reached" | The backend on :8500 is not running, or was started without `router.php`. |
 | Signing in stops at the IAM ("This site is not registered", "We cannot send you back"), or comes back saying it did not work | The IAM does not know this site or this address: use `http://localhost:4700`, which its migration 005 registers for `survey`. On an IAM database from before 005, `php migration.php` there (or its setup page, saved again) adds the site; `php clients.php --dev` there only puts back the development addresses of a site the database already has. |

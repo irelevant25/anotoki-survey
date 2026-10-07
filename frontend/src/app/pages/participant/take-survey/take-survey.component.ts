@@ -512,6 +512,11 @@ export class TakeSurveyComponent {
       // The page's own words, in the reader's language - never the server's
       // sentence. A toast is a finished sentence when it is raised.
       const text = sendFailureText(this._i18n, error, (questionId) => pages.flatMap((page) => page.questions).find((item) => item.question.id === questionId)?.number ?? null, taker.visitor);
+      if (reason === 'siteClosed') {
+        // The site closed under the person (an update began): the family's page has taken this one's place and says
+        // so calmly - a toast here would be an error drawn over it. The answers stay in the draft, offered again after.
+        return;
+      }
       if (reason === 'already') {
         clearDraft(survey.id, taker.id);
         this._toast.info(text);

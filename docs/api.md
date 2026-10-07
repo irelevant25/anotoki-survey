@@ -16,19 +16,32 @@ required; the one other route that reads it, `POST /api/visitor/move`, needs a
 person's token as well and only hands the key in. The frontend's
 side is `frontend/src/app/core/api/api.service.ts`.
 
-Everything answers 503 `not_set_up` (with `setup: "/setup.php"`) while the
-settings are missing - `/api/health` aside. While a migration is pending the
-same, with `update: true` - but for what an administrator needs to apply it:
-`/api/health`, `GET /api/auth/config` (saying `update: true`), the strings
-(`GET /api/translations/{code}`) and the two migrations routes (ADMIN, below)
-answer as ever (`api/meddleware/setup.php`, `SETUP_GATE_OPEN_WHILE_BEHIND`).
+### While the site cannot run
+
+The anotoki family's site gate (the library anotoki-lib, `Anotoki\Lib\Migrations\Http\SiteGate`;
+`api/migrations.php`) stands in front of every route and decides, for each
+request, where the site stands - the same answers on every anotoki site, in
+the library's shape (`{code, message, ...}`, not this API's `error`):
+
+| State | When | Every address answers |
+| --- | --- | --- |
+| `not_set_up` | `config/database.local.php` or `iam.local.php` missing or incomplete | 503 `{code: "not_set_up", installed, message}` - with `setup: "/setup.php"` only while the site was never installed (`storage/installed.lock`, which `setup.php` writes when it finishes on a real host) |
+| `update_pending` | a migration file waits to be applied | 503 `{code: "update_pending", message: "The site is being updated. Try again in a few minutes."}` and `Retry-After: 60` - but `GET /api/auth/config`, `GET /api/translations/{code}`, `GET /api/health` and the Migrations page's three routes (`/api/admin/migrations`, `/file` and `/apply`, ADMIN, below) answer as ever (`SITE_OPEN_WHILE_UPDATING`). Those addresses exactly, read as the routes read them (unescaped, dot segments as written): any other under them is closed too |
+| `unavailable` | the settings are there, the database cannot be reached | the route's own answer (503 `database_unavailable` where it needs the database) |
+| `ready` | otherwise | the route's own answer |
+
+`GET /api/site-status` answers in every state. Every 503 of the gate carries
+`Cache-Control: no-store`. The frontend's side is the library's too
+(`@anotoki/lib/migrations`: `SiteStatus`, `siteStatusInterceptor`,
+`<anotoki-site-gate>`; `frontend/src/app/core/migrations.ts`).
 
 ## Anybody
 
 | Route | Answers |
 | --- | --- |
-| `GET /api/health` | `{ok}` - and, asked from this computer, `problem`, `database`, `pending` (migrations); 503 when not set up |
-| `GET /api/auth/config` | `{issuer, clientId, loginRequired, visitorDays}`: how the browser signs in, and whether it must - `loginRequired` is the IAM's "Sign-in required" switch for this site (below); `visitorDays`, how many days a visitor's browser is remembered after its last visit (`keep_days`, `config/visitors.local.php`) - with `update: true` while a migration is pending (the site then draws "not set up yet", and a link to the Migrations page for an ADMIN) |
+| `GET /api/health` | `{ok}` - and, asked from this computer, `problem`, `database`, `pending` (the migration files not applied). While the settings are missing the gate answers it (503 `not_set_up`, above), so `ok` is true and `problem` null whenever this route itself answers |
+| `GET /api/site-status` | `{state, installed}`: where the site stands - `ready`, `not_set_up`, `update_pending` or `unavailable` - and whether its installer finished on a real host. Answered in every state and to anybody - nothing it carries is read (a token, good or not, a visitor's key), whatever the IAM says of signing in: the pages ask it before anybody can sign in. It says nothing else |
+| `GET /api/auth/config` | `{issuer, clientId, loginRequired, visitorDays}`: how the browser signs in, and whether it must - `loginRequired` is the IAM's "Sign-in required" switch for this site (below); `visitorDays`, how many days a visitor's browser is remembered after its last visit (`keep_days`, `config/visitors.local.php`). Answered while a migration is pending too: the site's ADMIN signs in to apply it |
 | `GET /api/images/{id}.{ext}` | a picture: its bytes, cached for a year; `If-None-Match` → 304; 404 when there is none |
 | `GET /api/translations/{code}` | the site's own words in a language: `{language, languages, values, english?}`; `If-None-Match` → 304; 404 `not_found` for a code that is not one |
 
@@ -346,19 +359,25 @@ by its own bytes - SVG never), 413 `too_large` (over 10 MB), 422 `image_size`
 ### The database: migrations
 
 ADMIN alone (an EDITOR and somebody taking surveys: 403 `forbidden`; nobody:
-401) - the admin panel's Migrations page, the IAM's shape
-(`api/database_update.php`). Both answer while a migration is pending, when the
-rest of the site is 503; neither while the settings are missing (there is no
-database to update then: `setup.php`).
+401 `sign_in_required`; a token that does not check out: 401
+`invalid_token`) - the admin panel's Migrations page: the anotoki family's
+routes (`Anotoki\Lib\Migrations\Http\MigrationsRoutes::admin`,
+`routes/admin.php`), their ADMIN judged from the token alone, so they work on a
+database a pending migration has yet to build - from nothing at all. They
+answer while a migration is pending, when the rest of the site is 503; not
+while the settings are missing (there is no database to update then:
+`setup.php`). The set is the site's one, `survey`. Bodies in the library's
+shape.
 
 | Route | Answers |
 | --- | --- |
-| `GET /api/admin/migrations` | `{applied: [{name, applied_at}], pending: [{name}]}` - applied in the order they ran (`applied_at` ISO 8601, UTC), pending in the order they will run. Writes nothing |
-| `POST /api/admin/migrations/apply` | `{applied: [file], failed: file \| null, error: string \| null}` - every pending file in order, each in its own transaction, stopping at the first that fails: that one is rolled back whole and named, and `error` is the database's whole error (`statement n of m: SQLSTATE[...]: ...` and the statement's first lines), as the IAM's page shows it - it is logged too (`[db] the migration ... failed`). A failure is a 200 with `failed` set; `{applied: [], failed: null, error: null}`: nothing was pending |
+| `GET /api/admin/migrations` | `{sets: ["survey"], applied: [{set, name, applied_at}], pending: [{set, name, ready, blocked}], missing: [{set, name, applied_at}]}` - applied in the order they ran (`applied_at` ISO 8601, UTC), pending in the order they will run, missing: recorded as applied with no file here. Writes nothing |
+| `GET /api/admin/migrations/file?set=survey&name=NNN_x.sql` | `{set, name, sql}`: the file's text, for the page's View; 404 `{code: "not_found", message}` for anything that is not a file of the set (a path, another folder) |
+| `POST /api/admin/migrations/apply` | `{applied: [{set, name}], failed: {set, name} \| null, error: string \| null, note: null}` - every pending file in order, each in its own transaction, stopping at the first that fails: that one is rolled back whole and named, and `error` is the database's whole error (`statement n of m: SQLSTATE[...]: ...` and the statement's first lines) - it is logged too (`[db] the migration ... failed`). A failure is a 200 with `failed` set; `{applied: [], failed: null, ...}`: nothing was pending |
 
 | Status, code | When |
 | --- | --- |
-| 409 `busy` | another update is running - another Apply, `setup.php`'s Save or `php migration.php`: all three take one PostgreSQL advisory lock, and the second applies nothing |
+| 409 `busy` | `{code: "busy", message}`: another update is running - another Apply, `setup.php`'s Save or `php migration.php`: all take one PostgreSQL advisory lock, and the second applies nothing |
 
 ## Limits
 

@@ -12,14 +12,20 @@
 // work folder (settings, logs, screenshots) behind to look at; the screenshots
 // are always there while it runs.
 //
+// The anotoki sites' browser checks share 8590-8599: beside another site's
+// run, name free ports - SURVEY_CHECK_SITE_PORT, SURVEY_CHECK_IAM_PORT,
+// SURVEY_CHECK_CHROME_PORT.
+//
 // Chrome: $CHROME, or where Windows, macOS or Linux usually put it. Nothing
 // here touches your database, your settings, your browser or the real IAM.
 
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { closeBrowser } from './cdp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, '../../../..');
@@ -28,13 +34,33 @@ const frontend = join(repo, 'frontend');
 const args = new Set(process.argv.slice(2));
 const windows = process.platform === 'win32';
 
-const SITE = 8590;
-const IAM = 8597;
-const CHROME_PORT = 8591;
+/** A port: the environment's SURVEY_CHECK_<name>_PORT, or the usual one. */
+function portOf(name, usual) {
+  const given = process.env[`SURVEY_CHECK_${name}_PORT`];
+  const value = Number(given ?? usual);
+  if (!Number.isInteger(value) || value < 1024 || value > 65535) {
+    throw new Error(`SURVEY_CHECK_${name}_PORT is not a port: ${given}`);
+  }
+  return value;
+}
+const SITE = portOf('SITE', 8590);
+const IAM = portOf('IAM', 8597);
+const CHROME_PORT = portOf('CHROME', 8591);
 const DATABASE = 'survey_test_browser';
 
 const work = mkdtempSync(join(tmpdir(), 'survey-browser-'));
 const children = [];
+/** Whether the browser on CHROME_PORT is this run's own - the only one it may close. */
+let browserStarted = false;
+
+/** Whether nothing listens on `port` here yet. */
+function portFree(port) {
+  return new Promise((done) => {
+    const probe = createServer();
+    probe.once('error', () => done(false));
+    probe.listen(port, '127.0.0.1', () => probe.close(() => done(true)));
+  });
+}
 
 function run(command, commandArgs, options = {}) {
   // npm is npm.cmd on Windows: a batch file, which only a shell runs.
@@ -111,11 +137,19 @@ try {
   run(php, ['-r', 'require "api/anotoki_iam.php"; @mkdir($argv[1], 0777, true); file_put_contents($argv[1] . "/key.json", json_encode(anotoki_iam_test_keypair("browser-check")));', iamDir], { cwd: backend });
   run(php, ['tests/tools/testenv.php', join(work, 'config'), `--db=${DATABASE}`, `--issuer=http://127.0.0.1:${IAM}`], { cwd: backend });
 
+  // Free ports only: a server that cannot have its port fails quietly, and the check would then drive whatever
+  // answers there - another site's check, on a computer that runs several (they share 8590-8599).
+  for (const [name, port] of [['SITE', SITE], ['IAM', IAM], ['CHROME', CHROME_PORT]]) {
+    if (!(await portFree(port))) {
+      throw new Error(`Port ${port} is taken (another site's check?): name a free one with SURVEY_CHECK_${name}_PORT.`);
+    }
+  }
   start(php, ['-S', `127.0.0.1:${IAM}`, 'tests/tools/fake-iam.php'], { cwd: backend, env: { ...process.env, FAKE_IAM_DIR: iamDir, FAKE_IAM_ISSUER: `http://127.0.0.1:${IAM}` } });
   start(php, ['-S', `127.0.0.1:${SITE}`, 'router.php'], { cwd: backend, env: { ...process.env, SURVEY_TEST_CONFIG: join(work, 'config') } });
   // --lang: the browser's own language decides which language the site starts in, so it is said here and
   // never left to the computer the check runs on. English; the flow asks for Slovak where it wants it.
   start(findChrome(), ['--headless=new', '--lang=en-GB', `--remote-debugging-port=${CHROME_PORT}`, `--user-data-dir=${join(work, 'chrome')}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,860', 'about:blank']);
+  browserStarted = true;
 
   await waitForUrl(`http://127.0.0.1:${IAM}/.well-known/openid-configuration`, 'The stand-in IAM');
   await waitForUrl(`http://127.0.0.1:${SITE}/api/health`, 'The site');
@@ -134,6 +168,11 @@ try {
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
 } finally {
+  // The browser is asked to close itself first: Edge's launcher exits at once, handing the browser to a process
+  // of its own, which stopping the launcher's tree would leave running - its profile (the work folder) held.
+  if (browserStarted) {
+    await closeBrowser(CHROME_PORT);
+  }
   stopAll();
   try {
     execFileSync(process.env.PHP ?? 'php', ['tests/tools/testdb.php', 'drop', DATABASE], { cwd: backend, stdio: 'ignore' });

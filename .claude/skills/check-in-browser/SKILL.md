@@ -1,6 +1,6 @@
 ---
 name: check-in-browser
-description: Check the survey site in a real browser, signed in, end to end - every page signed in first (to the IAM and back, nothing of a survey before), the family's top bar at 360, 390 and 1280 px with its phone menu; the owner writes and opens a survey with a picture, somebody takes it once, the results and the roles; the pages people take surveys on in Slovak (the top bar on a phone, a survey step by step, no key where a word should be, the admin panel English all the same); and the translating itself (the Translations and Languages pages, a survey translated in the editor, read in Slovak, in English where a text is missing, and which language each person read it in); and what goes wrong (a save the server fails on, a session that ends over unsaved strings, a save over a translator's save, the site not set up or out of reach, a database behind the code and the admin panel's Migrations page that applies it); and visitors - the IAM's "Sign-in required" switched off: surveys taken without signing in, in two browsers, "Visitor N" / "Not signed in" in the admin panel, the answers and the draft moved into the account at a sign-in, and a visitor sent to sign in once the switch is on again - with headless Chrome and the stand-in IAM, on a throwaway database. Use after any change to the frontend, the API, sign-in, the site's strings or a survey's translations, before saying a change works, when a page renders blank or looks broken, or when the user asks to see or screenshot the site.
+description: Check the survey site in a real browser, signed in, end to end - every page signed in first (to the IAM and back, nothing of a survey before), the family's top bar at 360, 390 and 1280 px with its phone menu; the owner writes and opens a survey with a picture, somebody takes it once, the results and the roles; the pages people take surveys on in Slovak (the top bar on a phone, a survey step by step, no key where a word should be, the admin panel English all the same); and the translating itself (the Translations and Languages pages, a survey translated in the editor, read in Slovak, in English where a text is missing, and which language each person read it in); and what goes wrong (a save the server fails on, a session that ends over unsaved strings, a save over a translator's save, the site not set up - never installed, or installed once - or out of reach, a database behind the code: the anotoki family's page for everybody and the admin panel's Migrations page that applies it, reached by a Sign in from that page); and visitors - the IAM's "Sign-in required" switched off: surveys taken without signing in, in two browsers, "Visitor N" / "Not signed in" in the admin panel, the answers and the draft moved into the account at a sign-in, and a visitor sent to sign in once the switch is on again - with headless Chrome and the stand-in IAM, on a throwaway database. Use after any change to the frontend, the API, sign-in, the site's strings or a survey's translations, before saying a change works, when a page renders blank or looks broken, or when the user asks to see or screenshot the site.
 ---
 
 # Check the survey site in a browser
@@ -12,9 +12,9 @@ signed in as the kinds of people the site has:
 
 | Who | IAM user | Roles | Account's language | Checked |
 | --- | --- | --- | --- | --- |
-| owner | 1 | `MEMBER`, `ADMIN` | en | writes a survey with a picture, opens it, reads the answer, may delete it; the admin panel is English for them in a Slovak tab too; rewords a string of the site, hides Slovak and offers it again; writes a second survey and translates it into Slovak in the editor; reads which language each person read it in; is told where Save is when a save of the strings fails; loses the session over two unsaved boxes and finds them again; is asked before signing out over them; adds a language (hidden) and deletes it; saves the survey over a translator's save and keeps the translator's texts; previews the main tab from a Slovak tab; saves over a version that removed a question and keeps its Slovak; meets a conflict in which "Save mine over it" is not offered; moves a survey's address; sets a past last day; with the database behind, finds the way to the Migrations page, applies - stopped by a file that fails, with its error - and applies again |
-| pat | 101 | `MEMBER` | en | takes the survey once; the admin panel says it is not theirs; at the end, on a Slovak page, gets the second survey whole in English - one of its texts is not translated any more; later carries on in it, sends to the address it has just left, and sends again from the new one |
-| edith | 2 | `MEMBER`, `EDITOR` | en | sees the surveys and the answers, no Delete anywhere, no Migrations; with the database behind, "not set up yet" and no link |
+| owner | 1 | `MEMBER`, `ADMIN` | en | writes a survey with a picture, opens it, reads the answer, may delete it; the admin panel is English for them in a Slovak tab too; rewords a string of the site, hides Slovak and offers it again; writes a second survey and translates it into Slovak in the editor; reads which language each person read it in; is told where Save is when a save of the strings fails; loses the session over two unsaved boxes and finds them again; is asked before signing out over them; adds a language (hidden) and deletes it; saves the survey over a translator's save and keeps the translator's texts; previews the main tab from a Slovak tab; saves over a version that removed a question and keeps its Slovak; meets a conflict in which "Save mine over it" is not offered; moves a survey's address; sets a past last day; with the database behind, signs in from the family's page at the Migrations page's address and lands on it, reads "A database update is waiting" anywhere else, applies - stopped by a file that fails, with its error - and applies again |
+| pat | 101 | `MEMBER` | en | takes the survey once; the admin panel says it is not theirs; at the end, on a Slovak page, gets the second survey whole in English - one of its texts is not translated any more; later carries on in it, sends to the address it has just left, and sends again from the new one; with the database behind, signs in from the family's page and reads "being updated", nothing to press |
+| edith | 2 | `MEMBER`, `EDITOR` | en | sees the surveys and the answers, no Delete anywhere, no Migrations; with the database behind, at the Migrations page's address, the family's "being updated" and no link |
 | nina | 102 | `MEMBER` | en | follows a link with `?lang=sk`: takes the survey in Slovak; in the second survey changes to English in the middle of a step, and keeps her answer |
 | a visitor (nobody signed in) | - | - | the browser's, then `?lang=sk` | with "Sign-in required" off: takes two surveys and leaves a draft in a third, without signing in; is kept out of the admin panel and the preview; signs in from the notice - as the owner - and their answers and draft are the owner's; a second browser is a visitor of its own, listed as "Visitor N", and is sent to sign in once the switch is on again |
 | zuzana-kovacova-2026 | 103 | `MEMBER` | sk | nothing stored here: gets Slovak from her account; a twenty-character name in the bar; then chooses English; later reads the survey that has no Slovak (in English, and told so) and the translated one (in Slovak, to the thank-you) |
@@ -97,14 +97,17 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   whose last day is over, a text untranslated - "Closed", nothing said of its
   readers, "1 to fix before it reopens";
 - `admin-migrations-editor`: the Migrations page's address opened by an EDITOR
-  - "Migrations are for administrators";
-- the database behind: `sk-390-behind-participant-*` and
-  `en-1280-behind-participant` ("not set up yet" for somebody taking surveys,
-  no link), `en-1280-behind-editor` (the same at `/admin/migrations`),
-  `sk-390-behind-admin-*` and `en-1280-behind-admin` (the English block with
-  "Open Migrations" under the Slovak / English page);
-  `admin-migrations-behind-1280` (two files pending, only Migrations in the
-  bar, `brand.adminPanel` shown as a key - expected there),
+  - the family's page says "Migrations are for administrators.";
+- the database behind - the anotoki family's page: `sk-390-behind-visitor-*`
+  ("Stránku práve aktualizujeme", nothing but a quiet "Prihlásiť sa"),
+  `sk-390-behind-participant-*` and `en-1280-behind-participant` (the same
+  for somebody signed in - nothing to press), `en-1280-behind-editor` (the
+  same at `/admin/migrations`), `sk-390-behind-admin-*` and
+  `en-1280-behind-admin` ("A database update is waiting" and "Open
+  Migrations", in English on a Slovak page too);
+  `admin-migrations-behind-1280` (the family's Migrations page in the admin
+  layout: two files pending, only Migrations in the bar, `brand.adminPanel`
+  shown as a key - expected there),
   `admin-migrations-failed-1280` / `-390-*` ("Stopped at
   004_response_language.sql" and the database's error in its box - look at the
   box on a phone: the error wraps, nothing wider than the window),
@@ -122,8 +125,11 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   (the toast after the sign-in: one survey moved, one kept the owner's
   answers); `admin-results-visitor-390-*` (the owner and the other browser's
   visitor side by side);
-- `en-390-not-set-up-*`, `en-390-load-error-*`: the two pages drawn instead of
-  the site, in a browser with nothing stored;
+- `en-390-not-set-up-*` (never installed: "This site is not set up yet", the
+  setup page), `en-390-not-available-*` (installed once: "not available right
+  now", no setup page), `en-390-unavailable-*` (nothing answers) - the
+  family's page - and `en-390-load-error-*` (the site's own card: the status
+  answered, the sign-in did not), in a browser with nothing stored;
 - `sk-360-home-two-surveys-*`: the home page listing a translated survey and
   one with no Slovak; `sk-360-english-survey-*`: the survey with no Slovak on a
   Slovak page; `sk-360-translated-*`: the translated one (welcome, step, sent);
@@ -141,8 +147,15 @@ it on a phone, nothing wider than a phone.
 
 What it needs: the site set up once on this computer (`backend/config/database.local.php`
 - the tests borrow its PostgreSQL server and user), PHP 8.2 or later on the
-PATH (or `PHP=` naming it), and Chrome or Edge (or `CHROME=`). Ports 8590 (the
-site), 8597 (the stand-in IAM) and 8591 (Chrome) must be free.
+PATH (or `PHP=` naming it - `PHP=php8` where `php` is an older one), and
+Chrome or Edge (or `CHROME=`). Ports 8590 (the site), 8597 (the stand-in IAM)
+and 8591 (Chrome) must be free - or name others: the anotoki sites' checks
+share 8590-8599, so beside another one running give
+`SURVEY_CHECK_SITE_PORT`, `SURVEY_CHECK_IAM_PORT` and
+`SURVEY_CHECK_CHROME_PORT`. `run.mjs` refuses a port something already
+listens on (it would drive the other check's site or browser), and at the end
+asks its browser to close itself before stopping what it started (Edge's
+launcher exits at once, and the browser it hands over to would outlive it).
 
 ## What it does, and never does
 
@@ -348,20 +361,25 @@ A database behind the code - the one stage that changes the database itself
 
 22. The rows of `004_response_language.sql` and `005_top_bar_and_sign_in.sql`
     taken out of `migrations`, and the key `brand.adminPanel` (which 005
-    writes) deleted. The API is 503 `not_set_up` with `update: true`, the
-    sign-in's settings answer with `update: true`. Pat, signed in afresh
-    (through the IAM, which works while behind) with `?lang=sk` at 390 px: the
-    "not set up yet" page in Slovak, no link to the Migrations page; in
-    English at 1280. Edith at `/admin/migrations`: the same page, no link. The
-    owner on a Slovak page: Slovak, and the English block with "Open
-    Migrations"; at 1280 the link opens the Migrations page - 004 and 005
-    pending, only "Migrations" in the bar, the tab "Migrations · …", and the
-    brand showing `brand.adminPanel` (the strings read while behind lack it;
-    the warning is expected). "Apply pending", asked "Apply 2 pending
-    migrations?": "Stopped at 004_response_language.sql", nothing applied,
-    rolled back, and PostgreSQL's error ("column "language" of relation
-    "responses" already exists", with the statement) in its box - at 1280 and
-    390. 004's row put back; Apply again: "Up to date - Applied:
+    writes) deleted. The API is 503 `update_pending` with `Retry-After: 60`,
+    the sign-in's settings answer (no `update` field), `/api/site-status` says
+    `update_pending`. Nobody signed in, `?lang=sk`, 390 px: the anotoki
+    family's page, "Stránku práve aktualizujeme", in Slovak - no trip to the
+    IAM (the page's own requests), no error, no setup or Migrations link,
+    nothing to press but a quiet "Prihlásiť sa"; pressed, as Pat: through the
+    IAM and back to `/`, the same page with nothing to press; in English at
+    1280. Edith, signed out at `/admin/migrations`, signs in from it: back
+    there, "The site is being updated", no Migrations page. The owner, signed
+    out at `/admin/migrations`, signs in from it: back there, on the family's
+    Migrations page - 004 and 005 pending, only "Migrations" in the bar, the
+    tab "Migrations · …", and the brand showing `brand.adminPanel` (the strings
+    read while behind lack it; the warning is expected). On a Slovak page the
+    owner reads "A database update is waiting" (English, `lang="en"`) with
+    "Open Migrations", which opens the page at 1280. "Apply pending", asked
+    "Apply 2 pending migrations?": "Stopped at 004_response_language.sql",
+    nothing applied, rolled back, and PostgreSQL's error ("column "language"
+    of relation "responses" already exists", with the statement) in its box -
+    at 1280 and 390. 004's row put back; Apply again: "Up to date - Applied:
     005_top_bar_and_sign_in.sql.", nothing pending, the bar's four links back
     and "admin panel" in the brand (the strings read again), no key on the
     page; at 1280 and 390; Surveys opens the list, no reload.
@@ -397,12 +415,20 @@ deleted, so the site asks again at once):
 
 The pages drawn instead of the site - storage cleared, 390 px:
 
-24. Every request to the API answered 503 `not_set_up` by the check: the "not
-    set up yet" page in English, and the tab named by the site ("anotoki
-    survey") - never by a key - for `/`, an unknown address and `/admin`.
-    Then no answer at all, for `/admin/languages`: the "cannot be reached"
-    page; the server comes back, "Try again" - and the page asked for is
-    drawn, through the sign-in, not a blank one.
+24. Every request to the API answered as the backend's gate answers a site
+    not set up and never installed (`/api/site-status`: `not_set_up`,
+    `installed: false`): the family's "This site is not set up yet" in
+    English, with "Open the setup page" (`/setup.php`), and the tab named by
+    the site - never by a key ("anotoki survey"; the admin area's English
+    title, "Surveys · Admin panel · anotoki survey") - for `/`, an unknown
+    address and `/admin`. Installed once (`installed: true`): "The site is not
+    available right now" and "Try again" - never the setup page. Then no
+    answer at all, for `/admin/languages`: the family's "not available right
+    now" at that address; the server comes back, "Try again" - the page loads
+    again and the page asked for is drawn, through the sign-in. And the status
+    answering while the sign-in's settings do not: the site's own card, "The
+    survey site cannot be reached"; "Try again" - the page asked for, through
+    the sign-in, not a blank one.
 
 ## Changing the checks
 
@@ -477,6 +503,18 @@ Things that cost time to find out:
   guard lets that page load through, the layout draws its card, and a toast
   says the sign-in did not go through (`signedOutOn()` dismisses it). Forget
   `deny: false` and every later sign-in is turned down.
+- While the site cannot run (a database behind, stage 22) nobody is sent to
+  the IAM: the family's page stands with its own quiet Sign in, which
+  `signInThere(user, words)` presses (`signedOutBehind(path)` gets there with
+  nobody signed in). Count trips to the IAM from the page's own `requested`
+  (`GET /api/oidc/authorize`), never from the stand-in's log: that holds the
+  check's own questions too (`GET /_test/state` - `iamTrips()` itself asks one).
+- The family's pages are the library's markup: `anotoki-site-status` (`h1`,
+  `p`, its buttons and links) and `anotoki-migrations-page` (`[data-apply]`,
+  `dialog[data-confirm]` with `[data-confirm-apply]`, `[data-result]` with its
+  `h2`, `p` and `pre`, `[data-pending] li`, `[data-applied]`). A new release of
+  the library may move them: read its templates
+  (`frontend/node_modules/@anotoki/lib`) before blaming the site.
 - `signInAs(user, words)` reads the page it is on: after `/?lang=sk` the tab is
   Slovak whoever is signed in (`SK`), after the chooser it is what was chosen,
   and with nothing stored it is the account's language while signed in and

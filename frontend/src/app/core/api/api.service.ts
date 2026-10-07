@@ -88,26 +88,6 @@ export interface ResponseSubmission {
 }
 
 /**
- * GET /api/admin/migrations - the IAM's shape: the files the database has, in
- * the order they ran (`applied_at` ISO 8601), and the ones it lacks, in the
- * order they will run.
- */
-export interface MigrationsStatus {
-  applied: { name: string; applied_at: string | null }[];
-  pending: { name: string }[];
-}
-
-/**
- * POST /api/admin/migrations/apply: what ran (in order), and the file that
- * failed with the database's whole error - or null and null.
- */
-export interface MigrationsApplyResult {
-  applied: string[];
-  failed: string | null;
-  error: string | null;
-}
-
-/**
  * The backend's API (backend/api/routes/), one method a route. Every call
  * resolves with what the route answers or rejects with an ApiError. The access
  * token - or the visitor key - is added by the interceptor, by whom the request
@@ -255,22 +235,8 @@ export class ApiService {
     return this._call(this._http.put<TranslationGrid>(`/api/admin/translations/${encodeURIComponent(code)}/import`, values));
   }
 
-  // ── The database (ADMIN) ─────────────────────────────────────────────────
-
-  /** What the database has and lacks. Answered while it is behind the code too, when nothing else of the admin area is. */
-  migrations(): Promise<MigrationsStatus> {
-    return this._call(this._http.get<MigrationsStatus>('/api/admin/migrations'));
-  }
-
-  /**
-   * Every pending migration, in order, stopping at the first that fails - which
-   * is rolled back whole and named, with the database's whole error. A failure
-   * is an answer, not an ApiError; ApiError 409 `busy` while another update runs
-   * (another Apply, setup.php, php migration.php), and nothing was applied.
-   */
-  applyMigrations(): Promise<MigrationsApplyResult> {
-    return this._call(this._http.post<MigrationsApplyResult>('/api/admin/migrations/apply', {}));
-  }
+  // The database's migrations (ADMIN) are the anotoki family's Migrations page's own
+  // (<anotoki-migrations-page>, @anotoki/lib/migrations): it asks /api/admin/migrations itself.
 
   /** For whoever takes surveys now: the person signed in, or else the visitor - decided as the request is made. */
   private _asTaker(): HttpContext {

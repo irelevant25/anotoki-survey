@@ -2,12 +2,14 @@ import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, Signal, afterNextRender, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { SiteStatus } from '@anotoki/lib/migrations';
 import { filter, map } from 'rxjs';
 import { AdminStore } from '../../core/admin/admin-store.service';
 import { LocalizationDrafts } from '../../core/admin/localization-drafts.service';
-import { AuthService, MIGRATIONS_PATH } from '../../core/auth/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { signInOrSayWhy } from '../../core/auth/sign-in-failure';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { MIGRATIONS_PATH } from '../../core/migrations';
 import { TranslationService } from '../../core/i18n/translation.service';
 import { BrandComponent } from '../../ui/brand/brand.component';
 import { ButtonComponent } from '../../ui/button/button.component';
@@ -84,8 +86,9 @@ type OpenMenu = 'account' | 'phone' | null;
  * English there (`effectiveLanguage`). One exception: the admin panel's
  * Migrations link (an ADMIN's alone) is its English word, as the admin panel's
  * pages are - it came after the bar's keys, and no reader ever sees it in
- * another language. While the database waits for a migration it is the only
- * link an ADMIN's bar shows in the admin panel (AuthService.onlyMigrations).
+ * another language. While a database update waits it is the only link an
+ * ADMIN's bar shows in the admin panel (SiteStatus, @anotoki/lib/migrations):
+ * the Migrations page is the one page of the site that works then.
  */
 @Component({
   selector: 'app-top-bar',
@@ -106,6 +109,7 @@ export class TopBarComponent {
 
   protected readonly auth = inject(AuthService);
   protected readonly i18n = inject(TranslationService);
+  private readonly _status = inject(SiteStatus);
   private readonly _router = inject(Router);
   private readonly _store = inject(AdminStore);
   private readonly _drafts = inject(LocalizationDrafts);
@@ -128,8 +132,8 @@ export class TopBarComponent {
     if (this.area() !== 'admin') {
       return SURVEY_LINKS;
     }
-    // While the database waits for a migration the Migrations page is the one page of the admin panel that works.
-    if (this.auth.onlyMigrations()) {
+    // While a database update waits the Migrations page is the one page of the admin panel that works (an ADMIN's).
+    if (this._status.state() === 'update-pending' && this.auth.isAdmin()) {
       return ADMIN_LINKS.filter((link) => link.path === MIGRATIONS_PATH);
     }
     return ADMIN_LINKS.filter((link) => !link.adminOnly || this.auth.isAdmin());

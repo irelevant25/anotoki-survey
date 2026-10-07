@@ -7,7 +7,7 @@ declare(strict_types=1);
  * nothing else. For a computer with a shell; the live site has none, and an
  * administrator's "Apply pending" on the admin panel's Migrations page (or
  * setup.php) does the same there. All three take one lock
- * (api/database_update.php): a second update at the same time applies nothing.
+ * (api/migrations.php): a second update at the same time applies nothing.
  *
  *   php migration.php              create the database if missing, apply what is pending
  *   php migration.php --status     say what has run and what has not
@@ -18,7 +18,8 @@ declare(strict_types=1);
  * recorded as applied is never run again, so editing one that has been
  * applied changes nothing where it ran - write another instead.
  *
- * The connection is config/database.local.php, which setup.php writes.
+ * The connection is config/database.local.php, which setup.php writes. The
+ * engine is the anotoki family's (anotoki/lib, through api/migrations.php).
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -65,19 +66,24 @@ try {
     if (!$statusOnly && !$dryRun && ensureDatabase($settings, $name)) {
         say('green', '  Database created.');
     }
-    $pdo = dbConnect($settings);
-    $pending = ($statusOnly || $dryRun) ? pendingMigrationsReadOnly($pdo) : pendingMigrations($pdo);
+    // A connection of its own: the update below holds its lock on it.
+    $migrator = surveyMigrator(dbConnect($settings));
+    $status = $migrator->status();
 } catch (Throwable $e) {
     say('red', '  Cannot reach it: ' . $e->getMessage());
     exit(1);
 }
 
-$files = migrationFiles();
+$files = $migrator->files(surveyMigrationSet());
+$pending = array_column($status['pending'], 'name');
 
 if ($statusOnly) {
     foreach ($files as $file) {
         $done = !in_array($file, $pending, true);
         echo '  ' . ($done ? colour('green', 'v') : colour('yellow', '.')) . ' ' . $file . ($done ? '' : colour('yellow', '   pending')) . "\n";
+    }
+    foreach ($status['missing'] as $missing) {
+        echo '  ' . colour('red', '?') . ' ' . $missing['name'] . colour('red', '   recorded as applied, but the file is not here') . "\n";
     }
     printf("  %d applied, %d pending\n", count($files) - count($pending), count($pending));
     exit(0);
@@ -89,37 +95,31 @@ if (!$pending) {
 }
 
 if ($dryRun) {
-    foreach ($pending as $file) {
-        say('yellow', '  would apply ' . $file);
+    foreach ($migrator->applicable() as $file) {
+        say('yellow', '  would apply ' . $file['name']);
     }
     exit(0);
 }
 
 // The lock setup.php and an administrator's Apply on the Migrations page take
-// too (api/database_update.php): one update at a time. What is pending is read
-// again under it - another update may have applied some of it meanwhile.
-$code = databaseUpdateLocked($pdo, static function () use ($pdo): int {
-    foreach (pendingMigrations($pdo) as $file) {
-        echo '  ' . $file . ' ... ';
+// too: one update at a time. What is pending is read again under it - another
+// update may have applied some of it meanwhile.
+$result = $migrator->apply();
 
-        try {
-            applyMigration($pdo, MIGRATIONS_ALIAS, $file);
-            say('green', 'done');
-        } catch (Throwable $e) {
-            say('red', 'FAILED');
-            say('red', '    ' . $e->getMessage());
-            say('yellow', '    Nothing from this file was applied. The migrations before it stand.');
-
-            return 1;
-        }
-    }
-
-    return 0;
-});
-
-if ($code === null) {
+if ($result['busy']) {
     say('red', '  Another database update is running (setup.php, or an administrator\'s Apply on the Migrations page). Nothing was applied: try again in a moment.');
     exit(1);
 }
 
-exit($code);
+foreach ($result['applied'] as $file) {
+    echo '  ' . $file['name'] . ' ... ' . colour('green', 'done') . "\n";
+}
+
+if ($result['failed'] !== null) {
+    echo '  ' . $result['failed']['name'] . ' ... ' . colour('red', 'FAILED') . "\n";
+    say('red', '    ' . str_replace("\n", "\n    ", (string) $result['error']));
+    say('yellow', '    Nothing from this file was applied. The migrations before it stand.');
+    exit(1);
+}
+
+exit(0);

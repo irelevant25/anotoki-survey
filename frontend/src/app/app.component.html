@@ -1,9 +1,12 @@
 @switch (drawn()) {
     @case ("site") {
-        <router-outlet />
-    }
-    @case ("not-set-up") {
-        <app-not-set-up />
+        <!-- The gate around the pages, and around nothing else: what is drawn over any page stays below it. The outlet is
+             made only when the gate shows it (pagesOpen): a page made out of sight would still run. -->
+        <anotoki-site-gate>
+            @if (pagesOpen()) {
+                <router-outlet />
+            }
+        </anotoki-site-gate>
     }
     @case ("load-error") {
         <app-load-error />

@@ -5,7 +5,8 @@
  ─────────────────                    ─────────────────────                    ───────────────────────────
  AuthService ── sign-in ──▶ the anotoki IAM (OIDC code + PKCE; tokens in localStorage)
  VisitorKey (the key, the move)
- ApiService ── /api/... + Bearer, or X-Visitor-Key ──▶ index.php: security headers ▶ error handler ▶ setup gate ▶ route
+ SiteStatus ── /api/site-status ──▶ index.php: security headers ▶ error handler ▶ site gate (anotoki/lib) ▶ route
+ ApiService ── /api/... + Bearer, or X-Visitor-Key ──▶ the same way in
                                         ├─ requireUser / requireRole: the token, checked here;
                                         │  requireTaker (the surveys' routes): the token, or a visitor's key
                                         ├─ visitors.php, client_address.php: visitors, their limits, the move
@@ -27,10 +28,11 @@ anotoki IAM with its vendored browser SDK (`frontend/src/app/core/auth/anotoki-a
 and `.d.ts`, v1.2.0, byte for byte the IAM's `sdk/js/`), as client `survey`:
 
 - `AuthService.init()` runs before the first page (the app initializer,
-  `boot()` in `core/boot.ts`): it reads
-  `GET /api/auth/config` (`{issuer, clientId, loginRequired, visitorDays}` - or 503 `not_set_up`, and the
-  site draws its "not set up yet" page; with `update: true` while a migration
-  is pending: `needsUpdate`, below), then lets the SDK finish a callback
+  `boot()` in `core/boot.ts`), right after the start has asked where the site
+  stands (`SiteStatus.check()`, *A database behind the code*, below): it reads
+  `GET /api/auth/config` (`{issuer, clientId, loginRequired, visitorDays}` - or
+  503 `not_set_up`, and the family's page says so; answered while a migration
+  is pending too), then lets the SDK finish a callback
   (`/auth/callback`; the SDK puts back the address the person came from before
   the router reads it) or restore the stored session. `loginRequired` (the
   IAM's switch, below) becomes `AuthService.loginRequired` - true unless the
@@ -42,8 +44,8 @@ and `.d.ts`, v1.2.0, byte for byte the IAM's `sdk/js/`), as client `survey`:
   drawn. The language and its strings come next (*The site's own words*,
   below), and the site is drawn only once both are there.
 - `authInterceptor` puts `Authorization: Bearer <access token>` on every `/api/`
-  call issued for a person (not on `/api/auth/config`, the pictures or
-  `/api/translations/`), and retries once with a fresh token after a 401. A
+  call issued for a person (not on `/api/site-status`, `/api/auth/config`, the
+  pictures or `/api/translations/`), and retries once with a fresh token after a 401. A
   person's call whose token comes back null is never sent (401
   `sign_in_required`, at once); a visitor's call carries the visitor key
   instead (below).
@@ -89,9 +91,13 @@ surveys on (`takeSurveysGuard`, `canActivateChild` of their layout, so each
 page asks again; with visitors welcome it lets anybody through); while sign-in
 is required the API answers nothing of a survey without a token - its
 pictures aside, which an `<img>` loads with no token, at addresses that are
-random UUIDs ([API](api.md#the-people-taking-surveys)). Only the boot pages (not set up, cannot
-be reached) draw without it: while the site cannot run the guard lets nothing
-through and sends nobody anywhere. A signed-in person without EDITOR or ADMIN
+random UUIDs ([API](api.md#the-people-taking-surveys)). Only the pages drawn
+while the site cannot run (the family's page, the card for a server out of
+reach) draw without it: while the site cannot run and the server said why
+(`SiteStatus.blocked()`) the guard lets every page through and sends nobody to
+the IAM - the family's page stands instead of each, with its own quiet Sign in
+(*A database behind the code*, below); while it could not even ask (out of
+reach as it started) it lets nothing through. A signed-in person without EDITOR or ADMIN
 (MEMBER alone) gets the admin layout's "this part is for the people who write
 the surveys".
 
@@ -239,8 +245,8 @@ back its `<router-outlet>`.
 brand (`ui/brand`: the mark, "anotoki" and the site's name, linking home -
 `/`; in the admin panel "anotoki survey · admin panel", linking to `/admin`); the site's sections as links (where
 people take surveys: Surveys; in the admin panel: Surveys, Translations,
-Languages, and Migrations for an ADMIN - only Migrations while the database
-waits for a migration - `SURVEY_LINKS`, `ADMIN_LINKS`; the one the page is in is marked,
+Languages, and Migrations for an ADMIN - only Migrations while a database
+update waits (`SiteStatus.state()`) - `SURVEY_LINKS`, `ADMIN_LINKS`; the one the page is in is marked,
 and `aria-current="page"` on its own address); then the language chooser
 (where people take surveys, when more than one language is offered), the
 theme, and the person's menu - name, address and role, "Your anotoki account"
@@ -334,12 +340,16 @@ free of the `:` and `,` the results' addresses use). An id is never reused, so
 an answer keeps pointing at its option when the option is renamed or moved.
 
 Migrations are the schema: `backend/migrations/survey/NNN_name.sql`, applied in
-order by `api/migration_runner.php` (the family's engine) from `setup.php`,
-`migration.php`, the admin panel's Migrations page and the tests. The first
-three take one PostgreSQL advisory lock (`api/database_update.php`,
-`databaseUpdateLocked()`), on a connection of their own: one update at a time,
-and the second is told another is running (409 `busy`). See *A database behind
-the code*, below.
+order by the anotoki family's engine - the library anotoki-lib
+(`Anotoki\Lib\Migrations\Migrator`, in `vendor/anotoki/lib`), through
+`api/migrations.php` (`surveyMigrator()`, the site's one set `survey`) - from
+`setup.php`, `migration.php`, the admin panel's Migrations page and the tests'
+template. Each file runs in a transaction of its own with its row in
+`migrations` (`id, filename, applied_at` - the table as it always was; the
+library reads it as it is), and the run stops at the first file that fails. All
+four take one PostgreSQL advisory lock (`DATABASE_UPDATE_LOCK`, the site's own
+key), on a connection of their own: one update at a time, and the second is
+told another is running (409 `busy`). See *A database behind the code*, below.
 The site's strings are part of it: `002` makes the three tables and the two
 languages, `003` writes every key with its English and Slovak string, `004`
 adds `responses.language`, `005` the top bar's and the sign-in's strings,
@@ -347,35 +357,56 @@ adds `responses.language`, `005` the top bar's and the sign-in's strings,
 `visitor_counters`, and `responses_by_user` - answers by person), `007` what
 the pages say to a visitor (`visitor.*`, `take.asVisitor`, two refusals, three
 `error.*`), `008` the two toasts of a choice the anotoki account did not take
-(`theme.notSaved`, `language.notSaved`).
+(`theme.notSaved`, `language.notSaved`), `009` takes away the four strings of
+the "not set up yet" page the family's page replaced (`boot.notSetUp.*`).
 
 ## A database behind the code
 
-A version whose migrations have not been applied yet: the setup gate
-(`api/meddleware/setup.php`) answers every request 503 `not_set_up` with
-`update: true` - nothing is read from, or written into, tables that are not
-there - except what an administrator needs to apply it
-(`SETUP_GATE_OPEN_WHILE_BEHIND`): `/api/health`, `GET /api/auth/config`
-(which then says `update: true`), the strings (`/api/translations/{code}`,
-read-only - the "not set up yet" page and the admin panel's bar are worded
-with them) and `/api/admin/migrations` (+ `/apply`), still behind a verified
-token and ADMIN. Never while the settings are missing: then `setup.php` is the
-way.
+One behaviour for every anotoki site, the shared library's (the owner's
+decision of 2026-10-07, [decisions](decisions.md)). On the server
+(`api/index.php`, `api/migrations.php`) the family's `SiteGate` stands in front
+of every route and asks, for each request, where the site stands
+(`surveySiteState()`): **not set up** (the settings missing - every address but
+`/api/site-status` is 503 `not_set_up`, offering `/setup.php` only while the
+site was never installed: `storage/installed.lock`), **an update waiting** (a
+migration file not applied - every address is 503 `update_pending` with
+`Retry-After: 60`, nothing is read from or written into tables that may not be
+there, except what signing in and applying it need: `SITE_OPEN_WHILE_UPDATING`
+- the sign-in's settings, a language's strings (read-only), `/api/health` and
+the Migrations page's three routes - `/api/admin/migrations`, `/file` and
+`/apply`, those addresses exactly and nothing else under them - ADMIN from the
+token alone),
+**unavailable** (the database out of reach - the routes' own answers) or
+**ready**. `GET /api/site-status` says it, in every state.
 
-The frontend learns it from the sign-in's settings: `AuthService.needsUpdate`.
-Signing in works (the status is `ready`; the sign-in guard sends a visitor to
-the IAM as ever), but the app (`app.component.ts`) draws the "not set up yet"
-page instead of every page - somebody taking surveys and an EDITOR get it as
-it always was. For a signed-in ADMIN (`onlyMigrations`) the page adds, in
-English, a link to the Migrations page, which is the one page drawn
-(`/admin/migrations`, with only Migrations in the bar). Its "Apply pending"
-(`POST /api/admin/migrations/apply`, behind a question) runs the pending files
-in order, each in its own transaction, and stops at the first that fails -
-rolled back whole, named, with the database's whole error in a box. After
-anything was applied the strings are read again (`TranslationService.reload()`:
-the ones read while behind lack the keys the migration brought), and once
-nothing is pending `AuthService.databaseUpdated()` lets the site run where it
+In the browser (`@anotoki/lib/migrations`, wired in `core/migrations.ts`) the
+start asks first (`SiteStatus.check()` in `boot()`), and `siteStatusInterceptor`
+hears any later answer that says the site cannot run. Nothing in the start stops
+on it: the sign-in's settings and the strings answer while an update waits.
+While the site cannot run the sign-in guard sends nobody to the IAM and lets
+every page through; `<anotoki-site-gate>` around the router outlet draws the
+family's page instead (`app.component.html` makes the outlet only when the gate
+shows it - a projected outlet would put the page in place out of sight, and it
+would run): to somebody taking surveys, or an EDITOR, "The site is being
+updated" in their language - no error, no code, nothing to press but a quiet
+Sign in while nobody is signed in - which asks again by itself and reloads once
+the site runs (no page is made in the moment before the reload: once the site
+could not run in a page load, its pages wait for the reload or for an Apply in
+that tab - `PAGES_CLOSED`); to the site's ADMIN, in English, "A database update is waiting"
+and "Open Migrations". Signed out at the Migrations page's address, the quiet
+Sign in comes back there, to the page. The Migrations page
+(`<anotoki-migrations-page>`, in the admin layout, with only Migrations in the
+bar) lists Pending, Applied (with each file's SQL) and Missing; its "Apply
+pending" (`POST /api/admin/migrations/apply`, behind a question) runs the
+pending files in order, each in its own transaction, and stops at the first
+that fails - rolled back whole, named, with the database's whole error in a
+box. Once nothing is pending the strings are read again
+(`TranslationService.reload()`: the ones read while behind lack the keys the
+migration brought) and `SiteStatus.markReady()` lets the site run where it
 stands - the page and what it said stay, every link comes back, no reload.
+Not set up: "This site is not set up yet" and the setup page while the site
+was never installed; afterwards, or with the database out of reach, "The site
+is not available right now", asking again by itself.
 
 ## The rules, on both sides
 
@@ -559,10 +590,12 @@ code with a region that is not offered itself is answered by its language
 
 **The start** (`boot()` in `core/boot.ts`, the app initializer): the theme
 (the one shown last, until the sign-in brings the account's),
-`await auth.init()`, `await i18n.init()`, then a failed sign-in's toast - worded
-now that there are words - and last `BOOTED`. `app.component` draws the site
-only when the sign-in is ready *and* `BOOTED` is true; otherwise the first page
-would show keys for a moment. The load error page's "Try again" runs the same
+`await status.check()` (where the site stands, `SiteStatus`), `await auth.init()`,
+`await i18n.init()`, then a failed sign-in's toast - worded now that there are
+words - and last `BOOTED`. `app.component` draws the site only when `BOOTED`
+is true and the sign-in is ready - or, while the site cannot run, the
+family's page in its gate; otherwise the first page would show keys for a
+moment. The load error page's "Try again" runs the same
 function - and, when it worked, opens the page itself: the address the page
 was opened with when the router never got anywhere (its first navigation was
 refused by the sign-in guard while the server was out of reach, which would
@@ -601,9 +634,10 @@ leave a blank page), the address in the bar otherwise.
 - asks nothing while the site cannot run (not set up, out of reach), and then
   takes the cached bundle **in whatever language it is in**, and leaves it
   where it is - nobody is signed in, so the token's wish is not known, and
-  those are the reader's own words from the last visit. The two boot pages
-  take the cached string when there is one and the English written in the page
-  otherwise (`boot/kept-word.ts`).
+  those are the reader's own words from the last visit. The load error card
+  takes the cached string when there is one and the English written in the page
+  otherwise (`boot/kept-word.ts`); the family's page has words of its own (the
+  library's English and Slovak).
 
 **Asking again.** Every load - the start, a choice in the chooser, `reload()`,
 asking again - takes the next turn, and an answer is used only while its turn
@@ -661,8 +695,8 @@ needs the service - NG0200): `SurveyTitleStrategy` tells it after every
 navigation (`noteAddress()`), and `init()` reads the address for the first page.
 The same strategy writes the tab's title in the language on the page: a
 route's `title` is a key on the pages people take surveys on, plain English in
-the admin panel. With no strings at all (the two boot pages in a browser that
-has kept none) a participant route's title is the site's name alone - never
+the admin panel. With no strings at all (a site that cannot run, in a browser
+that has kept none) a participant route's title is the site's name alone - never
 the key - and an admin route keeps its English title, with the part of the
 site after it: "Results · Admin panel · anotoki survey". Every anotoki site
 calls its admin area the admin panel.

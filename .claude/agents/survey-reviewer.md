@@ -37,12 +37,18 @@ Security and correctness first:
   for a taker holds the taker's row first (`visitorHold()`) so a row that went is 401
   `visitor_unknown`, never a 503. A visitor's `person` has no address: anything new in the admin
   panel that shows `person.email` says "Not signed in" for `person.visitor`. Only what
-  `SETUP_GATE_OPEN_WHILE_BEHIND` lists answers while a migration is pending (the auth config, the strings, the migrations routes) - never anything that
-  reads or writes the site's data; whatever applies migrations takes `databaseUpdateLocked()`.
+  `SITE_OPEN_WHILE_UPDATING` lists answers while a migration is pending (the auth config, the strings, the health
+  check, the migrations routes - each exactly, never a prefix: the anotoki family's `SiteGate`, `api/migrations.php`) - never anything that
+  reads or writes the site's data; the migrations routes' ADMIN check is the token's alone (`requireTokenRole()`);
+  whatever applies migrations goes through `surveyMigrator()` on a connection of its own (one lock); the setup page
+  is offered only while `storage/installed.lock` is not there; the library itself (`vendor/anotoki/lib`,
+  `@anotoki/lib`) is never edited in this repository - an edit there is a finding.
   Every page is under a layout whose route has `signInGuard` - or, the pages
   people take surveys on, `takeSurveysGuard` (open to visitors only while
   `visitorsWelcome`); the admin panel and the editor's preview sign in
-  whatever the switch (only the boot pages draw without either). In the
+  whatever the switch (only the pages drawn while the site cannot run draw without either - the family's
+  page, behind which no page is made: the outlet in `<anotoki-site-gate>` exists only while the gate shows it,
+  and nobody but the site's ADMIN reads why the site is closed). In the
   browser a request says whom it is for as it is made (`ISSUED_AS` in
   `ApiService`): a person's never leaves without a token (a local 401), a
   visitor's never carries one; the key goes only to `/api/surveys`, only

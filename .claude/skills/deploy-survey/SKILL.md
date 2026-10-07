@@ -24,7 +24,8 @@ cd ../backend && php tools/build.php
 ```
 
 `dist/` at the top of the repository holds the upload: the app, `.htaccess`,
-`setup.php`, `api/`, `config/config.php`, `migrations/`, `vendor/`, `storage/`.
+`setup.php`, `api/`, `config/config.php`, `migrations/`, `vendor/` (with
+`vendor/anotoki/lib`, the family's library), `storage/`.
 No `*.local.php`, no tests or tools, no `migration.php` or `translations.php`
 (the command line's), no composer files - check it, it is what the world will
 be able to read.
@@ -68,10 +69,13 @@ results list that answer as "Visitor N", "Not signed in".
   database (`localhost`, 5432, `anotoki_survey`, the hosting's user) and the
   IAM (`https://iam.anotoki.eu`, client id `survey`). Test both, then Install.
   It locks (`storage/installed.lock`) and deletes itself.
-- **A version with a new migration**: the site is closed (503, "not set up
-  yet", `update: true`) until it is applied. Back the database up first. The
-  usual way: the owner signs in as an ADMIN - the "not set up yet" page links
-  to the admin panel's **Migrations** page (nobody else gets the link) - and
+- **A version with a new migration**: the site is closed until it is applied
+  - the API answers 503 `update_pending`, and everybody reads the anotoki
+  family's "The site is being updated" (no error, no setup page). Back the
+  database up first. The usual way: the owner signs in as an ADMIN from that
+  page's quiet "Sign in" (or straight at `/admin/migrations`, where the
+  sign-in comes back to the page) - "A database update is waiting" links to
+  the admin panel's **Migrations** page (nobody else gets the link) - and
   presses **Apply pending**: the files run in order, each in its own
   transaction; a failure is rolled back whole and shown with the database's
   whole error ("Stopped at <file>"), and the next Apply goes on from there.
@@ -81,9 +85,12 @@ results list that answer as "Visitor N", "Not signed in".
   details. It applies what is pending and locks and deletes itself again. (The
   two never run at once: one lock, and the second says another update is
   running.) If
-  `setup.php` was opened while the lock was still there (anybody may: the
-  closed site's own button leads to it) it has deleted itself: delete the
-  lock, upload `setup.php` again. The version that brings the
+  `setup.php` was opened while the lock was still there (anybody may) it has
+  deleted itself: delete the lock, upload `setup.php` again. The version that
+  brings the family's library (anotoki-lib 0.1.0) is one: `009` (the "not set
+  up yet" page's strings deleted) - and it leaves `api/migration_runner.php`,
+  `api/database_update.php` and `api/meddleware/setup.php` of the version
+  before on the host, read by nothing: delete them. The version that brings the
   languages is one: `002` (the tables of the site's words, English and
   Slovak), `003` (the strings), `004` (the language an answer was read in).
   The surveys need nothing. Tell the editors beforehand: an editor page left

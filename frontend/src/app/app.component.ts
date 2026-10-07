@@ -1,84 +1,125 @@
-import { ChangeDetectionStrategy, Component, inject, linkedSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, linkedSignal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { ANOTOKI_MIGRATIONS_CONFIG, SiteGateComponent, SiteStatus } from '@anotoki/lib/migrations';
 import { filter, map } from 'rxjs';
 import { LoadErrorComponent } from './boot/load-error/load-error.component';
-import { NotSetUpComponent } from './boot/not-set-up/not-set-up.component';
-import { AuthService, MIGRATIONS_PATH } from './core/auth/auth.service';
+import { AuthService } from './core/auth/auth.service';
 import { BOOTED } from './core/boot';
+import { PAGES_CLOSED } from './core/migrations';
 import { ConfirmHostComponent } from './ui/confirm/confirm-host.component';
 import { LightboxComponent } from './ui/lightbox/lightbox.component';
 import { LightboxService } from './ui/lightbox/lightbox.service';
 import { ToastHostComponent } from './ui/toast/toast-host.component';
 
-/** What stands in the page: the site, one of the two cards drawn instead of it, or - while the very first start runs - nothing. */
-type Drawn = 'site' | 'not-set-up' | 'load-error' | 'nothing';
+/** What stands in the page: the site (behind the family's gate), the card saying the server is out of reach, or - while the very first start runs - nothing. */
+type Drawn = 'site' | 'load-error' | 'nothing';
 
 /**
- * The page - or, while the site cannot run, the card saying why (not set up
- * yet, or the server out of reach) - plus what is drawn over any page:
- * toasts, the confirm dialog, and a picture shown large.
+ * The page - behind the anotoki family's gate (<anotoki-site-gate>,
+ * @anotoki/lib/migrations: while the site cannot run, the family's page that
+ * says why stands instead of every page, and the site's ADMIN still reaches
+ * the Migrations page while an update waits) - or the card saying the server
+ * could not be reached; plus what is drawn over any page: toasts, the confirm
+ * dialog, and a picture shown large.
  */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, ToastHostComponent, ConfirmHostComponent, LightboxComponent, NotSetUpComponent, LoadErrorComponent],
+  imports: [RouterOutlet, SiteGateComponent, ToastHostComponent, ConfirmHostComponent, LightboxComponent, LoadErrorComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
   private readonly _auth = inject(AuthService);
+  private readonly _status = inject(SiteStatus);
+  private readonly _migrations = inject(ANOTOKI_MIGRATIONS_CONFIG);
   private readonly _booted = inject(BOOTED);
   private readonly _router = inject(Router);
+  /** The site could not run in this page load, and no update applied here has opened it again (core/migrations.ts). */
+  private readonly _closed = inject(PAGES_CLOSED);
   protected readonly lightbox = inject(LightboxService);
 
-  /** The address of the page in force, query and hash aside - null until the first navigation has ended. */
-  private readonly _path = toSignal(
+  constructor() {
+    effect(() => {
+      if (this._status.blocked()) {
+        this._closed.set(true);
+      }
+    });
+  }
+
+  /** The address of the page in force, as the router last reached it. */
+  private readonly _url = toSignal(
     this._router.events.pipe(
-      filter((event) => event instanceof NavigationEnd),
-      map((event): string | null => (event as NavigationEnd).urlAfterRedirects.split(/[?#]/)[0]),
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      map((event) => event.urlAfterRedirects),
     ),
-    { initialValue: this._router.navigated ? this._router.url.split(/[?#]/)[0] : null },
+    { initialValue: this._router.url },
   );
 
   /**
-   * The site is drawn only when the sign-in is ready AND the start has run to
-   * its end (boot()): the sign-in is ready a moment before the language's
-   * strings are there, and pages drawn in that moment would show keys.
+   * Whether the pages are there at all: the gate's own decision - open while
+   * the site runs (or nobody has asked yet), and for the site's ADMIN on the
+   * Migrations page while an update waits - taken again here, because what a
+   * component projects is made whether it is shown or not. The gate's
+   * <ng-content> sits in an @if, but a bare <router-outlet> projected into it
+   * would still put the routed page in place, out of sight: it would ask the
+   * API (and be answered 503), and its failures would reach the toasts, which
+   * are drawn over everything. So the outlet is only made when the gate shows it.
    *
-   * While a start is running nothing new is drawn: a card that was there stays
-   * - the load error page's "Try again" starts again, and its button goes on
-   * turning until the answer is known.
+   * And once the site could not run, its pages stay away until an update
+   * applied in this tab opens them (PAGES_CLOSED): the family's page that finds
+   * the site ready again reloads the page at once, and a page made in between
+   * would run for nothing - for a visitor, past a guard that let it through
+   * only because the site was closed.
+   */
+  protected readonly pagesOpen = computed(() => {
+    if (!this._status.blocked() && !this._closed()) {
+      return true;
+    }
+    return this._status.state() === 'update-pending' && this._migrations.isAdmin() && onRoute(this._url(), this._migrations.migrationsRoute);
+  });
+
+  /**
+   * Nothing is drawn until the start has run to its end (boot()): the sign-in
+   * is ready a moment before the language's strings are there, and pages
+   * drawn in that moment would show keys.
    *
-   * While the database waits for a migration (`needsUpdate`) the site is set
-   * up and signing in works, but nothing else does: the "not set up yet" card
-   * stands instead of every page - but the Migrations page, for an ADMIN, who
-   * applies the update there (the card links to it). Once it is applied the
-   * site runs where it stands. Somebody not signed in yet is on the way to the
-   * IAM (signInGuard): nothing new is drawn meanwhile.
+   * Then the site - behind its gate. While the site cannot run and the server
+   * said why (not set up, a database update waiting, the database out of
+   * reach: SiteStatus, asked at the start and told by any answer that says
+   * so), the gate shows the family's page instead of the pages, and the
+   * Migrations page to the site's ADMIN. Signing in works then (the sign-in's
+   * settings answer while an update waits) and the router goes on navigating,
+   * so a Sign in comes back to the page it left.
+   *
+   * The card saying the server could not be reached is for a start whose
+   * sign-in got no answer where the status had one - never for a site that
+   * could not run in this page load (the moment before its reload). While a
+   * start is running nothing new is drawn: a card that was there stays - its
+   * "Try again" starts again, and its button goes on turning until the answer
+   * is known.
    */
   protected readonly drawn = linkedSignal<Drawn | null, Drawn>({
     source: () => {
-      const status = this._auth.status();
-      if (status === 'not-set-up') {
-        return 'not-set-up';
+      if (!this._booted()) {
+        return null;
       }
+      if (this._status.blocked() || this._closed()) {
+        return 'site';
+      }
+      const status = this._auth.status();
       if (status === 'error') {
         return 'load-error';
       }
-      if (status !== 'ready' || !this._booted()) {
-        return null;
-      }
-      return this._auth.needsUpdate() ? this._whileBehind() : 'site';
+      return status === 'ready' ? 'site' : null;
     },
     computation: (settled, previous) => settled ?? (previous && previous.value !== 'site' ? previous.value : 'nothing'),
   });
+}
 
-  private _whileBehind(): Drawn | null {
-    if (this._auth.onlyMigrations()) {
-      const path = this._path();
-      return path === null ? null : path === MIGRATIONS_PATH ? 'site' : 'not-set-up';
-    }
-    return this._auth.signedIn() || this._auth.signInFailure() ? 'not-set-up' : null;
-  }
+/** Whether the router address `url` is `route` or under it (its query and fragment aside) - as the gate reads it. */
+function onRoute(url: string, route: string): boolean {
+  const path = url.split(/[?#]/)[0];
+  return path === route || path.startsWith(route + '/');
 }

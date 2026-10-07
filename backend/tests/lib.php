@@ -310,6 +310,20 @@ function test_empty_db(string $suffix): string
     return $name;
 }
 
+/** The migration files, in the order they run: the engine's own list (api/migrations.php). */
+function migration_files(): array
+{
+    test_db();
+
+    return surveyMigrator(db())->files(surveyMigrationSet());
+}
+
+/** A migration file's SQL, as it is in migrations/survey/. */
+function migration_sql(string $file): string
+{
+    return (string) file_get_contents(surveyMigrationSet()->directory . '/' . $file);
+}
+
 /** A new temp folder, removed at the end. */
 function test_temp_dir(string $label = 'tmp'): string
 {

@@ -57,7 +57,7 @@ describe('AuthService.signIn()', () => {
   });
 });
 
-describe("AuthService.init(): what the sign-in settings say - an update waiting, the IAM's switch", () => {
+describe("AuthService.init(): what the sign-in settings say - the IAM's switch", () => {
   let auth: AuthService;
   let http: HttpTestingController;
 
@@ -80,23 +80,12 @@ describe("AuthService.init(): what the sign-in settings say - an update waiting,
     await done;
   }
 
-  it('signs in all the same - the status is ready - and says the database needs its update; an ADMIN gets the Migrations page', async () => {
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey', update: true });
-    expect(auth.status()).toBe('ready');
-    expect(auth.signedIn()).toBe(true);
-    expect(auth.needsUpdate()).toBe(true);
-    expect(auth.onlyMigrations()).toBe(true);
-
-    auth.databaseUpdated();
-    expect(auth.needsUpdate()).toBe(false);
-    expect(auth.onlyMigrations()).toBe(false);
-  });
-
-  it('says nothing of an update when the settings do not: the site runs', async () => {
+  it('signs in - the status is ready - and the token says who is the site’s ADMIN (the one the Migrations page is for)', async () => {
     await started({ issuer: 'https://iam.example.test', clientId: 'survey' });
     expect(auth.status()).toBe('ready');
-    expect(auth.needsUpdate()).toBe(false);
-    expect(auth.onlyMigrations()).toBe(false);
+    expect(auth.signedIn()).toBe(true);
+    expect(auth.isAdmin()).toBe(true);
+    expect(auth.isStaff()).toBe(true);
   });
 
   it('reads the IAM\'s "Sign-in required" switch as the backend relays it: true unless it says false', async () => {
@@ -160,18 +149,17 @@ describe("AuthService.init(): what the sign-in settings say - an update waiting,
 
   it('a MEMBER - every account holds it - is an ordinary person: neither staff nor an ADMIN', async () => {
     (auth as unknown as { _client: { user: () => object } })._client.user = () => ({ sub: 3, preferred_username: 'pat', roles: ['MEMBER'] });
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey', update: true });
+    await started({ issuer: 'https://iam.example.test', clientId: 'survey' });
     expect(auth.signedIn()).toBe(true);
     expect(auth.isStaff()).toBe(false);
     expect(auth.isAdmin()).toBe(false);
-    expect(auth.onlyMigrations()).toBe(false);
   });
 
-  it('gives the Migrations page to nobody but an ADMIN', async () => {
+  it('an EDITOR is staff, and no ADMIN: the Migrations page is not theirs', async () => {
     (auth as unknown as { _client: { user: () => object } })._client.user = () => ({ sub: 2, preferred_username: 'edith', roles: ['EDITOR'] });
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey', update: true });
-    expect(auth.needsUpdate()).toBe(true);
-    expect(auth.onlyMigrations()).toBe(false);
+    await started({ issuer: 'https://iam.example.test', clientId: 'survey' });
+    expect(auth.isStaff()).toBe(true);
+    expect(auth.isAdmin()).toBe(false);
   });
 });
 

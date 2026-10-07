@@ -1,7 +1,9 @@
 <?php
 
-// The migration engine (api/migration_runner.php, the family's): a database
-// is built from migrations/survey/ in order, each file once - and what it
+// The migration engine - the anotoki family's (anotoki/lib, through
+// api/migrations.php): a database is built from migrations/survey/ in order,
+// each file once, recorded in the `migrations` table the site has always had
+// - by the engine, and by the command line from nothing at all - and what it
 // builds keeps the rules the code leans on.
 
 declare(strict_types=1);
@@ -13,20 +15,89 @@ function server_pdo(string $name): PDO
     return dbConnect(machineDatabaseSettings(), $name);
 }
 
-test('an empty database gets every migration, recorded once', function (): void {
-    $name = test_empty_db('fresh');
-    $pdo = server_pdo($name);
-    assert_same(migrationFiles(), pendingMigrationsReadOnly($pdo), 'all of them pending, and nothing written to find out');
-    assert_false((bool) $pdo->query("SELECT to_regclass('migrations') IS NOT NULL")->fetchColumn());
+/** A file as the engine names it: with its set, the site's one. */
+function file_entry(string $name): array
+{
+    return ['set' => 'survey', 'name' => $name];
+}
 
-    $result = applyPendingMigrations($pdo);
-    assert_same(['applied' => migrationFiles(), 'failed' => null, 'error' => null], $result);
-    assert_same([], pendingMigrationsReadOnly($pdo));
-    assert_same(['applied' => [], 'failed' => null, 'error' => null], applyPendingMigrations($pdo), 'a second run applies nothing');
+/** `php migration.php` with $arguments, for the settings in $config: [exit code, what it printed]. */
+function migration_cli(string $config, array $arguments = []): array
+{
+    $process = proc_open(array_merge([PHP_BINARY, TEST_BACKEND . '/migration.php'], $arguments), [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, TEST_BACKEND, ['SURVEY_TEST_CONFIG' => $config] + getenv());
+    $out = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+
+    return [proc_close($process), $out];
+}
+
+test('an empty database gets every migration, recorded once - in the table the site has always had', function (): void {
+    $files = migration_files();
+    assert_same('001_initial_schema.sql', $files[0] ?? null, 'the files, in the order they run');
+    $name = test_empty_db('fresh');
+    $migrator = surveyMigrator(server_pdo($name));
+    assert_same(array_map('file_entry', $files), $migrator->applicable(), 'all of them pending...');
+    $pdo = server_pdo($name);
+    assert_false((bool) $pdo->query("SELECT to_regclass('migrations') IS NOT NULL")->fetchColumn(), '...and nothing written to find out');
+
+    $result = $migrator->apply();
+    assert_same(['applied' => array_map('file_entry', $files), 'failed' => null, 'error' => null, 'busy' => false, 'note' => null], $result);
+    assert_same([], $migrator->applicable());
+    assert_same(['applied' => [], 'failed' => null, 'error' => null, 'busy' => false, 'note' => null], $migrator->apply(), 'a second run applies nothing');
     foreach (['users', 'surveys', 'responses', 'images', 'survey_images', 'languages', 'translation_keys', 'translations'] as $table) {
         assert_true((bool) $pdo->query("SELECT to_regclass('$table') IS NOT NULL")->fetchColumn(), "the table $table");
     }
-    $pdo = null;
+
+    // The bookkeeping table is the one every database of the site already has - never another shape.
+    assert_same(
+        [['id', 'integer'], ['filename', 'character varying'], ['applied_at', 'timestamp without time zone']],
+        $pdo->query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'migrations' ORDER BY ordinal_position")->fetchAll(PDO::FETCH_NUM)
+    );
+    assert_same($files, $pdo->query('SELECT filename FROM migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN), 'one row a file, in the order they ran');
+    $status = $migrator->status();
+    assert_same([['survey'], [], []], [$status['sets'], $status['pending'], $status['missing']]);
+    foreach ($status['applied'] as $row) {
+        assert_match('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/D', (string) $row['applied_at'], 'when, in UTC');
+    }
+    $migrator = $pdo = null;
+});
+
+test('php migration.php builds a database from nothing - made, every file applied - and then says it is up to date', function (): void {
+    $files = migration_files();
+    $name = dbName() . '_cli';
+    // Not there yet: the command line makes it. Dropped at the end like the file's own.
+    $GLOBALS['TEST_DBS'][] = $name;
+    $config = test_config_dir(test_iam(), $name);
+
+    [$code, $out] = migration_cli($config, ['--dry-run']);
+    assert_same(1, $code, 'a dry run makes nothing - not even the database: ' . $out);
+    assert_false(dbExists(machineDatabaseSettings(), $name));
+
+    [$code, $out] = migration_cli($config);
+    assert_same(0, $code, $out);
+    assert_match('/Database created\./', $out);
+    foreach ($files as $file) {
+        assert_match('/' . preg_quote($file, '/') . ' \.\.\. .*done/', $out, "$file applied");
+    }
+    assert_same($files, server_pdo($name)->query('SELECT filename FROM migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN));
+
+    [$code, $out] = migration_cli($config, ['--status']);
+    assert_same(0, $code, $out);
+    assert_match('/' . count($files) . ' applied, 0 pending/', $out);
+    [$code, $out] = migration_cli($config);
+    assert_same(0, $code, $out);
+    assert_match('/Up to date - ' . count($files) . ' migrations\./', $out);
+
+    // Behind by its last file: the dry run names it and applies nothing; the run applies it.
+    $last = end($files);
+    server_pdo($name)->prepare('DELETE FROM migrations WHERE filename = ?')->execute([$last]);
+    [$code, $out] = migration_cli($config, ['--dry-run']);
+    assert_same(0, $code, $out);
+    assert_match('/would apply ' . preg_quote($last, '/') . '/', $out);
+    assert_match('/' . (count($files) - 1) . ' applied, 1 pending/', migration_cli($config, ['--status'])[1]);
+    [$code, $out] = migration_cli($config);
+    assert_same(0, $code, $out);
+    assert_match('/' . preg_quote($last, '/') . ' \.\.\. .*done/', $out);
+    assert_match('/Up to date/', migration_cli($config)[1]);
 });
 
 test('the database itself keeps the rules: one answer per person, one live survey per address', function (): void {
@@ -74,13 +145,17 @@ test('the database keeps the visitors\' rules: a negative id, nameless, a key\'s
     dbExec('DELETE FROM users WHERE id < 0');
 });
 
-test('a SQL file splits into statements, never inside a string, a comment or a $$ block', function (): void {
+// The library tests its splitter through and through; this holds it to what the site's own files are
+// written with - a failure is named by its statement, so a wrong split would name the wrong one.
+test('a SQL file splits into statements, never inside a string, a comment or a $$ block - with Windows line endings too', function (): void {
     $sql = "-- a comment; with a semicolon\nCREATE TABLE a (x text DEFAULT 'semi;colon');\n/* block; */ SELECT 1;\n"
         . "DO \$\$ BEGIN IF 1 <> 1 THEN RAISE EXCEPTION 'no;'; END IF; END \$\$;\nSELECT 'it''s';";
-    assert_same([
+    $statements = [
         "CREATE TABLE a (x text DEFAULT 'semi;colon')",
         'SELECT 1',
         "DO \$\$ BEGIN IF 1 <> 1 THEN RAISE EXCEPTION 'no;'; END IF; END \$\$",
         "SELECT 'it''s'",
-    ], splitSqlStatements($sql));
+    ];
+    assert_same($statements, \Anotoki\Lib\Migrations\Splitter::split($sql));
+    assert_same($statements, \Anotoki\Lib\Migrations\Splitter::split(str_replace("\n", "\r\n", $sql)), 'a checkout with CRLF line endings');
 });

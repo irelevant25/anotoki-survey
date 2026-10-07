@@ -9,6 +9,24 @@ export async function openPage(port) {
 }
 
 /**
+ * Asks the browser on `port` to close itself, every process of it (Browser.close) - for run.mjs, whose own
+ * child may be gone by then: Edge's launcher hands the browser to a process of its own and exits, and stopping
+ * the child left the browser running. False when nothing answers.
+ */
+export async function closeBrowser(port) {
+  try {
+    const version = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+    const browser = await connect(version.webSocketDebuggerUrl, null, port);
+    // The answer may never come: the browser is going.
+    await Promise.race([browser.send('Browser.close').catch(() => undefined), new Promise((done) => setTimeout(done, 3000))]);
+    browser.socket.close();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * A page in a browser context of its own - another browser, as far as the site can tell: no localStorage, no
  * cookies, no session shared with the first page. `close()` disposes the context with it.
  */

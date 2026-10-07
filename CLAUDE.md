@@ -39,14 +39,26 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **Settings are required and never committed**: `backend/config/database.local.php`
   and `iam.local.php` (gitignored), written by `backend/setup.php` - on this
   computer (no token, a nonce, re-runnable) and on the host (token, lock,
-  self-delete). Without them the API answers `503 {code: "not_set_up"}` and
-  the site shows its "not set up yet" page. With a migration pending the same,
-  with `update: true` - but signing in (`/api/auth/config`, saying `update:
-  true`), the strings and the admin panel's Migrations page
-  (`/api/admin/migrations`, ADMIN only) keep working, and the "not set up yet"
-  page links a signed-in ADMIN there to apply it. Applying takes one lock
-  (`api/database_update.php`) shared with `setup.php` and `migration.php`.
-  Never print the database password; never copy it anywhere git would publish.
+  self-delete). Never print the database password; never copy it anywhere git
+  would publish.
+- **While the site cannot run, the anotoki family's library decides what
+  happens** (anotoki-lib 0.1.0 - `anotoki/lib` in `backend/vendor/`,
+  `@anotoki/lib/migrations` in the frontend; the owner's decision of
+  2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
+  GitHub, never a local path). Its `SiteGate` stands in front of every route:
+  without the settings every address but `/api/site-status` is `503
+  {code: "not_set_up"}` (with the setup page only while the site was never
+  installed - `storage/installed.lock`); with a migration pending `503
+  {code: "update_pending"}`, but signing in (`/api/auth/config`), the strings,
+  `/api/health` and the Migrations page's three routes (`/api/admin/migrations`,
+  `/file`, `/apply` - each exactly, never what is under them; ADMIN judged
+  from the token alone) keep working (`SITE_OPEN_WHILE_UPDATING`,
+  `api/migrations.php`). In the browser the family's page stands instead of
+  every page (`<anotoki-site-gate>`; the guards send nobody to the IAM then):
+  "being updated" for everybody - a quiet Sign in while nobody is signed in -
+  and the way to the Migrations page for the site's ADMIN. Applying takes one
+  lock (`DATABASE_UPDATE_LOCK`) shared with `setup.php`, `migration.php` and
+  the tests' template.
   A third file is optional and nobody's but the owner's:
   `config/visitors.local.php` (the visitors' limits and trusted proxies; put
   there by hand, never written by `setup.php`; defaults without it).
@@ -60,8 +72,9 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   pages take **visitors** (below): the browser keeps the key the server made
   (`core/auth/visitor-key.ts`), and its next sign-in moves the visitor's
   answers and drafts into the account. The admin panel and the editor's
-  preview sign in first whatever the switch. Only the boot pages (not set
-  up, cannot be reached) draw without either.
+  preview sign in first whatever the switch. Only the pages drawn while the
+  site cannot run (the family's page, the "cannot be reached" card) draw
+  without either.
 - **Who a request is is decided when it is issued** (frontend): `ApiService`
   marks each request `ISSUED_AS` person or visitor from the state at that
   moment; the interceptor sends a person's with the token or not at all (a
@@ -126,7 +139,8 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   kept as bytes in `images`, served at `/api/images/{id}.{ext}` for a year,
   never changed, and deleted a day after no survey shows them.
 - **Migrations are the schema**: `backend/migrations/survey/NNN_name.sql`, the
-  family's engine (`api/migration_runner.php`). Never edit an applied one.
+  family's engine (anotoki-lib's `Migrator`, through `surveyMigrator()` in
+  `api/migrations.php`; the `migrations` table as it always was). Never edit an applied one.
   Data-changing ones end with a `DO $$` gate that fails loudly. A string the
   site gains, rewords or stops using is a migration too (`003_site_strings.sql`
   is the pattern: a key, its English and its Slovak string, inserts that never
@@ -162,7 +176,11 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   keys, kinds and `ApiError`s, and the wording happens in the template (the
   pipes) or in a `computed()` / `effect()`. English in the templates: everything
   under `pages/admin` and `layouts/admin-layout`, the preview's own chrome, and
-  the boot pages' fallback beside their keys (`boot/kept-word.ts`).
+  the load error card's fallback beside its keys (`boot/kept-word.ts`). The
+  family's page and Migrations page bring their own words (the library's
+  English and Slovak; this site's formal Slovak for the one sentence that
+  addresses the reader, `core/migrations.ts`), and take the colours through
+  the `--anotoki-*` properties `styles.scss` maps onto the tokens.
 - **No changelog** on this site (the owner's decision); the version is
   `frontend/package.json`'s.
 
@@ -177,15 +195,18 @@ php migration.php [--status|--dry-run]  # migrations for the configured database
 php translations.php --status           # the keys the frontend uses against the database's strings
 php translations.php --export sk [file] | --import sk file   # a language's strings as flat JSON
 php tools/build.php                     # the upload -> ../dist/ (builds the frontend too)
+php composer.phar update anotoki/lib --prefer-dist   # a new anotoki-lib release (with the frontend's, below; DEV.md)
 
 # Frontend (from frontend/)
 npm install && npm start                # ng serve on :4700
 npm test                                # Vitest
 npm run build                           # production -> dist/survey/browser/
 npx prettier --check "src/**/*.{ts,html,scss}"   # a checkout with CRLF line endings: add --end-of-line crlf
+bun install && npm install              # after a new anotoki-lib tarball address in package.json: both lock files
 
 # The site in a browser, signed in through the stand-in IAM (from the root)
 node .claude/skills/check-in-browser/scripts/run.mjs [--no-build] [--keep]
+#   beside another site's check: SURVEY_CHECK_SITE_PORT / _IAM_PORT / _CHROME_PORT (8590-8599)
 ```
 
 ## Working conventions

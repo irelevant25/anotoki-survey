@@ -213,8 +213,12 @@ function authSentCredentials(Request $request): bool
  * nothing, never somebody signed out. Why a token was refused goes to the
  * server log, never to the client: to somebody holding a token that did not
  * work, the answer is the same.
+ *
+ * With $recordVisit false the token alone answers and the database is not
+ * touched (requireTokenRole(): the Migrations page's routes, on a database a
+ * pending migration has yet to build).
  */
-function requestUser(Request $request): ?SiteUser
+function requestUser(Request $request, bool $recordVisit = true): ?SiteUser
 {
     if (!authSentCredentials($request)) {
         return null;
@@ -238,7 +242,9 @@ function requestUser(Request $request): ?SiteUser
     $id = (int) anotoki_iam_user_id($claims);
     $name = is_string($claims['preferred_username'] ?? null) && textTrim($claims['preferred_username']) !== '' ? textClip(textTrim($claims['preferred_username']), 200) : null;
     $email = is_string($claims['email'] ?? null) && textTrim($claims['email']) !== '' ? textClip(textTrim($claims['email']), 320) : null;
-    usersSeen($id, $name, $email);
+    if ($recordVisit) {
+        usersSeen($id, $name, $email);
+    }
 
     return new SiteUser($id, $name, $email, anotoki_iam_roles($claims));
 }

@@ -26,6 +26,13 @@ export type SendFailure =
   | 'tooManyVisitors'
   /** The survey is not at this address any more: moved or deleted. */
   | 'gone'
+  /**
+   * The site closed under the person - a database update began, or its
+   * settings went: the anotoki family's page has taken this one's place by
+   * now (siteStatusInterceptor heard the same answer), and says what there is
+   * to say, calmly. The page says nothing more; the answers stay in the draft.
+   */
+  | 'siteClosed'
   /** Anything else: no connection, the server failing. */
   | 'other';
 
@@ -37,6 +44,9 @@ export type SendFailure =
  * that ran out.
  */
 export function sendFailure(error: ApiError, visitor = false): SendFailure {
+  if (error.status === 503 && (error.code === 'update_pending' || error.code === 'not_set_up')) {
+    return 'siteClosed';
+  }
   if (error.code === 'too_many_visitors') {
     return 'tooManyVisitors';
   }
@@ -88,6 +98,8 @@ export function sendFailureText(i18n: Pick<TranslationService, 't'>, error: ApiE
       const number = typeof questionId === 'string' ? numberOf(questionId) : null;
       return number === null ? i18n.t('take.refused.unknown') : i18n.t('take.refused.question', { number });
     }
+    // 'siteClosed' is not said (the family's page stands instead); a page that did say it would say a send failed.
+    case 'siteClosed':
     case 'other':
       return `${i18n.t(errorKey(error), errorParams(error))} ${i18n.t('take.answersKept')}`;
   }

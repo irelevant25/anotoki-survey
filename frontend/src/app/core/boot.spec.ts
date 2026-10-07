@@ -2,6 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { Router, TitleStrategy, provideRouter } from '@angular/router';
+import { SiteStatus } from '@anotoki/lib/migrations';
 import { ToastService } from '../ui/toast/toast.service';
 import { ApiService } from './api/api.service';
 import { AuthService, SignInFailure } from './auth/auth.service';
@@ -45,17 +46,28 @@ describe('boot(): the whole start', () => {
       bootedAt['auth'] = TestBed.inject(BOOTED)();
     }),
   };
+  /** What the server says of the site when the start asks (the family's SiteStatus). */
+  let standing = 'ready';
+  const siteStatus = {
+    check: vi.fn(async () => {
+      order.push(`status: ${standing}`);
+      return standing;
+    }),
+  };
 
   beforeEach(() => {
     order.length = 0;
+    standing = 'ready';
     failure.set(null);
     person.set(null);
     localStorage.clear();
     auth.init.mockClear();
+    siteStatus.check.mockClear();
     TestBed.configureTestingModule({
       providers: [
         provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }),
         { provide: AuthService, useValue: auth },
+        { provide: SiteStatus, useValue: siteStatus },
         // Made by the start itself, before anything is awaited: its effect is there for the first sign-in.
         {
           provide: VisitorKey,
@@ -75,10 +87,21 @@ describe('boot(): the whole start', () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it('signs in first, then settles the language - which needs to know who it is', async () => {
+  it('asks where the site stands first, then signs in, then settles the language - which needs to know who it is', async () => {
     await TestBed.runInInjectionContext(boot);
-    expect(order).toEqual(['visitor key', 'auth', 'i18n']);
+    expect(order).toEqual(['visitor key', 'status: ready', 'auth', 'i18n']);
     expect(TestBed.inject(ToastService).toasts()).toEqual([]);
+  });
+
+  it('does not stop on a database update waiting, or on a site that cannot run: the sign-in and the strings come all the same, and the start ends', async () => {
+    TestBed.inject(VisitorKey);
+    for (const state of ['update-pending', 'not-set-up', 'unavailable']) {
+      order.length = 0;
+      standing = state;
+      await TestBed.runInInjectionContext(boot);
+      expect(order).toEqual(['status: ' + state, 'auth', 'i18n']);
+      expect(TestBed.inject(BOOTED)()).toBe(true);
+    }
   });
 
   it('says the start is over only once the language is settled too: until then the site is not drawn', async () => {
@@ -113,7 +136,7 @@ describe('boot(): the whole start', () => {
       order.push(readDraft('survey-a', '12') ? 'i18n, the draft adopted' : 'i18n, no draft yet');
     });
     await TestBed.runInInjectionContext(boot);
-    expect(order).toEqual(['visitor key', 'auth', 'i18n, the draft adopted']);
+    expect(order).toEqual(['visitor key', 'status: ready', 'auth', 'i18n, the draft adopted']);
     expect(readDraft('survey-a', VISITOR_SLOT)).toBeNull();
   });
 

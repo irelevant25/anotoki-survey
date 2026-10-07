@@ -86,9 +86,14 @@ area called the admin panel as on every anotoki site (the person's menu, the
 wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
-fails; it works while the site is closed for a pending migration, and the
-"not set up yet" page links an ADMIN there) - and a README in `backend/` and
-`frontend/`. The backend already reads the IAM's new "Sign-in required"
+fails) - and a README in `backend/` and `frontend/`. The database's
+migrations are the shared library's, **anotoki-lib** (`anotoki/lib` from
+Composer, `@anotoki/lib` from its release, 0.1.0): one engine, one gate and
+one behaviour for every anotoki site while the site cannot run - visitors and
+signed-in people read a calm "The site is being updated" in their language
+(and a quiet Sign in), the site's ADMIN "A database update is waiting" and
+the way to the Migrations page, which works then; the setup page is offered
+only to a site never installed ([docs/decisions.md](docs/decisions.md)). The backend already reads the IAM's new "Sign-in required"
 switch for the site and passes it to the browser (required unless the IAM
 says otherwise), and its API takes **visitors** when the switch is off -
 people answering without signing in, once each from their browser, kept in
@@ -103,8 +108,9 @@ order (and the admin panel's times on its clock) and reads in its language;
 the top bar's theme and language save a choice to the account, for every
 anotoki site - while an IAM that does not send them yet leaves everything as
 it was. On the hosting this version brings new migrations (up to
-`008_account_preferences_strings.sql`): after the upload an ADMIN applies them on the
-Migrations page (or the setup page does) - [docs/operations.md](docs/operations.md).
+`009_site_status_page.sql`): after the upload an ADMIN signs in from the
+family's page and applies them on the Migrations page (or the setup page
+does) - [docs/operations.md](docs/operations.md).
 
 ## Trying it out
 
