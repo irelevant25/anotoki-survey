@@ -47,8 +47,9 @@ Security and correctness first:
   people take surveys on, `takeSurveysGuard` (open to visitors only while
   `visitorsWelcome`); the admin panel and the editor's preview sign in
   whatever the switch (only the pages drawn while the site cannot run draw without either - the family's
-  page, behind which no page is made: the outlet in `<anotoki-site-gate>` exists only while the gate shows it,
-  and nobody but the site's ADMIN reads why the site is closed). In the
+  page, behind which no page is made: the outlet is `<anotoki-site-gate>`'s `<ng-template>`, made only while the
+  gate shows the pages - an outlet given to it as it is is a finding - and nobody but the site's ADMIN reads why
+  the site is closed). In the
   browser a request says whom it is for as it is made (`ISSUED_AS` in
   `ApiService`): a person's never leaves without a token (a local 401), a
   visitor's never carries one; the key goes only to `/api/surveys`, only

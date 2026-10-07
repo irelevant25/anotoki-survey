@@ -29,10 +29,15 @@ its README), one version for both halves:
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
 | PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.1"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.1.0/anotoki-lib-0.1.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.1.1/anotoki-lib-0.1.1.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+
+The PHP half is at 0.1.0 (`composer.lock` names `v0.1.0`) and the Angular half
+at 0.1.1: 0.1.1 changed only the Angular half, and its CHANGELOG says a site
+may keep `vendor/anotoki/lib` at 0.1.0.
 
 To update to a new release, both halves together (0.x: a minor version may
-break - read its CHANGELOG first):
+break - read its CHANGELOG first; a release that changes one half only says
+so there):
 
 ```bash
 cd backend && php composer.phar update anotoki/lib --prefer-dist   # the constraint in composer.json first, if the version needs it

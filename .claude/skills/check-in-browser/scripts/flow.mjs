@@ -56,7 +56,10 @@
 // (two files' rows taken out of its record - the one stage that changes the
 // database itself, through sql()): the anotoki family's page - "being
 // updated", with no error and nothing to press but a quiet Sign in, for
-// somebody taking surveys and an EDITOR; for the site's ADMIN the way to the
+// somebody taking surveys and an EDITOR; no page made behind it, for a
+// visitor, somebody signed in or the ADMIN (the site's API asked nothing but
+// its status, the sign-in and the strings, no toast); for the site's ADMIN
+// the way to the
 // Migrations page, which a Sign in at its address comes back to, an Apply that
 // stops at a failing file with the database's error, and one that brings the
 // site back where it stands, its strings read again; visitors -
@@ -111,9 +114,13 @@ page.on('Page.javascriptDialogOpening', (e) => {
 });
 /** Every request the page made, as "GET /api/translations/sk": a stage counts the ones made since it began. */
 const requested = [];
+/** Where each of them went, by the same index: the site's origin, the stand-in IAM's, or another host's (Umami's). */
+const requestedOrigins = [];
 page.on('Network.requestWillBeSent', (e) => {
   try {
-    requested.push(`${e.request.method} ${new URL(e.request.url).pathname}`);
+    const url = new URL(e.request.url);
+    requested.push(`${e.request.method} ${url.pathname}`);
+    requestedOrigins.push(url.origin);
   } catch {
     // an address that is not one (about:blank, data:)
   }
@@ -2204,6 +2211,19 @@ const statusActions = async () => (await texts('anotoki-site-status button, anot
 const quiet = async () =>
   !/error|503|update_pending|not_set_up|setup|migration/i.test((await text('anotoki-site-status')) ?? '') && (await js("document.querySelectorAll('app-toast-host .toast').length")) === 0;
 /**
+ * What the site's API was asked since `from` (the page's own requests) beyond what the family's page and the sign-in
+ * need while the site cannot run - where it stands, the sign-in's settings, the strings - and the routes in `open`
+ * (the Migrations page's, for the site's ADMIN on it): anything else came from a page made behind the family's page,
+ * which must never be made (the router outlet is the gate's template, made only while the gate shows the pages).
+ * The site's own origin only: the stand-in IAM's `/api/oidc/...` and the visitor counter's `/api/send` (Umami, on
+ * its own host) are other hosts' addresses.
+ */
+const askedBehind = (from, open = []) =>
+  requested
+    .slice(from)
+    .filter((request, at) => requestedOrigins[from + at] === origin && /^[A-Z]+ \/api\//.test(request))
+    .filter((request) => request !== 'GET /api/site-status' && request !== 'GET /api/auth/config' && !request.startsWith('GET /api/translations/') && !open.includes(request));
+/**
  * Nobody signed in, opening `path` while the update waits: how many times the page went to the IAM's sign-in
  * meanwhile - none. Counted from the page's own requests (the stand-in's log also has the check's own questions).
  */
@@ -2242,7 +2262,23 @@ await expectNoKeys('an update waiting, nobody signed in, in Slovak');
 await expectNoSideways('an update waiting, 390 px');
 await screenshots('sk-390-behind-visitor');
 
+// A visitor of the site's own - the IAM's "Sign-in required" off, so the list of surveys would take them: the same
+// page, and nothing of that list made behind it. (While sign-in is required the layout draws its signed-out card in
+// place of any page, so only a visitor welcome shows what the gate makes.)
+const welcomeOff = await signInRequired(false);
+const welcomeFrom = requested.length;
+await go('/?lang=sk');
+await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
+await sleep(900);
+expect(
+  "a visitor while the update waits, sign-in not required: the same page - and nothing of the open surveys behind it: the API asked only where the site stands, the sign-in's settings and the strings, and no toast",
+  welcomeOff && (await statusHeading()) === 'Stránku práve aktualizujeme' && askedBehind(welcomeFrom).length === 0 && (await quiet()),
+  `${await statusHeading()} / asked: ${askedBehind(welcomeFrom).join(', ')}`,
+);
+expect('"Sign-in required" on again', await signInRequired(true));
+
 // Somebody taking surveys signs in from it: back at the same address, the same page - and nothing to press.
+const patFrom = requested.length;
 const patPressed = await signInThere(PAT, 'Prihlásiť sa');
 expect(
   'its quiet Sign in: through the IAM and back to the same address - signed in now, the same page, nothing to press',
@@ -2255,6 +2291,11 @@ await go('/?lang=en');
 await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
 await sleep(500);
 expect('... and in English', (await statusHeading()) === 'The site is being updated' && (await statusActions()) === '' && (await quiet()), await statusHeading());
+expect(
+  '... and signed in, nothing of the page behind it either - the list of surveys is not made: the API asked only the status, the sign-in\'s settings and the strings',
+  askedBehind(patFrom).length === 0,
+  askedBehind(patFrom).join(', '),
+);
 await screenshot('en-1280-behind-participant');
 
 // An EDITOR, at the Migrations page's address: the page everybody gets.
@@ -2274,6 +2315,7 @@ expect(
 await screenshot('en-1280-behind-editor');
 
 // The site's ADMIN, signed out at the Migrations page's address: Sign in there, and back to it - the Migrations page.
+const ownerFrom = requested.length;
 const ownerTrips = await signedOutBehind('/admin/migrations');
 const ownerPressed = await signInThere(OWNER, 'Sign in');
 await waitFor(page, "location.pathname === '/admin/migrations' && document.querySelectorAll('anotoki-migrations-page [data-pending] li').length === 2", 15000);
@@ -2321,6 +2363,11 @@ await go('/?lang=en');
 await waitFor(page, "!!document.querySelector('anotoki-site-status a')", 15000);
 await sleep(500);
 await screenshot('en-1280-behind-admin');
+expect(
+  'the ADMIN: nothing of a page behind "A database update is waiting" - the API asked only the Migrations page\'s list, where the site stands, the sign-in\'s settings and the strings - and no toast',
+  askedBehind(ownerFrom, ['GET /api/admin/migrations']).length === 0 && (await js("document.querySelectorAll('app-toast-host .toast').length")) === 0,
+  askedBehind(ownerFrom, ['GET /api/admin/migrations']).join(', '),
+);
 expect('"Open Migrations"', (await clickText('anotoki-site-status a', 'Open Migrations')) === true);
 await waitFor(page, "location.pathname === '/admin/migrations' && document.querySelectorAll('anotoki-migrations-page [data-pending] li').length === 2", 15000);
 await sleep(600);

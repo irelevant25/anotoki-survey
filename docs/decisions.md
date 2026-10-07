@@ -135,7 +135,9 @@ there." So the database's migrations - the engine, the gate in front of every
 route, the status the pages ask, the page drawn instead of the site and the
 Migrations page - are the shared library's, anotoki-lib (`anotoki/lib` from
 Composer, `@anotoki/lib` from its release tarball; README.md says how both are
-updated), and this site adopted version 0.1.0 whole:
+updated), and this site adopted version 0.1.0 whole - and takes the releases
+after it the same way (0.1.1, Angular only: the gate takes the pages as a
+template, below; the PHP half stays 0.1.0):
 
 - **The server decides where the site stands, for every request**:
   `not_set_up` (the settings missing), `update_pending` (a migration file
@@ -173,12 +175,15 @@ updated), and this site adopted version 0.1.0 whole:
 - **No page runs out of sight**: the library's gate shows what it wraps inside
   an `@if`, but a component's projected content is made whether it is shown or
   not - a bare `<router-outlet>` inside would put the page behind the family's
-  one in place, asking the API and raising toasts over it. The outlet is made
-  only when the gate shows it (`AppComponent.pagesOpen`, the gate's own
-  decision). And once the site could not run in a page load, its pages stay
-  away until an update applied in that tab opens them (`PAGES_CLOSED`,
-  `core/migrations.ts`): any other way back to ready, the family's page reloads
-  the page at once, and a page made in that moment would only flash. Answers
+  one in place, asking the API and raising toasts over it. So the outlet is
+  given to the gate as a template (`<anotoki-site-gate><ng-template>…`), which
+  it makes only while it shows the pages (0.1.1). With 0.1.0, which had no
+  template, this site took the gate's decision again around a bare outlet
+  (`AppComponent.pagesOpen`, gone with 0.1.1). And once the site could not run
+  in a page load, its pages stay away until an update applied in that tab
+  opens them (`PAGES_CLOSED`, `core/migrations.ts`; `AppComponent.held`): any
+  other way back to ready, the family's page reloads the page at once - the
+  gate opens in that moment, and a page made then would only flash. Answers
   to a survey sent just as an update closes the site raise no toast either
   (`siteClosed`, `send-failure.ts`): the family's page has taken the survey's
   place, and the answers wait in the draft.

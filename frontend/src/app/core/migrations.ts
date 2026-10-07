@@ -10,13 +10,15 @@ import { TranslationService } from './i18n/translation.service';
 export const MIGRATIONS_PATH = '/admin/migrations';
 
 /**
- * Whether the site's pages stay away: true from the moment the site could not
- * run in this page load (AppComponent sets it) until an update applied in this
- * tab opens them again (onUpToDate, below). The site turning ready any other
- * way - the family's page asking again by itself, or its "Try again" - is
- * followed at once by a reload of the page, and a page made in the moment
- * between would run for nothing (ask the API, raise a toast) and flash before
- * the reload.
+ * Whether the site's pages stay away once it runs again: true from the moment
+ * the site could not run in this page load (AppComponent sets it) until an
+ * update applied in this tab opens them again (onUpToDate, below). While the
+ * site cannot run, the family's gate keeps them away itself - it makes the
+ * pages' template only while it shows them. The site turning ready any other
+ * way - the family's page asking again by itself, or its "Try again" - opens
+ * the gate and is followed at once by a reload of the page, and a page made in
+ * the moment between would run for nothing (ask the API, raise a toast) and
+ * flash before the reload (AppComponent.held).
  */
 export const PAGES_CLOSED = new InjectionToken<WritableSignal<boolean>>('the site’s pages stay away until it runs again here', {
   providedIn: 'root',
@@ -44,7 +46,8 @@ const FORMAL_SLOVAK: Partial<SiteStatusWords> = {
  * - SiteStatus asks GET /api/site-status first thing in the start (boot()),
  *   and siteStatusInterceptor hears any API answer saying the same (503
  *   update_pending or not_set_up);
- * - <anotoki-site-gate> around the router outlet (app.component) draws the
+ * - <anotoki-site-gate> around the router outlet (app.component, the outlet
+ *   given as a template: made only while the gate shows the pages) draws the
  *   family's page instead of every page: to visitors and to signed-in people
  *   a calm "the site is being updated" in their language, with a quiet Sign
  *   in while nobody is signed in; to the site's ADMIN "A database update is

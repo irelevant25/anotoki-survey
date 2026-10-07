@@ -385,15 +385,19 @@ hears any later answer that says the site cannot run. Nothing in the start stops
 on it: the sign-in's settings and the strings answer while an update waits.
 While the site cannot run the sign-in guard sends nobody to the IAM and lets
 every page through; `<anotoki-site-gate>` around the router outlet draws the
-family's page instead (`app.component.html` makes the outlet only when the gate
-shows it - a projected outlet would put the page in place out of sight, and it
-would run): to somebody taking surveys, or an EDITOR, "The site is being
+family's page instead (`app.component.html` gives it the outlet as a template,
+`<ng-template>`, which the gate makes only while it shows the pages -
+anotoki-lib 0.1.1; an outlet given as it is would be made anyway and put the
+page in place out of sight, where it would run): to somebody taking surveys,
+or an EDITOR, "The site is being
 updated" in their language - no error, no code, nothing to press but a quiet
 Sign in while nobody is signed in - which asks again by itself and reloads once
-the site runs (no page is made in the moment before the reload: once the site
-could not run in a page load, its pages wait for the reload or for an Apply in
-that tab - `PAGES_CLOSED`); to the site's ADMIN, in English, "A database update is waiting"
-and "Open Migrations". Signed out at the Migrations page's address, the quiet
+the site runs (no page is made in the moment before the reload, when the gate
+has opened: once the site could not run in a page load, its pages wait for the
+reload or for an Apply in that tab - `PAGES_CLOSED`, `AppComponent.held`); to
+the site's ADMIN, in English, "A database update is waiting" and "Open
+Migrations", which asks again by itself too (another ADMIN may apply the
+update meanwhile). Signed out at the Migrations page's address, the quiet
 Sign in comes back there, to the page. The Migrations page
 (`<anotoki-migrations-page>`, in the admin layout, with only Migrations in the
 bar) lists Pending, Applied (with each file's SQL) and Missing; its "Apply

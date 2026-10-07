@@ -42,8 +42,9 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   self-delete). Never print the database password; never copy it anywhere git
   would publish.
 - **While the site cannot run, the anotoki family's library decides what
-  happens** (anotoki-lib 0.1.0 - `anotoki/lib` in `backend/vendor/`,
-  `@anotoki/lib/migrations` in the frontend; the owner's decision of
+  happens** (anotoki-lib - `anotoki/lib` 0.1.0 in `backend/vendor/`,
+  `@anotoki/lib/migrations` 0.1.1 in the frontend: 0.1.1 changed only the
+  Angular half; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
   GitHub, never a local path). Its `SiteGate` stands in front of every route:
   without the settings every address but `/api/site-status` is `503
@@ -54,7 +55,9 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   `/file`, `/apply` - each exactly, never what is under them; ADMIN judged
   from the token alone) keep working (`SITE_OPEN_WHILE_UPDATING`,
   `api/migrations.php`). In the browser the family's page stands instead of
-  every page (`<anotoki-site-gate>`; the guards send nobody to the IAM then):
+  every page (`<anotoki-site-gate>`, the router outlet given to it as an
+  `<ng-template>` so that no page is made behind it; the guards send nobody to
+  the IAM then):
   "being updated" for everybody - a quiet Sign in while nobody is signed in -
   and the way to the Migrations page for the site's ADMIN. Applying takes one
   lock (`DATABASE_UPDATE_LOCK`) shared with `setup.php`, `migration.php` and

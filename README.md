@@ -88,7 +88,8 @@ Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
 migrations are the shared library's, **anotoki-lib** (`anotoki/lib` from
-Composer, `@anotoki/lib` from its release, 0.1.0): one engine, one gate and
+Composer at 0.1.0, `@anotoki/lib` from its release at 0.1.1 - which makes the
+pages only while the site is open): one engine, one gate and
 one behaviour for every anotoki site while the site cannot run - visitors and
 signed-in people read a calm "The site is being updated" in their language
 (and a quiet Sign in), the site's ADMIN "A database update is waiting" and

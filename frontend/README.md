@@ -17,7 +17,8 @@ src/
     app.component.*                  the pages behind the anotoki family's gate (<anotoki-site-gate>): while
                                      the site cannot run - not set up, a database update waiting, out of
                                      reach - the family's page stands instead, and the Migrations page for
-                                     the site's ADMIN while an update waits
+                                     the site's ADMIN while an update waits; the router outlet is the gate's
+                                     <ng-template>, made only while the gate shows the pages
     boot/                            the card drawn when the server could not be reached as the site started
                                      (its status answered, the sign-in's settings not)
     core/

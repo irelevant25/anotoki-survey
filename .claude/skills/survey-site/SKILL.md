@@ -70,7 +70,8 @@ backend/
                            through it
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.1.0 - never edited here; DEV.md: how it is updated):
+                           anotoki-lib 0.1.0's PHP half, unchanged in 0.1.1 - never edited here;
+                           DEV.md: how it is updated):
                            surveyMigrationSet(), surveyMigrator($pdo) (one set `survey`, the site's
                            own lock DATABASE_UPDATE_LOCK - setup.php, migration.php, the Apply and the
                            tests' template all go through it), surveySiteState() (not_set_up /
@@ -98,9 +99,10 @@ backend/
   tests/                   run.php, lib.php, unit/, api/, tools/ (testdb, testenv, fake-iam)
 frontend/src/app/
   app.component.*          the pages behind the family's gate: <anotoki-site-gate> around the router
-                           outlet, which is made only when the gate shows it (pagesOpen - projected
-                           content is made shown or not); the load error card; toasts, confirm,
-                           lightbox over everything
+                           outlet, given as its <ng-template> - made only while the gate shows the
+                           pages (anotoki-lib 0.1.1; content given as it is is made shown or not) -
+                           and held for the reload once the site runs again (held, PAGES_CLOSED);
+                           the load error card; toasts, confirm, lightbox over everything
   core/migrations.ts       the family's library (@anotoki/lib/migrations) wired to this site:
                            provideSiteMigrations() (isAdmin / isSignedIn / signIn - signInOrSayWhy -
                            / language / AdminDates' dates / reload the strings when up to date; the
@@ -233,8 +235,9 @@ frontend/src/app/
   language) and the migrations (the family's split: applying database
   updates is ADMIN's). The frontend hides; the server refuses.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib 0.1.0,
-  the owner's decision of 2026-10-07): the `SiteGate` answers 503
+  applies it - the anotoki family's way, the library's** (anotoki-lib: the PHP
+  half 0.1.0, the Angular half 0.1.1; the owner's decision of 2026-10-07): the
+  `SiteGate` answers 503
   `update_pending` to everything but exactly `SITE_OPEN_WHILE_UPDATING` (and
   `/api/site-status`, always); a new route that must work then goes there, and
   nothing that writes the site's data does. Not set up, everything but the
@@ -249,8 +252,9 @@ frontend/src/app/
   `surveyMigrator()` on a connection of its own - one lock for all. In the
   browser nobody but the site's ADMIN ever reads why the site is closed: the
   family's page ("being updated"; a quiet Sign in), the guards let pages
-  through and send nobody to the IAM, and the outlet inside the gate exists
-  only when the gate shows it. The library is never edited here: a change it
+  through and send nobody to the IAM, and the outlet is the gate's
+  `<ng-template>`, made only while the gate shows the pages - never an outlet
+  given to it as it is. The library is never edited here: a change it
   needs is a new release (its repository, `irelevant25/anotoki-lib`), taken in
   by DEV.md's steps.
 - **Both sides say the same**: `answer-rules.ts` ↔ `answerProblem()` /
@@ -784,15 +788,20 @@ frontend/src/app/
   shows its content inside an `@if`, but what a component projects is made by
   the parent whether it is shown or not - a bare outlet in `<anotoki-site-gate>`
   put the routed page in place behind the family's page, asking the API (503)
-  and raising toasts, which are drawn over everything. The outlet is made only
-  when the gate shows it (`AppComponent.pagesOpen`, the gate's own decision);
-  `app.component.spec.ts` counts the pages made while the site is closed.
+  and raising toasts, which are drawn over everything. The outlet goes in as
+  the gate's `<ng-template>` (anotoki-lib 0.1.1), which the gate makes only
+  while it shows the pages; with 0.1.0 the site took the gate's decision
+  again itself (`AppComponent.pagesOpen`, gone). `app.component.spec.ts`
+  counts the pages made while the site is closed - an outlet given without
+  the template turns it red.
 - **The site found ready again ran a page for nothing**: the family's page
   marks the site ready and reloads the page in the next breath, and the pages
   opened in between - for a visitor, past a guard that let them through only
-  because the site was closed - asked the API and flashed. Once the site could
-  not run in a page load the pages stay away (`PAGES_CLOSED`,
-  `core/migrations.ts`) until an Apply in that tab opens them (`onUpToDate`).
+  because the site was closed - asked the API and flashed. The gate's template
+  does not help there: ready, the gate is open. Once the site could not run in
+  a page load the outlet waits inside the template (`AppComponent.held`:
+  `PAGES_CLOSED`, `core/migrations.ts`, and the site not blocked) until an
+  Apply in that tab opens the pages (`onUpToDate`) - or the reload comes.
 - **Answers sent as an update closed the site raised a toast over the
   family's page**: the 503 `update_pending` (or `not_set_up`) of a send is
   `siteClosed` (`send-failure.ts`) and says nothing - the family's page stands

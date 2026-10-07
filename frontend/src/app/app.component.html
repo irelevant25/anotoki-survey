@@ -1,11 +1,14 @@
 @switch (drawn()) {
     @case ("site") {
-        <!-- The gate around the pages, and around nothing else: what is drawn over any page stays below it. The outlet is
-             made only when the gate shows it (pagesOpen): a page made out of sight would still run. -->
+        <!-- The gate around the pages, and around nothing else: what is drawn over any page stays below it. The pages come
+             as a template, which the gate makes only while it shows them - never behind the family's page. Inside, the
+             outlet waits for the reload once the site could not run in this page load and runs again (held). -->
         <anotoki-site-gate>
-            @if (pagesOpen()) {
-                <router-outlet />
-            }
+            <ng-template>
+                @if (!held()) {
+                    <router-outlet />
+                }
+            </ng-template>
         </anotoki-site-gate>
     }
     @case ("load-error") {

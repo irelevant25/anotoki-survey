@@ -369,7 +369,13 @@ A database behind the code - the one stage that changes the database itself
     nothing to press but a quiet "Prihlásiť sa"; pressed, as Pat: through the
     IAM and back to `/`, the same page with nothing to press; in English at
     1280. Edith, signed out at `/admin/migrations`, signs in from it: back
-    there, "The site is being updated", no Migrations page. The owner, signed
+    there, "The site is being updated", no Migrations page. Behind the
+    family's page no page is made: for a visitor with "Sign-in required"
+    switched off for a moment (whom the list of surveys would take), for Pat
+    signed in, and for the owner's "A database update is waiting" below, the
+    site's API was asked nothing but the status, the sign-in's settings and
+    the strings (the owner, the Migrations page's list too: `askedBehind()`),
+    and no toast came. The owner, signed
     out at `/admin/migrations`, signs in from it: back there, on the family's
     Migrations page - 004 and 005 pending, only "Migrations" in the bar, the
     tab "Migrations · …", and the brand showing `brand.adminPanel` (the strings
@@ -515,6 +521,11 @@ Things that cost time to find out:
   `h2`, `p` and `pre`, `[data-pending] li`, `[data-applied]`). A new release of
   the library may move them: read its templates
   (`frontend/node_modules/@anotoki/lib`) before blaming the site.
+- A page made behind the family's page is not in the document: what a
+  component projects and does not show is made but never attached, so
+  `document.querySelector('app-survey-home')` finds nothing either way. What
+  gives it away is what it asks - count the page's own requests
+  (`askedBehind(from)`).
 - `signInAs(user, words)` reads the page it is on: after `/?lang=sk` the tab is
   Slovak whoever is signed in (`SK`), after the chooser it is what was chosen,
   and with nothing stored it is the account's language while signed in and
