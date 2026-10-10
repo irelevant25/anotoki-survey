@@ -1,7 +1,7 @@
 <section id="problems" class="panel problems" [class.is-ready]="problems().length === 0" aria-labelledby="problems-title">
     @if (problems().length) {
         <h2 id="problems-title" class="panel-title warn">
-            <app-icon name="alert" [size]="16" />
+            <anotoki-icon name="alert" [size]="16" />
             {{ problemsTitle() }}
         </h2>
         <ul class="problem-list">
@@ -13,7 +13,7 @@
         </ul>
     } @else {
         <h2 id="problems-title" class="panel-title ready">
-            <app-icon name="checkCircle" [size]="16" />
+            <anotoki-icon name="checkCircle" [size]="16" />
             {{ problemsTitle() }}
         </h2>
     }
@@ -21,7 +21,7 @@
 
 <nav class="panel outline" aria-labelledby="outline-title">
     <h2 id="outline-title" class="panel-title">
-        <app-icon name="listOrdered" [size]="16" />
+        <anotoki-icon name="listOrdered" [size]="16" />
         Outline
     </h2>
     @if (translating(); as language) {

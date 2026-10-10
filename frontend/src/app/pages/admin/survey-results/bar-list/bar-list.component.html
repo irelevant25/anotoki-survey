@@ -31,7 +31,7 @@
                 [attr.aria-label]="'Show the results of only the people who chose ' + tally.label"
                 [title]="filtered().has(tally.key) ? 'Already among the filters' : 'Only these people'"
                 (click)="narrow.emit(tally)">
-                <app-icon name="filter" [size]="14" />
+                <anotoki-icon name="filter" [size]="14" />
             </button>
         </li>
     }

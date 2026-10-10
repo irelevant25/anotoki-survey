@@ -12,7 +12,7 @@
 }
 @if (!source() || broken()) {
     <span class="missing" [attr.role]="decorative() ? null : 'img'" [attr.aria-label]="decorative() ? null : ('image.missing' | translate)" [attr.title]="'image.missing' | translate">
-        <app-icon name="imageOff" [size]="22" />
+        <anotoki-icon name="imageOff" [size]="22" />
     </span>
 } @else if (!loaded()) {
     <span class="loading" aria-hidden="true"></span>

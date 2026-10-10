@@ -118,6 +118,12 @@ nothing else). It is the first update applied the new way: upload, then sign in
 as ADMIN on the family's page and apply 009 on the Migrations page. Delete the
 three old `api/` files named above.
 
+The version that takes the family's UI kit (anotoki-lib 0.2.0 - the Angular
+half only) has no migration and changes nothing on the server: the upload's
+`vendor/anotoki/lib` stays 0.1.0, `theme-boot.js` is the library's now (the
+build copies it to the same place, still answered with `no-cache`), and
+Manrope's files come with the build (`media/`).
+
 ## The site's words and languages
 
 The words the site says to people taking surveys are in the database and are
@@ -331,7 +337,7 @@ connection and the IAM's address; setup.php writes them again - all but
 | A picture shows crossed out | It was deleted: no survey showed it for a day. |
 | A page shows a key (`home.title`) where a word should be | The key has no string. Right after a release, for a moment: the browser started from the strings it kept and the server has not answered yet - they are replaced when it does. Lasting: the frontend uses a key no migration wrote, which `tests/unit/translations.test.php` and `php translations.php --status` exist to catch. |
 | Somebody expecting Slovak gets English | Slovak is hidden (Languages); or they chose English in the chooser on that device; or came by a link with `?lang=en` in that tab; or they are signed in and their anotoki account is set to English - the account's language outranks the browser's, so the page can turn English at sign-in (and, once the IAM sends the account's preferences - its migration 015 - it outranks the device's choice too). Signed in, the chooser here saves the choice to the account, for every anotoki site; signed out it settles it for that device. The IAM's account page settles it for every device, from the next token. |
-| The theme (or the dates) changed by itself, or does not stay as chosen | Signed in, the theme, the date order and the clock are the anotoki account's: a choice made on another anotoki site or on the IAM's account page arrives here with the next token. A choice made here that the account would not take (the IAM out of reach) goes back, with a toast. Signed out, it is the device's. |
+| The theme (or the dates) changed by itself, or does not stay as chosen | Signed in, the theme, the date order and the clock are the anotoki account's: a choice made on another anotoki site or on the IAM's account page arrives here with the next token. A choice made here that the account would not take (the IAM out of reach) goes back, and a note under the theme switch says so. Signed out, it is the device's. |
 | A survey shows in English on a Slovak page, with "Jazyk: English" | Its Slovak translation is missing a text (one added since it was translated), or it has none: the editor's Slovak tab counts what is left. |
 | An editor's save is refused: "Say which language the survey is written in (language). A page that was open before the site was updated can no longer save: …" | The page was opened before the release that brought the languages. As the sentence says: copy what was changed since the last save, then reload the page. |
 | An editor's save is refused: "A language of this survey has just been deleted from the site." | An ADMIN deleted the language in the moment the survey was being saved in it. Add the language again (Languages), or remove that translation from the survey. |

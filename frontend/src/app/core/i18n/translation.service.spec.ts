@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ToastService } from '../../ui/toast/toast.service';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { ApiError, ApiService } from '../api/api.service';
 import { type AnotokiPreferences } from '../auth/anotoki-auth';
 import { AuthService, BootStatus } from '../auth/auth.service';

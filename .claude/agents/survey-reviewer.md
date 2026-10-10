@@ -147,7 +147,11 @@ Then the house style:
 
 - Angular: three files per component, OnPush, signals, `inject()`, inputs for
   route/query parameters, colours from tokens (light and dark), 390 px; no
-  logic duplicated from `core/` into a component.
+  logic duplicated from `core/` into a component. The UI kit is the family's
+  (`@anotoki/lib`): a copy of a kit piece in `src/app/ui/`, a global style a
+  kit component would meet, or a kit word the site has a string for that is
+  not in `core/kit.ts`'s `SITE_KEYS` (the page would say the kit's word - in
+  Slovak the kit's ty) is a finding.
 - PHP: `declare(strict_types=1)`, functions by area, comments that say why.
 - Tests: new rules, routes and refusals have tests (`backend/tests/`, `*.spec.ts`);
   `php tests/run.php` and `npm test` pass - run them. A test must fail with

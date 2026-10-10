@@ -13,7 +13,7 @@
                         [maxLength]="200" />
                     @if (option.other) {
                         <span class="other-tag" title="Choosing it opens a field for the person's own answer">
-                            <app-icon name="text" [size]="13" />
+                            <anotoki-icon name="text" [size]="13" />
                             + own words
                         </span>
                     }
@@ -35,7 +35,7 @@
         @for (option of options(); track option.id; let i = $index, first = $first, last = $last) {
             <div class="option" cdkDrag [cdkDragData]="option.id" [class.is-other]="option.other">
                 <div class="option-row">
-                    <span class="handle" cdkDragHandle aria-hidden="true" title="Drag to move"><app-icon name="grip" [size]="16" /></span>
+                    <span class="handle" cdkDragHandle aria-hidden="true" title="Drag to move"><anotoki-icon name="grip" [size]="16" /></span>
                     <span class="mark" [class.mark-round]="type() === 'single'" aria-hidden="true"></span>
                     <input
                         class="option-input"
@@ -50,7 +50,7 @@
                         (paste)="onPaste($event, option.id)" />
                     @if (option.other) {
                         <span class="other-tag" title="Choosing it opens a field for the person's own answer">
-                            <app-icon name="text" [size]="13" />
+                            <anotoki-icon name="text" [size]="13" />
                             + own words
                         </span>
                     }
@@ -66,16 +66,16 @@
                             title="Add a picture (or paste one into the field)"
                             [disabled]="option.images.length >= maxImages"
                             (click)="pickImages(option.id)">
-                            <app-icon name="image" [size]="15" />
+                            <anotoki-icon name="image" [size]="15" />
                         </button>
                         <button type="button" class="icon-button icon-button-move" aria-label="Move up" title="Move up (Alt+↑)" [disabled]="first" (click)="move(option.id, -1)">
-                            <app-icon name="arrowUp" [size]="15" />
+                            <anotoki-icon name="arrowUp" [size]="15" />
                         </button>
                         <button type="button" class="icon-button icon-button-move" aria-label="Move down" title="Move down (Alt+↓)" [disabled]="last" (click)="move(option.id, 1)">
-                            <app-icon name="arrowDown" [size]="15" />
+                            <anotoki-icon name="arrowDown" [size]="15" />
                         </button>
                         <button type="button" class="icon-button icon-button-danger" aria-label="Remove this option" title="Remove" (click)="remove(option.id)">
-                            <app-icon name="x" [size]="15" />
+                            <anotoki-icon name="x" [size]="15" />
                         </button>
                     </div>
                 </div>
@@ -93,13 +93,13 @@
     </div>
 
     <div class="adds">
-        <button appButton size="sm" variant="ghost" (click)="add()">
-            <app-icon name="plus" [size]="15" />
+        <button anotokiButton size="sm" variant="ghost" (click)="add()">
+            <anotoki-icon name="plus" [size]="15" />
             Add an option
         </button>
         @if (!hasOther()) {
-            <button appButton size="sm" variant="ghost" (click)="addOther()">
-                <app-icon name="plus" [size]="15" />
+            <button anotokiButton size="sm" variant="ghost" (click)="addOther()">
+                <anotoki-icon name="plus" [size]="15" />
                 Add "Other" with a field
             </button>
         }

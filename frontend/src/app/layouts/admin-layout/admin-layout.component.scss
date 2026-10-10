@@ -12,10 +12,10 @@
   top: -4rem;
   z-index: 100;
   padding: 0.6rem 1rem;
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-surface);
+  color: var(--anotoki-text);
+  box-shadow: var(--anotoki-shadow);
 
   &:focus {
     top: 0.75rem;

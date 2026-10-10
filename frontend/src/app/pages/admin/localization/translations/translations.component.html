@@ -1,41 +1,41 @@
 <div class="page">
-    <app-page-header
+    <anotoki-page-header
         heading="Translations"
         lead="What the site itself says where people take surveys, in every language. A survey's own texts are written in its editor; this admin area stays English.">
         <a pageEyebrow class="back" routerLink="/admin">
-            <app-icon name="arrowLeft" [size]="16" />
+            <anotoki-icon name="arrowLeft" [size]="16" />
             All surveys
         </a>
-        <a appButton routerLink="/admin/languages">
-            <app-icon name="globe" [size]="16" />
+        <a anotokiButton routerLink="/admin/languages">
+            <anotoki-icon name="globe" [size]="16" />
             Languages
         </a>
-    </app-page-header>
+    </anotoki-page-header>
 
     @if (loadError(); as message) {
-        <app-alert tone="danger" heading="The translations could not be loaded">
+        <anotoki-alert tone="danger" heading="The translations could not be loaded">
             {{ message }}
             <div alertActions>
-                <button appButton (click)="load()">
-                    <app-icon name="refresh" [size]="16" />
+                <button anotokiButton (click)="load()">
+                    <anotoki-icon name="refresh" [size]="16" />
                     Try again
                 </button>
             </div>
-        </app-alert>
+        </anotoki-alert>
     } @else if (!loaded()) {
-        <div class="loading"><app-spinner label="Loading the translations" [showLabel]="true" /></div>
+        <div class="loading"><anotoki-spinner label="Loading the translations" [showLabel]="true" /></div>
     } @else {
         <ul class="languages" aria-label="Languages">
             @for (item of coverage(); track item.language.code) {
                 <li class="language">
                     <div class="language-name">
                         <strong>{{ item.language.name }}</strong>
-                        <app-badge [mono]="true">{{ item.language.code }}</app-badge>
+                        <anotoki-badge [mono]="true">{{ item.language.code }}</anotoki-badge>
                         @if (item.language.code === fallback) {
-                            <app-badge tone="primary">Fallback</app-badge>
+                            <anotoki-badge tone="primary">Fallback</anotoki-badge>
                         }
                         @if (!item.language.enabled) {
-                            <app-badge>Hidden</app-badge>
+                            <anotoki-badge>Hidden</anotoki-badge>
                         }
                     </div>
                     <div class="coverage">
@@ -43,12 +43,12 @@
                         <span class="coverage-count" [attr.aria-label]="item.done + ' of ' + item.total + ' keys have a string in ' + item.language.name">{{ item.done }} / {{ item.total }}</span>
                     </div>
                     <div class="language-actions">
-                        <button appButton size="sm" [loading]="exporting() === item.language.code" (click)="exportLanguage(item.language)">
-                            <app-icon name="download" [size]="15" />
+                        <button anotokiButton size="sm" [loading]="exporting() === item.language.code" (click)="exportLanguage(item.language)">
+                            <anotoki-icon name="download" [size]="15" />
                             Export
                         </button>
-                        <button appButton size="sm" [loading]="importing() === item.language.code" (click)="file.click()">
-                            <app-icon name="arrowUp" [size]="15" />
+                        <button anotokiButton size="sm" [loading]="importing() === item.language.code" (click)="file.click()">
+                            <anotoki-icon name="arrowUp" [size]="15" />
                             Import
                         </button>
                         <input
@@ -66,22 +66,22 @@
 
         <div class="tools">
             <div class="field-control search">
-                <span class="field-affix"><app-icon name="search" [size]="16" /></span>
+                <span class="field-affix"><anotoki-icon name="search" [size]="16" /></span>
                 <input class="field-input" type="search" placeholder="Find a key or a text" aria-label="Find a key or a text" [value]="search()" (input)="onSearch($event)" />
             </div>
             @if (missingOptions().length) {
-                <app-select class="missing" label="Show" placeholder="Every key" [hideLabel]="true" [inline]="true" [options]="missingOptions()" [(value)]="missingIn" />
+                <anotoki-select class="missing" label="Show" placeholder="Every key" [hideLabel]="true" [inline]="true" [options]="missingOptions()" [(value)]="missingIn" />
             }
             <p class="muted small shown" role="status">{{ visibleKeys() }} of {{ total() }} {{ total() === 1 ? "key" : "keys" }}</p>
         </div>
 
         @if (notice(); as problem) {
-            <app-alert tone="danger" [heading]="problem.heading" [announce]="true">
+            <anotoki-alert tone="danger" [heading]="problem.heading" [announce]="true">
                 {{ problem.message }}
                 <div alertActions>
-                    <button appButton size="sm" (click)="notice.set(null)">Dismiss</button>
+                    <button anotokiButton size="sm" (click)="notice.set(null)">Dismiss</button>
                 </div>
-            </app-alert>
+            </anotoki-alert>
         }
 
         <div class="grid" [class.is-stacked]="stacked()" [style.--languages]="languages().length">
@@ -98,7 +98,7 @@
                         @if (block.plural) {
                             <div class="family">
                                 <code>{{ block.name }}</code>
-                                <app-badge tone="info">Plural: one text for each kind of number</app-badge>
+                                <anotoki-badge tone="info">Plural: one text for each kind of number</anotoki-badge>
                             </div>
                         }
 
@@ -112,7 +112,7 @@
                                     @if (refusal(); as refused) {
                                         @if (refused.key === row.key.name) {
                                             <p class="field-error" role="alert">
-                                                <app-icon name="alert" [size]="15" />
+                                                <anotoki-icon name="alert" [size]="15" />
                                                 <span>Nothing was saved. {{ refused.message }}</span>
                                             </p>
                                         }
@@ -163,13 +163,13 @@
                 } @empty {
                     <li class="empty">
                         @if (missingIn() && !search().trim()) {
-                            <app-empty-state icon="checkCircle" [heading]="'Nothing is missing in ' + missingName()" text="Every key has a string of its own in it.">
-                                <button appButton (click)="showEverything()">Show every key</button>
-                            </app-empty-state>
+                            <anotoki-empty-state icon="checkCircle" [heading]="'Nothing is missing in ' + missingName()" text="Every key has a string of its own in it.">
+                                <button anotokiButton (click)="showEverything()">Show every key</button>
+                            </anotoki-empty-state>
                         } @else {
-                            <app-empty-state icon="search" heading="No key matches" text="Neither a key's name, nor its description, nor its text in any language.">
-                                <button appButton (click)="showEverything()">Show every key</button>
-                            </app-empty-state>
+                            <anotoki-empty-state icon="search" heading="No key matches" text="Neither a key's name, nor its description, nor its text in any language.">
+                                <button anotokiButton (click)="showEverything()">Show every key</button>
+                            </anotoki-empty-state>
                         }
                     </li>
                 }
@@ -180,12 +180,12 @@
             <p class="save-state" role="status">
                 @if (saveFailure(); as message) {
                     <span class="save-refused">
-                        <app-icon name="alert" [size]="15" />
+                        <anotoki-icon name="alert" [size]="15" />
                         <span>Nothing was saved. {{ message }}</span>
                     </span>
                 } @else if (refusal(); as refused) {
                     <span class="save-refused">
-                        <app-icon name="alert" [size]="15" />
+                        <anotoki-icon name="alert" [size]="15" />
                         <span>Nothing was saved: see {{ refused.key }}</span>
                     </span>
                 } @else if (changed()) {
@@ -196,10 +196,10 @@
             </p>
             <div class="save-actions">
                 @if (changed()) {
-                    <button appButton [disabled]="saving()" (click)="discard()">Discard</button>
+                    <button anotokiButton [disabled]="saving()" (click)="discard()">Discard</button>
                 }
-                <button appButton variant="primary" [loading]="saving()" [disabled]="!changed()" (click)="save()">
-                    <app-icon name="check" [size]="16" />
+                <button anotokiButton variant="primary" [loading]="saving()" [disabled]="!changed()" (click)="save()">
+                    <anotoki-icon name="check" [size]="16" />
                     Save
                 </button>
             </div>

@@ -1,10 +1,11 @@
 @switch (drawn()) {
     @case ("site") {
         <!-- The gate around the pages, and around nothing else: what is drawn over any page stays below it. The pages come
-             as a template, which the gate makes only while it shows them - never behind the family's page. Inside, the
-             outlet waits for the reload once the site could not run in this page load and runs again (held). -->
+             as the template marked anotokiSitePages, which the gate makes only while it shows them - never behind the
+             family's page. Inside, the outlet waits for the reload once the site could not run in this page load and runs
+             again (held). -->
         <anotoki-site-gate>
-            <ng-template>
+            <ng-template anotokiSitePages>
                 @if (!held()) {
                     <router-outlet />
                 }
@@ -15,8 +16,8 @@
         <app-load-error />
     }
 }
-<app-toast-host />
-<app-confirm-host />
+<anotoki-toast-host />
+<anotoki-confirm-host />
 @if (lightbox.view(); as view) {
     <app-lightbox [view]="view" (dismiss)="lightbox.close()" (move)="lightbox.move($event)" />
 }

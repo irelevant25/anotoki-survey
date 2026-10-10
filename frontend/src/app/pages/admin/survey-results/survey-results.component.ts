@@ -1,5 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ButtonComponent, EmptyStateComponent, IconComponent, SpinnerComponent } from '@anotoki/lib/ui';
+import { ConfirmService } from '@anotoki/lib/ui/dialog';
+import { DrawerComponent } from '@anotoki/lib/ui/drawer';
+import { TabItem, TabsComponent } from '@anotoki/lib/ui/tabs';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminDates } from '../../../core/admin/admin-dates.service';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
@@ -12,14 +17,6 @@ import { ResultFilter, aboutYouSummary, choiceSummary, describeFilter, durationS
 import { numberedQuestions } from '../../../core/survey/survey-outline';
 import { SurveyResponse } from '../../../core/survey/survey.model';
 import { formatDuration, todayIsoDay } from '../../../core/util/dates';
-import { ButtonComponent } from '../../../ui/button/button.component';
-import { ConfirmService } from '../../../ui/confirm/confirm.service';
-import { DrawerComponent } from '../../../ui/drawer/drawer.component';
-import { EmptyStateComponent } from '../../../ui/empty-state/empty-state.component';
-import { IconComponent } from '../../../ui/icon/icon.component';
-import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
-import { TabItem, TabsComponent } from '../../../ui/tabs/tabs.component';
-import { ToastService } from '../../../ui/toast/toast.service';
 import { ResponseViewComponent } from '../response-view/response-view.component';
 import { SurveyHeaderComponent } from '../survey-header/survey-header.component';
 import { BarListComponent } from './bar-list/bar-list.component';

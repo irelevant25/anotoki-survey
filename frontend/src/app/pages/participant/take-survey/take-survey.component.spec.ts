@@ -2,6 +2,7 @@ import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { ApiError, ApiService } from '../../../core/api/api.service';
 import { AuthService, Taker } from '../../../core/auth/auth.service';
@@ -13,7 +14,6 @@ import { translationGaps } from '../../../core/survey/localize';
 import { newOption, newQuestion, newSurvey } from '../../../core/survey/survey-factory';
 import { Person, Question, Survey } from '../../../core/survey/survey.model';
 import { provideTestTranslations } from '../../../core/testing/test-translations';
-import { ToastService } from '../../../ui/toast/toast.service';
 import { TakeSurveyComponent } from './take-survey.component';
 
 /** Every string the page, its question blocks and its hero ask for - what the migration seeds. */
@@ -539,8 +539,8 @@ describe('TakeSurveyComponent', () => {
     api.submit.mockReset().mockResolvedValue({ id: 'r1', submittedAt: new Date().toISOString() });
     fixture.componentRef.setInput('slug', 'hry-2026');
     await settle();
-    expect(text('.alert-heading')).toBe('Pokračovať tam, kde ste prestali?');
-    await click('.alert-actions button');
+    expect(text('anotoki-alert .heading')).toBe('Pokračovať tam, kde ste prestali?');
+    await click('anotoki-alert .actions button');
     expect(text('.step-heading')).toBe('Na záver');
     await next();
     expect(api.submit).toHaveBeenCalledTimes(1);
@@ -576,12 +576,12 @@ describe('TakeSurveyComponent', () => {
     localStorage.setItem('anotoki-survey:draft:s1:p1', JSON.stringify({ stepIndex: 1, answers: {}, startedAt, savedAt }));
     await open();
 
-    expect(text('.alert-heading')).toBe('Pokračovať tam, kde ste prestali?');
-    expect(text('.alert-text')).toBe('Tento prieskum ste začali vypĺňať pred 25 minútami a dostali ste sa po krok 2 / 3. Doterajšie odpovede sú uložené v tomto prehliadači.');
-    expect(texts('.alert-actions button')).toEqual(['Pokračovať', 'Začať odznova']);
+    expect(text('anotoki-alert .heading')).toBe('Pokračovať tam, kde ste prestali?');
+    expect(text('anotoki-alert .text')).toBe('Tento prieskum ste začali vypĺňať pred 25 minútami a dostali ste sa po krok 2 / 3. Doterajšie odpovede sú uložené v tomto prehliadači.');
+    expect(texts('anotoki-alert .actions button')).toEqual(['Pokračovať', 'Začať odznova']);
 
     await english();
-    expect(text('.alert-text')).toBe('You started this survey 25 minutes ago and got to step 2 of 3. Your answers so far are kept in this browser.');
+    expect(text('anotoki-alert .text')).toBe('You started this survey 25 minutes ago and got to step 2 of 3. Your answers so far are kept in this browser.');
   });
 
   it('says why a survey cannot be taken: not open yet, or closed - with the day', async () => {
@@ -646,7 +646,7 @@ describe('TakeSurveyComponent', () => {
     it('says so on the welcome - in place of who is signed in - with the notice and its Sign in, and keeps the draft under the visitor’s slot', async () => {
       await open();
       expect(text('.who')).toBe('Nie ste prihlásení · odpovede odošlete bez svojho mena.');
-      expect(text('app-visitor-notice .alert-text')).toBe(SLOVAK['visitor.notice.other'].replace('{count}', '30'));
+      expect(text('app-visitor-notice anotoki-alert .text')).toBe(SLOVAK['visitor.notice.other'].replace('{count}', '30'));
       expect(text('app-visitor-notice button')).toBe('Prihlásiť sa');
 
       await click('.start button');
@@ -679,7 +679,7 @@ describe('TakeSurveyComponent', () => {
     it('offers the visitor’s own draft to carry on', async () => {
       writeDraft('s1', VISITOR_SLOT, draft(1));
       await open();
-      expect(text('.alert-heading')).toBe('Pokračovať tam, kde ste prestali?');
+      expect(text('anotoki-alert .heading')).toBe('Pokračovať tam, kde ste prestali?');
     });
 
     it('signing in on the page makes the visitor’s draft the person’s - before the page reads it - and asks for the survey again', async () => {
@@ -690,7 +690,7 @@ describe('TakeSurveyComponent', () => {
       person.set(ZUZKA);
       await settle();
       expect(text('.who')).toBe('Prihlásili ste sa ako Zuzka · prieskum môže každý vyplniť iba raz.');
-      expect(text('.alert-heading')).toBe('Pokračovať tam, kde ste prestali?');
+      expect(text('anotoki-alert .heading')).toBe('Pokračovať tam, kde ste prestali?');
       expect(readDraft('s1', ZUZKA.id)?.stepIndex).toBe(1);
       expect(readDraft('s1', VISITOR_SLOT)).toBeNull();
       expect(host.querySelector('app-visitor-notice')).toBeNull();

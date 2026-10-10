@@ -1,11 +1,11 @@
 @if (auth.visitorDays(); as days) {
-    <app-alert class="visitor-notice" tone="info">
+    <anotoki-alert class="visitor-notice" tone="info">
         {{ "visitor.notice" | translatePlural: days }}
         <div alertActions>
-            <button appButton size="sm" (click)="signIn()">
-                <app-icon name="logIn" [size]="15" />
+            <button anotokiButton size="sm" (click)="signIn()">
+                <anotoki-icon name="logIn" [size]="15" />
                 {{ "common.signIn" | translate }}
             </button>
         </div>
-    </app-alert>
+    </anotoki-alert>
 }

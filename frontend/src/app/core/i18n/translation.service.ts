@@ -1,5 +1,5 @@
 import { DOCUMENT, Injectable, computed, effect, inject, signal } from '@angular/core';
-import { ToastService } from '../../ui/toast/toast.service';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { ApiService } from '../api/api.service';
 import { AuthService } from '../auth/auth.service';
 import { readStorage, writeStorage } from '../util/storage';

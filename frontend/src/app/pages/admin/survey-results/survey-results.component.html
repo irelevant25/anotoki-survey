@@ -4,18 +4,18 @@
 
         @if (responsesError(); as error) {
             <div class="empty-card">
-                <app-empty-state icon="alert" heading="The answers could not be loaded" [text]="error.message">
-                    <button appButton variant="primary" (click)="reload()">
-                        <app-icon name="refresh" [size]="16" />
+                <anotoki-empty-state icon="alert" heading="The answers could not be loaded" [text]="error.message">
+                    <button anotokiButton variant="primary" (click)="reload()">
+                        <anotoki-icon name="refresh" [size]="16" />
                         Try again
                     </button>
-                </app-empty-state>
+                </anotoki-empty-state>
             </div>
         } @else if (!responsesLoaded()) {
-            <div class="loading"><app-spinner label="Loading the answers" [showLabel]="true" /></div>
+            <div class="loading"><anotoki-spinner label="Loading the answers" [showLabel]="true" /></div>
         } @else if (all().length === 0) {
             <div class="empty-card">
-                <app-empty-state
+                <anotoki-empty-state
                     icon="chart"
                     heading="No answers yet"
                     [text]="survey.status === 'open' ? 'The results appear here as people answer.' : 'Open the survey, and the results appear here as people answer.'" />
@@ -44,8 +44,8 @@
                     <span class="fact-label">first answer</span>
                 </div>
                 <div class="fact-actions">
-                    <button appButton (click)="downloadCsv()" [disabled]="facts().shown === 0">
-                        <app-icon name="download" [size]="16" />
+                    <button anotokiButton (click)="downloadCsv()" [disabled]="facts().shown === 0">
+                        <anotoki-icon name="download" [size]="16" />
                         Download CSV
                     </button>
                 </div>
@@ -54,7 +54,7 @@
             @if (chips().length) {
                 <div class="filters" role="region" aria-label="Filters">
                     <span class="filters-lead">
-                        <app-icon name="filter" [size]="15" />
+                        <anotoki-icon name="filter" [size]="15" />
                         Only the people who answered
                     </span>
                     <ul class="chips">
@@ -63,7 +63,7 @@
                                 <span class="chip-question">{{ chip.question }}</span>
                                 <strong class="chip-answer">{{ chip.answer }}</strong>
                                 <button type="button" class="chip-remove" [attr.aria-label]="'Remove the filter ' + chip.answer" (click)="removeFilter(chip.filter)">
-                                    <app-icon name="x" [size]="14" />
+                                    <anotoki-icon name="x" [size]="14" />
                                 </button>
                             </li>
                         }
@@ -72,15 +72,15 @@
                 </div>
             }
 
-            <app-tabs label="Results" idPrefix="results" [tabs]="tabs()" [active]="activeTab()" (activeChange)="setTab($event)" />
+            <anotoki-tabs label="Results" idPrefix="results" [tabs]="tabs()" [active]="activeTab()" (activeChange)="setTab($event)" />
 
             @if (activeTab() === "summary") {
                 <div class="summary" role="tabpanel" id="results-panel-summary" aria-labelledby="results-tab-summary">
                     @if (facts().shown === 0) {
                         <div class="empty-card">
-                            <app-empty-state icon="filter" heading="Nobody matches all the filters" text="Take one of them away to see more people.">
-                                <button appButton (click)="clearFilters()">Show everybody</button>
-                            </app-empty-state>
+                            <anotoki-empty-state icon="filter" heading="Nobody matches all the filters" text="Take one of them away to see more people.">
+                                <button anotokiButton (click)="clearFilters()">Show everybody</button>
+                            </anotoki-empty-state>
                         </div>
                     } @else {
                         @if (aboutYou(); as about) {
@@ -146,7 +146,7 @@
                 <div class="people-card" role="tabpanel" id="results-panel-people" aria-labelledby="results-tab-people">
                     <div class="people-tools">
                         <div class="field-control search">
-                            <span class="field-affix"><app-icon name="search" [size]="16" /></span>
+                            <span class="field-affix"><anotoki-icon name="search" [size]="16" /></span>
                             <input class="field-input" type="search" placeholder="Find a person by name or address" aria-label="Find a person" [value]="search()" (input)="onSearch($event)" />
                         </div>
                         <p class="muted small">{{ people().length }} of {{ facts().shown }}</p>
@@ -201,30 +201,30 @@
     </div>
 
     @if (drawerOpen()) {
-        <app-drawer [heading]="drawerHeading()" [subheading]="drawerSubheading()" [backLabel]="responseView()?.back ?? null" (dismiss)="closeDrawer()" (back)="backToList()">
+        <anotoki-drawer [heading]="drawerHeading()" [subheading]="drawerSubheading()" [backLabel]="responseView()?.back ?? null" (dismiss)="closeDrawer()" (back)="backToList()">
             <div drawerActions class="drawer-actions">
                 @if (responseView(); as view) {
                     @if (view.response; as response) {
                         <div class="stepper">
-                            <button appButton size="sm" [iconOnly]="true" aria-label="The one before" title="The one before" [disabled]="!view.previous" (click)="openResponse(view.previous!)">
-                                <app-icon name="chevronLeft" [size]="16" />
+                            <button anotokiButton size="sm" [iconOnly]="true" aria-label="The one before" title="The one before" [disabled]="!view.previous" (click)="openResponse(view.previous!)">
+                                <anotoki-icon name="chevronLeft" [size]="16" />
                             </button>
                             @if (view.index >= 0) {
                                 <span class="stepper-count">{{ view.index + 1 }} of {{ view.count }}</span>
                             }
-                            <button appButton size="sm" [iconOnly]="true" aria-label="The next one" title="The next one" [disabled]="!view.next" (click)="openResponse(view.next!)">
-                                <app-icon name="chevronRight" [size]="16" />
+                            <button anotokiButton size="sm" [iconOnly]="true" aria-label="The next one" title="The next one" [disabled]="!view.next" (click)="openResponse(view.next!)">
+                                <anotoki-icon name="chevronRight" [size]="16" />
                             </button>
                         </div>
-                        <a appButton size="sm" variant="ghost" [routerLink]="['/admin/surveys', survey.id, 'responses', response.id]">
-                            <app-icon name="externalLink" [size]="15" />
+                        <a anotokiButton size="sm" variant="ghost" [routerLink]="['/admin/surveys', survey.id, 'responses', response.id]">
+                            <anotoki-icon name="externalLink" [size]="15" />
                             On a page of its own
                         </a>
                     }
                 } @else if (listView(); as view) {
                     @if (view.filter && view.rows.length) {
-                        <button appButton size="sm" (click)="narrow(view.filter.questionId, view.filter.optionId)">
-                            <app-icon name="filter" [size]="15" />
+                        <button anotokiButton size="sm" (click)="narrow(view.filter.questionId, view.filter.optionId)">
+                            <anotoki-icon name="filter" [size]="15" />
                             Show the results of only these {{ view.rows.length }}
                         </button>
                     }
@@ -256,8 +256,8 @@
                     <app-response-view [survey]="survey" [response]="response" [highlight]="view.highlight" />
                     @if (auth.isAdmin()) {
                         <div class="drawer-end">
-                            <button appButton size="sm" variant="ghost" class="delete" (click)="deleteResponse(response)">
-                                <app-icon name="trash" [size]="15" />
+                            <button anotokiButton size="sm" variant="ghost" class="delete" (click)="deleteResponse(response)">
+                                <anotoki-icon name="trash" [size]="15" />
                                 Delete these answers
                             </button>
                         </div>
@@ -268,23 +268,23 @@
             } @else if (listView(); as view) {
                 <app-people-list [rows]="view.rows" (open)="openResponse($event)" />
             }
-        </app-drawer>
+        </anotoki-drawer>
     }
 } @else if (loadError(); as error) {
     <div class="empty-card">
         @if (error.status === 404) {
-            <app-empty-state icon="search" heading="There is no such survey" text="It may have been deleted.">
-                <a appButton variant="primary" routerLink="/admin">All surveys</a>
-            </app-empty-state>
+            <anotoki-empty-state icon="search" heading="There is no such survey" text="It may have been deleted.">
+                <a anotokiButton variant="primary" routerLink="/admin">All surveys</a>
+            </anotoki-empty-state>
         } @else {
-            <app-empty-state icon="alert" heading="The survey could not be loaded" [text]="error.message">
-                <button appButton variant="primary" (click)="reload()">
-                    <app-icon name="refresh" [size]="16" />
+            <anotoki-empty-state icon="alert" heading="The survey could not be loaded" [text]="error.message">
+                <button anotokiButton variant="primary" (click)="reload()">
+                    <anotoki-icon name="refresh" [size]="16" />
                     Try again
                 </button>
-            </app-empty-state>
+            </anotoki-empty-state>
         }
     </div>
 } @else {
-    <div class="loading"><app-spinner label="Loading the survey" [showLabel]="true" /></div>
+    <div class="loading"><anotoki-spinner label="Loading the survey" [showLabel]="true" /></div>
 }

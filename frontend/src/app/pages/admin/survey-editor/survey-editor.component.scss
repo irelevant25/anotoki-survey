@@ -1,3 +1,8 @@
+@use "fields";
+
+// The fields this page draws itself (src/styles/_fields.scss): first, so its own rules below win.
+@include fields.styles;
+
 .page {
   display: flex;
   flex-direction: column;
@@ -29,7 +34,7 @@
 // all the way down the survey, under the top bar.
 .translating {
   position: sticky;
-  top: calc(var(--topbar-height, 60px) + 0.5rem);
+  top: calc(var(--anotoki-topbar-height) + 0.5rem);
   z-index: 5;
   display: flex;
   flex-wrap: wrap;
@@ -38,10 +43,10 @@
   gap: 0.4rem 1rem;
   min-height: 3rem;
   padding: 0.45rem 0.6rem 0.45rem 0.9rem;
-  border: 1px solid var(--info-border);
-  border-radius: var(--radius-lg);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow);
+  border: 1px solid var(--anotoki-info-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface-raised);
+  box-shadow: var(--anotoki-shadow);
 }
 
 .translating-state {
@@ -52,31 +57,31 @@
   min-width: 0;
   font-size: 0.9375rem;
 
-  app-icon {
-    color: var(--muted);
+  anotoki-icon {
+    color: var(--anotoki-muted);
   }
 }
 
 .translating-count {
   padding: 0.05rem 0.5rem;
-  border: 1px solid var(--warning-border);
+  border: 1px solid var(--anotoki-warning-border);
   border-radius: 999px;
-  background: var(--warning-soft);
-  color: var(--warning);
+  background: var(--anotoki-warning-soft);
+  color: var(--anotoki-warning);
   font-size: 0.8125rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 
   &.is-done {
-    border-color: var(--success-border);
-    background: var(--success-soft);
-    color: var(--success);
+    border-color: var(--anotoki-success-border);
+    background: var(--anotoki-success-soft);
+    color: var(--anotoki-success);
   }
 }
 
 .translating-words {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
 }
 
@@ -85,11 +90,11 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  color: var(--warning);
+  color: var(--anotoki-warning);
   font-size: 0.8125rem;
   font-weight: 650;
 
-  app-icon {
+  anotoki-icon {
     color: inherit;
   }
 }
@@ -98,12 +103,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  min-height: var(--control-height-sm);
+  min-height: var(--anotoki-control-height-sm);
   padding: 0 0.6rem;
-  border: 1px solid var(--danger-border);
+  border: 1px solid var(--anotoki-danger-border);
   border-radius: 8px;
-  background: var(--danger-soft);
-  color: var(--danger);
+  background: var(--anotoki-danger-soft);
+  color: var(--anotoki-danger);
   font-size: 0.8125rem;
   font-weight: 650;
   cursor: pointer;
@@ -113,8 +118,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  min-height: var(--control-height-sm);
-  color: var(--success);
+  min-height: var(--anotoki-control-height-sm);
+  color: var(--anotoki-success);
   font-size: 0.875rem;
   font-weight: 650;
 }
@@ -131,8 +136,8 @@
 
 .side-sticky {
   position: sticky;
-  top: calc(var(--topbar-height, 60px) + 1rem);
-  max-height: calc(100dvh - var(--topbar-height, 60px) - 2rem);
+  top: calc(var(--anotoki-topbar-height) + 1rem);
+  max-height: calc(100dvh - var(--anotoki-topbar-height) - 2rem);
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -160,10 +165,10 @@
   flex-direction: column;
   gap: 1rem;
   padding: 1.1rem 1.2rem 1.25rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
   scroll-margin-top: var(--editor-scroll-margin, 6rem);
 }
 
@@ -181,13 +186,13 @@
   width: 2.1rem;
   height: 2.1rem;
   border-radius: 10px;
-  background: var(--primary-soft);
-  color: var(--primary);
+  background: var(--anotoki-primary-soft);
+  color: var(--anotoki-primary);
 }
 
 .block-icon-success {
-  background: var(--success-soft);
-  color: var(--success);
+  background: var(--anotoki-success-soft);
+  color: var(--anotoki-success);
 }
 
 .block-title {
@@ -195,7 +200,7 @@
 }
 
 .block-lead {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
 }
 
@@ -213,13 +218,13 @@
   flex-direction: column;
   gap: 0.75rem;
   padding: 0.85rem 0.9rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background: var(--surface-2);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-xl);
+  background: var(--anotoki-surface-2);
   scroll-margin-top: var(--editor-scroll-margin, 6rem);
 
   &.has-problems {
-    border-color: var(--warning-border);
+    border-color: var(--anotoki-warning-border);
   }
 }
 
@@ -237,8 +242,8 @@
   flex: none;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  background: var(--text);
-  color: var(--surface);
+  background: var(--anotoki-text);
+  color: var(--anotoki-surface);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -257,25 +262,25 @@
   height: 2.3rem;
   padding: 0 0.6rem;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--anotoki-radius);
   background: transparent;
-  color: var(--text);
+  color: var(--anotoki-text);
   outline: none;
 
   &::placeholder {
-    color: var(--subtle);
+    color: var(--anotoki-subtle);
     font-weight: 600;
   }
 
   &:hover {
-    border-color: var(--border);
-    background: var(--surface);
+    border-color: var(--anotoki-border);
+    background: var(--anotoki-surface);
   }
 
   &:focus {
-    border-color: var(--primary);
-    background: var(--surface);
-    box-shadow: 0 0 0 3px var(--ring);
+    border-color: var(--anotoki-primary);
+    background: var(--anotoki-surface);
+    box-shadow: 0 0 0 3px var(--anotoki-ring);
   }
 }
 
@@ -307,12 +312,12 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: var(--surface-3);
-    color: var(--text);
+    background: var(--anotoki-surface-3);
+    color: var(--anotoki-text);
   }
 
   &:disabled {
@@ -322,8 +327,8 @@
 }
 
 .icon-button-danger:hover:not(:disabled) {
-  background: var(--danger-soft);
-  color: var(--danger);
+  background: var(--anotoki-danger-soft);
+  color: var(--anotoki-danger);
 }
 
 .fixed {
@@ -339,14 +344,14 @@
     align-items: flex-start;
     gap: 0.6rem;
     padding: 0.65rem 0.8rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
+    border: 1px solid var(--anotoki-border);
+    border-radius: var(--anotoki-radius);
+    background: var(--anotoki-surface);
   }
 
-  app-icon {
+  anotoki-icon {
     margin-top: 0.15rem;
-    color: var(--muted);
+    color: var(--anotoki-muted);
   }
 }
 
@@ -365,15 +370,15 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
 
-  app-icon {
+  anotoki-icon {
     flex: none;
   }
 
   a {
-    color: var(--link);
+    color: var(--anotoki-link);
   }
 }
 
@@ -390,9 +395,9 @@
   justify-content: center;
   min-height: 3.25rem;
   padding: 0.75rem;
-  border: 1.5px dashed var(--border-strong);
-  border-radius: var(--radius-lg);
-  color: var(--muted);
+  border: 1.5px dashed var(--rule-strong);
+  border-radius: var(--anotoki-radius-lg);
+  color: var(--anotoki-muted);
   font-size: 0.875rem;
   text-align: center;
 }
@@ -411,7 +416,7 @@
 
 .add-label {
   margin-right: 0.25rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -422,17 +427,17 @@
   justify-content: center;
   gap: 0.5rem;
   min-height: 3.5rem;
-  border: 1.5px dashed var(--border-strong);
-  border-radius: var(--radius-xl);
+  border: 1.5px dashed var(--anotoki-border-strong);
+  border-radius: var(--anotoki-radius-xl);
   background: transparent;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-weight: 700;
   cursor: pointer;
 
   &:hover {
-    border-color: var(--primary);
-    background: var(--primary-soft);
-    color: var(--primary-soft-text);
+    border-color: var(--anotoki-primary);
+    background: var(--anotoki-primary-soft);
+    color: var(--anotoki-primary-soft-text);
   }
 }
 

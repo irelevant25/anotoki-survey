@@ -1,6 +1,7 @@
-import { Injectable, InjectionToken, Provider, inject } from '@angular/core';
+import { EnvironmentProviders, Injectable, InjectionToken, Provider, inject } from '@angular/core';
 import { SiteLanguage, TranslationBundle } from '../i18n/translation.model';
 import { FALLBACK_LANGUAGE, TranslationService } from '../i18n/translation.service';
+import { provideSiteUi } from '../kit';
 
 /** The two languages the site is seeded with. */
 export const TEST_LANGUAGES: SiteLanguage[] = [
@@ -52,12 +53,12 @@ class TestTranslationService extends TranslationService {
  * `provideTestTranslations({ 'common.close': 'Zavrieť' }, { language: 'sk', english: { 'common.close': 'Close' } })`.
  *
  * A key that is not given comes back as itself and warns, as on the site.
+ *
+ * The family's kit reads its words from the same strings, as the site wires it
+ * (core/kit.ts): a kit component in a spec says what it says on the site.
  */
-export function provideTestTranslations(values: Record<string, string> = {}, bundle: Partial<Omit<TranslationBundle, 'values'>> = {}): Provider[] {
+export function provideTestTranslations(values: Record<string, string> = {}, bundle: Partial<Omit<TranslationBundle, 'values'>> = {}): (Provider | EnvironmentProviders)[] {
   const language = bundle.language ?? FALLBACK_LANGUAGE;
   const whole: TranslationBundle = { language, languages: bundle.languages ?? TEST_LANGUAGES, values, ...(language === FALLBACK_LANGUAGE ? {} : { english: bundle.english ?? {} }) };
-  return [
-    { provide: TEST_BUNDLE, useValue: whole },
-    { provide: TranslationService, useClass: TestTranslationService },
-  ];
+  return [{ provide: TEST_BUNDLE, useValue: whole }, { provide: TranslationService, useClass: TestTranslationService }, provideSiteUi()];
 }

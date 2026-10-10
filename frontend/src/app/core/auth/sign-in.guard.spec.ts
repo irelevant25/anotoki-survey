@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { SiteStatus } from '@anotoki/lib/migrations';
-import { ToastService } from '../../ui/toast/toast.service';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { provideTestTranslations } from '../testing/test-translations';
 import { AuthService, BootStatus, SignInFailure } from './auth.service';
 import { signInGuard, takeSurveysGuard } from './sign-in.guard';

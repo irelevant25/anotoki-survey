@@ -1,6 +1,8 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { ConfirmService } from '@anotoki/lib/ui/dialog';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { ApiError, ApiService } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -8,8 +10,6 @@ import { AdminLanguage } from '../../../core/i18n/translation.model';
 import { newOption, newQuestion, newSurvey } from '../../../core/survey/survey-factory';
 import { Person, Survey, SurveyImage, SurveyTranslation } from '../../../core/survey/survey.model';
 import { provideTestTranslations } from '../../../core/testing/test-translations';
-import { ConfirmService } from '../../../ui/confirm/confirm.service';
-import { ToastService } from '../../../ui/toast/toast.service';
 import { SurveyEditorComponent } from './survey-editor.component';
 
 const ENGLISH: AdminLanguage = { code: 'en', name: 'English', nativeName: 'English', enabled: true, sortOrder: 1, seeded: true };
@@ -216,7 +216,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     expect(translation()).toEqual({ title: '', intro: '', thanks: '', steps: {}, questions: {} });
     expect(texts('app-editor-languages .add-select option')).toEqual(['Add a language…', 'Czech (hidden)']);
 
-    const banner = clean(host.querySelector('app-alert[data-tone="info"]')?.textContent);
+    const banner = clean(host.querySelector('anotoki-alert[data-tone="info"]')?.textContent);
     expect(banner).toContain('You are translating this survey into Slovak');
     expect(banner).toContain("The questions themselves - their order, kinds, options, pictures and limits - and the survey's settings are changed in English.");
     expect(clean(host.querySelector('.translating')?.textContent)).toBe('Slovak 0 / 10 texts translated Next missing');
@@ -552,8 +552,8 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
   });
 
   describe('an open survey with a text missing from a translation people are offered', () => {
-    const notice = () => all('app-alert[data-tone="danger"]').find((alert) => clean(alert.querySelector('.alert-heading')?.textContent) === 'This survey is open, and has problems');
-    const noticeText = () => clean(notice()?.querySelector('.alert-text')?.textContent);
+    const notice = () => all('anotoki-alert[data-tone="danger"]').find((alert) => clean(alert.querySelector('.heading')?.textContent) === 'This survey is open, and has problems');
+    const noticeText = () => clean(notice()?.querySelector('.text')?.textContent);
     const open = (translations: Record<string, SurveyTranslation>): Survey => ({ ...survey(3, translations), status: 'open', openedAt: '2026-09-29T12:00:00.000Z' });
 
     it('says whose readers see it in the language it is written in - by name, and not that a question is skipped', async () => {
@@ -567,11 +567,11 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
 
       // On the translation's tab: the banner, and the bar that stays in view.
       await click(all('app-editor-languages .tab')[1]);
-      expect(clean(host.querySelector('app-alert[data-tone="info"]')?.textContent)).toContain('This survey is open: until every text is translated, readers of Slovak see it in English.');
+      expect(clean(host.querySelector('anotoki-alert[data-tone="info"]')?.textContent)).toContain('This survey is open: until every text is translated, readers of Slovak see it in English.');
       expect(clean(host.querySelector('.translating')?.textContent)).toBe('Slovak 3 / 10 texts translated Readers see English until all are Next missing');
       await click(all('app-editor-languages .tab')[2]);
       expect(clean(host.querySelector('.translating')?.textContent)).toBe('Czech 2 / 10 texts translated Next missing');
-      expect(clean(host.querySelector('app-alert[data-tone="info"]')?.textContent)).toContain('Czech is a hidden language: people are not offered it, so it may stay unfinished.');
+      expect(clean(host.querySelector('anotoki-alert[data-tone="info"]')?.textContent)).toContain('Czech is a hidden language: people are not offered it, so it may stay unfinished.');
     });
 
     it('names every such language, and keeps the other sentence for the problems that are not a missing translation', async () => {
@@ -618,21 +618,21 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
       expect(notice()).toBeUndefined();
       expect(tabs()[1]).toBe('Slovak 3 / 10');
       expect(host.querySelector('.translating-meanwhile')).toBeNull();
-      expect(clean(host.querySelector('app-alert[data-tone="info"]')?.textContent)).toContain(
+      expect(clean(host.querySelector('anotoki-alert[data-tone="info"]')?.textContent)).toContain(
         'Until every text is translated the survey cannot be opened, and one that is open already is shown in English.',
       );
     });
 
     it('says nothing of readers once its last day is over, open or not in the database: nobody is taking it, as the header says', async () => {
       await page({ ...open({ sk: { ...SLOVAK_WHOLE, title: '' } }), closesOn: '2020-01-01' });
-      expect(clean(host.querySelector('app-survey-header app-badge')?.textContent)).toBe('Closed');
+      expect(clean(host.querySelector('app-survey-header anotoki-badge')?.textContent)).toBe('Closed');
       expect(notice()).toBeUndefined();
       expect(tabs()).toEqual(['English main', 'Slovak 9 / 10']);
       expect(clean(host.querySelector('app-editor-outline #problems-title')?.textContent)).toBe('1 to fix before it reopens');
 
       await click(all('app-editor-languages .tab')[1]);
       expect(host.querySelector('.translating-meanwhile')).toBeNull();
-      expect(clean(host.querySelector('app-alert[data-tone="info"]')?.textContent)).toContain(
+      expect(clean(host.querySelector('anotoki-alert[data-tone="info"]')?.textContent)).toContain(
         'Until every text is translated the survey cannot be opened, and one that is open already is shown in English.',
       );
     });
@@ -646,11 +646,11 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await store.flush('survey-1');
     await settle();
 
-    const alert = host.querySelector<HTMLElement>('app-alert[data-tone="danger"]')!;
-    expect(clean(alert.querySelector('.alert-heading')?.textContent)).toBe('Somebody changed this survey while you were translating');
+    const alert = host.querySelector<HTMLElement>('anotoki-alert[data-tone="danger"]')!;
+    expect(clean(alert.querySelector('.heading')?.textContent)).toBe('Somebody changed this survey while you were translating');
     expect(button('Save mine over it', alert)).toBeUndefined();
     // What is kept and what is lost, before the choice is made.
-    expect(clean(alert.querySelector('.alert-text')?.textContent)).toBe(
+    expect(clean(alert.querySelector('.text')?.textContent)).toBe(
       'Your latest Slovak texts are not saved: they were written for an older version. Keep them - the survey is taken as it is saved now, and the Slovak texts you changed since your last save are put into it: ' +
         'every other text stays as it is saved there, and one of theirs is replaced only where you changed the same text - or take the saved version whole, and what you translated since your last save goes.',
     );
@@ -663,7 +663,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await store.flush('survey-1');
     await settle();
     expect(api.saveSurvey).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Theirs', translations: { sk: expect.objectContaining({ title: 'Moje nápoje' }) } }), 7);
-    expect(host.querySelector('app-alert[data-tone="danger"]')).toBeNull();
+    expect(host.querySelector('anotoki-alert[data-tone="danger"]')).toBeNull();
     // Still on the translation, with their original beside the field.
     expect(clean(field(['title'])?.closest('.pair')?.querySelector('.original')?.textContent)).toBe('Theirs');
   });
@@ -705,8 +705,8 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await store.flush('survey-1');
     await settle();
 
-    const alert = host.querySelector<HTMLElement>('app-alert[data-tone="danger"]')!;
-    expect(clean(alert.querySelector('.alert-text')?.textContent)).toBe(
+    const alert = host.querySelector<HTMLElement>('anotoki-alert[data-tone="danger"]')!;
+    expect(clean(alert.querySelector('.text')?.textContent)).toBe(
       'Your latest changes are not saved: they were made to an older version. Take the survey as it is saved now - your changes since your last save go - or save yours over it. ' +
         'That loses their changes to the questions and the settings; their translations stay as they saved them, except the texts you changed here and the texts of what they removed or reworded, which stay as you have them.',
     );
@@ -720,7 +720,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await settle();
     expect(api.saveSurvey).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Mine', translations: { sk: SLOVAK_WHOLE } }), 7);
     expect(tabs()).toEqual(['English main', 'Slovak 10 / 10']);
-    expect(host.querySelector('app-alert[data-tone="danger"]')).toBeNull();
+    expect(host.querySelector('anotoki-alert[data-tone="danger"]')).toBeNull();
   });
 
   it('says so plainly when saving mine over theirs has no translation to keep', async () => {
@@ -730,7 +730,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await type(host.querySelector<HTMLElement>('#survey-title')!, 'Mine');
     await store.flush('survey-1');
     await settle();
-    expect(clean(host.querySelector('app-alert[data-tone="danger"] .alert-text')?.textContent)).toBe(
+    expect(clean(host.querySelector('anotoki-alert[data-tone="danger"] .text')?.textContent)).toBe(
       'Your latest changes are not saved: they were made to an older version. Take the survey as it is saved now - your changes since your last save go - or save yours over it.',
     );
     await click(button('Save mine over it'));
@@ -748,7 +748,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await type(host.querySelector<HTMLElement>('#survey-title')!, 'Mine');
     await store.flush('survey-1');
     await settle();
-    expect(clean(host.querySelector('app-alert[data-tone="danger"] .alert-text')?.textContent)).toBe(
+    expect(clean(host.querySelector('anotoki-alert[data-tone="danger"] .text')?.textContent)).toBe(
       'Your latest changes are not saved: they were made to an older version. Take the survey as it is saved now - your changes since your last save go - or save yours over it. ' +
         'That loses everything they saved, their translations too: the two versions are written in different languages.',
     );
@@ -768,8 +768,8 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await store.flush('survey-1');
     await settle();
 
-    const alert = host.querySelector<HTMLElement>('app-alert[data-tone="danger"]')!;
-    expect(clean(alert.querySelector('.alert-heading')?.textContent)).toBe('Somebody else has saved this survey meanwhile');
+    const alert = host.querySelector<HTMLElement>('anotoki-alert[data-tone="danger"]')!;
+    expect(clean(alert.querySelector('.heading')?.textContent)).toBe('Somebody else has saved this survey meanwhile');
     expect(button('Keep my Slovak texts', alert)).toBeUndefined();
     expect(button('Save mine over it', alert)).toBeTruthy();
 
@@ -788,7 +788,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await store.flush('survey-1');
     await settle();
 
-    expect(clean(host.querySelector('app-alert[data-tone="danger"] .alert-heading')?.textContent)).toBe('Somebody changed this survey while you were translating');
+    expect(clean(host.querySelector('anotoki-alert[data-tone="danger"] .heading')?.textContent)).toBe('Somebody changed this survey while you were translating');
     // The bar that stays in view says so too: the notice itself is at the top of the page.
     expect(clean(host.querySelector('.translating-unsaved')?.textContent)).toBe('Not saved - see why');
     await click(button('Take the saved version'));
@@ -808,8 +808,8 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await click(all('app-editor-languages .tab')[1]);
     await type(field(['title']), 'Moje nápoje');
 
-    const alert = host.querySelector<HTMLElement>('app-alert[data-tone="danger"]')!;
-    expect(clean(alert.querySelector('.alert-heading')?.textContent)).toBe('Somebody else has saved this survey meanwhile');
+    const alert = host.querySelector<HTMLElement>('anotoki-alert[data-tone="danger"]')!;
+    expect(clean(alert.querySelector('.heading')?.textContent)).toBe('Somebody else has saved this survey meanwhile');
     // Settled by language, the title typed before the page was left would go without a word.
     expect(button('Keep my Slovak texts', alert)).toBeUndefined();
     await click(button('Save mine over it', alert));
@@ -826,8 +826,8 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await settle();
 
     await reenter();
-    const alert = host.querySelector<HTMLElement>('app-alert[data-tone="danger"]')!;
-    expect(clean(alert.querySelector('.alert-heading')?.textContent)).toBe('Somebody changed this survey while you were translating');
+    const alert = host.querySelector<HTMLElement>('anotoki-alert[data-tone="danger"]')!;
+    expect(clean(alert.querySelector('.heading')?.textContent)).toBe('Somebody changed this survey while you were translating');
     await click(button('Keep my Slovak texts', alert));
     await store.flush('survey-1');
     expect(api.saveSurvey).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Theirs', translations: { sk: expect.objectContaining({ title: 'Moje nápoje' }) } }), 7);
@@ -842,9 +842,9 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await store.flush('survey-1');
     await settle();
 
-    const alert = () => host.querySelector<HTMLElement>('app-alert[data-tone="danger"]')!;
-    expect(clean(alert().querySelector('.alert-heading')?.textContent)).toBe('Somebody else has saved this survey meanwhile');
-    expect(clean(alert().querySelector('.alert-text')?.textContent)).toBe(
+    const alert = () => host.querySelector<HTMLElement>('anotoki-alert[data-tone="danger"]')!;
+    expect(clean(alert().querySelector('.heading')?.textContent)).toBe('Somebody else has saved this survey meanwhile');
+    expect(clean(alert().querySelector('.text')?.textContent)).toBe(
       'Your latest changes are not saved: they were made to an older version. Take the survey as it is saved now - your changes since your last save go. ' +
         'Yours cannot be saved over it as it is: the saved version is written in Slovak and yours in English, and both have translations - the language a survey is written in changes only while it has no translations. ' +
         "Remove your translations first (with the button on each one's tab), and yours can be saved over it: everything they saved is then lost.",
@@ -856,7 +856,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     // Without the translation here, mine is one the server takes: offered again, saying what it costs.
     await click(button('Remove Slovak'));
     await answer(true);
-    expect(clean(alert().querySelector('.alert-text')?.textContent)).toBe(
+    expect(clean(alert().querySelector('.text')?.textContent)).toBe(
       'Your latest changes are not saved: they were made to an older version. Take the survey as it is saved now - your changes since your last save go - or save yours over it. ' +
         'That loses everything they saved, their translations too: the two versions are written in different languages.',
     );
@@ -877,8 +877,8 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await store.flush('survey-1');
     await settle();
 
-    const alert = host.querySelector<HTMLElement>('app-alert[data-tone="danger"]')!;
-    expect(clean(alert.querySelector('.alert-text')?.textContent)).toMatch(/which stay as you have them\. Slovak, removed here, stays removed - with everything they have written in it\.$/);
+    const alert = host.querySelector<HTMLElement>('anotoki-alert[data-tone="danger"]')!;
+    expect(clean(alert.querySelector('.text')?.textContent)).toMatch(/which stay as you have them\. Slovak, removed here, stays removed - with everything they have written in it\.$/);
     await click(button('Save mine over it', alert));
     expect((await answer(true)).message).toMatch(/which stay as you have them\. Slovak, removed here, stays removed - with everything they have written in it\.$/);
     await store.flush('survey-1');
@@ -892,8 +892,8 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await store.flush('survey-1');
     await settle();
 
-    const alert = host.querySelector<HTMLElement>('app-alert[data-tone="danger"]')!;
-    expect(clean(alert.querySelector('.alert-text')?.textContent)).toMatch(/goes\. Their version no longer has Slovak: keeping your texts puts that translation back, as it is here\.$/);
+    const alert = host.querySelector<HTMLElement>('anotoki-alert[data-tone="danger"]')!;
+    expect(clean(alert.querySelector('.text')?.textContent)).toMatch(/goes\. Their version no longer has Slovak: keeping your texts puts that translation back, as it is here\.$/);
     await click(button('Keep my Slovak texts', alert));
     await store.flush('survey-1');
     expect(api.saveSurvey).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Theirs', translations: { sk: { ...SLOVAK_PART, title: 'Moje nápoje' } } }), 7);
@@ -921,8 +921,8 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     await store.flush('survey-1');
     await settle();
 
-    const alert = host.querySelector<HTMLElement>('app-alert[data-tone="danger"]')!;
-    expect(clean(alert.querySelector('.alert-text')?.textContent)).toBe(
+    const alert = host.querySelector<HTMLElement>('anotoki-alert[data-tone="danger"]')!;
+    expect(clean(alert.querySelector('.text')?.textContent)).toBe(
       'This survey with its translations is larger than the site keeps in one survey (2 MB). Shorten a text, or remove a translation: the next change is sent again.',
     );
     expect(button('Try again now', alert)).toBeUndefined();

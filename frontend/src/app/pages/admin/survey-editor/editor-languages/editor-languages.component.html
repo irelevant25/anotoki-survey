@@ -11,7 +11,7 @@
                 [attr.aria-selected]="!current()"
                 [attr.tabindex]="current() ? -1 : 0"
                 (click)="choose.emit(null)">
-                <app-icon name="globe" [size]="15" />
+                <anotoki-icon name="globe" [size]="15" />
                 {{ mainName() }}
                 <span class="tag">main</span>
             </button>
@@ -46,7 +46,7 @@
         <div class="actions">
             @if (addable().length) {
                 <label class="add">
-                    <app-icon name="plus" [size]="15" />
+                    <anotoki-icon name="plus" [size]="15" />
                     <span class="visually-hidden">Add a language</span>
                     <select class="add-select" (change)="onAdd($event)">
                         <option value="">Add a language…</option>
@@ -57,8 +57,8 @@
                 </label>
             }
             @if (current(); as tab) {
-                <button appButton size="sm" variant="ghost" class="remove" (click)="remove.emit(tab.code)">
-                    <app-icon name="trash" [size]="15" />
+                <button anotokiButton size="sm" variant="ghost" class="remove" (click)="remove.emit(tab.code)">
+                    <anotoki-icon name="trash" [size]="15" />
                     Remove {{ tab.name }}
                 </button>
             }

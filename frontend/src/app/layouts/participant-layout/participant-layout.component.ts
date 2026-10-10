@@ -2,15 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
+import { ButtonComponent, EmptyStateComponent, IconComponent } from '@anotoki/lib/ui';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AuthService } from '../../core/auth/auth.service';
 import { signInOrSayWhy } from '../../core/auth/sign-in-failure';
 import { VisitorKey } from '../../core/auth/visitor-key';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { TranslationService } from '../../core/i18n/translation.service';
-import { ButtonComponent } from '../../ui/button/button.component';
-import { EmptyStateComponent } from '../../ui/empty-state/empty-state.component';
-import { IconComponent } from '../../ui/icon/icon.component';
-import { ToastService } from '../../ui/toast/toast.service';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 
 /**

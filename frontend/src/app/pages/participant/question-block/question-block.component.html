@@ -87,7 +87,7 @@
                                 @for (image of option.images.slice(0, 3); track image.id) {
                                     <app-survey-image [image]="image" fit="contain" [decorative]="true" />
                                 } @empty {
-                                    <span class="no-media" aria-hidden="true"><app-icon [name]="option.other ? 'pencil' : 'image'" [size]="22" /></span>
+                                    <span class="no-media" aria-hidden="true"><anotoki-icon [name]="option.other ? 'pencil' : 'image'" [size]="22" /></span>
                                 }
                                 @if (option.images.length > 3) {
                                     <span class="more" aria-hidden="true">+{{ option.images.length - 3 }}</span>
@@ -112,13 +112,13 @@
                             [attr.aria-label]="'question.showOptionLarge' | translate: { label: option.label }"
                             [title]="'question.showLargeTitle' | translate"
                             (click)="enlarge(option)">
-                            <app-icon name="zoomIn" [size]="16" />
+                            <anotoki-icon name="zoomIn" [size]="16" />
                         </button>
                     }
                 </div>
                 @if (option.other && chosen().has(option.id)) {
                     <div class="other">
-                        <app-icon name="cornerDownRight" [size]="16" />
+                        <anotoki-icon name="cornerDownRight" [size]="16" />
                         <div class="field-control" [class.field-invalid]="!!error() && !(answer()?.other ?? '').trim()">
                             <input
                                 type="text"
@@ -129,7 +129,7 @@
                                 [attr.aria-invalid]="error() && !(answer()?.other ?? '').trim() ? 'true' : null"
                                 [attr.aria-describedby]="error() && !(answer()?.other ?? '').trim() ? errorId : null"
                                 [value]="answer()?.other ?? ''"
-                                [appAutofocus]="justChose() === option.id"
+                                [anotokiAutofocus]="justChose() === option.id"
                                 (input)="setOther($event)" />
                         </div>
                     </div>
@@ -143,7 +143,7 @@
 
     @if (error()) {
         <p class="error" [id]="errorId" role="alert">
-            <app-icon name="alert" [size]="16" />
+            <anotoki-icon name="alert" [size]="16" />
             <span>{{ errorWords() }}</span>
         </p>
     }

@@ -1,11 +1,10 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, viewChildren } from '@angular/core';
+import { ButtonComponent, IconComponent } from '@anotoki/lib/ui';
+import { ConfirmService } from '@anotoki/lib/ui/dialog';
 import { MAX_OPTION_IMAGES, pastedPictures } from '../../../../core/images/prepare-image';
 import { newOption } from '../../../../core/survey/survey-factory';
 import { ChoiceOption, QuestionType } from '../../../../core/survey/survey.model';
-import { ButtonComponent } from '../../../../ui/button/button.component';
-import { ConfirmService } from '../../../../ui/confirm/confirm.service';
-import { IconComponent } from '../../../../ui/icon/icon.component';
 import { ImageListEditorComponent } from '../image-list-editor/image-list-editor.component';
 import { SurveyEditing } from '../survey-editing.service';
 import { TranslatedTextComponent } from '../translated-text/translated-text.component';

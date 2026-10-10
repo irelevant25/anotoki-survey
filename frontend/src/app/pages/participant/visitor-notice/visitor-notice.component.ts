@@ -1,13 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { AlertComponent, ButtonComponent, IconComponent } from '@anotoki/lib/ui';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AuthService } from '../../../core/auth/auth.service';
 import { signInOrSayWhy } from '../../../core/auth/sign-in-failure';
 import { TranslatePluralPipe } from '../../../core/i18n/translate-plural.pipe';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
-import { AlertComponent } from '../../../ui/alert/alert.component';
-import { ButtonComponent } from '../../../ui/button/button.component';
-import { IconComponent } from '../../../ui/icon/icon.component';
-import { ToastService } from '../../../ui/toast/toast.service';
 
 /**
  * What somebody taking surveys without signing in is told: that this browser

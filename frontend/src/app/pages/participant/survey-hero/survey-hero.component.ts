@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { IconComponent } from '@anotoki/lib/ui';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
-import { IconComponent } from '../../../ui/icon/icon.component';
 
 /**
  * The top of a survey: the night sky of the anotoki sign-in pages, the

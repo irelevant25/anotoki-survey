@@ -9,23 +9,23 @@
     }
 
     @if (error(); as failure) {
-        <app-alert tone="danger" [heading]="'home.loadFailed' | translate">
+        <anotoki-alert tone="danger" [heading]="'home.loadFailed' | translate">
             {{ errorKey(failure) | translate: errorParams(failure) }}
             <div alertActions>
-                <button appButton (click)="load()">
-                    <app-icon name="refresh" [size]="16" />
+                <button anotokiButton (click)="load()">
+                    <anotoki-icon name="refresh" [size]="16" />
                     {{ "common.tryAgain" | translate }}
                 </button>
             </div>
-        </app-alert>
+        </anotoki-alert>
     } @else if (loading()) {
-        <div class="loading"><app-spinner [label]="'home.loading' | translate" [showLabel]="true" /></div>
+        <div class="loading"><anotoki-spinner [label]="'home.loading' | translate" [showLabel]="true" /></div>
     } @else {
         <ul class="list">
             @for (item of surveys(); track item.survey.id) {
                 <li>
                     <a class="survey" [routerLink]="['/', item.survey.slug]">
-                        <span class="survey-icon" aria-hidden="true"><app-icon name="survey" [size]="22" /></span>
+                        <span class="survey-icon" aria-hidden="true"><anotoki-icon name="survey" [size]="22" /></span>
                         <span class="survey-text">
                             <span class="survey-title" [attr.lang]="item.language?.code">{{ item.survey.title }}</span>
                             <span class="survey-meta">
@@ -46,19 +46,19 @@
                         </span>
                         <span class="survey-state">
                             @if (item.taken) {
-                                <app-badge tone="success" [dot]="true">{{ "home.badge.taken" | translate }}</app-badge>
+                                <anotoki-badge tone="success" [dot]="true">{{ "home.badge.taken" | translate }}</anotoki-badge>
                             } @else if (item.started) {
-                                <app-badge tone="warning" [dot]="true">{{ "home.badge.started" | translate }}</app-badge>
+                                <anotoki-badge tone="warning" [dot]="true">{{ "home.badge.started" | translate }}</anotoki-badge>
                             } @else {
-                                <app-badge tone="primary">{{ "home.badge.new" | translate }}</app-badge>
+                                <anotoki-badge tone="primary">{{ "home.badge.new" | translate }}</anotoki-badge>
                             }
-                            <app-icon name="chevronRight" [size]="18" />
+                            <anotoki-icon name="chevronRight" [size]="18" />
                         </span>
                     </a>
                 </li>
             } @empty {
                 <li class="empty">
-                    <app-empty-state icon="survey" [heading]="'home.empty.heading' | translate" [text]="'home.empty.text' | translate" />
+                    <anotoki-empty-state icon="survey" [heading]="'home.empty.heading' | translate" [text]="'home.empty.text' | translate" />
                 </li>
             }
         </ul>

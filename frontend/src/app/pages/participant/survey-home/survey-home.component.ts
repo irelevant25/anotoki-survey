@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, IconComponent, SpinnerComponent } from '@anotoki/lib/ui';
 import { ApiError, ApiService, ParticipantSurvey, toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { VisitorKey } from '../../../core/auth/visitor-key';
@@ -11,12 +12,6 @@ import { TranslationService } from '../../../core/i18n/translation.service';
 import { readDraft } from '../../../core/survey/drafts';
 import { localizedSurvey } from '../../../core/survey/localize';
 import { currentStatus, estimatedMinutes, questionCount } from '../../../core/survey/survey-outline';
-import { AlertComponent } from '../../../ui/alert/alert.component';
-import { BadgeComponent } from '../../../ui/badge/badge.component';
-import { ButtonComponent } from '../../../ui/button/button.component';
-import { EmptyStateComponent } from '../../../ui/empty-state/empty-state.component';
-import { IconComponent } from '../../../ui/icon/icon.component';
-import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
 import { otherLanguage } from '../shown-language';
 import { VisitorNoticeComponent } from '../visitor-notice/visitor-notice.component';
 

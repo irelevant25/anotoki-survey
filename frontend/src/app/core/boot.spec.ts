@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { Router, TitleStrategy, provideRouter } from '@angular/router';
 import { SiteStatus } from '@anotoki/lib/migrations';
-import { ToastService } from '../ui/toast/toast.service';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { ApiService } from './api/api.service';
 import { AuthService, SignInFailure } from './auth/auth.service';
 import { VisitorKey } from './auth/visitor-key';

@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { IconComponent } from '@anotoki/lib/ui';
 import { AdminDates } from '../../../../core/admin/admin-dates.service';
 import { ChoiceSummary, Tally } from '../../../../core/survey/results';
 import { Question } from '../../../../core/survey/survey.model';
-import { IconComponent } from '../../../../ui/icon/icon.component';
 import { ImageStripComponent } from '../../../../ui/image-strip/image-strip.component';
 import { BarListComponent } from '../bar-list/bar-list.component';
 import { QUESTION_TYPES } from '../../survey-editor/question-editor/question-editor.component';

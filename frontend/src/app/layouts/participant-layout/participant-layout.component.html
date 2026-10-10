@@ -9,12 +9,12 @@
             <router-outlet />
         } @else {
             <div class="signed-out">
-                <app-empty-state icon="lock" [heading]="'signedOut.heading' | translate" [text]="'signedOut.text' | translate">
-                    <button appButton variant="primary" (click)="signIn()">
-                        <app-icon name="logIn" [size]="16" />
+                <anotoki-empty-state icon="lock" [heading]="'signedOut.heading' | translate" [text]="'signedOut.text' | translate">
+                    <button anotokiButton variant="primary" (click)="signIn()">
+                        <anotoki-icon name="logIn" [size]="16" />
                         {{ "common.signIn" | translate }}
                     </button>
-                </app-empty-state>
+                </anotoki-empty-state>
             </div>
         }
     </main>

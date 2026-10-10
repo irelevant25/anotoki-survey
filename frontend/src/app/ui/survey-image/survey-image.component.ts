@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, effect, input, signal, untracked } from '@angular/core';
+import { IconComponent } from '@anotoki/lib/ui';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
 import { SurveyImage } from '../../core/survey/survey.model';
-import { IconComponent } from '../icon/icon.component';
 
 /**
  * One of a survey's pictures: a soft shimmer while it loads, the picture, or

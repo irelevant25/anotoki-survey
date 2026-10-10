@@ -170,7 +170,7 @@ describe('SurveyHomeComponent', () => {
     await page('sk', [{ ...openSurvey('taken', 'A', 1), answeredAt: '2026-09-29T08:00:00Z' }, openSurvey('started', 'B', 1), openSurvey('new', 'C', 1)]);
 
     expect(all('.survey-state')).toEqual(['Vyplnený', 'Začatý', 'Nový']);
-    expect(text('app-visitor-notice .alert-text')).toBe(SLOVAK['visitor.notice.other'].replace('{count}', '30'));
+    expect(text('app-visitor-notice anotoki-alert .text')).toBe(SLOVAK['visitor.notice.other'].replace('{count}', '30'));
     expect(text('app-visitor-notice button')).toBe('Prihlásiť sa');
   });
 
@@ -211,39 +211,39 @@ describe('SurveyHomeComponent', () => {
     await new Promise((done) => setTimeout(done));
     await fixture.whenStable();
     expect(text('.loading')).toBeUndefined();
-    expect(text('.empty-heading')).toBe('Práve nie je otvorený žiadny prieskum');
-    expect(text('.empty-text')).toBe(SLOVAK['home.empty.text']);
+    expect(text('anotoki-empty-state .heading')).toBe('Práve nie je otvorený žiadny prieskum');
+    expect(text('anotoki-empty-state .text')).toBe(SLOVAK['home.empty.text']);
   });
 
   it("words a failed load itself, from the error's code - never with the server's English sentence", async () => {
     await page('sk', new ApiError(0, 'offline', 'The site could not be reached. Check the connection and try again.'));
 
-    expect(text('.alert-heading')).toBe('Prieskumy sa nepodarilo načítať');
-    expect(text('app-alert')).toContain('So stránkou sa nepodarilo spojiť. Skontrolujte pripojenie a skúste to znova.');
-    expect(text('app-alert')).not.toContain('The site could not be reached');
-    expect(text('app-alert button')).toBe('Skúsiť znova');
+    expect(text('anotoki-alert .heading')).toBe('Prieskumy sa nepodarilo načítať');
+    expect(text('anotoki-alert')).toContain('So stránkou sa nepodarilo spojiť. Skontrolujte pripojenie a skúste to znova.');
+    expect(text('anotoki-alert')).not.toContain('The site could not be reached');
+    expect(text('anotoki-alert button')).toBe('Skúsiť znova');
     expect(host.querySelector('.list')).toBeNull();
   });
 
   it("gives an answer that was not the API's own its status, and one nobody listed the general sentence", async () => {
     await page('en', new ApiError(502, 'http_502', 'The server answered 502.'));
-    expect(text('app-alert')).toContain('The server answered 502.');
+    expect(text('anotoki-alert')).toContain('The server answered 502.');
 
     TestBed.resetTestingModule();
     await page('en', new ApiError(409, 'surprise', 'A sentence only the server knows.'));
-    expect(text('app-alert')).toContain('Something went wrong.');
-    expect(text('app-alert')).not.toContain('only the server knows');
+    expect(text('anotoki-alert')).toContain('Something went wrong.');
+    expect(text('anotoki-alert')).not.toContain('only the server knows');
   });
 
   it('loads again on "Try again", and shows the surveys when they come', async () => {
     await page('en', new ApiError(0, 'offline', 'x'));
     openSurveys.mockResolvedValue([openSurvey('one', 'Quizzes', 2)]);
 
-    host.querySelector<HTMLButtonElement>('app-alert button')!.click();
+    host.querySelector<HTMLButtonElement>('anotoki-alert button')!.click();
     await fixture.whenStable();
 
     expect(openSurveys).toHaveBeenCalledTimes(2);
-    expect(host.querySelector('app-alert')).toBeNull();
+    expect(host.querySelector('anotoki-alert')).toBeNull();
     expect(all('.survey-meta')).toEqual(['2 questions · about 2 min']);
   });
 
@@ -306,11 +306,11 @@ describe('SurveyHomeComponent', () => {
 
     TestBed.resetTestingModule();
     await page('sk', new ApiError(0, 'offline', 'x'));
-    expect(text('app-alert')).toContain('So stránkou sa nepodarilo spojiť.');
+    expect(text('anotoki-alert')).toContain('So stránkou sa nepodarilo spojiť.');
     expect(await TestBed.inject(TranslationService).setLanguage('en', false)).toBe(true);
     await fixture.whenStable();
-    expect(text('.alert-heading')).toBe('The surveys could not be loaded');
-    expect(text('app-alert')).toContain('The site could not be reached. Check the connection and try again.');
+    expect(text('anotoki-alert .heading')).toBe('The surveys could not be loaded');
+    expect(text('anotoki-alert')).toContain('The site could not be reached. Check the connection and try again.');
     expect(openSurveys).toHaveBeenCalledTimes(1);
   });
 });

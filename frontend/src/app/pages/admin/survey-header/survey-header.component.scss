@@ -13,13 +13,13 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.875rem;
   font-weight: 650;
   text-decoration: none;
 
   &:hover {
-    color: var(--text);
+    color: var(--anotoki-text);
   }
 }
 
@@ -64,7 +64,7 @@
 }
 
 .address-link {
-  font-family: var(--font-mono);
+  font-family: var(--anotoki-font-mono);
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
 }
@@ -78,12 +78,12 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   cursor: pointer;
 
   &:hover {
-    background: var(--surface-3);
-    color: var(--text);
+    background: var(--anotoki-surface-3);
+    color: var(--anotoki-text);
   }
 }
 
@@ -98,12 +98,12 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
   font-size: 0.8125rem;
 
   &[data-state="failed"],
   &[data-state="conflict"] {
-    color: var(--danger);
+    color: var(--anotoki-danger);
     font-weight: 650;
   }
 }
@@ -112,7 +112,7 @@
   display: flex;
   gap: 0.25rem;
   margin-top: 0.25rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--anotoki-border);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -123,17 +123,17 @@
   align-items: center;
   gap: 0.45rem;
   padding: 0.65rem 0.9rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-weight: 650;
   text-decoration: none;
   white-space: nowrap;
 
   &:hover {
-    color: var(--text);
+    color: var(--anotoki-text);
   }
 
   &.is-active {
-    color: var(--text);
+    color: var(--anotoki-text);
 
     &::after {
       content: "";
@@ -143,7 +143,7 @@
       bottom: -1px;
       height: 2px;
       border-radius: 2px;
-      background: var(--primary);
+      background: var(--anotoki-primary);
     }
   }
 }
@@ -151,14 +151,14 @@
 .count {
   padding: 0 0.45rem;
   border-radius: 999px;
-  background: var(--surface-3);
-  color: var(--muted);
+  background: var(--anotoki-surface-3);
+  color: var(--anotoki-muted);
   font-size: 0.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 
 .count-warn {
-  background: var(--warning-soft);
-  color: var(--warning);
+  background: var(--anotoki-warning-soft);
+  color: var(--anotoki-warning);
 }

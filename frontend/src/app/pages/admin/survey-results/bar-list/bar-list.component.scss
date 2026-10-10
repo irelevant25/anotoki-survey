@@ -22,15 +22,15 @@
   min-width: 0;
   padding: 0.45rem 0.6rem;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--anotoki-radius);
   background: transparent;
-  color: var(--text);
+  color: var(--anotoki-text);
   text-align: left;
   cursor: pointer;
-  transition: background-color var(--duration) var(--ease);
+  transition: background-color var(--anotoki-duration) var(--anotoki-ease);
 
   &:hover:not(:disabled) {
-    background: var(--surface-3);
+    background: var(--anotoki-surface-3);
 
     .fill {
       background: var(--bar-fill-strong);
@@ -68,8 +68,8 @@
   margin-left: 0.3rem;
   padding: 0 0.4rem;
   border-radius: 999px;
-  background: var(--primary-soft);
-  color: var(--primary-soft-text);
+  background: var(--anotoki-primary-soft);
+  color: var(--anotoki-primary-soft-text);
   font-size: 0.7rem;
   font-weight: 700;
   white-space: nowrap;
@@ -90,8 +90,8 @@
   border-radius: 999px;
   background: var(--bar-fill);
   transition:
-    width 400ms var(--ease),
-    background-color var(--duration) var(--ease);
+    width 400ms var(--anotoki-ease),
+    background-color var(--anotoki-duration) var(--anotoki-ease);
 }
 
 .is-top .fill {
@@ -112,7 +112,7 @@
 
 .share {
   min-width: 2.6rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   text-align: right;
 }
@@ -120,12 +120,12 @@
 .is-empty {
   .label,
   .numbers {
-    color: var(--subtle);
+    color: var(--anotoki-subtle);
   }
 }
 
 .is-filtered .bar-button {
-  background: var(--primary-soft);
+  background: var(--anotoki-primary-soft);
 }
 
 .narrow {
@@ -138,12 +138,12 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: var(--surface-3);
-    color: var(--primary);
+    background: var(--anotoki-surface-3);
+    color: var(--anotoki-primary);
   }
 
   &:disabled {
@@ -153,7 +153,7 @@
 }
 
 .is-filtered .narrow {
-  color: var(--primary);
+  color: var(--anotoki-primary);
   opacity: 1;
 }
 

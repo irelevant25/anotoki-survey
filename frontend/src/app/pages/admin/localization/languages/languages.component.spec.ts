@@ -1,6 +1,8 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { ConfirmService } from '@anotoki/lib/ui/dialog';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminStore } from '../../../../core/admin/admin-store.service';
 import { LOCALIZATION_DRAFTS_KEY, LocalizationDrafts } from '../../../../core/admin/localization-drafts.service';
 import { ApiError, ApiService } from '../../../../core/api/api.service';
@@ -8,8 +10,6 @@ import { AuthService } from '../../../../core/auth/auth.service';
 import { AdminLanguage } from '../../../../core/i18n/translation.model';
 import { TranslationService } from '../../../../core/i18n/translation.service';
 import { Person } from '../../../../core/survey/survey.model';
-import { ConfirmService } from '../../../../ui/confirm/confirm.service';
-import { ToastService } from '../../../../ui/toast/toast.service';
 import { LanguagesComponent } from './languages.component';
 
 const ENGLISH: AdminLanguage = { code: 'en', name: 'English', nativeName: 'English', enabled: true, sortOrder: 1, seeded: true };
@@ -47,11 +47,12 @@ describe('LanguagesComponent', () => {
   /** The pieces of each row's head - its children - with a space between, as the eye sees them. */
   const heads = () => Array.from(host.querySelectorAll('.head')).map((element) => all(':scope > *', element).join(' '));
   const rows = () => Array.from(host.querySelectorAll<HTMLElement>('.language'));
-  const row = (code: string) => rows().find((candidate) => clean(candidate.querySelector('app-badge')?.textContent) === code)!;
-  const fields = (within: ParentNode) => Array.from(within.querySelectorAll<HTMLInputElement>('input.field-input'));
+  const row = (code: string) => rows().find((candidate) => clean(candidate.querySelector('anotoki-badge')?.textContent) === code)!;
+  const fields = (within: ParentNode) => Array.from(within.querySelectorAll<HTMLInputElement>('anotoki-text-field input'));
   const toggle = (code: string) => row(code).querySelector<HTMLInputElement>('input[role="switch"]')!;
   const button = (label: string, within: ParentNode = host) => Array.from(within.querySelectorAll<HTMLButtonElement>('button')).find((candidate) => clean(candidate.textContent) === label);
-  const error = (within: ParentNode) => clean(within.querySelector('.field-error')?.textContent);
+  /** The first refusal said in it: the page's own line, or a field's (the kit's text field says its own). */
+  const error = (within: ParentNode) => clean(within.querySelector('.field-error, anotoki-text-field .error')?.textContent);
   const toasts = () =>
     TestBed.inject(ToastService)
       .toasts()
@@ -133,7 +134,7 @@ describe('LanguagesComponent', () => {
       ['Slovak', 'Slovenčina', '2'],
       ['Czech', 'Čeština', '3'],
     ]);
-    expect(all('.list .switch .label')).toEqual(['Offered', 'Offered', 'Hidden']);
+    expect(all('.list .switch .words')).toEqual(['Offered', 'Offered', 'Hidden']);
     expect(row('cs').querySelector('.native')!.getAttribute('lang')).toBe('cs');
   });
 
@@ -284,14 +285,14 @@ describe('LanguagesComponent', () => {
 
     expect(api.updateLanguage).toHaveBeenCalledWith('sk', { enabled: false });
     expect(toggle('sk').checked).toBe(false);
-    expect(clean(row('sk').querySelector('.switch .label')?.textContent)).toBe('Hidden');
+    expect(clean(row('sk').querySelector('.switch .words')?.textContent)).toBe('Hidden');
     expect(row('sk').classList.contains('is-hidden')).toBe(true);
     expect(toasts()).toEqual(['Slovak is hidden: nobody is offered it.']);
 
     api.updateLanguage.mockResolvedValue({ ...CZECH, enabled: true });
     await flip('cs');
     expect(api.updateLanguage).toHaveBeenLastCalledWith('cs', { enabled: true });
-    expect(clean(row('cs').querySelector('.switch .label')?.textContent)).toBe('Offered');
+    expect(clean(row('cs').querySelector('.switch .words')?.textContent)).toBe('Offered');
     expect(refreshed).toHaveBeenCalledTimes(2);
   });
 
@@ -310,7 +311,7 @@ describe('LanguagesComponent', () => {
     await settle();
 
     expect(toggle('sk').checked).toBe(true);
-    expect(clean(row('sk').querySelector('.switch .label')?.textContent)).toBe('Offered');
+    expect(clean(row('sk').querySelector('.switch .words')?.textContent)).toBe('Offered');
     expect(error(row('sk'))).toBe('English cannot be switched off: every other language falls back to it.');
   });
 
@@ -362,7 +363,7 @@ describe('LanguagesComponent', () => {
       await page([ENGLISH, SLOVAK]);
       expect(add().disabled).toBe(true);
       // Whether readers are offered it at once: a switch, off, with the reason beside it.
-      expect(clean(form().querySelector('.switch .label')?.textContent)).toBe('Offer it to readers right away');
+      expect(clean(form().querySelector('.switch .words')?.textContent)).toBe('Offer it to readers right away');
       expect(clean(form().querySelector('.switch .hint')?.textContent)).toBe('A new language starts hidden - write its strings, then offer it.');
       expect(offer().checked).toBe(false);
 
@@ -380,7 +381,7 @@ describe('LanguagesComponent', () => {
       expect(api.createLanguage).toHaveBeenCalledWith({ code: 'de', name: 'German', nativeName: 'Deutsch', enabled: false });
       expect(heads()).toEqual(['en English English Fallback', 'sk Slovak Slovenčina Released with the site', 'de German Deutsch']);
       // The new row says it is hidden.
-      expect(clean(row('de').querySelector('.switch .label')?.textContent)).toBe('Hidden');
+      expect(clean(row('de').querySelector('.switch .words')?.textContent)).toBe('Hidden');
       expect(toggle('de').checked).toBe(false);
       expect(row('de').classList.contains('is-hidden')).toBe(true);
       expect(fields(form()).map((field) => field.value)).toEqual(['', '', '']);
@@ -404,7 +405,7 @@ describe('LanguagesComponent', () => {
       await settle();
 
       expect(api.createLanguage).toHaveBeenCalledWith({ code: 'de', name: 'German', nativeName: 'Deutsch', enabled: true });
-      expect(clean(row('de').querySelector('.switch .label')?.textContent)).toBe('Offered');
+      expect(clean(row('de').querySelector('.switch .words')?.textContent)).toBe('Offered');
       expect(row('de').classList.contains('is-hidden')).toBe(false);
       expect(toasts()).toEqual(['German is added, and offered to everybody. It reads in English until its strings are written.']);
       expect(offer().checked).toBe(false);
@@ -544,7 +545,7 @@ describe('LanguagesComponent', () => {
   it('says so when the languages cannot be loaded, and tries again', async () => {
     await page(new ApiError(0, 'offline', 'The site could not be reached. Check the connection and try again.'));
 
-    expect(clean(host.querySelector('app-alert')?.textContent)).toContain('The languages could not be loaded');
+    expect(clean(host.querySelector('anotoki-alert')?.textContent)).toContain('The languages could not be loaded');
     expect(rows()).toHaveLength(0);
 
     api.languages.mockResolvedValue([ENGLISH, SLOVAK]);
@@ -556,7 +557,7 @@ describe('LanguagesComponent', () => {
   it('links to the translations and back to the surveys', async () => {
     await page();
 
-    expect(Array.from(host.querySelectorAll('app-page-header a')).map((link) => [clean(link.textContent), link.getAttribute('href')])).toEqual([
+    expect(Array.from(host.querySelectorAll('anotoki-page-header a')).map((link) => [clean(link.textContent), link.getAttribute('href')])).toEqual([
       ['All surveys', '/admin'],
       ['Translations', '/admin/translations'],
     ]);

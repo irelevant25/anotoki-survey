@@ -1,11 +1,11 @@
 <article class="card" [class.is-open]="expanded()" [class.has-problems]="problems().length > 0 || missing() > 0" [id]="'question-' + question().id">
     <header class="head" [class.is-locked]="translating()">
         @if (!translating()) {
-            <span class="grip" cdkDragHandle title="Drag to move - to another step, too" aria-hidden="true"><app-icon name="grip" [size]="18" /></span>
+            <span class="grip" cdkDragHandle title="Drag to move - to another step, too" aria-hidden="true"><anotoki-icon name="grip" [size]="18" /></span>
         }
         <button type="button" class="summary" [attr.aria-expanded]="expanded()" [attr.aria-controls]="id + '-body'" (click)="toggle.emit()">
             <span class="number">{{ number() }}</span>
-            <span class="kind" [title]="type().label"><app-icon [name]="type().icon" [size]="16" /></span>
+            <span class="kind" [title]="type().label"><anotoki-icon [name]="type().icon" [size]="16" /></span>
             <span class="text" [class.is-empty]="!summary()">{{ summary() || "No text yet" }}</span>
             <span class="badges">
                 @if (!question().required) {
@@ -19,19 +19,19 @@
                 }
                 @if (imageCount()) {
                     <span class="badge" [title]="imageCount() + (imageCount() === 1 ? ' picture' : ' pictures')">
-                        <app-icon name="image" [size]="12" />
+                        <anotoki-icon name="image" [size]="12" />
                         {{ imageCount() }}
                     </span>
                 }
                 @if (answered()) {
                     <span class="badge badge-answers" [title]="answered() + ' answered it'">
                         {{ answered() }}
-                        <app-icon name="users" [size]="12" />
+                        <anotoki-icon name="users" [size]="12" />
                     </span>
                 }
                 @if (problems().length) {
                     <span class="badge badge-warn" [title]="problems().join(' ')">
-                        <app-icon name="alert" [size]="12" />
+                        <anotoki-icon name="alert" [size]="12" />
                         {{ problems().length }}
                     </span>
                 }
@@ -43,21 +43,21 @@
                     <span class="to-translate-words">to translate</span>
                 </span>
             }
-            <app-icon class="chevron" [name]="expanded() ? 'chevronUp' : 'chevronDown'" [size]="18" />
+            <anotoki-icon class="chevron" [name]="expanded() ? 'chevronUp' : 'chevronDown'" [size]="18" />
         </button>
         @if (!translating()) {
             <div class="head-actions">
                 <button type="button" class="icon-button" aria-label="Move up" title="Move up" [disabled]="isFirst()" (click)="move.emit(-1)">
-                    <app-icon name="arrowUp" [size]="16" />
+                    <anotoki-icon name="arrowUp" [size]="16" />
                 </button>
                 <button type="button" class="icon-button" aria-label="Move down" title="Move down" [disabled]="isLast()" (click)="move.emit(1)">
-                    <app-icon name="arrowDown" [size]="16" />
+                    <anotoki-icon name="arrowDown" [size]="16" />
                 </button>
                 <button type="button" class="icon-button" aria-label="Duplicate" title="Duplicate" (click)="duplicate.emit()">
-                    <app-icon name="copy" [size]="16" />
+                    <anotoki-icon name="copy" [size]="16" />
                 </button>
                 <button type="button" class="icon-button icon-button-danger" aria-label="Remove the question" title="Remove" (click)="remove.emit()">
-                    <app-icon name="trash" [size]="16" />
+                    <anotoki-icon name="trash" [size]="16" />
                 </button>
             </div>
         }
@@ -67,7 +67,7 @@
         <!-- A translation: the question's texts, each with its original; its kind, options, pictures and rules stay as they are. -->
         <div class="body" [id]="id + '-body'">
             <p class="locked">
-                <app-icon [name]="type().icon" [size]="15" />
+                <anotoki-icon [name]="type().icon" [size]="15" />
                 {{ type().label }}{{ question().required ? "" : " · optional" }}{{ limitsLabel() ? " · " + limitsLabel() : "" }}
             </p>
 
@@ -101,7 +101,7 @@
                 <ul class="problems">
                     @for (problem of problems(); track problem) {
                         <li>
-                            <app-icon name="alert" [size]="14" />
+                            <anotoki-icon name="alert" [size]="14" />
                             {{ problem }}
                         </li>
                     }
@@ -113,7 +113,7 @@
             <div class="kinds" role="radiogroup" aria-label="Kind of question">
                 @for (item of types; track item.type) {
                     <button type="button" role="radio" class="kind-button" [attr.aria-checked]="question().type === item.type" (click)="setType(item.type)">
-                        <app-icon [name]="item.icon" [size]="16" />
+                        <anotoki-icon [name]="item.icon" [size]="16" />
                         {{ item.label }}
                     </button>
                 }
@@ -144,7 +144,7 @@
                         <p class="section-label">Laid out as</p>
                         @if (optionsHaveImages()) {
                             <p class="as-cards">
-                                <app-icon name="image" [size]="15" />
+                                <anotoki-icon name="image" [size]="15" />
                                 Cards with their pictures, side by side
                             </p>
                         } @else {
@@ -157,7 +157,7 @@
                                         [attr.aria-checked]="question().layout === item.layout"
                                         [title]="item.hint"
                                         (click)="set({ layout: item.layout })">
-                                        <app-icon [name]="item.icon" [size]="15" />
+                                        <anotoki-icon [name]="item.icon" [size]="15" />
                                         {{ item.label }}
                                     </button>
                                 }
@@ -197,7 +197,7 @@
                 </div>
                 @if (rule()) {
                     <p class="seen">
-                        <app-icon name="eye" [size]="14" />
+                        <anotoki-icon name="eye" [size]="14" />
                         People read: “{{ rule() }}”
                     </p>
                 }
@@ -225,15 +225,15 @@
             }
 
             <footer class="foot">
-                <app-switch
+                <anotoki-switch
                     [checked]="question().required"
                     (checkedChange)="set({ required: $event })"
                     [hint]="question().required ? 'People cannot go on without answering.' : 'People may leave it empty.'">
                     Required
-                </app-switch>
+                </anotoki-switch>
                 @if (steps().length > 1) {
                     <label class="move-to">
-                        <app-icon name="cornerDownRight" [size]="15" />
+                        <anotoki-icon name="cornerDownRight" [size]="15" />
                         <span class="visually-hidden">Move to</span>
                         <select class="step-select" (change)="onMoveToStep($event)">
                             @for (step of steps(); track step.id) {
@@ -248,7 +248,7 @@
                 <ul class="problems">
                     @for (problem of problems(); track problem) {
                         <li>
-                            <app-icon name="alert" [size]="14" />
+                            <anotoki-icon name="alert" [size]="14" />
                             {{ problem }}
                         </li>
                     }

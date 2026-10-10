@@ -54,8 +54,11 @@ Working conventions:
   Queries use `?` parameters; identifiers come from literals.
 - User HTML only through `richTextClean()`. Pictures are checked by their
   bytes; never SVG.
-- Components are three files (`.ts`, `.html`, `.scss`); colours from the tokens
-  in `src/styles.scss` (light and dark); every page works at 390 px.
+- Components are three files (`.ts`, `.html`, `.scss`); colours from the
+  family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
+  (light and dark); every page works at 390 px. The UI kit and the top bar are
+  the anotoki family's (`@anotoki/lib`, wired in `core/kit.ts`) - use them,
+  never copy them; the kit's words come from the site's strings there.
 - Tests and experiments use throwaway `survey_test_` databases
   (`backend/tests/tools/`), never `anotoki_survey`; the browser check
   (`check-in-browser` skill) signs in through the stand-in IAM, never the real one.

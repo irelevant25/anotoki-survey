@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, Injector, afterNextRender, booleanAttribute, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { RouterLink } from '@angular/router';
+import { AlertComponent, ButtonComponent, IconComponent, SpinnerComponent } from '@anotoki/lib/ui';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { ApiError, ApiService, ParticipantSurvey, toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -17,11 +19,6 @@ import { LocalizedSurvey, localizedSurvey } from '../../../core/survey/localize'
 import { newId } from '../../../core/survey/survey-factory';
 import { currentStatus, estimatedMinutes, numberedQuestions, questionCount } from '../../../core/survey/survey-outline';
 import { AboutYou, Answer, Question, SurveyResponse } from '../../../core/survey/survey.model';
-import { AlertComponent } from '../../../ui/alert/alert.component';
-import { ButtonComponent } from '../../../ui/button/button.component';
-import { IconComponent } from '../../../ui/icon/icon.component';
-import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
-import { ToastService } from '../../../ui/toast/toast.service';
 import { QuestionBlockComponent } from '../question-block/question-block.component';
 import { otherLanguage } from '../shown-language';
 import { SurveyHeroComponent } from '../survey-hero/survey-hero.component';

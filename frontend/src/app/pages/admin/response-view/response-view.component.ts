@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
+import { IconComponent } from '@anotoki/lib/ui';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { AGE_ID, GENDER_ID } from '../../../core/survey/about-you';
 import { ABOUT_YOU_QUESTIONS } from '../../../core/survey/about-you-questions';
@@ -7,7 +8,6 @@ import { isChoice } from '../../../core/survey/answer-rules';
 import { ResultFilter } from '../../../core/survey/results';
 import { numberedQuestions } from '../../../core/survey/survey-outline';
 import { Answer, Question, Survey, SurveyResponse } from '../../../core/survey/survey.model';
-import { IconComponent } from '../../../ui/icon/icon.component';
 import { ImageStripComponent } from '../../../ui/image-strip/image-strip.component';
 import { SurveyImageComponent } from '../../../ui/survey-image/survey-image.component';
 

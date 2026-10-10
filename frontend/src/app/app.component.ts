@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, linkedSignal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { SiteGateComponent, SiteStatus } from '@anotoki/lib/migrations';
+import { SiteGateComponent, SitePagesDirective, SiteStatus } from '@anotoki/lib/migrations';
+import { ConfirmHostComponent } from '@anotoki/lib/ui/dialog';
+import { ToastHostComponent } from '@anotoki/lib/ui/toast';
 import { LoadErrorComponent } from './boot/load-error/load-error.component';
 import { AuthService } from './core/auth/auth.service';
 import { BOOTED } from './core/boot';
 import { PAGES_CLOSED } from './core/migrations';
-import { ConfirmHostComponent } from './ui/confirm/confirm-host.component';
 import { LightboxComponent } from './ui/lightbox/lightbox.component';
 import { LightboxService } from './ui/lightbox/lightbox.service';
-import { ToastHostComponent } from './ui/toast/toast-host.component';
 
 /** What stands in the page: the site (behind the family's gate), the card saying the server is out of reach, or - while the very first start runs - nothing. */
 type Drawn = 'site' | 'load-error' | 'nothing';
@@ -17,14 +17,15 @@ type Drawn = 'site' | 'load-error' | 'nothing';
  * The page - behind the anotoki family's gate (<anotoki-site-gate>,
  * @anotoki/lib/migrations: while the site cannot run, the family's page that
  * says why stands instead of every page, and the site's ADMIN still reaches
- * the Migrations page while an update waits; the pages are given to it as a
- * template, which it makes only while it shows them) - or the card saying the
- * server could not be reached; plus what is drawn over any page: toasts, the
- * confirm dialog, and a picture shown large.
+ * the Migrations page while an update waits; the pages are given to it as the
+ * template marked anotokiSitePages, which it makes only while it shows them) -
+ * or the card saying the server could not be reached; plus what is drawn over
+ * any page: toasts and the confirm dialog (the family's kit, @anotoki/lib/ui),
+ * and a picture shown large.
  */
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, SiteGateComponent, ToastHostComponent, ConfirmHostComponent, LightboxComponent, LoadErrorComponent],
+  imports: [RouterOutlet, SiteGateComponent, SitePagesDirective, ToastHostComponent, ConfirmHostComponent, LightboxComponent, LoadErrorComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
@@ -53,10 +54,10 @@ export class AppComponent {
    * but the answer opens the gate first, and a page made in that moment would
    * run for nothing (ask the API, raise a toast) and flash: for a visitor,
    * past a guard that let it through only because the site was closed.
-   * Everything else is the gate's own decision: its template - the outlet - is
-   * made only while it shows the pages (anotoki-lib 0.1.1), so nothing of a
-   * page runs behind the family's page, and the site's ADMIN reaches the
-   * Migrations page while an update waits.
+   * Everything else is the gate's own decision: its marked template - the
+   * outlet - is made only while it shows the pages, so nothing of a page runs
+   * behind the family's page, and the site's ADMIN reaches the Migrations page
+   * while an update waits.
    */
   protected readonly held = computed(() => this._closed() && !this._status.blocked());
 

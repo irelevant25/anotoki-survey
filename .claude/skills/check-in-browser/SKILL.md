@@ -515,10 +515,19 @@ Things that cost time to find out:
   nobody signed in). Count trips to the IAM from the page's own `requested`
   (`GET /api/oidc/authorize`), never from the stand-in's log: that holds the
   check's own questions too (`GET /_test/state` - `iamTrips()` itself asks one).
-- The family's pages are the library's markup: `anotoki-site-status` (`h1`,
-  `p`, its buttons and links) and `anotoki-migrations-page` (`[data-apply]`,
-  `dialog[data-confirm]` with `[data-confirm-apply]`, `[data-result]` with its
-  `h2`, `p` and `pre`, `[data-pending] li`, `[data-applied]`). A new release of
+- The family's pages are the library's markup (0.2.0): `anotoki-site-status`
+  (`h1`, `p`, its kit buttons and links) and `anotoki-migrations-page`
+  (`[data-apply]`, the question `[data-confirm] dialog` with its `h2` and
+  `[data-confirm-apply]`, `[data-result]` - a kit alert - with its `.heading`,
+  `.result-text` and `pre`, `[data-pending] li`, `[data-applied]`). So are the
+  top bar's insides (`app-top-bar` wraps `anotoki-top-bar`: `.row`,
+  `anotoki-brand`, `.nav`, `.actions` - `anotoki-language-switcher`,
+  `anotoki-theme-toggle`, `.person-button` / `.person-name`, the phone's
+  `.menu-button`, `button.sign-in` -, the menus
+  `.actions > anotoki-menu [role=menu]` with `[role=menuitem]` items, the
+  chooser's own menu inside the switcher) and the kit's pieces on the pages
+  (`anotoki-empty-state .heading`, `anotoki-alert`, `.toast .message` /
+  `.dismiss`, `anotoki-switch .words`). A new release of
   the library may move them: read its templates
   (`frontend/node_modules/@anotoki/lib`) before blaming the site.
 - A page made behind the family's page is not in the document: what a

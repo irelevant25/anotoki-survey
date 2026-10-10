@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, inject, input } from '@angular/core';
+import { IconComponent } from '@anotoki/lib/ui';
 import { TranslationPlace } from '../../../../core/survey/localize';
 import { isBlankHtml } from '../../../../core/survey/plain-text';
-import { IconComponent } from '../../../../ui/icon/icon.component';
 import { RichTextEditorComponent } from '../../../../ui/rich-text-editor/rich-text-editor.component';
 import { SurveyEditing } from '../survey-editing.service';
 import { placeKey } from '../translating';

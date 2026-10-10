@@ -81,8 +81,9 @@ anotoki sites have one); the version is in `frontend/package.json`.
 
 **The admin panel and the survey share one top bar - the anotoki family's.**
 The owner made every anotoki site (the IAM, the survey, Japanese, Piano, the
-build analyzer; not genshin) look and work one way, and this site's bar is the
-one the others copy: one row - the brand (the mark, "anotoki" and the site's
+build analyzer; not genshin) look and work one way, and this site's bar was the
+one the others copied - since anotoki-lib 0.2.0 it is the library's
+(`<anotoki-top-bar>`), this site keeping a thin wrapper of its own: one row - the brand (the mark, "anotoki" and the site's
 name, linking home), the site's sections as links, then the language, the
 theme and the person's menu (name, address, role; their anotoki account; the
 way into the admin panel for editors and admins, or back to the surveys from
@@ -137,7 +138,9 @@ Migrations page - are the shared library's, anotoki-lib (`anotoki/lib` from
 Composer, `@anotoki/lib` from its release tarball; README.md says how both are
 updated), and this site adopted version 0.1.0 whole - and takes the releases
 after it the same way (0.1.1, Angular only: the gate takes the pages as a
-template, below; the PHP half stays 0.1.0):
+template, below; 0.2.0, Angular only: that template marked, the Migrations
+page an entry point of its own, and the family's UI kit - *The UI kit is the
+family's*, below; the PHP half stays 0.1.0):
 
 - **The server decides where the site stands, for every request**:
   `not_set_up` (the settings missing), `update_pending` (a migration file
@@ -176,7 +179,8 @@ template, below; the PHP half stays 0.1.0):
   an `@if`, but a component's projected content is made whether it is shown or
   not - a bare `<router-outlet>` inside would put the page behind the family's
   one in place, asking the API and raising toasts over it. So the outlet is
-  given to the gate as a template (`<anotoki-site-gate><ng-template>…`), which
+  given to the gate as a template (`<anotoki-site-gate><ng-template anotokiSitePages>…`,
+  marked since 0.2.0 - an unmarked one is not the pages), which
   it makes only while it shows the pages (0.1.1). With 0.1.0, which had no
   template, this site took the gate's decision again around a bare outlet
   (`AppComponent.pagesOpen`, gone with 0.1.1). And once the site could not run
@@ -396,8 +400,8 @@ SDK 1.2.0 reads them (`AuthService.preferences`) and saves them
   page come before it, and the chooser saves a choice to the account.
 - **A choice is shown at once, saved one at a time, the last one last** - the
   IAM's own pattern: two saves in flight could land in either order. A theme
-  the account refuses goes back to the account's, with a toast
-  (`theme.notSaved`); a language stays on the page for the visit - silently
+  the account refuses goes back to the account's, and a note under the
+  family's theme switch says so (`theme.notSaved`); a language stays on the page for the visit - silently
   when the IAM does not offer it (it is this site's own, then), with a toast
   (`language.notSaved`) when the IAM could not be reached. The answer to an
   earlier save never turns the page back while a later one is on its way.
@@ -411,6 +415,31 @@ SDK 1.2.0 reads them (`AuthService.preferences`) and saves them
   account. The browser check's stand-in IAM is such an IAM.
 - **What is data stays data**: the answers' CSV keeps its ISO times, and the
   file's name its ISO day.
+
+**The UI kit is the family's - anotoki-lib 0.2.0.** The owner (2026-10-07):
+one UI kit for every anotoki site, in the library, built from the IAM's and
+this site's (whose bar was the reference). His decisions for it: **one
+library palette**, which a site overrides only where it wants colours of its
+own - this site's were the IAM's, the family's, so it overrides none;
+**Manrope on every site** (the library's styles bring it); **the family's
+segmented theme switch**; the admin wordmark **"anotoki survey · admin
+panel"**. And because the kit's built-in Slovak says "ty" and this site says
+"Vy": **every word the site showed before still shows** - each kit word the
+site has a string for is read from it (`lookup`, `core/kit.ts`: reworded in
+the admin panel, it shows reworded), and the rest are said formally
+(`words`). So the site's copies went - `src/app/ui/`'s kit pieces, the top
+bar's insides, the theme service, `theme-boot.js`, the tokens, the base and
+the utilities - and what is only the survey's stayed: the rich text editor,
+the lightbox and its pictures, the layouts' states, its own tokens, `.rich`,
+`mark`, the drag and drop, the look of the fields it draws itself. What looks
+different is the library's on purpose: the edge of every control (fields,
+buttons, the bar's round buttons, the switches) at 3:1 on its ground, the
+badges' green and amber words at 4.5:1, the spinner's arc a third of the
+ring, a waiting Sign in or Sign out saying "Saving…", a refused theme and a
+language that cannot be had said under their control instead of in a toast,
+and the 0.2.0 Migrations page. A decorative edge that was drawn with the old
+strong border - a dashed frame, a quote's bar - keeps its colour
+(`--rule-strong`).
 
 ## Languages
 

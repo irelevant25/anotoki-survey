@@ -1,3 +1,8 @@
+@use "fields";
+
+// The fields this page draws itself (src/styles/_fields.scss): first, so its own rules below win.
+@include fields.styles;
+
 :host {
   display: block;
 }
@@ -20,7 +25,7 @@
   bottom: 0.15rem;
   width: 3px;
   border-radius: 3px;
-  background: var(--danger);
+  background: var(--anotoki-danger);
 }
 
 .head {
@@ -38,8 +43,8 @@
   height: 1.75rem;
   padding: 0 0.4rem;
   border-radius: 8px;
-  background: var(--primary-soft);
-  color: var(--primary-soft-text);
+  background: var(--anotoki-primary-soft);
+  color: var(--anotoki-primary-soft-text);
   font-size: 0.875rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -60,20 +65,20 @@
   align-items: center;
   gap: 0.35rem 0.75rem;
   margin-top: -0.35rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.875rem;
 }
 
 .count {
-  color: var(--primary-soft-text);
+  color: var(--anotoki-primary-soft-text);
   font-weight: 700;
 }
 
 .optional {
   padding: 0 0.5rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--anotoki-border);
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--anotoki-surface-2);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -117,30 +122,30 @@
   min-width: 0;
   min-height: 3.1rem;
   padding: 0.65rem 0.95rem;
-  border: 1.5px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface);
+  border: 1.5px solid var(--anotoki-border-strong);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-surface);
   cursor: pointer;
   user-select: none;
   transition:
-    border-color var(--duration) var(--ease),
-    background-color var(--duration) var(--ease),
-    box-shadow var(--duration) var(--ease),
-    opacity var(--duration) var(--ease);
+    border-color var(--anotoki-duration) var(--anotoki-ease),
+    background-color var(--anotoki-duration) var(--anotoki-ease),
+    box-shadow var(--anotoki-duration) var(--anotoki-ease),
+    opacity var(--anotoki-duration) var(--anotoki-ease);
 
   &:hover {
-    border-color: color-mix(in srgb, var(--primary) 50%, var(--border-strong));
-    background: color-mix(in srgb, var(--primary) 4%, var(--surface));
+    border-color: color-mix(in srgb, var(--anotoki-primary) 50%, var(--anotoki-border-strong));
+    background: color-mix(in srgb, var(--anotoki-primary) 4%, var(--anotoki-surface));
   }
 
   &.is-chosen {
-    border-color: var(--primary);
-    background: var(--primary-soft);
-    box-shadow: inset 0 0 0 0.5px var(--primary);
+    border-color: var(--anotoki-primary);
+    background: var(--anotoki-primary-soft);
+    box-shadow: inset 0 0 0 0.5px var(--anotoki-primary);
   }
 
   &:has(input:focus-visible) {
-    box-shadow: 0 0 0 3px var(--ring);
+    box-shadow: 0 0 0 3px var(--anotoki-ring);
   }
 
   &.is-waiting {
@@ -148,8 +153,8 @@
     cursor: not-allowed;
 
     &:hover {
-      border-color: var(--border-strong);
-      background: var(--surface);
+      border-color: var(--anotoki-border-strong);
+      background: var(--anotoki-surface);
     }
   }
 }
@@ -198,12 +203,12 @@
   gap: 3px;
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  border-radius: calc(var(--radius) - 4px);
-  background: var(--surface-2);
+  border-radius: calc(var(--anotoki-radius) - 4px);
+  background: var(--anotoki-surface-2);
 
   app-survey-image {
     height: 100%;
-    background: var(--surface-2);
+    background: var(--anotoki-surface-2);
   }
 }
 
@@ -211,7 +216,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
 }
 
 .more {
@@ -243,8 +248,8 @@
   cursor: zoom-in;
   opacity: 0.85;
   transition:
-    opacity var(--duration) var(--ease),
-    background-color var(--duration) var(--ease);
+    opacity var(--anotoki-duration) var(--anotoki-ease),
+    background-color var(--anotoki-duration) var(--anotoki-ease);
 
   &:hover,
   &:focus-visible {
@@ -274,22 +279,22 @@
   display: block;
   width: 100%;
   padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius);
   overflow: hidden;
-  background: var(--surface-2);
+  background: var(--anotoki-surface-2);
   cursor: zoom-in;
   transition:
-    border-color var(--duration) var(--ease),
-    box-shadow var(--duration) var(--ease);
+    border-color var(--anotoki-duration) var(--anotoki-ease),
+    box-shadow var(--anotoki-duration) var(--anotoki-ease);
 
   &:hover {
-    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
-    box-shadow: var(--shadow-sm);
+    border-color: color-mix(in srgb, var(--anotoki-primary) 45%, var(--anotoki-border));
+    box-shadow: var(--anotoki-shadow-sm);
   }
 
   app-survey-image {
-    background: var(--surface-2);
+    background: var(--anotoki-surface-2);
   }
 }
 
@@ -305,7 +310,7 @@
 }
 
 .has-error .option:not(.is-chosen) {
-  border-color: color-mix(in srgb, var(--danger) 45%, var(--border-strong));
+  border-color: color-mix(in srgb, var(--anotoki-danger) 45%, var(--anotoki-border-strong));
 }
 
 input[type="radio"],
@@ -326,12 +331,12 @@ input[type="checkbox"] {
   justify-content: center;
   width: 1.3rem;
   height: 1.3rem;
-  border: 2px solid var(--border-strong);
-  background: var(--surface);
+  border: 2px solid var(--anotoki-border-strong);
+  background: var(--anotoki-surface);
   color: transparent;
   transition:
-    border-color var(--duration) var(--ease),
-    background-color var(--duration) var(--ease);
+    border-color var(--anotoki-duration) var(--anotoki-ease),
+    background-color var(--anotoki-duration) var(--anotoki-ease);
 }
 
 .mark-radio {
@@ -342,9 +347,9 @@ input[type="checkbox"] {
     width: 0.6rem;
     height: 0.6rem;
     border-radius: 50%;
-    background: var(--primary);
+    background: var(--anotoki-primary);
     transform: scale(0);
-    transition: transform var(--duration) var(--ease);
+    transition: transform var(--anotoki-duration) var(--anotoki-ease);
   }
 }
 
@@ -353,7 +358,7 @@ input[type="checkbox"] {
 }
 
 .is-chosen .mark {
-  border-color: var(--primary);
+  border-color: var(--anotoki-primary);
 }
 
 .is-chosen .mark-radio::after {
@@ -361,8 +366,8 @@ input[type="checkbox"] {
 }
 
 .is-chosen .mark-check {
-  background: var(--primary);
-  color: var(--primary-contrast);
+  background: var(--anotoki-primary);
+  color: var(--anotoki-primary-contrast);
 }
 
 .label {
@@ -379,8 +384,8 @@ input[type="checkbox"] {
   align-items: center;
   gap: 0.5rem;
   padding-left: 1rem;
-  color: var(--muted);
-  animation: other-in 180ms var(--ease);
+  color: var(--anotoki-muted);
+  animation: other-in 180ms var(--anotoki-ease);
 
   .field-control {
     flex: 1;
@@ -393,7 +398,7 @@ input[type="checkbox"] {
   padding: 0.15rem 0;
   border: 0;
   background: none;
-  color: var(--link);
+  color: var(--anotoki-link);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -413,13 +418,13 @@ input[type="checkbox"] {
 
 .length {
   margin-top: -0.5rem;
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
   text-align: right;
 
   &.is-near {
-    color: var(--warning);
+    color: var(--anotoki-warning);
     font-weight: 700;
   }
 }
@@ -428,11 +433,11 @@ input[type="checkbox"] {
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
-  color: var(--danger);
+  color: var(--anotoki-danger);
   font-size: 0.875rem;
   font-weight: 650;
 
-  app-icon {
+  anotoki-icon {
     margin-top: 0.1rem;
   }
 }

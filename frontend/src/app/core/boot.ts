@@ -1,12 +1,12 @@
 import { InjectionToken, WritableSignal, inject, signal } from '@angular/core';
 import { SiteStatus } from '@anotoki/lib/migrations';
-import { ToastService } from '../ui/toast/toast.service';
+import { ThemeService } from '@anotoki/lib/shell';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AuthService } from './auth/auth.service';
 import { sayWhySignInFailed } from './auth/sign-in-failure';
 import { VisitorKey } from './auth/visitor-key';
 import { TranslationService } from './i18n/translation.service';
 import { adoptVisitorDrafts } from './survey/drafts';
-import { ThemeService } from './theme/theme.service';
 
 /**
  * Whether the start has run to its end: true once boot() has settled the

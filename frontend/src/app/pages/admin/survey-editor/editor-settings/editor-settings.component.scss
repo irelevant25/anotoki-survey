@@ -1,12 +1,17 @@
+@use "fields";
+
+// The fields this page draws itself (src/styles/_fields.scss): first, so its own rules below win.
+@include fields.styles;
+
 .panel {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
   padding: 1.1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
 }
 
 .panel-title {
@@ -15,16 +20,16 @@
   gap: 0.45rem;
   font-size: 0.9375rem;
 
-  app-icon {
-    color: var(--muted);
+  anotoki-icon {
+    color: var(--anotoki-muted);
   }
 }
 
 .address .prefix {
   flex: none;
   padding-left: 0.75rem;
-  color: var(--muted);
-  font-family: var(--font-mono);
+  color: var(--anotoki-muted);
+  font-family: var(--anotoki-font-mono);
   font-size: 0.75rem;
   max-width: 45%;
   overflow: hidden;
@@ -34,7 +39,7 @@
 
 .address .field-input {
   padding-left: 0.1rem;
-  font-family: var(--font-mono);
+  font-family: var(--anotoki-font-mono);
   font-size: 0.875rem;
 }
 
@@ -43,7 +48,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--link);
+  color: var(--anotoki-link);
   font-size: 0.8125rem;
   font-weight: 600;
   text-align: left;
@@ -70,11 +75,11 @@
   gap: 0.25rem 0.75rem;
   margin: 0;
   padding-top: 0.9rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--anotoki-border);
   font-size: 0.8125rem;
 
   dt {
-    color: var(--muted);
+    color: var(--anotoki-muted);
   }
 
   dd {
@@ -86,13 +91,19 @@
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--success);
+  color: var(--anotoki-success);
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
 .delete {
   align-self: flex-start;
-  --btn-fg: var(--danger);
-  --btn-hover-bg: var(--danger-soft);
+  // A ghost button in red: the kit has no such variant, and its button sets its colours on its host, which
+  // this class (with :hover) outranks.
+  color: var(--anotoki-danger);
+
+  &:hover {
+    background: var(--anotoki-danger-soft);
+    color: var(--anotoki-danger);
+  }
 }

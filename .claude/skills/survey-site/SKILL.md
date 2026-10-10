@@ -99,10 +99,11 @@ backend/
   tests/                   run.php, lib.php, unit/, api/, tools/ (testdb, testenv, fake-iam)
 frontend/src/app/
   app.component.*          the pages behind the family's gate: <anotoki-site-gate> around the router
-                           outlet, given as its <ng-template> - made only while the gate shows the
-                           pages (anotoki-lib 0.1.1; content given as it is is made shown or not) -
-                           and held for the reload once the site runs again (held, PAGES_CLOSED);
-                           the load error card; toasts, confirm, lightbox over everything
+                           outlet, given as its <ng-template anotokiSitePages> - made only while the
+                           gate shows the pages (anotoki-lib 0.2.0; content given as it is is made
+                           shown or not, an unmarked template is not the pages) - and held for the
+                           reload once the site runs again (held, PAGES_CLOSED); the load error
+                           card; the kit's toasts and confirm, the lightbox over everything
   core/migrations.ts       the family's library (@anotoki/lib/migrations) wired to this site:
                            provideSiteMigrations() (isAdmin / isSignedIn / signIn - signInOrSayWhy -
                            / language / AdminDates' dates / reload the strings when up to date; the
@@ -142,9 +143,13 @@ frontend/src/app/
                            error-text.ts (a failed request's key), answer-words.ts (a
                            rule or a problem in the reader's language), dynamic-keys.ts (keys put
                            together at run time - the backend's scan reads it)
-  core/theme/              ThemeService: the account's theme signed in (adopted, and saved from the
-                           bar's toggle), the device's signed out; the theme shown last in
-                           localStorage for public/theme-boot.js
+  core/kit.ts              the family's UI kit (anotoki-lib 0.2.0) wired to this site:
+                           provideSiteKit() = provideSiteUi() (the language on the page, the kit's
+                           words from the site's strings - SITE_KEYS, lookup - and formal Slovak for
+                           the rest, SURVEY_ICONS) + provideSiteShell() (the library's ThemeService:
+                           the account's theme signed in, saved from the bar's switch, the device's
+                           signed out, THEME_KEY for the kit's theme-boot.js; the chooser's
+                           languages and setLanguage())
   core/util/               dates.ts (the admin panel's English dates, with the account's choices when
                            passed), date-patterns.ts (the four date orders, the two clocks), storage.ts
   core/title.strategy.ts   the tab's title in the language on the page (the site's name alone while
@@ -170,8 +175,11 @@ frontend/src/app/
   core/images/             prepareImage (browser-side), ImageUploader
   core/testing/            for the unit tests only: example data, provideTestTranslations(),
                            answersOf() (a person's answers, or a visitor's)
-  layouts/                 top-bar (the anotoki family's bar: brand, links, language, theme, the person's
-                           menu - on a phone one menu button; docs/architecture.md "The top bar"),
+  layouts/                 top-bar (the site's wrapper over the family's <anotoki-top-bar>: the brand,
+                           the links - SURVEY_LINKS / ADMIN_LINKS, Migrations alone while an update
+                           waits -, the person and their role, the menu's items, signIn / signOut -
+                           saved first, asked when something would be lost; docs/architecture.md
+                           "The top bar"),
                            participant ("You are not signed in" where the page would be - for a
                            visitor only on the preview; the toasts of the move and of a lost
                            visit), admin
@@ -194,8 +202,11 @@ frontend/src/app/
                            blankText(), textBlank()'s twin; languages; unsaved-changes.guard.ts);
                            /admin/migrations is the family's <anotoki-migrations-page> (ADMIN -
                            Pending, Applied with each file's SQL, Missing, Apply pending)
-  ui/                      the IAM's UI kit + rich-text-editor (TipTap), drawer, lightbox, survey-image,
-                           language-switcher (the chooser in the top bar)
+  ui/                      the survey's own pieces: rich-text-editor (TipTap), lightbox, survey-image,
+                           image-strip - the rest is the family's kit (@anotoki/lib/ui, /shell)
+frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles: root, fonts, base,
+                           utilities, tables) and the survey's own tokens; styles/_fields.scss: the
+                           look of the fields a page draws itself, @use'd into that page's styles
 ```
 
 ## Rules
@@ -236,7 +247,7 @@ frontend/src/app/
   updates is ADMIN's). The frontend hides; the server refuses.
 - **A database behind the code closes the site, but not to the ADMIN who
   applies it - the anotoki family's way, the library's** (anotoki-lib: the PHP
-  half 0.1.0, the Angular half 0.1.1; the owner's decision of 2026-10-07): the
+  half 0.1.0, the Angular half 0.2.0; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `SITE_OPEN_WHILE_UPDATING` (and
   `/api/site-status`, always); a new route that must work then goes there, and
@@ -253,7 +264,7 @@ frontend/src/app/
   browser nobody but the site's ADMIN ever reads why the site is closed: the
   family's page ("being updated"; a quiet Sign in), the guards let pages
   through and send nobody to the IAM, and the outlet is the gate's
-  `<ng-template>`, made only while the gate shows the pages - never an outlet
+  `<ng-template anotokiSitePages>`, made only while the gate shows the pages - never an outlet
   given to it as it is. The library is never edited here: a change it
   needs is a new release (its repository, `irelevant25/anotoki-lib`), taken in
   by DEV.md's steps.
@@ -350,7 +361,16 @@ frontend/src/app/
 - **The admin panel is English**: literal words in the templates under
   `pages/admin` and `layouts/admin-layout`, no `translate` pipe there. The
   pieces both areas share (top bar, UI kit, toasts) read through
-  `effectiveLanguage`, which is `en` under `/admin`.
+  `effectiveLanguage`, which is `en` under `/admin` - the kit's own words too
+  (`core/kit.ts`).
+- **The UI kit is the family's** (anotoki-lib 0.2.0): a new piece of a page
+  is the kit's (`anotoki-*`, `anotokiButton`) unless the kit has none; never a
+  copy of one in `src/app/ui/`, never a change to the library here. A kit
+  word the site has a string for is read from it (`SITE_KEYS` in `core/kit.ts`
+  - a new one goes there), a kit word it has none for is said formally in
+  Slovak (`FORMAL_SLOVAK`). An icon the kit does not have goes into
+  `SURVEY_ICONS` (from `@anotoki/lib/ui/icons`). No global style may reach a
+  kit component: a page's own look stays in its own styles.
 - **The account's preferences** (the IAM's migration 015, SDK 1.2.0): signed
   in, the theme, the date order, the clock and the language are the anotoki
   account's - read from `AuthService.preferences` and the token's `locale`,
@@ -404,7 +424,8 @@ frontend/src/app/
   the file writes, each in every language, and every string written must pass
   `translationsCheck()` as it is.
 - **Angular**: three files per component, OnPush, signals, `inject()`,
-  inputs for route and query parameters, tokens from `styles.scss`, 390 px.
+  inputs for route and query parameters, colours from the family's
+  `--anotoki-*` tokens and the survey's own in `styles.scss`, 390 px.
 
 ## Gotchas already paid for
 
@@ -717,22 +738,33 @@ frontend/src/app/
   (`htmlWhitespaceSensitivity: 'ignore'`), so "no space before this dot"
   cannot be written in the markup: the separator of the plural label is the
   numbers' own `::before`, tied to their first word by a no-break space.
-- **The top bar folds at 760 px** (`PHONE_BAR_MAX`, and the same number in
-  its styles): up to it the brand is the mark and the site's name, then the
+- **The top bar folds at 760 px** (`PHONE_BAR_MAX`, the family's bar's
+  `phoneMax` - it makes its own media queries of it): up to it the brand is the mark and the site's name, then the
   language, the theme and the menu button that holds the links and the
   person's menu; from 961 px the person's name is beside the initial. Before
   the fold the words beside the mark went at three different widths and
   "Sign in" was squeezed at 390. A new state of the bar is measured at its
   phone widths (`expectBar`), not assumed - and at 360 px, the narrowest.
   In the admin panel the wordmark is longer: "anotoki survey · admin panel"
-  from 961 px; up to 960 (`NARROW_BAR_MAX`) and on a phone "survey" with
-  "admin panel" small under it (`.is-short.has-panel`) - in one row the bar
+  from 961 px; up to 960 (`NARROW_BAR_MAX`, the bar's `shortBrandMax`) and on
+  a phone "survey" with "admin panel" small under it - in one row the bar
   overflowed at 761 and at 360. Measured at 360, 390, 761, 960 and 961.
+  The family's bar is sticky inside its host: `app-top-bar` is
+  `display: contents`, or the bar would stick inside the wrapper and scroll
+  away with it.
+- **The kit's button reads none of the old kit's `--btn-*` properties**: a
+  red ghost button (Delete this survey, an answer, a translation) set
+  `--btn-fg` and lost its red without a word when the kit came. The kit's
+  button has no danger ghost; its colours are on its host, so the page's own
+  class sets `color` (and `:hover` its background) - never the kit's private
+  `--_fg`. A style the page gives a kit piece is checked on the page, not
+  assumed.
 - **Every anotoki site calls its admin area the admin panel**: "Admin panel"
   ("Administrátorský panel") in the person's menu (`topbar.admin`),
   `brand.adminPanel` after the wordmark, "<page> · Admin panel · anotoki
   survey" in the tab (`core/title.strategy.ts`). The wordmark's spans are
-  separated by CSS `gap`, not spaces: a test reads them one by one.
+  laid out by CSS `gap` (the kit puts a space between them for a screen
+  reader and copied text): a test reads them one by one.
 - **A sign-in that came back without one is let through** for the rest of
   that page load (`signInFailure` is never cleared): every page draws its
   signed-out card. The IAM refused (`access_denied`) or the person went back,
@@ -789,7 +821,8 @@ frontend/src/app/
   the parent whether it is shown or not - a bare outlet in `<anotoki-site-gate>`
   put the routed page in place behind the family's page, asking the API (503)
   and raising toasts, which are drawn over everything. The outlet goes in as
-  the gate's `<ng-template>` (anotoki-lib 0.1.1), which the gate makes only
+  the gate's `<ng-template anotokiSitePages>` (anotoki-lib 0.1.1, marked since
+  0.2.0: an unmarked template draws nothing), which the gate makes only
   while it shows the pages; with 0.1.0 the site took the gate's decision
   again itself (`AppComponent.pagesOpen`, gone). `app.component.spec.ts`
   counts the pages made while the site is closed - an outlet given without

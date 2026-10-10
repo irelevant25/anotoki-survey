@@ -1,14 +1,14 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { ConfirmService } from '@anotoki/lib/ui/dialog';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { LOCALIZATION_DRAFTS_KEY, LocalizationDrafts } from '../../../../core/admin/localization-drafts.service';
 import { ApiError, ApiService } from '../../../../core/api/api.service';
 import { AuthService } from '../../../../core/auth/auth.service';
 import { AdminLanguage, TranslationGrid, TranslationKeyRow } from '../../../../core/i18n/translation.model';
 import { TranslationService } from '../../../../core/i18n/translation.service';
 import { Person } from '../../../../core/survey/survey.model';
-import { ConfirmService } from '../../../../ui/confirm/confirm.service';
-import { ToastService } from '../../../../ui/toast/toast.service';
 import { TranslationsComponent } from './translations.component';
 
 const ENGLISH: AdminLanguage = { code: 'en', name: 'English', nativeName: 'English', enabled: true, sortOrder: 1, seeded: true };
@@ -329,7 +329,7 @@ describe('TranslationsComponent', () => {
     // A live region: said to somebody who does not see the bar, too.
     expect(host.querySelector('.save-state')!.getAttribute('role')).toBe('status');
     // Not at the top of the page, far above a key low in the list.
-    expect(host.querySelector('app-alert')).toBeNull();
+    expect(host.querySelector('anotoki-alert')).toBeNull();
     expect(host.querySelectorAll('.field-error')).toHaveLength(0);
     expect(box('home.title', 'sk').value).toBe('Názor');
     expect(button('Save').disabled).toBe(false);
@@ -709,7 +709,7 @@ describe('TranslationsComponent', () => {
 
       expect(TestBed.inject(ConfirmService).pending()).toBeNull();
       expect(api.importTranslations).not.toHaveBeenCalled();
-      expect(clean(host.querySelector('app-alert')?.textContent)).toContain('It holds no string: every value in it is empty.');
+      expect(clean(host.querySelector('anotoki-alert')?.textContent)).toContain('It holds no string: every value in it is empty.');
 
       await choose('sk.json', '{"home.title": "\\u200B", "common.close": "Zatvoriť"}');
       expect(await answer(false)).toBe('Import 1 string into Slovak?');
@@ -729,7 +729,7 @@ describe('TranslationsComponent', () => {
 
       expect(TestBed.inject(ConfirmService).pending()).toBeNull();
       expect(api.importTranslations).not.toHaveBeenCalled();
-      const alert = clean(host.querySelector('app-alert')?.textContent);
+      const alert = clean(host.querySelector('anotoki-alert')?.textContent);
       expect(alert).toContain('"notes.json" was not imported');
       expect(alert).toContain('one JSON object of "key": "text"');
     });
@@ -742,22 +742,22 @@ describe('TranslationsComponent', () => {
       await choose('sk.json', '{"home.titel": "Názor", "home.leed": "Úvod"}');
       await answer(true);
 
-      const alert = clean(host.querySelector('app-alert')?.textContent);
+      const alert = clean(host.querySelector('anotoki-alert')?.textContent);
       expect(alert).toContain('"sk.json" was not imported');
       expect(alert).toContain('The site has no such keys: "home.titel", "home.leed". Keys are made by the code, never here.');
       expect(refreshed).not.toHaveBeenCalled();
 
       button('Dismiss').click();
       await settle();
-      expect(host.querySelector('app-alert')).toBeNull();
+      expect(host.querySelector('anotoki-alert')).toBeNull();
     });
   });
 
   it('says so when the grid cannot be loaded, and tries again', async () => {
     await page(new ApiError(503, 'database_unavailable', 'The database cannot be reached right now.'));
 
-    expect(clean(host.querySelector('app-alert')?.textContent)).toContain('The translations could not be loaded');
-    expect(clean(host.querySelector('app-alert')?.textContent)).toContain('The database cannot be reached right now.');
+    expect(clean(host.querySelector('anotoki-alert')?.textContent)).toContain('The translations could not be loaded');
+    expect(clean(host.querySelector('anotoki-alert')?.textContent)).toContain('The database cannot be reached right now.');
     expect(host.querySelector('.grid')).toBeNull();
 
     api.translationGrid.mockResolvedValue(grid());
@@ -778,7 +778,7 @@ describe('TranslationsComponent', () => {
   it('links to the languages and back to the surveys', async () => {
     await page();
 
-    expect(Array.from(host.querySelectorAll('app-page-header a')).map((link) => [clean(link.textContent), link.getAttribute('href')])).toEqual([
+    expect(Array.from(host.querySelectorAll('anotoki-page-header a')).map((link) => [clean(link.textContent), link.getAttribute('href')])).toEqual([
       ['All surveys', '/admin'],
       ['Languages', '/admin/languages'],
     ]);

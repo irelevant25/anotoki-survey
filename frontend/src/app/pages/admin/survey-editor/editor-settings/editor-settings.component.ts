@@ -1,12 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
+import { ButtonComponent, IconComponent } from '@anotoki/lib/ui';
+import { SwitchComponent } from '@anotoki/lib/ui/forms';
 import { AdminDates } from '../../../../core/admin/admin-dates.service';
 import { slugify, uniqueSlug } from '../../../../core/survey/survey-factory';
 import { translationCodes } from '../../../../core/survey/localize';
 import { Survey } from '../../../../core/survey/survey.model';
 import { todayIsoDay } from '../../../../core/util/dates';
-import { ButtonComponent } from '../../../../ui/button/button.component';
-import { IconComponent } from '../../../../ui/icon/icon.component';
-import { SwitchComponent } from '../../../../ui/switch/switch.component';
 import { EditorLanguage, languageName, listOfNames } from '../translating';
 
 /**

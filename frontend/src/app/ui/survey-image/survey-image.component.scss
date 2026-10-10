@@ -3,7 +3,7 @@
   display: block;
   min-width: 0;
   overflow: hidden;
-  background: var(--surface-3);
+  background: var(--anotoki-surface-3);
 }
 
 img {
@@ -12,7 +12,7 @@ img {
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 200ms var(--ease);
+  transition: opacity 200ms var(--anotoki-ease);
 }
 
 :host([data-fit="contain"]) img {
@@ -26,7 +26,7 @@ img {
 .loading {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, var(--skeleton) 0%, var(--skeleton-shine) 50%, var(--skeleton) 100%);
+  background: linear-gradient(90deg, var(--anotoki-skeleton) 0%, var(--anotoki-skeleton-shine) 50%, var(--anotoki-skeleton) 100%);
   background-size: 200% 100%;
   animation: shine 1.4s ease-in-out infinite;
 }
@@ -37,7 +37,7 @@ img {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
 }
 
 @keyframes shine {

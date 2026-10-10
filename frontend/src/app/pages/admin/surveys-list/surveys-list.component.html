@@ -1,29 +1,29 @@
 <div class="page">
-    <app-page-header heading="Surveys" lead="Write a survey, open it when the time comes, and see what people answered.">
-        <a appButton routerLink="/admin/translations">
-            <app-icon name="globe" [size]="16" />
+    <anotoki-page-header heading="Surveys" lead="Write a survey, open it when the time comes, and see what people answered.">
+        <a anotokiButton routerLink="/admin/translations">
+            <anotoki-icon name="globe" [size]="16" />
             Translations
         </a>
-        <button appButton variant="primary" [loading]="creating()" (click)="create()">
-            <app-icon name="plus" [size]="17" />
+        <button anotokiButton variant="primary" [loading]="creating()" (click)="create()">
+            <anotoki-icon name="plus" [size]="17" />
             New survey
         </button>
-    </app-page-header>
+    </anotoki-page-header>
 
     @if (error(); as message) {
-        <app-alert tone="danger" heading="The surveys could not be loaded">
+        <anotoki-alert tone="danger" heading="The surveys could not be loaded">
             {{ message }}
             <div alertActions>
-                <button appButton (click)="reload()">
-                    <app-icon name="refresh" [size]="16" />
+                <button anotokiButton (click)="reload()">
+                    <anotoki-icon name="refresh" [size]="16" />
                     Try again
                 </button>
             </div>
-        </app-alert>
+        </anotoki-alert>
     } @else if (!loaded()) {
-        <div class="loading"><app-spinner label="Loading the surveys" [showLabel]="true" /></div>
+        <div class="loading"><anotoki-spinner label="Loading the surveys" [showLabel]="true" /></div>
     } @else {
-        <app-tabs label="Show" idPrefix="surveys" [tabs]="tabs()" [(active)]="show" />
+        <anotoki-tabs label="Show" idPrefix="surveys" [tabs]="tabs()" [(active)]="show" />
 
         <div role="tabpanel" [id]="'surveys-panel-' + show()" [attr.aria-labelledby]="'surveys-tab-' + show()">
             <ul class="list">
@@ -31,7 +31,7 @@
                     <li class="survey">
                         <div class="main">
                             <div class="title-row">
-                                <app-badge [tone]="statusTone[row.status]" [dot]="true">{{ statusLabel[row.status] }}</app-badge>
+                                <anotoki-badge [tone]="statusTone[row.status]" [dot]="true">{{ statusLabel[row.status] }}</anotoki-badge>
                                 <a class="title" [routerLink]="['/admin/surveys', row.survey.id, 'edit']">{{ row.survey.title || "Untitled survey" }}</a>
                             </div>
                             <p class="meta">
@@ -55,23 +55,23 @@
                         </a>
 
                         <div class="actions">
-                            <a appButton size="sm" [routerLink]="['/admin/surveys', row.survey.id, 'results']">
-                                <app-icon name="chart" [size]="15" />
+                            <a anotokiButton size="sm" [routerLink]="['/admin/surveys', row.survey.id, 'results']">
+                                <anotoki-icon name="chart" [size]="15" />
                                 Results
                             </a>
-                            <a appButton size="sm" [routerLink]="['/admin/surveys', row.survey.id, 'edit']">
-                                <app-icon name="pencil" [size]="15" />
+                            <a anotokiButton size="sm" [routerLink]="['/admin/surveys', row.survey.id, 'edit']">
+                                <anotoki-icon name="pencil" [size]="15" />
                                 Edit
                             </a>
-                            <a appButton size="sm" variant="ghost" [iconOnly]="true" aria-label="Preview" title="Preview" [routerLink]="['/preview', row.survey.id]">
-                                <app-icon name="eye" [size]="16" />
+                            <a anotokiButton size="sm" variant="ghost" [iconOnly]="true" aria-label="Preview" title="Preview" [routerLink]="['/preview', row.survey.id]">
+                                <anotoki-icon name="eye" [size]="16" />
                             </a>
-                            <button appButton size="sm" variant="ghost" [iconOnly]="true" aria-label="Make a copy" title="Make a copy" (click)="copy(row.survey)">
-                                <app-icon name="copy" [size]="16" />
+                            <button anotokiButton size="sm" variant="ghost" [iconOnly]="true" aria-label="Make a copy" title="Make a copy" (click)="copy(row.survey)">
+                                <anotoki-icon name="copy" [size]="16" />
                             </button>
                             @if (auth.isAdmin()) {
-                                <button appButton size="sm" variant="ghost" [iconOnly]="true" aria-label="Delete" title="Delete" (click)="remove(row.survey)">
-                                    <app-icon name="trash" [size]="16" />
+                                <button anotokiButton size="sm" variant="ghost" [iconOnly]="true" aria-label="Delete" title="Delete" (click)="remove(row.survey)">
+                                    <anotoki-icon name="trash" [size]="16" />
                                 </button>
                             }
                         </div>
@@ -79,14 +79,14 @@
                 } @empty {
                     <li class="empty">
                         @if (show() === "all") {
-                            <app-empty-state icon="survey" heading="No surveys yet" text="Write the first one - it stays a draft until you open it.">
-                                <button appButton variant="primary" [loading]="creating()" (click)="create()">
-                                    <app-icon name="plus" [size]="17" />
+                            <anotoki-empty-state icon="survey" heading="No surveys yet" text="Write the first one - it stays a draft until you open it.">
+                                <button anotokiButton variant="primary" [loading]="creating()" (click)="create()">
+                                    <anotoki-icon name="plus" [size]="17" />
                                     New survey
                                 </button>
-                            </app-empty-state>
+                            </anotoki-empty-state>
                         } @else {
-                            <app-empty-state icon="survey" heading="None here" text="No survey is in this state right now." />
+                            <anotoki-empty-state icon="survey" heading="None here" text="No survey is in this state right now." />
                         }
                     </li>
                 }

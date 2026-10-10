@@ -1,15 +1,13 @@
 import { ChangeDetectionStrategy, Component, Injector, afterNextRender, computed, inject, input, output, signal } from '@angular/core';
+import { AutofocusDirective, IconComponent, uniqueId } from '@anotoki/lib/ui';
 import { problemText, ruleText } from '../../../core/i18n/answer-words';
 import { TranslatePluralPipe } from '../../../core/i18n/translate-plural.pipe';
 import { TranslatePipe } from '../../../core/i18n/translate.pipe';
 import { TranslationService } from '../../../core/i18n/translation.service';
 import { AnswerProblem, choiceLimits, choiceRule, emptyAnswer, textLimit, withoutControls } from '../../../core/survey/answer-rules';
 import { Answer, ChoiceOption, Question } from '../../../core/survey/survey.model';
-import { AutofocusDirective } from '../../../ui/autofocus.directive';
-import { IconComponent } from '../../../ui/icon/icon.component';
 import { LightboxService } from '../../../ui/lightbox/lightbox.service';
 import { SurveyImageComponent } from '../../../ui/survey-image/survey-image.component';
-import { uniqueId } from '../../../ui/unique-id';
 
 /**
  * One question as the person answering meets it: its number and text, how

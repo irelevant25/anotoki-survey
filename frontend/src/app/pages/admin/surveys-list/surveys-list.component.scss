@@ -19,10 +19,10 @@
   align-items: center;
   gap: 0.75rem 1.25rem;
   padding: 1rem 1.1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
 }
 
 .main {
@@ -40,14 +40,14 @@
 }
 
 .title {
-  color: var(--text);
+  color: var(--anotoki-text);
   font-size: 1.05rem;
   font-weight: 750;
   text-decoration: none;
   overflow-wrap: anywhere;
 
   &:hover {
-    color: var(--link);
+    color: var(--anotoki-link);
     text-decoration: underline;
   }
 }
@@ -56,7 +56,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.2rem 0.9rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
 }
 
@@ -66,13 +66,13 @@
   align-items: center;
   min-width: 4.5rem;
   padding: 0.35rem 0.6rem;
-  border-radius: var(--radius);
-  color: var(--muted);
+  border-radius: var(--anotoki-radius);
+  color: var(--anotoki-muted);
   font-size: 0.75rem;
   text-decoration: none;
 
   strong {
-    color: var(--text);
+    color: var(--anotoki-text);
     font-size: 1.35rem;
     font-weight: 800;
     font-variant-numeric: tabular-nums;
@@ -80,7 +80,7 @@
   }
 
   &:hover {
-    background: var(--surface-3);
+    background: var(--anotoki-surface-3);
   }
 }
 
@@ -93,8 +93,8 @@
 
 .empty {
   padding: 1rem;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-lg);
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--anotoki-radius-lg);
 }
 
 @media (max-width: 860px) {

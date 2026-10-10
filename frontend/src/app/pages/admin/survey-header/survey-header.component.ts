@@ -1,17 +1,14 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { BadgeComponent, BadgeTone, ButtonComponent, IconComponent, SpinnerComponent } from '@anotoki/lib/ui';
+import { ConfirmService } from '@anotoki/lib/ui/dialog';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminDates } from '../../../core/admin/admin-dates.service';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
 import { problemsHeading, surveyProblems } from '../../../core/survey/survey-problems';
 import { currentStatus } from '../../../core/survey/survey-outline';
 import { Survey, SurveyStatus } from '../../../core/survey/survey.model';
-import { BadgeComponent, BadgeTone } from '../../../ui/badge/badge.component';
-import { ButtonComponent } from '../../../ui/button/button.component';
-import { ConfirmService } from '../../../ui/confirm/confirm.service';
-import { IconComponent } from '../../../ui/icon/icon.component';
-import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
-import { ToastService } from '../../../ui/toast/toast.service';
 
 export const STATUS_LABEL: Record<SurveyStatus, string> = { draft: 'Draft', open: 'Open', closed: 'Closed' };
 export const STATUS_TONE: Record<SurveyStatus, BadgeTone> = { draft: 'neutral', open: 'success', closed: 'warning' };

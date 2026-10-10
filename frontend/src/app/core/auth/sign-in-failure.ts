@@ -1,4 +1,4 @@
-import { ToastService } from '../../ui/toast/toast.service';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { signInFailureKey, signInFailureParams } from '../i18n/error-text';
 import { TranslationService } from '../i18n/translation.service';
 import { AuthService, SignInFailure } from './auth.service';

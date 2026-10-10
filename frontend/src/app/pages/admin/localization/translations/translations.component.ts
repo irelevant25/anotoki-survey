@@ -1,19 +1,13 @@
 import { ChangeDetectionStrategy, Component, Injector, afterNextRender, computed, inject, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, IconComponent, PageHeaderComponent, SpinnerComponent } from '@anotoki/lib/ui';
+import { ConfirmService } from '@anotoki/lib/ui/dialog';
+import { SelectComponent, SelectOption } from '@anotoki/lib/ui/forms';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { LocalizationDrafts } from '../../../../core/admin/localization-drafts.service';
 import { ApiError, ApiService, toApiError } from '../../../../core/api/api.service';
 import { AdminLanguage, TranslationChanges, TranslationGrid, TranslationKeyRow } from '../../../../core/i18n/translation.model';
 import { FALLBACK_LANGUAGE, TranslationService } from '../../../../core/i18n/translation.service';
-import { AlertComponent } from '../../../../ui/alert/alert.component';
-import { BadgeComponent } from '../../../../ui/badge/badge.component';
-import { ButtonComponent } from '../../../../ui/button/button.component';
-import { ConfirmService } from '../../../../ui/confirm/confirm.service';
-import { EmptyStateComponent } from '../../../../ui/empty-state/empty-state.component';
-import { IconComponent } from '../../../../ui/icon/icon.component';
-import { PageHeaderComponent } from '../../../../ui/page-header/page-header.component';
-import { SelectComponent, SelectOption } from '../../../../ui/select/select.component';
-import { SpinnerComponent } from '../../../../ui/spinner/spinner.component';
-import { ToastService } from '../../../../ui/toast/toast.service';
 import { saveFile } from '../save-file';
 import { TranslationCellComponent } from '../translation-cell/translation-cell.component';
 import {

@@ -1,3 +1,8 @@
+@use "fields";
+
+// The fields this page draws itself (src/styles/_fields.scss): first, so its own rules below win.
+@include fields.styles;
+
 .page {
   display: flex;
   flex-direction: column;
@@ -10,13 +15,13 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.875rem;
   font-weight: 650;
   text-decoration: none;
 
   &:hover {
-    color: var(--text);
+    color: var(--anotoki-text);
   }
 }
 
@@ -40,15 +45,15 @@
   flex-direction: column;
   gap: 0.9rem;
   padding: 1rem 1.1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
 
   // A hidden language stays whole and readable; its edge says it is out of the chooser.
   &.is-hidden {
     border-style: dashed;
-    border-color: var(--border-strong);
+    border-color: var(--rule-strong);
     box-shadow: none;
   }
 }
@@ -67,7 +72,7 @@
 }
 
 .native {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   overflow-wrap: anywhere;
 }
 

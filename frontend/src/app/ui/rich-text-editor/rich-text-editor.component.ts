@@ -15,19 +15,20 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { IconComponent } from '@anotoki/lib/ui';
 import { Editor } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
 import { EditorProps } from '@tiptap/pm/view';
 import { pastedPictures } from '../../core/images/prepare-image';
+import { type SurveyIconName } from '../../core/kit';
 import { Placeholder } from '@tiptap/extensions';
 import StarterKit from '@tiptap/starter-kit';
-import { IconComponent, IconName } from '../icon/icon.component';
 
 type Mark = 'bold' | 'italic' | 'underline' | 'strike' | 'highlight' | 'link' | 'bulletList' | 'orderedList' | 'heading';
 
 interface Tool {
   mark: Mark;
-  icon: IconName;
+  icon: SurveyIconName;
   label: string;
   keys?: string;
 }

@@ -17,7 +17,7 @@
 
 .lightbox[open] {
   display: block;
-  animation: lightbox-in 160ms var(--ease);
+  animation: lightbox-in 160ms var(--anotoki-ease);
 }
 
 .lightbox::backdrop {
@@ -93,7 +93,7 @@
   background: rgb(255 255 255 / 10%);
   color: #ffffff;
   cursor: pointer;
-  transition: background-color var(--duration) var(--ease);
+  transition: background-color var(--anotoki-duration) var(--anotoki-ease);
 
   &:hover {
     background: rgb(255 255 255 / 22%);

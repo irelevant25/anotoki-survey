@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, RouterOutlet, provideRouter } from '@angular/router';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { VisitorMove } from '../../core/api/api.service';
 import { AuthService, SignInFailure } from '../../core/auth/auth.service';
 import { VisitorKey } from '../../core/auth/visitor-key';
 import { provideTestTranslations } from '../../core/testing/test-translations';
-import { ToastService } from '../../ui/toast/toast.service';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 import { ParticipantLayoutComponent } from './participant-layout.component';
 
@@ -81,7 +81,7 @@ describe('ParticipantLayoutComponent', () => {
 
   it('draws the page for somebody signed in, and no card', () => {
     expect(text('.stub-page')).toBe('A survey');
-    expect(host.querySelector('app-empty-state')).toBeNull();
+    expect(host.querySelector('anotoki-empty-state')).toBeNull();
   });
 
   it('takes the page away the moment nobody is signed in - nothing of the survey stays - with no navigation', async () => {
@@ -89,8 +89,8 @@ describe('ParticipantLayoutComponent', () => {
     await fixture.whenStable();
 
     expect(host.querySelector('.stub-page')).toBeNull();
-    expect(text('.empty-heading')).toBe('Nie ste prihlásení');
-    expect(text('.empty-text')).toBe(SLOVAK['signedOut.text']);
+    expect(text('anotoki-empty-state .heading')).toBe('Nie ste prihlásení');
+    expect(text('anotoki-empty-state .text')).toBe(SLOVAK['signedOut.text']);
     expect(TestBed.inject(Router).url).toBe('/genshin-6-1');
 
     signedIn.set(true);
@@ -101,8 +101,8 @@ describe('ParticipantLayoutComponent', () => {
   it('signs in from the card, back to this page, in the language the person reads', async () => {
     signedIn.set(false);
     await fixture.whenStable();
-    const button = host.querySelector<HTMLButtonElement>('app-empty-state button')!;
-    expect(text('app-empty-state button')).toBe('Prihlásiť sa');
+    const button = host.querySelector<HTMLButtonElement>('anotoki-empty-state button')!;
+    expect(text('anotoki-empty-state button')).toBe('Prihlásiť sa');
     button.click();
     expect(auth.signIn).toHaveBeenCalledWith(undefined, 'sk');
     await fixture.whenStable();
@@ -116,14 +116,14 @@ describe('ParticipantLayoutComponent', () => {
     });
     signedIn.set(false);
     await fixture.whenStable();
-    host.querySelector<HTMLButtonElement>('app-empty-state button')!.click();
+    host.querySelector<HTMLButtonElement>('anotoki-empty-state button')!.click();
     await fixture.whenStable();
     expect(
       TestBed.inject(ToastService)
         .toasts()
         .map((toast) => toast.message),
     ).toEqual([SLOVAK['signIn.storageUnavailable']]);
-    expect(text('.empty-heading')).toBe('Nie ste prihlásení');
+    expect(text('anotoki-empty-state .heading')).toBe('Nie ste prihlásení');
   });
 
   describe('while the site welcomes visitors', () => {
@@ -135,21 +135,21 @@ describe('ParticipantLayoutComponent', () => {
 
     it('draws the page for somebody who is not signed in, and no card', () => {
       expect(text('.stub-page')).toBe('A survey');
-      expect(host.querySelector('app-empty-state')).toBeNull();
+      expect(host.querySelector('anotoki-empty-state')).toBeNull();
     });
 
     it('takes the page away when the site comes to require a sign-in', async () => {
       welcome.set(false);
       await fixture.whenStable();
       expect(host.querySelector('.stub-page')).toBeNull();
-      expect(text('.empty-heading')).toBe('Nie ste prihlásení');
+      expect(text('anotoki-empty-state .heading')).toBe('Nie ste prihlásení');
     });
 
     it('draws the editor’s preview for nobody but somebody signed in - the card stands there for a visitor', async () => {
       await TestBed.inject(Router).navigateByUrl('/preview/survey-1');
       await fixture.whenStable();
       expect(host.querySelector('.stub-page')).toBeNull();
-      expect(text('.empty-heading')).toBe('Nie ste prihlásení');
+      expect(text('anotoki-empty-state .heading')).toBe('Nie ste prihlásení');
 
       signedIn.set(true);
       await fixture.whenStable();

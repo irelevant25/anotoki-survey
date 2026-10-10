@@ -1,6 +1,6 @@
 <section class="panel" aria-labelledby="settings-title">
     <h2 id="settings-title" class="panel-title">
-        <app-icon name="sliders" [size]="16" />
+        <anotoki-icon name="sliders" [size]="16" />
         Settings
     </h2>
 
@@ -29,7 +29,7 @@
         }
         @for (problem of problems(); track problem) {
             <p class="field-error">
-                <app-icon name="alert" [size]="15" />
+                <anotoki-icon name="alert" [size]="15" />
                 <span>{{ problem }}</span>
             </p>
         }
@@ -60,15 +60,17 @@
                 <input id="survey-closes" class="field-input" type="date" [min]="today" [value]="survey().closesOn ?? ''" (change)="onClosesOn($event)" />
             </div>
             @if (survey().closesOn) {
-                <button appButton variant="ghost" size="sm" [iconOnly]="true" aria-label="No closing day" title="No closing day" (click)="patch.emit({ closesOn: null })">
-                    <app-icon name="x" [size]="16" />
+                <button anotokiButton variant="ghost" size="sm" [iconOnly]="true" aria-label="No closing day" title="No closing day" (click)="patch.emit({ closesOn: null })">
+                    <anotoki-icon name="x" [size]="16" />
                 </button>
             }
         </div>
         <p class="field-hint">{{ survey().closesOn ? "An open survey closes by itself at the end of this day." : "Empty: it stays open until you close it." }}</p>
     </div>
 
-    <app-switch [checked]="survey().askAboutYou" (checkedChange)="patch.emit({ askAboutYou: $event })" hint="A step of its own before the first: “About you”.">Ask for gender and age</app-switch>
+    <anotoki-switch [checked]="survey().askAboutYou" (checkedChange)="patch.emit({ askAboutYou: $event })" hint="A step of its own before the first: “About you”.">
+        Ask for gender and age
+    </anotoki-switch>
 
     <dl class="dates">
         <dt>Created</dt>
@@ -86,13 +88,13 @@
     </dl>
 
     <p class="saved">
-        <app-icon name="checkCircle" [size]="14" />
+        <anotoki-icon name="checkCircle" [size]="14" />
         Every change is saved as you make it.
     </p>
 
     @if (canDelete()) {
-        <button appButton variant="ghost" size="sm" class="delete" (click)="deleteSurvey.emit()">
-            <app-icon name="trash" [size]="15" />
+        <button anotokiButton variant="ghost" size="sm" class="delete" (click)="deleteSurvey.emit()">
+            <anotoki-icon name="trash" [size]="15" />
             Delete this survey
         </button>
     }

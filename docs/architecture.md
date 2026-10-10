@@ -240,9 +240,14 @@ back its `<router-outlet>`.
 
 ## The top bar
 
-`layouts/top-bar` is the anotoki family's bar, and the one the other sites copy
-(the IAM, Japanese, Piano, the build analyzer). One row, in this order: the
-brand (`ui/brand`: the mark, "anotoki" and the site's name, linking home -
+The bar is the anotoki family's, the library's `<anotoki-top-bar>`
+(`@anotoki/lib/shell`, anotoki-lib 0.2.0 - built from this site's own bar,
+which the IAM, Japanese, Piano and the build analyzer had copied), and
+`layouts/top-bar` is this site's thin wrapper around it: it tells the bar what
+is this site's, worded - its brand, its sections, the person and their role,
+the menu's items, how to sign in and out - and the bar does the rest (its
+row, its widths, its menus and their keys). One row, in this order: the
+brand (`<anotoki-brand>`: the mark, "anotoki" and the site's name, linking home -
 `/`; in the admin panel "anotoki survey · admin panel", linking to `/admin`); the site's sections as links (where
 people take surveys: Surveys; in the admin panel: Surveys, Translations,
 Languages, and Migrations for an ADMIN - only Migrations while a database
@@ -253,25 +258,65 @@ theme, and the person's menu - name, address and role, "Your anotoki account"
 (the IAM's account page, in a new tab), "Admin panel" ("Administrátorský
 panel") for EDITOR / ADMIN or "Back to the surveys" in the admin panel, Sign out - or, signed out, Sign in.
 
-Up to 760 px (`PHONE_BAR_MAX`) it is a phone's bar: the brand is the mark and
-the site's name alone (`showName`), then the language, the theme and a menu
+Up to 760 px (`PHONE_BAR_MAX`, the bar's `phoneMax`) it is a phone's bar: the brand is the mark and
+the site's name alone, then the language, the theme and a menu
 button; the links and the person's menu (or Sign in) are inside that button's
 menu. From 761 px the links are in the row; up to 960 px (`NARROW_BAR_MAX`)
 the person's button is the initial alone, from 961 px with the name - and
 the admin panel's longer wordmark leaves out "anotoki" up to 960 px too
-("survey" with "admin panel" small under it, as on a phone), or the bar
-overflows at 761 (and at 360 on one line). Both menus behave the IAM's
-way: the focus goes to the first item when one opens, arrow keys, Home and
+("survey" with "admin panel" small under it, as on a phone - `shortBrandMax`),
+or the bar overflows at 761 (and at 360 on one line). Both menus are the
+kit's (`@anotoki/lib/ui/menu`), the family's way: the focus goes to the first item when one opens, arrow keys, Home and
 End move between items, Escape closes it and gives the focus back to its
 button, and so do Tab and Shift+Tab from any item (the browser's own move is
 stopped: it would land on the next item of a menu about to go, and then on
 `<body>`) - the next Tab moves on from the button; a click outside closes it,
 and so does a
-change between the phone's bar and the desktop's. Every word of it is a key
+change between the phone's bar and the desktop's, another person, other
+links. No key pressed in the bar reaches the page (`isolateKeys`). Signing
+out saves first (`AdminStore.flushAll()`) and asks when something would be
+lost - a survey's change that cannot be saved, strings or languages typed and
+not saved - while its item waits ("Saving…", the kit's); Sign in waits the
+same way for a visitor's answers on their way. Every word of it is a key
 (`topbar.*`, `common.signIn` / `signOut`, `brand.area`, `brand.adminPanel`); the admin panel reads
 them in English (`effectiveLanguage`) - but the Migrations link, which only an
 ADMIN in the admin panel ever sees: its English word is written in the code
-(`label`), as the admin panel's pages are.
+(`label`), as the admin panel's pages are. The kit's own words in the bar -
+the menus' names, Sign in, Sign out, the theme's - are the site's strings
+too, through `core/kit.ts` (*The UI kit*, below).
+
+## The UI kit
+
+The pieces every page is drawn with are the anotoki family's (anotoki-lib
+0.2.0, the owner's decisions of 2026-10-07 - [decisions](decisions.md)):
+buttons, icons, spinners, badges, alerts, cards, empty states, page headers,
+fields, switches, selects, tabs, the drawer, the dialog and "Are you sure?",
+the toasts (`@anotoki/lib/ui` and its entry points), the top bar, the brand,
+the theme switch and the language switcher (`@anotoki/lib/shell`). The
+survey keeps only its own: the rich text editor, the lightbox, a survey's
+picture and the strip of pictures (`src/app/ui/`), the layouts' states, and
+the look of the raw fields a page draws itself (`src/styles/_fields.scss`,
+inside each such component's styles).
+
+- **The styles** are the family's (`@anotoki/lib/styles` in
+  `src/styles.scss`): the `--anotoki-*` tokens - one palette, the IAM's, which
+  this site never had colours of its own against, so it overrides none -
+  Manrope, the base, the utilities and the tables. The survey adds its own
+  few tokens (the highlighter, the results' bars, the night sky, a decorative
+  rule) and `.rich`, `mark` and the drag and drop - nothing a kit component
+  could meet.
+- **The words**: the kit has its own (Sign in, the menus' names, a toast's X,
+  "Saving…"), built in for English and informal Slovak. `core/kit.ts` gives it
+  the site's: for each kit word the site has a string for, the site's key
+  (`lookup` - so every word the site said before the kit still shows, an
+  administrator's rewording included, in the language on the page and in
+  English in the admin panel), and for the rest formal Slovak (`words`) -
+  never the kit's ty.
+- **The icons** the site's templates name beyond the kit's own are
+  registered in `core/kit.ts` (`SURVEY_ICONS`, from `@anotoki/lib/ui/icons`):
+  an icon nobody registered draws nothing.
+- **The theme** is the kit's `ThemeService` (*The account's preferences*,
+  below), told the site's storage key and the account.
 
 ## The account's preferences
 
@@ -291,15 +336,18 @@ its own settings exactly as before, and saves nothing to the account.
 (`POST {issuer}/api/oidc/preferences` with the person's token); the SDK puts
 the answer into `user()` at once, in every tab, and the next token carries it.
 
-- **The theme** (`core/theme/theme.service.ts`, the toggle in the top bar):
+- **The theme** (the family's `ThemeService`, `@anotoki/lib/shell`, told the
+  account's theme and how to save it in `core/kit.ts`; the switch in the top bar):
   the account's while it has one - adopted at sign-in and whenever it changes
   (a refresh after a change on another site, a save in another tab), but not
   while a choice made here is still being saved, whose earlier answer would
   turn the page back. A choice is shown at once and saved; one save at a time,
   the last choice last; a refusal puts the account's theme back and says so
-  (`theme.notSaved`). Signed out, the device's, as ever. Either way the theme
-  shown last is kept in localStorage (`anotoki-survey:theme`), where
-  `public/theme-boot.js` paints it before the app has loaded.
+  under the switch (`theme.notSaved`). Signed out, the device's, as ever.
+  Either way the theme shown last is kept in localStorage
+  (`anotoki-survey:theme`), where the family's `theme-boot.js` (`angular.json`
+  copies it from `@anotoki/lib/assets`; `index.html` names the key) paints it
+  before the app has loaded.
 - **Dates and times**: the pages people take surveys on write dates through
   `localDate`, the admin panel through `AdminDates`
   (`core/admin/admin-dates.service.ts`, the English `core/util/dates.ts` with
@@ -385,10 +433,11 @@ hears any later answer that says the site cannot run. Nothing in the start stops
 on it: the sign-in's settings and the strings answer while an update waits.
 While the site cannot run the sign-in guard sends nobody to the IAM and lets
 every page through; `<anotoki-site-gate>` around the router outlet draws the
-family's page instead (`app.component.html` gives it the outlet as a template,
-`<ng-template>`, which the gate makes only while it shows the pages -
-anotoki-lib 0.1.1; an outlet given as it is would be made anyway and put the
-page in place out of sight, where it would run): to somebody taking surveys,
+family's page instead (`app.component.html` gives it the outlet as the
+template marked `<ng-template anotokiSitePages>`, which the gate makes only
+while it shows the pages - anotoki-lib 0.2.0; an outlet given as it is would
+be made anyway and put the page in place out of sight, where it would run, and
+an unmarked template is not the pages at all): to somebody taking surveys,
 or an EDITOR, "The site is being
 updated" in their language - no error, no code, nothing to press but a quiet
 Sign in while nobody is signed in - which asks again by itself and reloads once
@@ -705,8 +754,9 @@ the key - and an admin route keeps its English title, with the part of the
 site after it: "Results · Admin panel · anotoki survey". Every anotoki site
 calls its admin area the admin panel.
 
-**The chooser** (`ui/language-switcher`, in the top bar where people take
-surveys, when more than one language is on offer): a button with the code
+**The chooser** (the family's language switcher, in the top bar where people take
+surveys, when more than one language is on offer - `core/kit.ts` gives it the
+site's languages and `setLanguage()`): a button with the code
 ("SK") and a menu of the languages under the names their speakers give them.
 Its accessible name holds the code it shows ("Jazyk: Slovenčina (SK)", `language.button`
 with `{name}` and `{code}`): somebody who speaks to the computer says "click SK"

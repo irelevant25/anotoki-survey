@@ -1,0 +1,152 @@
+// The look of a field this site draws itself, with its own native control:
+// the editor's address (with the site's address before it), a text and its
+// translation side by side, the Translations page's boxes, an answer typed on
+// a survey. The kit's fields (@anotoki/lib/ui/forms) look the same and style
+// themselves; these use the same classes as before - .field, .field-label,
+// .field-control, .field-input, .field-hint, .field-error - and the same
+// tokens, with no global rule: a component that draws such a field includes
+// them in its own (encapsulated) styles, so nothing reaches the kit's
+// components.
+//
+//   @use "fields";
+//   @include fields.styles;
+
+@mixin styles {
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    min-width: 0;
+  }
+
+  .field-label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-weight: 650;
+    font-size: 0.875rem;
+    color: var(--anotoki-text);
+  }
+
+  .field-optional {
+    font-weight: 500;
+    color: var(--anotoki-muted);
+    font-size: 0.8125rem;
+  }
+
+  .field-control {
+    display: flex;
+    align-items: center;
+    min-height: var(--anotoki-control-height);
+    border: 1px solid var(--anotoki-border-strong);
+    border-radius: var(--anotoki-radius);
+    background: var(--anotoki-surface);
+    transition:
+      border-color var(--anotoki-duration) var(--anotoki-ease),
+      box-shadow var(--anotoki-duration) var(--anotoki-ease);
+
+    &:hover {
+      border-color: color-mix(in srgb, var(--anotoki-border-strong) 60%, var(--anotoki-text) 40%);
+    }
+
+    &:focus-within {
+      border-color: var(--anotoki-primary);
+      box-shadow: 0 0 0 3px var(--anotoki-ring);
+    }
+
+    &.field-invalid {
+      border-color: var(--anotoki-danger);
+
+      &:focus-within {
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--anotoki-danger) 28%, transparent);
+      }
+    }
+
+    &.field-disabled {
+      background: var(--anotoki-surface-2);
+      opacity: 0.7;
+    }
+  }
+
+  .field-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: 100%;
+    height: calc(var(--anotoki-control-height) - 2px);
+    padding: 0 0.8rem;
+    border: 0;
+    background: transparent;
+    color: var(--anotoki-text);
+    // 16px, not 15: iOS zooms the page into any field smaller than that.
+    font-size: 1rem;
+    outline: none;
+
+    &::placeholder {
+      color: var(--anotoki-subtle);
+      opacity: 1;
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+
+    &[type="date"] {
+      min-width: 9rem;
+    }
+  }
+
+  textarea.field-input {
+    height: auto;
+    min-height: 5.5rem;
+    padding: 0.6rem 0.8rem;
+    resize: vertical;
+    line-height: 1.5;
+  }
+
+  select.field-input {
+    appearance: none;
+    padding-right: 2.25rem;
+    cursor: pointer;
+    background-image: linear-gradient(45deg, transparent 50%, var(--anotoki-muted) 50%), linear-gradient(135deg, var(--anotoki-muted) 50%, transparent 50%);
+    background-position:
+      calc(100% - 1.05rem) 52%,
+      calc(100% - 0.75rem) 52%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+
+    option {
+      background: var(--anotoki-surface);
+      color: var(--anotoki-text);
+    }
+  }
+
+  .field-affix {
+    display: inline-flex;
+    align-items: center;
+    flex: none;
+    color: var(--anotoki-muted);
+
+    &:first-child {
+      padding-left: 0.75rem;
+    }
+
+    &:last-child {
+      padding-right: 0.25rem;
+    }
+  }
+
+  .field-hint {
+    font-size: 0.8125rem;
+    color: var(--anotoki-muted);
+  }
+
+  .field-error {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--anotoki-danger);
+  }
+}

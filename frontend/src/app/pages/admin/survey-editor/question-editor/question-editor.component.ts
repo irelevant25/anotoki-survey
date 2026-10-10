@@ -1,25 +1,25 @@
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, inject, input, output } from '@angular/core';
+import { IconComponent, uniqueId } from '@anotoki/lib/ui';
+import { SwitchComponent } from '@anotoki/lib/ui/forms';
+import { type SurveyIconName } from '../../../../core/kit';
 import { MAX_QUESTION_IMAGES } from '../../../../core/images/prepare-image';
 import { choiceRule, choiceRuleText, isChoice } from '../../../../core/survey/answer-rules';
 import { plainText } from '../../../../core/survey/plain-text';
 import { ChoiceLayout, Question, QuestionType } from '../../../../core/survey/survey.model';
-import { IconComponent, IconName } from '../../../../ui/icon/icon.component';
 import { RichTextEditorComponent } from '../../../../ui/rich-text-editor/rich-text-editor.component';
-import { SwitchComponent } from '../../../../ui/switch/switch.component';
-import { uniqueId } from '../../../../ui/unique-id';
 import { ImageListEditorComponent } from '../image-list-editor/image-list-editor.component';
 import { OptionsEditorComponent } from '../options-editor/options-editor.component';
 import { SurveyEditing } from '../survey-editing.service';
 import { TranslatedTextComponent } from '../translated-text/translated-text.component';
 
-export const QUESTION_TYPES: { type: QuestionType; label: string; short: string; icon: IconName }[] = [
+export const QUESTION_TYPES: { type: QuestionType; label: string; short: string; icon: SurveyIconName }[] = [
   { type: 'single', label: 'One choice', short: 'One choice', icon: 'radio' },
   { type: 'multiple', label: 'Several choices', short: 'Several', icon: 'checkSquare' },
   { type: 'text', label: 'Own words', short: 'Own words', icon: 'text' },
 ];
 
-const LAYOUTS: { layout: ChoiceLayout; label: string; icon: IconName; hint: string }[] = [
+const LAYOUTS: { layout: ChoiceLayout; label: string; icon: SurveyIconName; hint: string }[] = [
   { layout: 'list', label: 'List', icon: 'listBullets', hint: 'One option under another' },
   { layout: 'columns', label: 'Two columns', icon: 'columns', hint: 'For many short options' },
   { layout: 'scale', label: 'Scale', icon: 'scale', hint: 'In one row, left to right - for "very bad … very good" (a list on phones)' },

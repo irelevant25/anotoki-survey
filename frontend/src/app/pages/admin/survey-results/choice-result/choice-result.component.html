@@ -3,7 +3,7 @@
         <span class="number">{{ number() }}</span>
         <div class="text rich" [innerHTML]="question().text"></div>
         <span class="kind" [title]="kind().label">
-            <app-icon [name]="kind().icon" [size]="15" />
+            <anotoki-icon [name]="kind().icon" [size]="15" />
             <span class="kind-label">{{ kind().label }}</span>
         </span>
     </header>
@@ -37,7 +37,7 @@
     @if (summary().others.length && otherOption(); as other) {
         <div class="others">
             <p class="others-title">
-                <app-icon name="message" [size]="14" />
+                <anotoki-icon name="message" [size]="14" />
                 “{{ other.label }}”, in their own words
             </p>
             <ul class="others-list">

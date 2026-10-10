@@ -14,7 +14,7 @@
   align-items: center;
   gap: 0.4rem;
   margin-top: -0.75rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -30,15 +30,15 @@
   align-items: center;
   gap: 0.55rem;
   padding-bottom: 0.45rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--anotoki-border);
   font-size: 0.95rem;
 }
 
 .step-number {
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
-  background: var(--surface-3);
-  color: var(--muted);
+  background: var(--anotoki-surface-3);
+  color: var(--anotoki-muted);
   font-size: 0.7rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -66,8 +66,8 @@
   height: 1.45rem;
   padding: 0 0.3rem;
   border-radius: 6px;
-  background: var(--primary-soft);
-  color: var(--primary-soft-text);
+  background: var(--anotoki-primary-soft);
+  color: var(--anotoki-primary-soft-text);
   font-size: 0.75rem;
   font-weight: 800;
 }
@@ -95,21 +95,21 @@
   gap: 0.4rem;
   max-width: 100%;
   padding: 0.25rem 0.6rem 0.25rem 0.4rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--anotoki-border);
   border-radius: 8px;
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
   font-size: 0.8125rem;
 }
 
 .option.is-chosen {
-  border-color: var(--primary);
-  background: var(--primary-soft);
-  color: var(--text);
+  border-color: var(--anotoki-primary);
+  background: var(--anotoki-primary-soft);
+  color: var(--anotoki-text);
   font-weight: 650;
 }
 
 .option.is-highlight {
-  box-shadow: 0 0 0 3px var(--ring);
+  box-shadow: 0 0 0 3px var(--anotoki-ring);
 }
 
 .mark {
@@ -119,7 +119,7 @@
   justify-content: center;
   width: 0.95rem;
   height: 0.95rem;
-  border: 1.5px solid var(--border-strong);
+  border: 1.5px solid var(--anotoki-border-strong);
   border-radius: 4px;
 }
 
@@ -128,13 +128,13 @@
 }
 
 .is-chosen .mark {
-  border-color: var(--primary);
-  background: var(--primary);
-  color: var(--primary-contrast);
+  border-color: var(--anotoki-primary);
+  background: var(--anotoki-primary);
+  color: var(--anotoki-primary-contrast);
 }
 
 .other {
-  color: var(--text);
+  color: var(--anotoki-text);
   font-style: italic;
   font-weight: 500;
 }
@@ -142,9 +142,9 @@
 .written {
   margin: 0 0 0 2rem;
   padding: 0.6rem 0.85rem;
-  border-left: 3px solid var(--primary);
-  border-radius: 0 var(--radius) var(--radius) 0;
-  background: var(--surface-2);
+  border-left: 3px solid var(--anotoki-primary);
+  border-radius: 0 var(--anotoki-radius) var(--anotoki-radius) 0;
+  background: var(--anotoki-surface-2);
   font-size: 0.9375rem;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -153,13 +153,13 @@
 .note,
 .skipped {
   margin-left: 2rem;
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
   font-size: 0.8125rem;
   font-style: italic;
 }
 
 .is-skipped .text {
-  color: var(--muted);
+  color: var(--anotoki-muted);
 }
 
 .question-images {

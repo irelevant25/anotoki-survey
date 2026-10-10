@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, afterNextRender, inject } from '@angular/core';
 import { Router } from '@angular/router';
+import { SpinnerComponent } from '@anotoki/lib/ui';
 import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { SpinnerComponent } from '../../ui/spinner/spinner.component';
 
 /**
  * /auth/callback - where the IAM sends the browser back after signing in (the

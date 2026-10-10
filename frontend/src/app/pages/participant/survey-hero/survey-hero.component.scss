@@ -84,7 +84,7 @@
   height: 0.4rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--night-text) 18%, transparent);
-  transition: background-color 300ms var(--ease);
+  transition: background-color 300ms var(--anotoki-ease);
 
   &.is-done {
     background: color-mix(in srgb, var(--star-blue) 75%, transparent);

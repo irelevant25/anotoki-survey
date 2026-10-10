@@ -25,13 +25,13 @@
   align-items: center;
   gap: 0.35rem;
   min-width: 0;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.875rem;
   font-weight: 650;
   text-decoration: none;
 
   &:hover {
-    color: var(--text);
+    color: var(--anotoki-text);
   }
 }
 
@@ -43,7 +43,7 @@
 
 .stepper-count {
   min-width: 4.5rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -54,10 +54,10 @@
   flex-direction: column;
   gap: 1.25rem;
   padding: 1.5rem 1.6rem 1.75rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-xl);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow);
 }
 
 .sheet-head {
@@ -105,8 +105,14 @@
 }
 
 .delete {
-  --btn-fg: var(--danger);
-  --btn-hover-bg: var(--danger-soft);
+  // A ghost button in red: the kit has no such variant, and its button sets its colours on its host, which
+  // this class (with :hover) outranks.
+  color: var(--anotoki-danger);
+
+  &:hover {
+    background: var(--anotoki-danger-soft);
+    color: var(--anotoki-danger);
+  }
 }
 
 .person-facts {
@@ -115,8 +121,8 @@
   gap: 0.5rem 1.75rem;
   margin: 0;
   padding: 0.8rem 1rem;
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-surface-2);
 
   div {
     display: flex;
@@ -125,7 +131,7 @@
   }
 
   dt {
-    color: var(--muted);
+    color: var(--anotoki-muted);
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.05em;
@@ -140,9 +146,9 @@
 
 .empty-card {
   padding: 2rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
 }
 
 @media (max-width: 560px) {

@@ -1,3 +1,8 @@
+@use "fields";
+
+// The fields this page draws itself (src/styles/_fields.scss): first, so its own rules below win.
+@include fields.styles;
+
 :host {
   display: block;
   min-width: 0;
@@ -23,7 +28,7 @@
   align-items: center;
   gap: 0.25rem 0.5rem;
   min-height: 1.35rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -34,25 +39,25 @@
 .original {
   margin: 0;
   padding: 0.7rem 0.85rem;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  color: var(--text);
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-surface-2);
+  color: var(--anotoki-text);
   line-height: 1.55;
   overflow-wrap: anywhere;
 }
 
 .nothing {
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
   font-style: italic;
 }
 
 .slot {
-  border-radius: var(--radius);
+  border-radius: var(--anotoki-radius);
 }
 
 .is-missing .slot {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--warning) 60%, transparent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--anotoki-warning) 60%, transparent);
 }
 
 .mark {
@@ -60,10 +65,10 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.05rem 0.45rem;
-  border: 1px solid var(--warning-border);
+  border: 1px solid var(--anotoki-warning-border);
   border-radius: 999px;
-  background: var(--warning-soft);
-  color: var(--warning);
+  background: var(--anotoki-warning-soft);
+  color: var(--anotoki-warning);
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0;
@@ -81,7 +86,7 @@
 
 .note,
 .untranslated {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
 }
 

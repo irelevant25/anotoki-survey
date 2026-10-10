@@ -26,16 +26,16 @@
             <span class="count" aria-hidden="true">{{ "lightbox.position" | translate: { n: view().index + 1, m: view().images.length } }}</span>
         }
         <button #closeButton type="button" class="round close" [attr.aria-label]="'common.close' | translate" (click)="dismiss.emit()">
-            <app-icon name="x" [size]="20" />
+            <anotoki-icon name="x" [size]="20" />
         </button>
     </div>
 
     @if (many()) {
         <button type="button" class="round nav prev" [attr.aria-label]="'lightbox.previous' | translate" (click)="move.emit(-1)">
-            <app-icon name="chevronLeft" [size]="24" />
+            <anotoki-icon name="chevronLeft" [size]="24" />
         </button>
         <button type="button" class="round nav next" [attr.aria-label]="'lightbox.next' | translate" (click)="move.emit(1)">
-            <app-icon name="chevronRight" [size]="24" />
+            <anotoki-icon name="chevronRight" [size]="24" />
         </button>
     }
 </dialog>

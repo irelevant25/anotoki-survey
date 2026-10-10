@@ -51,10 +51,14 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "theme-boot.js",
+                "input": "node_modules/@anotoki/lib/assets",
+                "output": "/"
               }
             ],
             "styles": [
-              "node_modules/@fontsource-variable/manrope/index.css",
               "src/styles.scss"
             ],
             "stylePreprocessorOptions": {
@@ -115,7 +119,10 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "setupFiles": ["src/test-setup.ts"]
+          }
         }
       }
     }

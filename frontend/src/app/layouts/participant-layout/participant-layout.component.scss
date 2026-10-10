@@ -3,8 +3,8 @@
   min-height: 100vh;
   min-height: 100dvh;
   background:
-    radial-gradient(80% 45% at 50% -8%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 70%),
-    radial-gradient(45% 35% at 100% 100%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 70%), var(--bg);
+    radial-gradient(80% 45% at 50% -8%, color-mix(in srgb, var(--anotoki-primary) 14%, transparent), transparent 70%),
+    radial-gradient(45% 35% at 100% 100%, color-mix(in srgb, var(--anotoki-accent) 8%, transparent), transparent 70%), var(--anotoki-bg);
 }
 
 .skip-link {
@@ -13,10 +13,10 @@
   top: -4rem;
   z-index: 100;
   padding: 0.6rem 1rem;
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  box-shadow: var(--shadow);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-surface);
+  color: var(--anotoki-text);
+  box-shadow: var(--anotoki-shadow);
 
   &:focus {
     top: 0.75rem;

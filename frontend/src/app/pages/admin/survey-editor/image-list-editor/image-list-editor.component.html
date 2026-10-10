@@ -55,7 +55,7 @@
                                     title="Move left"
                                     [disabled]="first"
                                     (click)="move(image.id, -1)">
-                                    <app-icon name="chevronLeft" [size]="14" />
+                                    <anotoki-icon name="chevronLeft" [size]="14" />
                                 </button>
                                 <button
                                     type="button"
@@ -65,11 +65,11 @@
                                     title="Move right"
                                     [disabled]="last"
                                     (click)="move(image.id, 1)">
-                                    <app-icon name="chevronRight" [size]="14" />
+                                    <anotoki-icon name="chevronRight" [size]="14" />
                                 </button>
                             }
                             <button type="button" class="thumb-button thumb-remove" [attr.aria-label]="'Remove picture ' + (i + 1) + ' of ' + label()" title="Remove" (click)="remove(image.id)">
-                                <app-icon name="x" [size]="14" />
+                                <anotoki-icon name="x" [size]="14" />
                             </button>
                         </div>
                     </div>
@@ -87,12 +87,12 @@
             }
             @for (place of placeholders(); track place) {
                 <div class="thumb thumb-pending" aria-hidden="true">
-                    <div class="thumb-frame"><app-spinner size="sm" /></div>
+                    <div class="thumb-frame"><anotoki-spinner size="sm" /></div>
                 </div>
             }
             @if (room() > 0) {
                 <button type="button" class="add" [attr.aria-label]="'Add pictures to ' + label()" (click)="pick()">
-                    <app-icon name="imagePlus" [size]="compact() ? 16 : 20" />
+                    <anotoki-icon name="imagePlus" [size]="compact() ? 16 : 20" />
                     @if (!compact()) {
                         <span class="add-text">Add pictures</span>
                         <span class="add-hint">or drop or paste them</span>
@@ -103,7 +103,7 @@
     }
     @for (problem of problems(); track problem) {
         <p class="problem">
-            <app-icon name="alert" [size]="14" />
+            <anotoki-icon name="alert" [size]="14" />
             {{ problem }}
         </p>
     }

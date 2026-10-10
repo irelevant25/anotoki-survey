@@ -9,14 +9,14 @@
   width: 5.25rem;
   aspect-ratio: 4 / 3;
   padding: 0;
-  border: 1px solid var(--border);
+  border: 1px solid var(--anotoki-border);
   border-radius: 6px;
   overflow: hidden;
-  background: var(--surface-2);
+  background: var(--anotoki-surface-2);
   cursor: zoom-in;
 
   &:hover {
-    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+    border-color: color-mix(in srgb, var(--anotoki-primary) 45%, var(--anotoki-border));
   }
 
   app-survey-image {

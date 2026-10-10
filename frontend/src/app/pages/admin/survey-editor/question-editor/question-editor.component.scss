@@ -3,23 +3,23 @@
 }
 
 .card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
   // More on a translation's tab, where a bar stays in view above (the editor sets the variable).
   scroll-margin-top: calc(var(--editor-scroll-margin, 6rem) + 2rem);
   transition:
-    border-color var(--duration) var(--ease),
-    box-shadow var(--duration) var(--ease);
+    border-color var(--anotoki-duration) var(--anotoki-ease),
+    box-shadow var(--anotoki-duration) var(--anotoki-ease);
 
   &.is-open {
-    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
-    box-shadow: var(--shadow);
+    border-color: color-mix(in srgb, var(--anotoki-primary) 45%, var(--anotoki-border));
+    box-shadow: var(--anotoki-shadow);
   }
 
   &.has-problems {
-    border-left: 3px solid var(--warning);
+    border-left: 3px solid var(--anotoki-warning);
   }
 }
 
@@ -38,12 +38,12 @@
   width: 1.75rem;
   height: 2.4rem;
   border-radius: 6px;
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
   cursor: grab;
 
   &:hover {
-    background: var(--surface-3);
-    color: var(--text);
+    background: var(--anotoki-surface-3);
+    color: var(--anotoki-text);
   }
 }
 
@@ -55,14 +55,14 @@
   min-width: 0;
   padding: 0.45rem 0.5rem;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--anotoki-radius);
   background: transparent;
-  color: var(--text);
+  color: var(--anotoki-text);
   text-align: left;
   cursor: pointer;
 
   &:hover {
-    background: var(--surface-2);
+    background: var(--anotoki-surface-2);
   }
 }
 
@@ -75,8 +75,8 @@
   height: 1.6rem;
   padding: 0 0.35rem;
   border-radius: 7px;
-  background: var(--primary-soft);
-  color: var(--primary-soft-text);
+  background: var(--anotoki-primary-soft);
+  color: var(--anotoki-primary-soft-text);
   font-size: 0.8125rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
@@ -85,7 +85,7 @@
 .kind {
   flex: none;
   display: inline-flex;
-  color: var(--muted);
+  color: var(--anotoki-muted);
 }
 
 .text {
@@ -97,7 +97,7 @@
   white-space: nowrap;
 
   &.is-empty {
-    color: var(--subtle);
+    color: var(--anotoki-subtle);
     font-style: italic;
     font-weight: 500;
   }
@@ -115,10 +115,10 @@
   align-items: center;
   gap: 0.25rem;
   padding: 0.05rem 0.5rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--anotoki-border);
   border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--anotoki-surface-2);
+  color: var(--anotoki-muted);
   font-size: 0.72rem;
   font-weight: 700;
   white-space: nowrap;
@@ -129,14 +129,14 @@
 }
 
 .badge-warn {
-  border-color: var(--warning-border);
-  background: var(--warning-soft);
-  color: var(--warning);
+  border-color: var(--anotoki-warning-border);
+  background: var(--anotoki-warning-soft);
+  color: var(--anotoki-warning);
 }
 
 .chevron {
   flex: none;
-  color: var(--muted);
+  color: var(--anotoki-muted);
 }
 
 // On a translation's tab: no handle before the summary, so it gets the handle's room.
@@ -155,7 +155,7 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   font-weight: 600;
 }
@@ -175,12 +175,12 @@
   border: 0;
   border-radius: 7px;
   background: transparent;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   cursor: pointer;
 
   &:hover:not(:disabled) {
-    background: var(--surface-3);
-    color: var(--text);
+    background: var(--anotoki-surface-3);
+    color: var(--anotoki-text);
   }
 
   &:disabled {
@@ -190,8 +190,8 @@
 }
 
 .icon-button-danger:hover:not(:disabled) {
-  background: var(--danger-soft);
-  color: var(--danger);
+  background: var(--anotoki-danger-soft);
+  color: var(--anotoki-danger);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -203,7 +203,7 @@
   flex-direction: column;
   gap: 1rem;
   padding: 0.5rem 1.1rem 1.1rem 2.25rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--anotoki-border);
   padding-top: 1rem;
 }
 
@@ -214,9 +214,9 @@
   align-self: flex-start;
   gap: 2px;
   padding: 3px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--anotoki-border);
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--anotoki-surface-2);
 }
 
 .kind-button,
@@ -229,25 +229,25 @@
   border: 0;
   border-radius: 999px;
   background: transparent;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   font-weight: 650;
   white-space: nowrap;
   cursor: pointer;
 
   &:hover {
-    color: var(--text);
+    color: var(--anotoki-text);
   }
 
   &[aria-checked="true"] {
-    background: var(--surface);
-    color: var(--text);
-    box-shadow: var(--shadow-sm);
+    background: var(--anotoki-surface);
+    color: var(--anotoki-text);
+    box-shadow: var(--anotoki-shadow-sm);
   }
 }
 
-.kind-button[aria-checked="true"] app-icon {
-  color: var(--primary);
+.kind-button[aria-checked="true"] anotoki-icon {
+  color: var(--anotoki-primary);
 }
 
 .section {
@@ -257,7 +257,7 @@
 }
 
 .section-label {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.05em;
@@ -291,14 +291,14 @@
   align-items: center;
   gap: 0.4rem;
   font-size: 0.875rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
 }
 
 .with-unit {
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.875rem;
 }
 
@@ -307,16 +307,16 @@
 .step-select {
   height: 2.2rem;
   padding: 0 0.6rem;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--anotoki-border-strong);
   border-radius: 8px;
-  background: var(--surface);
-  color: var(--text);
+  background: var(--anotoki-surface);
+  color: var(--anotoki-text);
   font-size: 0.9375rem;
   outline: none;
 
   &:focus {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--ring);
+    border-color: var(--anotoki-primary);
+    box-shadow: 0 0 0 3px var(--anotoki-ring);
   }
 }
 
@@ -334,7 +334,7 @@
   align-items: center;
   gap: 0.4rem;
   margin-top: -0.35rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
 }
 
@@ -345,14 +345,14 @@
   justify-content: space-between;
   gap: 0.75rem 1rem;
   padding-top: 0.85rem;
-  border-top: 1px dashed var(--border);
+  border-top: 1px dashed var(--anotoki-border);
 }
 
 .move-to {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
 }
 
 .step-select {
@@ -367,10 +367,10 @@
   gap: 0.3rem;
   margin: 0;
   padding: 0.6rem 0.8rem;
-  border: 1px solid var(--warning-border);
-  border-radius: var(--radius);
-  background: var(--warning-soft);
-  color: var(--warning);
+  border: 1px solid var(--anotoki-warning-border);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-warning-soft);
+  color: var(--anotoki-warning);
   font-size: 0.8125rem;
   font-weight: 600;
   list-style: none;
@@ -381,7 +381,7 @@
     gap: 0.4rem;
   }
 
-  app-icon {
+  anotoki-icon {
     margin-top: 0.1rem;
   }
 }
@@ -409,7 +409,7 @@
   align-items: center;
   gap: 0.4rem;
   height: 2.4rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.875rem;
   font-weight: 600;
 }

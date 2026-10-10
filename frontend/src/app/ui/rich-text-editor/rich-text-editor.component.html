@@ -10,7 +10,7 @@
                 [attr.title]="tool.keys ? tool.label + ' (' + tool.keys + ')' : tool.label"
                 (mousedown)="$event.preventDefault()"
                 (click)="apply(tool.mark)">
-                <app-icon [name]="tool.icon" [size]="16" [strokeWidth]="2" />
+                <anotoki-icon [name]="tool.icon" [size]="16" [strokeWidth]="2" />
             </button>
         }
         <button
@@ -23,7 +23,7 @@
             title="Link"
             (mousedown)="$event.preventDefault()"
             (click)="toggleLink()">
-            <app-icon name="link" [size]="16" [strokeWidth]="2" />
+            <anotoki-icon name="link" [size]="16" [strokeWidth]="2" />
         </button>
 
         <span class="rte-sep" aria-hidden="true"></span>
@@ -62,26 +62,26 @@
                 [attr.title]="tool.label"
                 (mousedown)="$event.preventDefault()"
                 (click)="apply(tool.mark)">
-                <app-icon [name]="tool.icon" [size]="16" [strokeWidth]="2" />
+                <anotoki-icon [name]="tool.icon" [size]="16" [strokeWidth]="2" />
             </button>
         }
         <button type="button" class="rte-tool" aria-label="Clear formatting" title="Clear formatting" (mousedown)="$event.preventDefault()" (click)="clearFormatting()">
-            <app-icon name="eraser" [size]="16" [strokeWidth]="2" />
+            <anotoki-icon name="eraser" [size]="16" [strokeWidth]="2" />
         </button>
 
         <span class="rte-spacer"></span>
 
         <button type="button" class="rte-tool" aria-label="Undo" title="Undo (Ctrl+Z)" [disabled]="!canUndo()" (mousedown)="$event.preventDefault()" (click)="undo()">
-            <app-icon name="undo" [size]="16" [strokeWidth]="2" />
+            <anotoki-icon name="undo" [size]="16" [strokeWidth]="2" />
         </button>
         <button type="button" class="rte-tool" aria-label="Redo" title="Redo (Ctrl+Y)" [disabled]="!canRedo()" (mousedown)="$event.preventDefault()" (click)="redo()">
-            <app-icon name="redo" [size]="16" [strokeWidth]="2" />
+            <anotoki-icon name="redo" [size]="16" [strokeWidth]="2" />
         </button>
     </div>
 
     @if (linkOpen()) {
         <form class="rte-link" (submit)="saveLink($event)">
-            <app-icon name="link" [size]="15" />
+            <anotoki-icon name="link" [size]="15" />
             <input
                 #linkInput
                 class="rte-link-input"
@@ -94,7 +94,7 @@
             <button type="submit" class="rte-link-button">Apply</button>
             @if (active().link) {
                 <button type="button" class="rte-link-button rte-link-remove" (click)="removeLink()">
-                    <app-icon name="unlink" [size]="14" />
+                    <anotoki-icon name="unlink" [size]="14" />
                     Remove
                 </button>
             }

@@ -5,7 +5,7 @@
   display: block;
   min-height: 100vh;
   min-height: 100dvh;
-  background: radial-gradient(80% 45% at 50% -8%, color-mix(in srgb, var(--primary) 14%, transparent), transparent 70%), var(--bg);
+  background: radial-gradient(80% 45% at 50% -8%, color-mix(in srgb, var(--anotoki-primary) 14%, transparent), transparent 70%), var(--anotoki-bg);
 }
 
 .boot {
@@ -16,7 +16,12 @@
   max-width: 34rem;
   margin: 0 auto;
   padding: 3.5rem 1rem 4rem;
-  --brand-area: var(--primary-soft-text);
+}
+
+// The family's brand is as tall as its mark; the space under it is the one the card has always had below the
+// brand (the survey's own brand stood a line's height, its mark on the text's baseline).
+anotoki-brand {
+  margin-bottom: 0.4rem;
 }
 
 .card {
@@ -26,10 +31,10 @@
   gap: 0.85rem;
   width: 100%;
   padding: 2rem 1.5rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-xl);
-  background: var(--surface);
-  box-shadow: var(--shadow);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-xl);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow);
   text-align: center;
 
   h1 {
@@ -50,12 +55,12 @@
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: var(--primary-soft);
-  color: var(--primary);
+  background: var(--anotoki-primary-soft);
+  color: var(--anotoki-primary);
 }
 
 .muted {
-  color: var(--muted);
+  color: var(--anotoki-muted);
 }
 
 .small {
@@ -65,11 +70,11 @@
 .detail {
   width: 100%;
   padding: 0.6rem 0.8rem;
-  border: 1px solid var(--warning-border);
-  border-radius: var(--radius);
-  background: var(--warning-soft);
-  color: var(--text);
-  font-family: var(--font-mono);
+  border: 1px solid var(--anotoki-warning-border);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-warning-soft);
+  color: var(--anotoki-text);
+  font-family: var(--anotoki-font-mono);
   font-size: 0.8125rem;
   text-align: left;
   overflow-wrap: anywhere;

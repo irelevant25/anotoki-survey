@@ -6,15 +6,15 @@
   gap: 0.4rem;
   margin-top: 0.35rem;
   padding: 0.75rem 0.9rem;
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-surface-2);
 }
 
 .others-title {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   font-weight: 700;
 }
@@ -44,7 +44,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--link);
+  color: var(--anotoki-link);
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -59,7 +59,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--link);
+  color: var(--anotoki-link);
   font-size: 0.8125rem;
   font-weight: 700;
   cursor: pointer;

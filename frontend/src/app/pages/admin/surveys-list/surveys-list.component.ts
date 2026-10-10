@@ -1,21 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { AlertComponent, BadgeComponent, ButtonComponent, EmptyStateComponent, IconComponent, PageHeaderComponent, SpinnerComponent } from '@anotoki/lib/ui';
+import { ConfirmService } from '@anotoki/lib/ui/dialog';
+import { TabItem, TabsComponent } from '@anotoki/lib/ui/tabs';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminDates } from '../../../core/admin/admin-dates.service';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { currentStatus } from '../../../core/survey/survey-outline';
 import { SurveyStatus, SurveySummary } from '../../../core/survey/survey.model';
-import { AlertComponent } from '../../../ui/alert/alert.component';
-import { BadgeComponent } from '../../../ui/badge/badge.component';
-import { ButtonComponent } from '../../../ui/button/button.component';
-import { ConfirmService } from '../../../ui/confirm/confirm.service';
-import { EmptyStateComponent } from '../../../ui/empty-state/empty-state.component';
-import { IconComponent } from '../../../ui/icon/icon.component';
-import { PageHeaderComponent } from '../../../ui/page-header/page-header.component';
-import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
-import { TabItem, TabsComponent } from '../../../ui/tabs/tabs.component';
-import { ToastService } from '../../../ui/toast/toast.service';
 import { STATUS_LABEL, STATUS_TONE } from '../survey-header/survey-header.component';
 
 /** Open ones first - they are what is happening now - then drafts, then the closed. */

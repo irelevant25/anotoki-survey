@@ -14,17 +14,17 @@
   width: 100%;
   padding: 0.6rem 0.6rem;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--anotoki-radius);
   background: transparent;
-  color: var(--text);
+  color: var(--anotoki-text);
   text-align: left;
   cursor: pointer;
 
   &:hover {
-    background: var(--surface-3);
+    background: var(--anotoki-surface-3);
 
     .chevron {
-      color: var(--text);
+      color: var(--anotoki-text);
     }
   }
 }
@@ -59,7 +59,7 @@
 }
 
 .details {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
 }
@@ -67,9 +67,9 @@
 .note {
   margin-top: 0.3rem;
   padding: 0.4rem 0.6rem;
-  border-left: 3px solid var(--primary);
+  border-left: 3px solid var(--anotoki-primary);
   border-radius: 0 8px 8px 0;
-  background: var(--surface-2);
+  background: var(--anotoki-surface-2);
   font-size: 0.875rem;
   font-style: italic;
   quotes: none;
@@ -79,7 +79,7 @@
 .when {
   flex: none;
   padding-top: 0.15rem;
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
   font-size: 0.75rem;
   white-space: nowrap;
 }
@@ -87,11 +87,11 @@
 .chevron {
   flex: none;
   margin-top: 0.15rem;
-  color: var(--subtle);
+  color: var(--anotoki-subtle);
 }
 
 .empty {
   padding: 1.5rem 0.5rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   text-align: center;
 }

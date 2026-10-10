@@ -1,6 +1,6 @@
 @if (readIn(); as language) {
     <p class="read-in">
-        <app-icon name="globe" [size]="15" />
+        <anotoki-icon name="globe" [size]="15" />
         <span>Read in {{ language }}</span>
     </p>
 }
@@ -48,7 +48,7 @@
                     <li class="option" [class.is-chosen]="chosen(item, option.id)" [class.is-highlight]="isHighlight(item, option.id)">
                         <span class="mark" [class.mark-round]="item.question.type === 'single'" aria-hidden="true">
                             @if (chosen(item, option.id)) {
-                                <app-icon name="check" [size]="12" [strokeWidth]="3" />
+                                <anotoki-icon name="check" [size]="12" [strokeWidth]="3" />
                             }
                         </span>
                         @if (option.images.length) {

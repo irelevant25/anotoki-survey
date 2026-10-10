@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
+import { IconComponent } from '@anotoki/lib/ui';
 import { plainText } from '../../../../core/survey/plain-text';
 import { currentStatus } from '../../../../core/survey/survey-outline';
 import { SurveyProblem, problemsHeading } from '../../../../core/survey/survey-problems';
 import { Survey } from '../../../../core/survey/survey.model';
-import { IconComponent } from '../../../../ui/icon/icon.component';
 
 /**
  * The survey at a glance - its steps and questions, each a jump to itself -

@@ -3,7 +3,7 @@
         <span class="number">{{ number() }}</span>
         <div class="text rich" [innerHTML]="question().text"></div>
         <span class="kind" title="Own words">
-            <app-icon name="text" [size]="15" />
+            <anotoki-icon name="text" [size]="15" />
             <span class="kind-label">Own words</span>
         </span>
     </header>
@@ -51,7 +51,7 @@
         @if (answers().length > shown().length) {
             <button type="button" class="more" (click)="openAll.emit()">
                 All {{ answers().length }} answers
-                <app-icon name="arrowRight" [size]="14" />
+                <anotoki-icon name="arrowRight" [size]="14" />
             </button>
         }
     } @else {

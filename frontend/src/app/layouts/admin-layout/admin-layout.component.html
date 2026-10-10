@@ -11,36 +11,36 @@
         <div class="no-access">
             @if (auth.signInFailure()) {
                 <!-- A sign-in that came back without one (or could not start): nobody had a session to end. The toast says why. -->
-                <app-empty-state
+                <anotoki-empty-state
                     icon="lock"
                     heading="You are not signed in"
                     text="The admin panel is for the people who write the surveys, signed in with their anotoki account. The sign-in did not complete - sign in to try again.">
                     <ng-container [ngTemplateOutlet]="signInButton" />
-                </app-empty-state>
+                </anotoki-empty-state>
             } @else {
-                <app-empty-state
+                <anotoki-empty-state
                     icon="lock"
                     heading="You are signed out"
                     text="Your session has ended. Sign in again: what you typed on the Translations and Languages pages is kept in this tab, and will be in its boxes again. Changes to a survey that were not saved yet stay only while this page is open - sign in again in another tab to save them.">
                     <ng-container [ngTemplateOutlet]="signInButton" />
-                </app-empty-state>
+                </anotoki-empty-state>
             }
         </div>
     } @else {
         <div class="no-access">
-            <app-empty-state
+            <anotoki-empty-state
                 icon="lock"
                 heading="The admin panel is for the people who write the surveys"
                 text="Your anotoki account has no editor role here. The site's administrator can give it to you in the anotoki account's admin panel.">
-                <a appButton variant="primary" routerLink="/">See the open surveys</a>
-            </app-empty-state>
+                <a anotokiButton variant="primary" routerLink="/">See the open surveys</a>
+            </anotoki-empty-state>
         </div>
     }
 </main>
 
 <ng-template #signInButton>
-    <button appButton variant="primary" (click)="signIn()">
-        <app-icon name="logIn" [size]="16" />
+    <button anotokiButton variant="primary" (click)="signIn()">
+        <anotoki-icon name="logIn" [size]="16" />
         Sign in
     </button>
 </ng-template>

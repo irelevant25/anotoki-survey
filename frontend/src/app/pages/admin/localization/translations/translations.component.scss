@@ -1,3 +1,8 @@
+@use "fields";
+
+// The fields this page draws itself (src/styles/_fields.scss): first, so its own rules below win.
+@include fields.styles;
+
 .page {
   display: flex;
   flex-direction: column;
@@ -9,13 +14,13 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.875rem;
   font-weight: 650;
   text-decoration: none;
 
   &:hover {
-    color: var(--text);
+    color: var(--anotoki-text);
   }
 }
 
@@ -41,10 +46,10 @@
   flex-direction: column;
   gap: 0.6rem;
   padding: 0.85rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
 }
 
 .language-name {
@@ -81,7 +86,7 @@
 }
 
 .coverage-count {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
@@ -139,13 +144,13 @@
 // Under the top bar while the keys scroll: which column is which language.
 .grid-head {
   position: sticky;
-  top: var(--topbar-height, 60px);
+  top: var(--anotoki-topbar-height);
   z-index: 2;
   padding: 0.55rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface-2);
-  color: var(--muted);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-surface-2);
+  color: var(--anotoki-muted);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -166,15 +171,15 @@
   flex-direction: column;
   gap: 0.85rem;
   padding: 0.85rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
 }
 
 // A plural family: its forms and the line that tries them out, held together.
 .block.is-plural {
-  border-color: var(--info-border);
+  border-color: var(--anotoki-info-border);
 }
 
 .family {
@@ -187,7 +192,7 @@
     font-weight: 700;
   }
 
-  app-badge {
+  anotoki-badge {
     white-space: normal;
   }
 }
@@ -195,7 +200,7 @@
 .row {
   align-items: start;
   // Brought into view by a refusal: clear of the top bar and the column names.
-  scroll-margin-top: calc(var(--topbar-height, 60px) + 3.5rem);
+  scroll-margin-top: calc(var(--anotoki-topbar-height) + 3.5rem);
 }
 
 .key {
@@ -211,7 +216,7 @@
 }
 
 .description {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   line-height: 1.45;
   overflow-wrap: anywhere;
@@ -231,7 +236,7 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.1rem 0.5rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.75rem;
   font-weight: 650;
 
@@ -244,7 +249,7 @@
 // languages are under one another.
 .cell-language {
   display: none;
-  color: var(--text);
+  color: var(--anotoki-text);
 }
 
 .numbers {
@@ -253,11 +258,11 @@
 
 .samples {
   padding-top: 0.75rem;
-  border-top: 1px dashed var(--border-strong);
+  border-top: 1px dashed var(--rule-strong);
 }
 
 .samples-lead {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
 }
 
@@ -271,8 +276,8 @@
 
   li {
     padding: 0.15rem 0.55rem;
-    border-radius: var(--radius-sm);
-    background: var(--surface-3);
+    border-radius: var(--anotoki-radius-sm);
+    background: var(--anotoki-surface-3);
     font-size: 0.875rem;
     overflow-wrap: anywhere;
   }
@@ -280,8 +285,8 @@
 
 .empty {
   padding: 1rem;
-  border: 1px dashed var(--border-strong);
-  border-radius: var(--radius-lg);
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--anotoki-radius-lg);
 }
 
 // The languages under one another: on a phone, and whenever there are more of
@@ -318,11 +323,11 @@
 
   .row + .row {
     padding-top: 0.85rem;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--anotoki-border);
   }
 
   .row {
-    scroll-margin-top: calc(var(--topbar-height, 60px) + 1rem);
+    scroll-margin-top: calc(var(--anotoki-topbar-height) + 1rem);
   }
 }
 
@@ -348,13 +353,13 @@
   justify-content: space-between;
   gap: 0.5rem 1rem;
   padding: 0.6rem 0.75rem 0.6rem 1rem;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-lg);
-  background: var(--surface-raised);
-  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface-raised);
+  box-shadow: var(--anotoki-shadow-lg);
 
   &.is-changed {
-    border-color: var(--warning-border);
+    border-color: var(--anotoki-warning-border);
   }
 
   // The strip between the bar and the window's edge: the page's colour, so no
@@ -367,12 +372,12 @@
     left: -1px;
     height: 0.8rem;
     margin-top: 1px;
-    background: var(--bg);
+    background: var(--anotoki-bg);
   }
 }
 
 .save-state {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.875rem;
   font-weight: 650;
   min-width: 0;
@@ -380,7 +385,7 @@
 }
 
 .is-changed .save-state {
-  color: var(--text);
+  color: var(--anotoki-text);
 }
 
 // What became of the last save, when it saved nothing: said here, where Save
@@ -389,9 +394,9 @@
   display: inline-flex;
   align-items: flex-start;
   gap: 0.35rem;
-  color: var(--danger);
+  color: var(--anotoki-danger);
 
-  app-icon {
+  anotoki-icon {
     flex: none;
     margin-top: 0.15rem;
   }

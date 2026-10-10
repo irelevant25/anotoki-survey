@@ -3,7 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
-import { ANOTOKI_MIGRATIONS_CONFIG, MigrationsPageComponent, SiteStatus, siteStatusInterceptor } from '@anotoki/lib/migrations';
+import { ANOTOKI_MIGRATIONS_CONFIG, SiteStatus, siteStatusInterceptor } from '@anotoki/lib/migrations';
+import { MigrationsPageComponent } from '@anotoki/lib/migrations/page';
 import { firstValueFrom } from 'rxjs';
 import { AppComponent } from './app.component';
 import { AdminDates } from './core/admin/admin-dates.service';
@@ -354,7 +355,7 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
     await start('ready', false);
     expect(site()).toBeNull();
     // What is drawn over any page is there all the same: the live region must be in the page before its first message.
-    expect(host.querySelector('app-toast-host [role="status"]')).not.toBeNull();
+    expect(host.querySelector('anotoki-toast-host [role="status"]')).not.toBeNull();
 
     await now('ready', true);
     expect(site()).not.toBeNull();

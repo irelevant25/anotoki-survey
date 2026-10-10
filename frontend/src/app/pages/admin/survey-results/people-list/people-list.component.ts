@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
+import { IconComponent } from '@anotoki/lib/ui';
 import { AdminDates } from '../../../../core/admin/admin-dates.service';
 import { ageLabel, genderLabel } from '../../../../core/survey/about-you';
 import { SurveyResponse } from '../../../../core/survey/survey.model';
-import { IconComponent } from '../../../../ui/icon/icon.component';
 
 /** A person in a list, with what they wrote there when it matters ("Other", a text answer). */
 export interface PersonRow {

@@ -1,11 +1,11 @@
 <main class="boot">
-    <app-brand [size]="40" [area]="area()" />
+    <anotoki-brand [size]="40" [area]="area()" />
     <section class="card" role="alert">
-        <span class="card-icon"><app-icon name="alert" [size]="24" /></span>
+        <span class="card-icon"><anotoki-icon name="alert" [size]="24" /></span>
         <h1>{{ title() }}</h1>
         <p class="muted">{{ text() }}</p>
-        <button appButton variant="primary" [loading]="trying()" (click)="retry()">
-            <app-icon name="refresh" [size]="16" />
+        <button anotokiButton variant="primary" [loading]="trying()" (click)="retry()">
+            <anotoki-icon name="refresh" [size]="16" />
             {{ tryAgain() }}
         </button>
     </section>

@@ -1,18 +1,18 @@
 @if (survey(); as survey) {
     @if (preview()) {
         <div class="preview-bar" role="note">
-            <app-icon name="eye" [size]="18" />
+            <anotoki-icon name="eye" [size]="18" />
             <p class="preview-text">
                 <strong>Preview.</strong>
                 This is the survey as people will see it. Nothing you answer here is kept.
             </p>
             <div class="preview-actions">
-                <button appButton size="sm" variant="ghost" (click)="restartPreview()">
-                    <app-icon name="rotateCcw" [size]="15" />
+                <button anotokiButton size="sm" variant="ghost" (click)="restartPreview()">
+                    <anotoki-icon name="rotateCcw" [size]="15" />
                     Start over
                 </button>
-                <a appButton size="sm" [routerLink]="['/admin/surveys', survey.id, 'edit']" [queryParams]="editorQuery()">
-                    <app-icon name="pencil" [size]="15" />
+                <a anotokiButton size="sm" [routerLink]="['/admin/surveys', survey.id, 'edit']" [queryParams]="editorQuery()">
+                    <anotoki-icon name="pencil" [size]="15" />
                     Back to the editor
                 </a>
             </div>
@@ -30,14 +30,14 @@
         @switch (state()) {
             @case ("not-open") {
                 <div class="body message">
-                    <span class="message-icon"><app-icon name="clock" [size]="24" /></span>
+                    <span class="message-icon"><anotoki-icon name="clock" [size]="24" /></span>
                     <h2 class="message-heading">{{ "take.notOpen.heading" | translate }}</h2>
                     <p class="muted">{{ "take.notOpen.text" | translate }}</p>
                 </div>
             }
             @case ("closed") {
                 <div class="body message">
-                    <span class="message-icon"><app-icon name="lock" [size]="22" /></span>
+                    <span class="message-icon"><anotoki-icon name="lock" [size]="22" /></span>
                     <h2 class="message-heading">{{ "take.closed.heading" | translate }}</h2>
                     <p class="muted">
                         @if (survey.closedAt) {
@@ -49,7 +49,7 @@
             }
             @case ("answered") {
                 <div class="body message">
-                    <span class="message-icon message-icon-success"><app-icon name="check" [size]="26" [strokeWidth]="2.4" /></span>
+                    <span class="message-icon message-icon-success"><anotoki-icon name="check" [size]="26" [strokeWidth]="2.4" /></span>
                     <h2 class="message-heading">{{ "take.answered.heading" | translate }}</h2>
                     @if (answeredAt(); as sentAt) {
                         <p class="muted">{{ "take.answered.text" | translate: { when: (sentAt | localDate: "ago") } }}</p>
@@ -62,17 +62,17 @@
             }
             @case ("sent") {
                 <div class="body message">
-                    <span class="message-icon message-icon-success done-mark"><app-icon name="check" [size]="30" [strokeWidth]="2.6" /></span>
+                    <span class="message-icon message-icon-success done-mark"><anotoki-icon name="check" [size]="30" [strokeWidth]="2.6" /></span>
                     <h2 class="message-heading done-heading" tabindex="-1">{{ "take.sent.heading" | translate }}</h2>
                     <div class="rich thanks" [attr.lang]="surveyLang()" [innerHTML]="survey.thanks"></div>
                     @if (preview()) {
                         <p class="muted small">This was the preview: nothing was kept.</p>
                         <div class="message-actions">
-                            <button appButton (click)="restartPreview()">
-                                <app-icon name="rotateCcw" [size]="16" />
+                            <button anotokiButton (click)="restartPreview()">
+                                <anotoki-icon name="rotateCcw" [size]="16" />
                                 Start the preview again
                             </button>
-                            <a appButton variant="primary" [routerLink]="['/admin/surveys', survey.id, 'edit']" [queryParams]="editorQuery()">Back to the editor</a>
+                            <a anotokiButton variant="primary" [routerLink]="['/admin/surveys', survey.id, 'edit']" [queryParams]="editorQuery()">Back to the editor</a>
                         </div>
                     }
                     @if (visiting()) {
@@ -88,22 +88,22 @@
                         @if (facts(); as facts) {
                             <ul class="facts">
                                 <li>
-                                    <app-icon name="survey" [size]="16" />
+                                    <anotoki-icon name="survey" [size]="16" />
                                     {{ "take.size" | translate: { questions: ("take.questions" | translatePlural: facts.questions), steps: ("take.steps" | translatePlural: facts.steps) } }}
                                 </li>
                                 <li>
-                                    <app-icon name="clock" [size]="16" />
+                                    <anotoki-icon name="clock" [size]="16" />
                                     {{ "take.minutes" | translatePlural: facts.minutes }}
                                 </li>
                                 @if (facts.closesOn) {
                                     <li>
-                                        <app-icon name="calendar" [size]="16" />
+                                        <anotoki-icon name="calendar" [size]="16" />
                                         {{ "take.openUntil" | translate: { day: (facts.closesOn | localDate: "day") } }}
                                     </li>
                                 }
                                 @if (facts.language; as language) {
                                     <li class="fact-language">
-                                        <app-icon name="globe" [size]="16" />
+                                        <anotoki-icon name="globe" [size]="16" />
                                         <span>
                                             <span>{{ inLanguage()[0] }}</span>
                                             @if (inLanguage()[2]) {
@@ -118,7 +118,7 @@
 
                         @if (!preview() && person(); as me) {
                             <p class="who">
-                                <app-icon name="user" [size]="16" />
+                                <anotoki-icon name="user" [size]="16" />
                                 <span>
                                     <span>{{ signedInAs()[0] }}</span>
                                     @if (signedInAs()[2]) {
@@ -129,28 +129,28 @@
                             </p>
                         } @else if (visiting()) {
                             <p class="who">
-                                <app-icon name="user" [size]="16" />
+                                <anotoki-icon name="user" [size]="16" />
                                 <span>{{ "take.asVisitor" | translate }}</span>
                             </p>
                             <app-visitor-notice />
                         }
 
                         @if (draft(); as draft) {
-                            <app-alert tone="info" [heading]="'take.carryOn.heading' | translate">
+                            <anotoki-alert tone="info" [heading]="'take.carryOn.heading' | translate">
                                 {{ "take.carryOn.text" | translate: { when: (draft.startedAt | localDate: "ago"), step: draftStep(), steps: pages().length } }}
                                 <div alertActions>
-                                    <button appButton variant="primary" (click)="carryOn()">
+                                    <button anotokiButton variant="primary" (click)="carryOn()">
                                         {{ "take.carryOn.button" | translate }}
-                                        <app-icon name="arrowRight" [size]="16" />
+                                        <anotoki-icon name="arrowRight" [size]="16" />
                                     </button>
-                                    <button appButton variant="ghost" (click)="startAgain()">{{ "take.startAgain" | translate }}</button>
+                                    <button anotokiButton variant="ghost" (click)="startAgain()">{{ "take.startAgain" | translate }}</button>
                                 </div>
-                            </app-alert>
+                            </anotoki-alert>
                         } @else {
                             <div class="start">
-                                <button appButton variant="primary" size="lg" (click)="start()">
+                                <button anotokiButton variant="primary" size="lg" (click)="start()">
                                     {{ "take.start" | translate }}
-                                    <app-icon name="arrowRight" [size]="18" />
+                                    <anotoki-icon name="arrowRight" [size]="18" />
                                 </button>
                             </div>
                         }
@@ -178,17 +178,17 @@
                         }
 
                         <footer class="step-actions">
-                            <button appButton variant="ghost" (click)="back()">
-                                <app-icon name="arrowLeft" [size]="17" />
+                            <button anotokiButton variant="ghost" (click)="back()">
+                                <anotoki-icon name="arrowLeft" [size]="17" />
                                 {{ "take.back" | translate }}
                             </button>
-                            <button appButton variant="primary" type="submit" [loading]="sending()">
+                            <button anotokiButton variant="primary" type="submit" [loading]="sending()">
                                 @if (isLast()) {
                                     {{ "take.send" | translate }}
-                                    <app-icon name="send" [size]="16" />
+                                    <anotoki-icon name="send" [size]="16" />
                                 } @else {
                                     {{ "take.next" | translate }}
-                                    <app-icon name="arrowRight" [size]="17" />
+                                    <anotoki-icon name="arrowRight" [size]="17" />
                                 }
                             </button>
                         </footer>
@@ -200,16 +200,16 @@
 } @else {
     @switch (state()) {
         @case ("loading") {
-            <div class="loading"><app-spinner [label]="'take.loading' | translate" [showLabel]="true" /></div>
+            <div class="loading"><anotoki-spinner [label]="'take.loading' | translate" [showLabel]="true" /></div>
         }
         @case ("failed") {
             <article class="card">
                 <div class="body message" role="alert">
-                    <span class="message-icon"><app-icon name="alert" [size]="22" /></span>
+                    <span class="message-icon"><anotoki-icon name="alert" [size]="22" /></span>
                     <h1 class="message-heading">{{ "take.failed.heading" | translate }}</h1>
                     <p class="muted">{{ "take.failed.text" | translate }}</p>
-                    <button appButton variant="primary" (click)="retry()">
-                        <app-icon name="refresh" [size]="16" />
+                    <button anotokiButton variant="primary" (click)="retry()">
+                        <anotoki-icon name="refresh" [size]="16" />
                         {{ "common.tryAgain" | translate }}
                     </button>
                 </div>
@@ -218,10 +218,10 @@
         @default {
             <article class="card">
                 <div class="body message">
-                    <span class="message-icon"><app-icon name="search" [size]="22" /></span>
+                    <span class="message-icon"><anotoki-icon name="search" [size]="22" /></span>
                     <h1 class="message-heading">{{ "take.missing.heading" | translate }}</h1>
                     <p class="muted">{{ "take.missing.text" | translate }}</p>
-                    <a appButton variant="primary" routerLink="/">{{ "take.missing.link" | translate }}</a>
+                    <a anotokiButton variant="primary" routerLink="/">{{ "take.missing.link" | translate }}</a>
                 </div>
             </article>
         }

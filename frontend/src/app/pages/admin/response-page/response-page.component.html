@@ -2,31 +2,31 @@
     <div class="page">
         <div class="top">
             <a class="back" [routerLink]="['/admin/surveys', survey.id, 'results']" [queryParams]="{ tab: 'people' }">
-                <app-icon name="arrowLeft" [size]="16" />
+                <anotoki-icon name="arrowLeft" [size]="16" />
                 The results of “{{ survey.title }}”
             </a>
             @if (response() && index() >= 0) {
                 <div class="stepper">
                     <a
-                        appButton
+                        anotokiButton
                         size="sm"
                         [iconOnly]="true"
                         aria-label="The one before"
                         title="The one before"
                         [disabled]="!previous()"
                         [routerLink]="['/admin/surveys', survey.id, 'responses', previous() ?? responseId()]">
-                        <app-icon name="chevronLeft" [size]="16" />
+                        <anotoki-icon name="chevronLeft" [size]="16" />
                     </a>
                     <span class="stepper-count">{{ index() + 1 }} of {{ all().length }}</span>
                     <a
-                        appButton
+                        anotokiButton
                         size="sm"
                         [iconOnly]="true"
                         aria-label="The next one"
                         title="The next one"
                         [disabled]="!next()"
                         [routerLink]="['/admin/surveys', survey.id, 'responses', next() ?? responseId()]">
-                        <app-icon name="chevronRight" [size]="16" />
+                        <anotoki-icon name="chevronRight" [size]="16" />
                     </a>
                 </div>
             }
@@ -45,13 +45,13 @@
                         }
                     </div>
                     <div class="sheet-actions">
-                        <button appButton size="sm" variant="ghost" (click)="print()">
-                            <app-icon name="fileText" [size]="15" />
+                        <button anotokiButton size="sm" variant="ghost" (click)="print()">
+                            <anotoki-icon name="fileText" [size]="15" />
                             Print
                         </button>
                         @if (auth.isAdmin()) {
-                            <button appButton size="sm" variant="ghost" class="delete" (click)="remove()">
-                                <app-icon name="trash" [size]="15" />
+                            <button anotokiButton size="sm" variant="ghost" class="delete" (click)="remove()">
+                                <anotoki-icon name="trash" [size]="15" />
                                 Delete
                             </button>
                         }
@@ -88,28 +88,28 @@
         } @else if (!responsesLoaded()) {
             @if (responsesError(); as error) {
                 <div class="empty-card">
-                    <app-empty-state icon="alert" heading="The answers could not be loaded" [text]="error.message" />
+                    <anotoki-empty-state icon="alert" heading="The answers could not be loaded" [text]="error.message" />
                 </div>
             } @else {
-                <div class="loading"><app-spinner label="Loading the answers" [showLabel]="true" /></div>
+                <div class="loading"><anotoki-spinner label="Loading the answers" [showLabel]="true" /></div>
             }
         } @else {
             <div class="empty-card">
-                <app-empty-state icon="search" heading="These answers are not here" text="They may have been deleted.">
-                    <a appButton variant="primary" [routerLink]="['/admin/surveys', survey.id, 'results']">The results</a>
-                </app-empty-state>
+                <anotoki-empty-state icon="search" heading="These answers are not here" text="They may have been deleted.">
+                    <a anotokiButton variant="primary" [routerLink]="['/admin/surveys', survey.id, 'results']">The results</a>
+                </anotoki-empty-state>
             </div>
         }
     </div>
 } @else if (loadError(); as error) {
     <div class="empty-card">
-        <app-empty-state
+        <anotoki-empty-state
             [icon]="error.status === 404 ? 'search' : 'alert'"
             [heading]="error.status === 404 ? 'There is no such survey' : 'The survey could not be loaded'"
             [text]="error.status === 404 ? 'It may have been deleted.' : error.message">
-            <a appButton variant="primary" routerLink="/admin">All surveys</a>
-        </app-empty-state>
+            <a anotokiButton variant="primary" routerLink="/admin">All surveys</a>
+        </anotoki-empty-state>
     </div>
 } @else {
-    <div class="loading"><app-spinner label="Loading the survey" [showLabel]="true" /></div>
+    <div class="loading"><anotoki-spinner label="Loading the survey" [showLabel]="true" /></div>
 }

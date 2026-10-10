@@ -10,10 +10,10 @@
   justify-content: space-between;
   gap: 0.5rem 1rem;
   padding: 0.35rem 0.5rem 0.35rem 0.35rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
 }
 
 // Many languages scroll sideways inside the row; the page never does.
@@ -33,17 +33,17 @@
   min-height: 2.4rem;
   padding: 0 0.8rem;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--anotoki-radius);
   background: transparent;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.9375rem;
   font-weight: 650;
   white-space: nowrap;
   cursor: pointer;
 
   &:hover {
-    background: var(--surface-3);
-    color: var(--text);
+    background: var(--anotoki-surface-3);
+    color: var(--anotoki-text);
   }
 
   // Inside the row, which clips what is drawn outside it.
@@ -52,42 +52,42 @@
   }
 
   &.is-active {
-    border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
-    background: var(--primary-soft);
-    color: var(--primary-soft-text);
+    border-color: color-mix(in srgb, var(--anotoki-primary) 45%, var(--anotoki-border));
+    background: var(--anotoki-primary-soft);
+    color: var(--anotoki-primary-soft-text);
   }
 }
 
 .tag {
   padding: 0.05rem 0.45rem;
-  border: 1px solid var(--border);
+  border: 1px solid var(--anotoki-border);
   border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--muted);
+  background: var(--anotoki-surface-2);
+  color: var(--anotoki-muted);
   font-size: 0.72rem;
   font-weight: 700;
 }
 
 .tag-warn {
-  border-color: var(--warning-border);
-  background: var(--warning-soft);
-  color: var(--warning);
+  border-color: var(--anotoki-warning-border);
+  background: var(--anotoki-warning-soft);
+  color: var(--anotoki-warning);
 }
 
 .progress {
   padding: 0.05rem 0.45rem;
-  border: 1px solid var(--warning-border);
+  border: 1px solid var(--anotoki-warning-border);
   border-radius: 999px;
-  background: var(--warning-soft);
-  color: var(--warning);
+  background: var(--anotoki-warning-soft);
+  color: var(--anotoki-warning);
   font-size: 0.75rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 
   &.is-done {
-    border-color: var(--success-border);
-    background: var(--success-soft);
-    color: var(--success);
+    border-color: var(--anotoki-success-border);
+    background: var(--anotoki-success-soft);
+    color: var(--anotoki-success);
   }
 }
 
@@ -104,43 +104,49 @@
   align-items: center;
   gap: 0.3rem;
   padding-left: 0.6rem;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--anotoki-border-strong);
   border-radius: 8px;
-  background: var(--surface);
-  color: var(--muted);
+  background: var(--anotoki-surface);
+  color: var(--anotoki-muted);
 
   &:hover {
-    background: var(--surface-3);
-    color: var(--text);
+    background: var(--anotoki-surface-3);
+    color: var(--anotoki-text);
   }
 
   &:focus-within {
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px var(--ring);
+    border-color: var(--anotoki-primary);
+    box-shadow: 0 0 0 3px var(--anotoki-ring);
   }
 }
 
 .add-select {
-  height: calc(var(--control-height-sm) - 2px);
+  height: calc(var(--anotoki-control-height-sm) - 2px);
   max-width: 12rem;
   padding: 0 0.4rem 0 0.1rem;
   border: 0;
   background: transparent;
-  color: var(--text);
+  color: var(--anotoki-text);
   font-size: 0.875rem;
   font-weight: 650;
   outline: none;
   cursor: pointer;
 
   option {
-    background: var(--surface);
-    color: var(--text);
+    background: var(--anotoki-surface);
+    color: var(--anotoki-text);
   }
 }
 
 .remove {
-  --btn-fg: var(--danger);
-  --btn-hover-bg: var(--danger-soft);
+  // A ghost button in red: the kit has no such variant, and its button sets its colours on its host, which
+  // this class (with :hover) outranks.
+  color: var(--anotoki-danger);
+
+  &:hover {
+    background: var(--anotoki-danger-soft);
+    color: var(--anotoki-danger);
+  }
 }
 
 // A phone: two tabs no longer fit side by side once one says more than its

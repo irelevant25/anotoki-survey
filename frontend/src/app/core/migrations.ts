@@ -1,6 +1,6 @@
 import { EnvironmentProviders, InjectionToken, WritableSignal, inject, signal } from '@angular/core';
 import { type SiteStatusWords, provideAnotokiMigrations } from '@anotoki/lib/migrations';
-import { ToastService } from '../ui/toast/toast.service';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminDates } from './admin/admin-dates.service';
 import { AuthService } from './auth/auth.service';
 import { signInOrSayWhy } from './auth/sign-in-failure';

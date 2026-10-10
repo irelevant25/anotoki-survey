@@ -5,6 +5,7 @@ import { siteStatusInterceptor } from "@anotoki/lib/migrations";
 import { routes } from "./app.routes";
 import { authInterceptor } from "./core/auth/auth.interceptor";
 import { boot } from "./core/boot";
+import { provideSiteKit } from "./core/kit";
 import { provideSiteMigrations } from "./core/migrations";
 import { SurveyTitleStrategy } from "./core/title.strategy";
 
@@ -20,6 +21,8 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withFetch(), withInterceptors([siteStatusInterceptor, authInterceptor])),
     // The anotoki family's migrations module, wired to this site's sign-in, words and dates - see core/migrations.ts.
     provideSiteMigrations(),
+    // The anotoki family's UI kit and top bar, wired to this site's words, icons, account and languages - see core/kit.ts.
+    provideSiteKit(),
     { provide: TitleStrategy, useClass: SurveyTitleStrategy },
     // Before the first page: where the site stands, the theme, the sign-in, the
     // language and its strings - see boot().

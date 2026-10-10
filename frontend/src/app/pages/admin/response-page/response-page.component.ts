@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { ButtonComponent, EmptyStateComponent, IconComponent, SpinnerComponent } from '@anotoki/lib/ui';
+import { ConfirmService } from '@anotoki/lib/ui/dialog';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminDates } from '../../../core/admin/admin-dates.service';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
@@ -7,12 +10,6 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { ageLabel, genderLabel } from '../../../core/survey/about-you';
 import { durationSeconds } from '../../../core/survey/results';
 import { formatDuration } from '../../../core/util/dates';
-import { ButtonComponent } from '../../../ui/button/button.component';
-import { ConfirmService } from '../../../ui/confirm/confirm.service';
-import { EmptyStateComponent } from '../../../ui/empty-state/empty-state.component';
-import { IconComponent } from '../../../ui/icon/icon.component';
-import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
-import { ToastService } from '../../../ui/toast/toast.service';
 import { ResponseViewComponent } from '../response-view/response-view.component';
 import { hueOf } from '../survey-results/people-list/people-list.component';
 

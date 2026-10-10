@@ -1,3 +1,8 @@
+@use "fields";
+
+// The fields this page draws itself (src/styles/_fields.scss): first, so its own rules below win.
+@include fields.styles;
+
 .page {
   display: flex;
   flex-direction: column;
@@ -6,9 +11,9 @@
 
 .empty-card {
   padding: 2rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
 }
 
 .loading {
@@ -35,10 +40,10 @@
   gap: 0.15rem;
   min-width: 9rem;
   padding: 0.8rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
 }
 
 .fact-value {
@@ -55,13 +60,13 @@
 }
 
 .fact-of {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 1rem;
   font-weight: 650;
 }
 
 .fact-label {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
 }
 
@@ -81,16 +86,16 @@
   align-items: center;
   gap: 0.5rem 0.75rem;
   padding: 0.7rem 0.9rem;
-  border: 1px solid var(--info-border);
-  border-radius: var(--radius-lg);
-  background: var(--info-soft);
+  border: 1px solid var(--anotoki-info-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-info-soft);
 }
 
 .filters-lead {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  color: var(--primary-soft-text);
+  color: var(--anotoki-primary-soft-text);
   font-size: 0.875rem;
   font-weight: 700;
 }
@@ -110,16 +115,16 @@
   gap: 0.4rem;
   max-width: 100%;
   padding: 0.2rem 0.3rem 0.2rem 0.7rem;
-  border: 1px solid var(--info-border);
+  border: 1px solid var(--anotoki-info-border);
   border-radius: 999px;
-  background: var(--surface);
+  background: var(--anotoki-surface);
   font-size: 0.8125rem;
 }
 
 .chip-question {
   max-width: 16rem;
   overflow: hidden;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -137,12 +142,12 @@
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   cursor: pointer;
 
   &:hover {
-    background: var(--danger-soft);
-    color: var(--danger);
+    background: var(--anotoki-danger-soft);
+    color: var(--anotoki-danger);
   }
 }
 
@@ -151,7 +156,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--link);
+  color: var(--anotoki-link);
   font-size: 0.875rem;
   font-weight: 700;
   cursor: pointer;
@@ -188,8 +193,8 @@
   flex: none;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
-  background: var(--text);
-  color: var(--surface);
+  background: var(--anotoki-text);
+  color: var(--anotoki-surface);
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -201,10 +206,10 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
   gap: 1rem 2rem;
   padding: 1.1rem 1.2rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
 }
 
 .about-part {
@@ -215,7 +220,7 @@
 }
 
 .about-title {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -226,10 +231,10 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 .people-card {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+  box-shadow: var(--anotoki-shadow-sm);
   overflow: hidden;
 }
 
@@ -240,7 +245,7 @@
   justify-content: space-between;
   gap: 0.75rem;
   padding: 1rem 1.1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--anotoki-border);
 }
 
 .search {
@@ -255,7 +260,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--text);
+  color: var(--anotoki-text);
   text-align: left;
   cursor: pointer;
 
@@ -289,14 +294,14 @@
 }
 
 .who-email {
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   overflow-wrap: anywhere;
 }
 
 .nobody {
   padding: 2rem 1rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   text-align: center;
 }
 
@@ -319,7 +324,7 @@
 
 .stepper-count {
   min-width: 4.5rem;
-  color: var(--muted);
+  color: var(--anotoki-muted);
   font-size: 0.8125rem;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -331,8 +336,8 @@
   gap: 0.5rem 1.5rem;
   margin: 0 0 1.25rem;
   padding: 0.75rem 0.9rem;
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-surface-2);
 
   div {
     display: flex;
@@ -341,7 +346,7 @@
   }
 
   dt {
-    color: var(--muted);
+    color: var(--anotoki-muted);
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.05em;
@@ -359,12 +364,18 @@
   justify-content: flex-end;
   margin-top: 1.75rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--anotoki-border);
 }
 
 .delete {
-  --btn-fg: var(--danger);
-  --btn-hover-bg: var(--danger-soft);
+  // A ghost button in red: the kit has no such variant, and its button sets its colours on its host, which
+  // this class (with :hover) outranks.
+  color: var(--anotoki-danger);
+
+  &:hover {
+    background: var(--anotoki-danger-soft);
+    color: var(--anotoki-danger);
+  }
 }
 
 @media (max-width: 720px) {

@@ -22,18 +22,22 @@ is only needed to change PHP dependencies - and for `composer start`.
 ### The anotoki family's library
 
 The database's migrations - the engine, the gate in front of the API, the page
-drawn while the site cannot run and the admin panel's Migrations page - are
+drawn while the site cannot run and the admin panel's Migrations page - and
+the UI kit - the family's styles and tokens, its components, the top bar and
+the theme (the frontend's `core/kit.ts` wires it in) - are
 the shared library **anotoki-lib** (`https://github.com/irelevant25/anotoki-lib`,
 its README), one version for both halves:
 
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
 | PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.1"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.1.1/anotoki-lib-0.1.1.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.2.0/anotoki-lib-0.2.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
 The PHP half is at 0.1.0 (`composer.lock` names `v0.1.0`) and the Angular half
-at 0.1.1: 0.1.1 changed only the Angular half, and its CHANGELOG says a site
-may keep `vendor/anotoki/lib` at 0.1.0.
+at 0.2.0: 0.1.1 and 0.2.0 changed only the Angular half, and their CHANGELOG
+says a site may keep `vendor/anotoki/lib` at 0.1.x. The package brings Manrope
+with it (`@fontsource-variable/manrope`, its dependency) and the theme's
+`theme-boot.js` (`angular.json` copies it next to `index.html`).
 
 To update to a new release, both halves together (0.x: a minor version may
 break - read its CHANGELOG first; a release that changes one half only says

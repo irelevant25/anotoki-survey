@@ -43,7 +43,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   would publish.
 - **While the site cannot run, the anotoki family's library decides what
   happens** (anotoki-lib - `anotoki/lib` 0.1.0 in `backend/vendor/`,
-  `@anotoki/lib/migrations` 0.1.1 in the frontend: 0.1.1 changed only the
+  `@anotoki/lib` 0.2.0 in the frontend: 0.1.1 and 0.2.0 changed only the
   Angular half; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
   GitHub, never a local path). Its `SiteGate` stands in front of every route:
@@ -55,9 +55,9 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   `/file`, `/apply` - each exactly, never what is under them; ADMIN judged
   from the token alone) keep working (`SITE_OPEN_WHILE_UPDATING`,
   `api/migrations.php`). In the browser the family's page stands instead of
-  every page (`<anotoki-site-gate>`, the router outlet given to it as an
-  `<ng-template>` so that no page is made behind it; the guards send nobody to
-  the IAM then):
+  every page (`<anotoki-site-gate>`, the router outlet given to it as the
+  `<ng-template anotokiSitePages>` so that no page is made behind it; the
+  guards send nobody to the IAM then):
   "being updated" for everybody - a quiet Sign in while nobody is signed in -
   and the way to the Migrations page for the site's ADMIN. Applying takes one
   lock (`DATABASE_UPDATE_LOCK`) shared with `setup.php`, `migration.php` and
@@ -154,14 +154,20 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   `image*`, `richText*`, `answer*`, `language*`, `translation*`, `database*`), `?`
   parameters in every query, identifiers only from literals. `setup.php` stays
   parseable by PHP 7.4.
-- **The top bar is the anotoki family's** (`layouts/top-bar`, the one the other
-  sites copy): one row - brand, links, language, theme, the person's menu; up
-  to 760 px one menu button holds the links and the person's menu.
+- **The top bar is the anotoki family's** - the library's `<anotoki-top-bar>`
+  (`@anotoki/lib/shell`), told by the site's thin wrapper `layouts/top-bar`
+  what is this site's: its brand, its sections (Migrations alone while an
+  update waits), the person and their role, "Your anotoki account" and the
+  way into the admin panel or back, signing in and out (saved first, asked
+  when something would be lost). One row - brand, links, language, theme, the
+  person's menu; up to 760 px (`PHONE_BAR_MAX`, its `phoneMax`) one menu
+  button holds the links and the person's menu.
 - **The theme, the date order, the clock and the language are the anotoki
   account's** for somebody signed in (the IAM's migration 015, the owner's
   decision of 2026-10-06; the vendored SDK 1.2.0 - `AuthService.preferences`,
   `savePreferences()`): one theme for every site and every part of each, the
-  admin panel too (`ThemeService`); dates in the account's order on both sides
+  admin panel too (the library's `ThemeService`, configured in
+  `core/kit.ts`); dates in the account's order on both sides
   (`localDate`; the admin panel's through `AdminDates`, with its clock); its
   language over the device's choice (`TranslationService`). The bar's theme
   and the chooser save a choice to the account - shown at once, one save at a
@@ -171,8 +177,16 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   nothing to the account.
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
-  query parameters arrive as inputs. The UI kit is the IAM's (`src/app/ui/`);
-  colours only from the tokens in `src/styles.scss`, light and dark; every page
+  query parameters arrive as inputs. **The UI kit is the anotoki family's**
+  (anotoki-lib 0.2.0: `@anotoki/lib/ui` and its entry points, `@anotoki/lib/shell`;
+  the owner's decisions of 2026-10-07, `docs/decisions.md`), wired to the site
+  in `core/kit.ts` and never copied here - `src/app/ui/` holds only the
+  survey's own pieces (the rich text editor, the lightbox, its pictures).
+  Colours only from the family's `--anotoki-*` tokens (`@anotoki/lib/styles`:
+  `anotoki.root()` in `src/styles.scss`, light and dark) and the survey's own
+  few there (`--mark-*`, `--bar-*`, `--night-*`, `--rule-strong`); no global
+  rule a kit component could meet - a field the site draws itself takes
+  `src/styles/_fields.scss` into its own styles. Every page
   works at 390 px (360 px for the top bar). Words: what the site itself says
   to somebody taking a survey (their pages, the top bar, the UI kit pieces
   they meet) is a key, never a sentence in a template or in state - state holds
@@ -182,8 +196,11 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   the load error card's fallback beside its keys (`boot/kept-word.ts`). The
   family's page and Migrations page bring their own words (the library's
   English and Slovak; this site's formal Slovak for the one sentence that
-  addresses the reader, `core/migrations.ts`), and take the colours through
-  the `--anotoki-*` properties `styles.scss` maps onto the tokens.
+  addresses the reader, `core/migrations.ts`), and the same tokens. The kit's
+  own words (Sign in, the menus' names, the theme's, a toast's X) are the
+  site's strings wherever it has one (`core/kit.ts`: `lookup`, so an
+  administrator's rewording shows too) and, where it has none, this site's
+  formal Slovak - never the kit's built-in ty.
 - **No changelog** on this site (the owner's decision); the version is
   `frontend/package.json`'s.
 

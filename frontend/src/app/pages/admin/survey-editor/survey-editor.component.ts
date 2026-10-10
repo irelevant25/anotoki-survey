@@ -1,6 +1,9 @@
 import { CdkDrag, CdkDragDrop, CdkDropList, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, DOCUMENT, ElementRef, Injector, afterNextRender, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { AlertComponent, ButtonComponent, EmptyStateComponent, IconComponent, SpinnerComponent } from '@anotoki/lib/ui';
+import { ConfirmService } from '@anotoki/lib/ui/dialog';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminStore, SURVEY_TOO_LARGE } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -11,14 +14,7 @@ import { duplicateQuestion, newQuestion, newStep } from '../../../core/survey/su
 import { currentStatus, numberedQuestions } from '../../../core/survey/survey-outline';
 import { SurveyProblem, surveyProblems } from '../../../core/survey/survey-problems';
 import { Question, QuestionType, Step, Survey } from '../../../core/survey/survey.model';
-import { AlertComponent } from '../../../ui/alert/alert.component';
-import { ButtonComponent } from '../../../ui/button/button.component';
-import { ConfirmService } from '../../../ui/confirm/confirm.service';
-import { EmptyStateComponent } from '../../../ui/empty-state/empty-state.component';
-import { IconComponent } from '../../../ui/icon/icon.component';
 import { RichTextEditorComponent } from '../../../ui/rich-text-editor/rich-text-editor.component';
-import { SpinnerComponent } from '../../../ui/spinner/spinner.component';
-import { ToastService } from '../../../ui/toast/toast.service';
 import { SurveyHeaderComponent } from '../survey-header/survey-header.component';
 import { EditorLanguagesComponent } from './editor-languages/editor-languages.component';
 import { EditorOutlineComponent } from './editor-outline/editor-outline.component';

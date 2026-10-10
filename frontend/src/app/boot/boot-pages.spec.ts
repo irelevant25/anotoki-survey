@@ -81,7 +81,7 @@ describe('The pages drawn instead of the site', () => {
       await fixture.whenStable();
       const host: HTMLElement = fixture.nativeElement;
 
-      expect(words(host.querySelector('app-brand .area'))).toBe('survey');
+      expect(words(host.querySelector('anotoki-brand .area'))).toBe('survey');
       expect(words(host.querySelector('h1'))).toBe('The survey site cannot be reached');
       expect(words(host.querySelector('p'))).toBe('The server did not answer. It may be down for a moment, or the connection may be. Try again in a little while.');
       expect(words(host.querySelector('button'))).toBe('Try again');

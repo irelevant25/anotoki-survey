@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateChildFn, CanActivateFn, Router } from '@angular/router';
 import { SiteStatus } from '@anotoki/lib/migrations';
-import { ToastService } from '../../ui/toast/toast.service';
+import { ToastService } from '@anotoki/lib/ui/toast';
 import { TranslationService } from '../i18n/translation.service';
 import { AuthService } from './auth.service';
 import { sayWhySignInFailed } from './sign-in-failure';
