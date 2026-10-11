@@ -21,37 +21,45 @@ lists.
 Security and correctness first:
 
 - **Who and what role**: every route that reads or writes somebody's data or a
-  survey has `requireUser()` / `requireRole()` (the three survey routes `requireTaker()`) -
+  survey has the library's `Identify` in front of its group and `RequirePerson` /
+  `requireStaff()` / `requireAdmin()` behind it (the three survey routes `RequireCaller`) -
   nothing of a survey answers without a token while sign-in is required (only a `Bearer` header claims to be somebody: a bad or empty
   one is 401 `invalid_token`, never nobody; `Basic` is ignored; whether the IAM
-  requires sign-in is `authLoginRequired()` - the SDK's reader, failing closed -
+  requires sign-in is `authLoginRequired()` - the library's `SignInRule`, failing closed -
   never a fetch of the site's own) (the pictures are the one exception, on purpose: an `<img>`
-  sends none, and their addresses are random UUIDs); the admin group has `ROLES_STAFF`; deletes and
-  the migrations have `ROLE_ADMIN`. **Visitors**: a visitor key makes somebody a visitor only in
-  `requireTaker()` (the three survey routes), and only after "no Bearer header" and "the IAM says
+  sends none, and their addresses are random UUIDs); the admin group has `ROLES_STAFF`; deletes,
+  the migrations and the System's routes (people, error log, audit log, backups) are ADMIN's alone
+  (an EDITOR reading any of them is a finding); a backup is made, downloaded, deleted or restored
+  only after a sign-in of the last ten minutes, and its download link is single-use; every admin
+  change is audited by the token's person. **No person's address is kept** (011): a new column or
+  answer field holding one is a finding; a new column with a person's data has its place in the
+  scrub of the IAM's deleted accounts. **Visitors**: a visitor key makes somebody a visitor only on
+  the three survey routes (`surveyIdentify(..., visitors: true)`), and only after "no Bearer header" and "the IAM says
   sign-in is not required" - in that order; the one other reader of `X-Visitor-Key` is
-  `POST /api/visitor/move`, which needs a verified token as well (`requireUser()`) and only hands
-  the key in - any other reader is a finding; a visitor `SiteUser` never passes `requireUser()` / `requireRole()` /
-  `signedInUser()`; a visitor is made only inside the transaction that keeps its answers, after the
+  `POST /api/visitor/move`, which needs a verified token as well (`RequirePerson`) and only hands
+  the key in - any other reader is a finding; a visitor `SiteUser` never passes `RequirePerson` /
+  `requireStaff()` / `currentPerson()`; a visitor is made only inside the transaction that keeps its answers, after the
   limits; the key is never logged, never in a body or an address, only its hash stored; a write
   for a taker holds the taker's row first (`visitorHold()`) so a row that went is 401
-  `visitor_unknown`, never a 503. A visitor's `person` has no address: anything new in the admin
-  panel that shows `person.email` says "Not signed in" for `person.visitor`. Only what
+  `visitor_unknown`, never a 503. Anything new in the admin panel that names a person says
+  "Not signed in" for `person.visitor`. Only what
   `siteOpenWhileUpdating()` lists answers while a migration is pending (the auth config, the strings - the library's
   `TranslationsRoutes::openPath()` -, the health
-  check, the migrations routes - each exactly, never a prefix: the anotoki family's `SiteGate`, `api/migrations.php`) - never anything that
-  reads or writes the site's data; the migrations routes' ADMIN check is the token's alone (`requireTokenRole()`);
+  check, the migrations routes, the error log's and the backups' - each exactly, never a prefix: the anotoki family's `SiteGate`, `api/migrations.php`) - never anything that
+  reads or writes the site's data, never a restore; those routes' ADMIN check is the token's alone (`requireAdmin()`, no `RecordPerson`);
   whatever applies migrations goes through `surveyMigrator()` on a connection of its own (one lock); the setup page
   is offered only while `storage/installed.lock` is not there; the library itself (`vendor/anotoki/lib`,
   `@anotoki/lib`) is never edited in this repository - an edit there is a finding.
-  Every page is under a layout whose route has `signInGuard` - or, the pages
-  people take surveys on, `takeSurveysGuard` (open to visitors only while
-  `visitorsWelcome`); the admin panel and the editor's preview sign in
+  Every page is under a layout whose route has the library's `personGuard` - or, the pages
+  people take surveys on, `personOrVisitorGuard` (open to visitors only while
+  the site welcomes them), with `signInFailureGuard`; a failed sign-in is the
+  library's screen (`/auth/callback`), never sent straight back to the IAM; the
+  sign-in hint stays off here (`hint: false`, the owner's decision); the admin panel and the editor's preview sign in
   whatever the switch (only the pages drawn while the site cannot run draw without either - the family's
   page, behind which no page is made: the outlet is `<anotoki-site-gate>`'s `<ng-template>`, made only while the
   gate shows the pages - an outlet given to it as it is is a finding - and nobody but the site's ADMIN reads why
   the site is closed). In the
-  browser a request says whom it is for as it is made (`ISSUED_AS` in
+  browser a request says whom it is for as it is made (the library's `ISSUED_AS`, set by
   `ApiService`): a person's never leaves without a token (a local 401), a
   visitor's never carries one; the key goes only to `/api/surveys`, only
   while sign-in is not required, is kept on `sign_in_required` and forgotten
@@ -159,7 +167,7 @@ Then the house style:
 - Angular: three files per component, OnPush, signals, `inject()`, inputs for
   route/query parameters, colours from tokens (light and dark), 390 px; no
   logic duplicated from `core/` into a component. The UI kit is the family's
-  (`@anotoki/lib` 0.3.0): a copy of a kit piece in `src/app/ui/`, a global
+  (`@anotoki/lib` 0.4.1): a copy of a kit piece in `src/app/ui/`, a global
   style a kit component would meet, an import from the `@anotoki/lib/ui`
   barrel instead of the piece's own entry point (the first load), or a
   selector of the kit's 0.2.0 class names in a spec or the browser check

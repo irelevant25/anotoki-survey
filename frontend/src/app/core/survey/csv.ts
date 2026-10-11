@@ -7,7 +7,9 @@ import { Survey, SurveyResponse } from './survey.model';
 /**
  * The responses as a spreadsheet: one row per person, one column per
  * question. Several choices share a cell, separated by "; ", and "Other"
- * carries what the person wrote ("Other: TikTok").
+ * carries what the person wrote ("Other: TikTok"). A person is their name -
+ * the anotoki account's, or "Visitor 12" - and no address: the site keeps
+ * none (the IAM does).
  *
  * A cell that starts like a formula (= + - @) gets a leading apostrophe, so a
  * spreadsheet shows what a person typed instead of running it. The byte-order
@@ -15,17 +17,10 @@ import { Survey, SurveyResponse } from './survey.model';
  */
 export function responsesCsv(survey: Survey, responses: readonly SurveyResponse[]): string {
   const questions = numberedQuestions(survey);
-  const header = [
-    'Submitted',
-    'Name',
-    'Email',
-    ...(survey.askAboutYou ? ['Gender', 'Age'] : []),
-    ...questions.map(({ number, question }) => `${number}. ${plainText(question.text)}`),
-    'Seconds taken',
-  ];
+  const header = ['Submitted', 'Name', ...(survey.askAboutYou ? ['Gender', 'Age'] : []), ...questions.map(({ number, question }) => `${number}. ${plainText(question.text)}`), 'Seconds taken'];
 
   const rows = responses.map((response) => {
-    const cells = [response.submittedAt, response.person.name, response.person.email];
+    const cells = [response.submittedAt, response.person.name];
     if (survey.askAboutYou) {
       cells.push(response.aboutYou ? genderLabel(response.aboutYou.gender) : '', response.aboutYou ? ageLabel(response.aboutYou.age) : '');
     }

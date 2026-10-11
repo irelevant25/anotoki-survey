@@ -252,7 +252,7 @@ test('the results: every filled survey with who filled it; an administrator can 
     $responses = as_user(EDITH, 'GET', "/api/admin/surveys/$id/responses")['body']['responses'];
     assert_same(2, count($responses));
     $quinn = $responses[0];
-    assert_same(['id' => (string) QUINN, 'name' => 'user' . QUINN, 'email' => 'user' . QUINN . '@example.test', 'visitor' => false], $quinn['person'], 'newest first, named from the token');
+    assert_same(['id' => (string) QUINN, 'name' => 'user' . QUINN, 'visitor' => false], $quinn['person'], 'newest first, named from the token - and no address: the IAM keeps those, this site none');
     assert_same(['gender' => 'undisclosed', 'age' => 'undisclosed'], $quinn['aboutYou']);
     assert_json_same(['q-element' => ['text' => '', 'other' => '', 'optionIds' => ['o-geo']], 'q-words' => ['text' => 'More Geo!', 'other' => '', 'optionIds' => []]], $quinn['answers']);
     assert_same($id, $quinn['surveyId']);

@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
 import { TranslationService } from '@anotoki/lib/translations';
-import { type AnotokiDateFormat } from '../auth/anotoki-auth';
+import { type AnotokiDateFormat } from '@anotoki/lib/auth';
 import { AuthService } from '../auth/auth.service';
 import { formatDatePattern } from '../util/date-patterns';
 import { calendarDays } from '../util/dates';

@@ -199,9 +199,9 @@ test('nobody\'s answers that are kept make a visitor: its key in a header of the
     assert_same(['id', 'submittedAt'], array_keys($sent['body']), 'the body as a person\'s');
     assert_no_match('/' . preg_quote($key, '/') . '/', $sent['raw'], 'never in the body');
 
-    $row = dbOne('SELECT id, preferred_username, email, visitor_key_hash, last_seen_at > now() - interval \'1 minute\' AS seen FROM users WHERE id < 0');
+    $row = dbOne('SELECT id, preferred_username, anonymized_at, visitor_key_hash, last_seen_at > now() - interval \'1 minute\' AS seen FROM users WHERE id < 0');
     assert_true((int) $row['id'] < 0, 'a negative id');
-    assert_same([null, null, hash('sha256', $key), true], [$row['preferred_username'], $row['email'], $row['visitor_key_hash'], $row['seen']]);
+    assert_same([null, null, hash('sha256', $key), true], [$row['preferred_username'], $row['anonymized_at'], $row['visitor_key_hash'], $row['seen']]);
     assert_same((int) $row['id'], (int) dbValue('SELECT user_id FROM responses WHERE id = ?', [$sent['body']['id']]), 'the answers are the visitor\'s');
     assert_same(['visitors:new' => 1, 'visitors:new:203.0.113.9' => 1], counters());
 
@@ -293,10 +293,10 @@ test('a Bearer header is that person or a refusal, never the key; another scheme
     $key = new_visitor();
     dbExec("UPDATE users SET last_seen_at = now() - interval '2 hours' WHERE id < 0");
     $before = dbValue('SELECT last_seen_at FROM users WHERE id < 0');
-    $other = anotoki_iam_test_keypair('not-the-iam');
+    $other = test_forger(); // the tests' key id, another key
     $refused = [
         'a token that ran out' => 'Bearer ' . test_token(PAT, ['MEMBER'], ['exp' => time() - 120]),
-        'a token signed by somebody else' => 'Bearer ' . test_token(PAT, ['MEMBER'], [], ['keys' => $other, 'kid' => 'survey-test-key']),
+        'a token signed by somebody else' => 'Bearer ' . test_token(PAT, ['MEMBER'], [], ['iam' => $other]),
         'not a token' => 'Bearer x',
         'an empty one' => 'Bearer',
     ];
@@ -653,8 +653,8 @@ test('the results: a visitor is "Visitor N" from its own id, with no address, an
     assert_same(201, as_user(PAT, 'POST', '/api/surveys/first/responses', answers())['status']);
     $people = array_column(as_user(OWNER, 'GET', '/api/admin/surveys/' . $GLOBALS['surveys']['first'] . '/responses')['body']['responses'], 'person', 'id');
     $byId = array_column($people, null, 'id');
-    assert_same(['id' => (string) $visitor, 'name' => 'Visitor ' . -$visitor, 'email' => '', 'visitor' => true], $byId[(string) $visitor]);
-    assert_same(['id' => (string) PAT, 'name' => 'user' . PAT, 'email' => 'user' . PAT . '@example.test', 'visitor' => false], $byId[(string) PAT]);
+    assert_same(['id' => (string) $visitor, 'name' => 'Visitor ' . -$visitor, 'visitor' => true], $byId[(string) $visitor]);
+    assert_same(['id' => (string) PAT, 'name' => 'user' . PAT, 'visitor' => false], $byId[(string) PAT], 'a person by their IAM name; nobody\'s address');
 });
 
 test('the server said nothing it should not have', function (): void {

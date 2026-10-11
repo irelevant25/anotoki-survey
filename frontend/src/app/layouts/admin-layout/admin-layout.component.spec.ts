@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, RouterOutlet, provideRouter } from '@angular/router';
-import { AuthService, SignInFailure } from '../../core/auth/auth.service';
+import { AuthService } from '../../core/auth/auth.service';
 import { provideTestTranslations } from '../../core/testing/test-translations';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 import { AdminLayoutComponent } from './admin-layout.component';
@@ -22,12 +22,11 @@ describe('AdminLayoutComponent', () => {
   // As AuthService has them: no roles for anybody who is not signed in.
   const signedIn = signal(true);
   const roles = signal<string[]>(['EDITOR']);
-  const failure = signal<SignInFailure | null>(null);
   const auth = {
     signedIn: () => signedIn(),
     isStaff: () => signedIn() && (roles().includes('ADMIN') || roles().includes('EDITOR')),
-    signInFailure: failure,
-    signIn: vi.fn(async (_returnTo?: string, _uiLocales?: string) => true),
+    signInFailure: () => null,
+    signIn: vi.fn(async (_returnTo?: string, _prompt?: 'login') => true),
   };
 
   let fixture: ComponentFixture<AdminLayoutComponent>;
@@ -39,7 +38,7 @@ describe('AdminLayoutComponent', () => {
   async function layout(who: { signedIn: boolean; roles: string[] }): Promise<void> {
     signedIn.set(who.signedIn);
     roles.set(who.roles);
-    failure.set(null);
+    auth.signIn.mockClear();
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
@@ -93,32 +92,14 @@ describe('AdminLayoutComponent', () => {
     );
     expect(host.textContent).not.toContain('no editor role');
     expect(host.textContent).not.toContain('The admin panel is for the people who write the surveys');
-    // The way back is a Sign in of its own (on a phone the top bar's is inside its menu) - to the IAM in the language
-    // the person reads, not the admin area's English.
+    // The way back is a Sign in of its own (on a phone the top bar's is inside its menu) - to the IAM and back to this
+    // page (the library opens the IAM in the language the person reads, not the admin area's English).
     const button = host.querySelector<HTMLButtonElement>('anotoki-empty-state button')!;
     expect(clean(button.textContent)).toBe('Sign in');
     button.click();
-    expect(auth.signIn).toHaveBeenCalledWith(undefined, 'sk');
+    expect(auth.signIn).toHaveBeenCalledTimes(1);
+    expect(auth.signIn.mock.calls[0][0]).toBeUndefined();
     expect(host.querySelector('app-top-bar')).not.toBeNull();
-  });
-
-  it('tells somebody whose sign-in came back without one that they are not signed in - nobody had a session to end', async () => {
-    await layout({ signedIn: false, roles: [] });
-    // As the IAM's refusal leaves it (signInGuard let this page load through).
-    failure.set({ code: 'access_denied', message: 'No.' });
-    await fixture.whenStable();
-
-    expect(host.querySelector('router-outlet')).toBeNull();
-    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('You are not signed in');
-    expect(text('anotoki-empty-state .anotoki-empty-state__text')).toBe(
-      'The admin panel is for the people who write the surveys, signed in with their anotoki account. The sign-in did not complete - sign in to try again.',
-    );
-    expect(host.textContent).not.toContain('Your session has ended');
-    expect(host.textContent).not.toContain('no editor role');
-    const button = host.querySelector<HTMLButtonElement>('anotoki-empty-state button')!;
-    expect(clean(button.textContent)).toBe('Sign in');
-    button.click();
-    expect(auth.signIn).toHaveBeenCalledWith(undefined, 'sk');
   });
 
   it('says so the moment the session ends over an open page, and draws the page again for the editor who comes back', async () => {

@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslatePipe, TranslatePluralPipe, TranslationService } from '@anotoki/lib/translations';
-import { type AnotokiDateFormat, type AnotokiPreferences } from '../auth/anotoki-auth';
+import { type AnotokiDateFormat, type AnotokiPreferences } from '@anotoki/lib/auth';
 import { AuthService } from '../auth/auth.service';
 import { provideTestTranslations } from '../testing/test-translations';
 import { LocalDatePipe } from './local-date.pipe';

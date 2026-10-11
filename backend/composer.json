@@ -11,7 +11,7 @@
     ],
     "require": {
         "php": ">=8.2",
-        "anotoki/lib": "^0.3",
+        "anotoki/lib": "^0.4.1",
         "slim/psr7": "^1.8",
         "slim/slim": "^4.15"
     },

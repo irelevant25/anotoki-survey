@@ -6,7 +6,10 @@
 // own keys go, the three the pages share stay; the library's words that speak
 // to the reader read in this site's formal Slovak - whichever of 010 and the
 // library's files ran first. And its gate fails loudly where a string would be
-// lost.
+// lost. (The engine runs every set: the library's admin set first, the site's
+// later files - 011, 012 - after 010, and the library's words and people
+// after the site's; what these tests hold is 010's part of it. 012, which takes
+// the words of signing in over the same way, is sign_in_words.test.php's.)
 
 declare(strict_types=1);
 
@@ -117,8 +120,9 @@ test('010 on a database as its owner left it, then the library\'s files: every w
     $others = strings_in($pdo, 'home.%');
 
     $result = surveyMigrator($pdo)->apply();
-    assert_same(['set' => 'survey', 'name' => FILE_010], $result['applied'][0] ?? null, '010 first...');
-    assert_same([['set' => 'anotoki_translations', 'name' => '001_languages_and_strings.sql'], ['set' => 'anotoki_translations', 'name' => '002_library_words.sql']], array_slice($result['applied'], 1), '...then the library\'s files');
+    $order = applied_names($result);
+    assert_true(array_search('survey/' . FILE_010, $order, true) < array_search('anotoki_translations/001_languages_and_strings.sql', $order, true), '010 first...');
+    assert_same(library_words_files(), array_values(array_filter($order, static fn(string $file): bool => str_starts_with($file, 'anotoki_translations/'))), '...then the library\'s words, every file of them');
     assert_same([null, null], [$result['failed'], $result['error']]);
 
     // Every string of the site's keys, under the library's key: the same words, the same writer, the same moment.
@@ -166,13 +170,15 @@ test('the library\'s files applied before 010 (an upload applied before 010 arri
     $moving = what_moves($pdo);
     // The library's set alone first: its words where there were none.
     $first = (new Migrator($pdo, [Schema::migrationSet()], ['lock' => DATABASE_UPDATE_LOCK]))->apply();
-    assert_same([null, 2], [$first['failed'], count($first['applied'])]);
+    assert_same([null, count(library_words_files())], [$first['failed'], count($first['applied'])]);
     assert_same('Tvoja ponuka', strings_in($pdo, 'anotoki.topbar.menu')['anotoki.topbar.menu sk'][0], 'the library\'s informal words, for now');
     // And the owner rewords one of the library's keys on the Translations page before 010 comes.
     $pdo->exec("UPDATE translations SET value = 'Never mind', updated_by = " . OWNER . ", updated_at = '" . REWORDED_AT . "' WHERE key_name = 'anotoki.ui.cancel' AND language_code = 'en'");
 
     $result = surveyMigrator($pdo)->apply();
-    assert_same([[['set' => 'survey', 'name' => FILE_010]], null], [$result['applied'], $result['failed']], (string) $result['error']);
+    assert_same(null, $result['failed'], (string) $result['error']);
+    assert_true(in_array('survey/' . FILE_010, applied_names($result), true), '010 applied');
+    assert_same([], array_values(array_filter(applied_names($result), static fn(string $file): bool => str_starts_with($file, 'anotoki_translations/'))), 'and none of the library\'s words again');
 
     $words = strings_in($pdo, 'anotoki.%', false);
     assert_same(['Never mind', OWNER], $words['anotoki.ui.cancel en'], 'a rewording on the library\'s key is the owner\'s, and newer: it stays');
@@ -200,14 +206,16 @@ test('010\'s gate: a string that would not move fails the file loudly, and nothi
     $pdo->exec("CREATE TRIGGER survey_test_swallow BEFORE INSERT ON translations FOR EACH ROW WHEN (NEW.key_name = 'anotoki.topbar.menu' AND NEW.language_code = 'sk') EXECUTE FUNCTION survey_test_swallow()");
 
     $result = surveyMigrator($pdo)->apply();
-    assert_same([[], ['set' => 'survey', 'name' => FILE_010]], [$result['applied'], $result['failed']]);
+    assert_same([['anotoki_admin/001_audit_log.sql', 'anotoki_admin/002_feedback.sql'], ['set' => 'survey', 'name' => FILE_010]], [applied_names($result), $result['failed']], 'the library\'s admin set (first, and no words) - then 010, refused');
     assert_match('/strings that did not move under the library\'s keys: anotoki\.topbar\.menu \(sk\)/', (string) $result['error']);
     assert_same($before, strings_in($pdo, '%'), 'rolled back whole: the site\'s keys and strings as they were');
     assert_same(0, (int) $pdo->query("SELECT count(*) FROM translation_keys WHERE name LIKE 'anotoki.%'")->fetchColumn(), 'no library key either');
 
     $pdo->exec('DROP TRIGGER survey_test_swallow ON translations');
+    $pending = count(surveyMigrator($pdo)->applicable());
     $again = surveyMigrator($pdo)->apply();
-    assert_same([null, 3], [$again['failed'], count($again['applied'])]);
+    assert_same([null, $pending], [$again['failed'], count($again['applied'])]);
+    assert_same('survey/' . FILE_010, applied_names($again)[0], '010 first of what was left');
     assert_same(['Vaša osobná ponuka', OWNER, '2026-09-01 10:00:00'], strings_in($pdo, 'anotoki.topbar.menu')['anotoki.topbar.menu sk']);
     $pdo = null;
 });
@@ -235,4 +243,18 @@ function in_order_keys(array $keys): array
     sort($keys, SORT_STRING);
 
     return $keys;
+}
+
+/** What an Apply ran, as the Migrations page names it: set/name, the site's too. */
+function applied_names(array $result): array
+{
+    return array_map(static fn(array $file): string => $file['set'] . '/' . $file['name'], $result['applied']);
+}
+
+/** Every file of the library's words (anotoki_translations), in the order they run - however many this release of the library ships. */
+function library_words_files(): array
+{
+    test_db();
+
+    return array_map(static fn(string $name): string => 'anotoki_translations/' . $name, surveyMigrator(db())->files(Schema::migrationSet()));
 }

@@ -1,4 +1,4 @@
-import { type AnotokiDateFormat, type AnotokiPreferences, type AnotokiTimeFormat } from '../auth/anotoki-auth';
+import { type AnotokiDateFormat, type AnotokiPreferences, type AnotokiTimeFormat } from '@anotoki/lib/auth';
 
 /**
  * The account's date order and clock (IAM migration 015) - the anotoki

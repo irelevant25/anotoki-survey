@@ -4,7 +4,7 @@ import { ThemeService } from '@anotoki/lib/shell';
 import { TranslationService } from '@anotoki/lib/translations';
 import { AnotokiWords } from '@anotoki/lib/ui/config';
 import { AnotokiIcons } from '@anotoki/lib/ui/icon';
-import { type AnotokiPreferences, type AnotokiTheme } from './auth/anotoki-auth';
+import { type AnotokiPreferences, type AnotokiTheme } from '@anotoki/lib/auth';
 import { AuthService } from './auth/auth.service';
 import { SURVEY_ICONS, THEME_KEY, provideSiteShell, shellConfig } from './kit';
 import { provideTestTranslations } from './testing/test-translations';

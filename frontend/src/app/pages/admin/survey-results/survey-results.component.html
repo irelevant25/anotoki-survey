@@ -147,7 +147,7 @@
                     <div class="people-tools">
                         <div class="field-control search">
                             <span class="field-affix"><anotoki-icon name="search" [size]="16" /></span>
-                            <input class="field-input" type="search" placeholder="Find a person by name or address" aria-label="Find a person" [value]="search()" (input)="onSearch($event)" />
+                            <input class="field-input" type="search" placeholder="Find a person by name" aria-label="Find a person" [value]="search()" (input)="onSearch($event)" />
                         </div>
                         <p class="muted small">{{ people().length }} of {{ facts().shown }}</p>
                     </div>
@@ -174,8 +174,6 @@
                                                     <span class="who-name">{{ response.person.name }}</span>
                                                     @if (response.person.visitor) {
                                                         <span class="who-email not-signed-in">Not signed in</span>
-                                                    } @else {
-                                                        <span class="who-email">{{ response.person.email }}</span>
                                                     }
                                                 </span>
                                             </button>

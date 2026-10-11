@@ -17,14 +17,10 @@ import { SurveyTitleStrategy } from './title.strategy';
 const ENGLISH = {
   'brand.site': 'anotoki survey',
   'title.surveys': 'Surveys',
-  'signIn.notCompleted': 'Signing in was not completed.',
-  'signIn.failed': 'Signing in did not work. Please try again. ({code})',
 };
 const SLOVAK = {
   'brand.site': 'anotoki prieskum',
   'title.surveys': 'Prieskumy',
-  'signIn.notCompleted': 'Prihlásenie sa nedokončilo.',
-  'signIn.failed': 'Prihlásenie sa nepodarilo. Skúste to, prosím, znova. ({code})',
 };
 
 describe('boot(): the whole start', () => {
@@ -129,7 +125,7 @@ describe('boot(): the whole start', () => {
     writeDraft('survey-a', VISITOR_SLOT, draft);
     auth.init.mockImplementationOnce(async () => {
       order.push('auth');
-      person.set({ id: '12', name: 'Zuzka', email: 'zuzka@example.com' });
+      person.set({ id: '12', name: 'Zuzka' });
     });
     vi.spyOn(TestBed.inject(TranslationService), 'init').mockImplementation(async () => {
       // The language comes after: by now the drafts are where the page will look for them.
@@ -147,22 +143,11 @@ describe('boot(): the whole start', () => {
     expect(readDraft('survey-a', VISITOR_SLOT)).toEqual(draft);
   });
 
-  it('says a failed sign-in in the reader’s language, with the code and nobody’s English sentence', async () => {
-    failure.set({ code: 'state_mismatch', message: 'That sign-in did not start here, or took too long' });
+  it('says nothing of a failed sign-in itself: the anotoki family’s screen does, where the guards send the first navigation', async () => {
+    failure.set({ code: 'access_denied', returnTo: '/genshin-6-1' });
     await TestBed.runInInjectionContext(boot);
-    expect(
-      TestBed.inject(ToastService)
-        .toasts()
-        .map((toast) => toast.message),
-    ).toEqual(['Prihlásenie sa nepodarilo. Skúste to, prosím, znova. (state_mismatch)']);
-  });
-
-  it('has one sentence for a sign-in that was turned away or given up', async () => {
-    failure.set({ code: 'access_denied', message: 'This account may not use the surveys.' });
-    await TestBed.runInInjectionContext(boot);
-    const toasts = TestBed.inject(ToastService).toasts();
-    expect(toasts.map((toast) => toast.message)).toEqual(['Prihlásenie sa nedokončilo.']);
-    expect(toasts[0].tone).toBe('danger');
+    expect(TestBed.inject(ToastService).toasts()).toEqual([]);
+    expect(TestBed.inject(BOOTED)()).toBe(true);
   });
 });
 

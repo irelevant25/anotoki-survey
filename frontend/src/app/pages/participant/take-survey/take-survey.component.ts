@@ -480,7 +480,7 @@ export class TakeSurveyComponent {
     const response: SurveyResponse = {
       id: newId(),
       surveyId: survey.id,
-      person: person ?? { id: 'preview', name: 'Preview', email: '' },
+      person: person ?? { id: 'preview', name: 'Preview' },
       aboutYou,
       answers: kept,
       language,

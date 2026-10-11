@@ -17,8 +17,9 @@ use Anotoki\Lib\Translations\Cli\KeyScanner;
  * that no page asks for any more. The library's README says how a key is
  * recognised; what is this site's:
  *
- *   - the sources are frontend/src/app, every .ts and .html but the specs,
- *     core/testing/ (the specs' helpers) and the vendored sign-in SDK;
+ *   - the sources are frontend/src/app, every .ts and .html but the specs and
+ *     core/testing/ (the specs' helpers) - signing in is the library's
+ *     (@anotoki/lib/auth), no vendored SDK is left to leave out;
  *   - the keys put together at run time are declared in
  *     core/i18n/dynamic-keys.ts, prefix -> every tail;
  *   - the pipes are the library's (translate one string, translatePlural a
@@ -48,7 +49,7 @@ function surveyKeyScanner(?string $root = null): KeyScanner
 {
     return new KeyScanner(
         $root ?? translationKeysFrontendRoot(),
-        exclude: ['core/testing/**', 'core/auth/anotoki-auth.*'],
+        exclude: ['core/testing/**'],
         dynamicKeys: TRANSLATION_DYNAMIC_KEYS_FILE,
         pluralForms: TRANSLATION_PLURAL_FORMS,
         innerHtml: 'translated',

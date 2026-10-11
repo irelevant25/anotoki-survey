@@ -1,10 +1,10 @@
 import { EnvironmentProviders, inject } from '@angular/core';
+import { Router } from '@angular/router';
 import { provideAnotokiMigrations } from '@anotoki/lib/migrations';
 import { TranslationService, siteStatusWords } from '@anotoki/lib/translations';
-import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminDates } from './admin/admin-dates.service';
+import { signInOrShowWhy } from './auth/auth.config';
 import { AuthService } from './auth/auth.service';
-import { signInOrSayWhy } from './auth/sign-in-failure';
 
 /** The admin panel's Migrations page: the anotoki family's (<anotoki-migrations-page>), in the admin layout. */
 export const MIGRATIONS_PATH = '/admin/migrations';
@@ -43,7 +43,7 @@ export function provideSiteMigrations(): EnvironmentProviders {
   return provideAnotokiMigrations(() => {
     const auth = inject(AuthService);
     const i18n = inject(TranslationService);
-    const toast = inject(ToastService);
+    const router = inject(Router);
     const dates = inject(AdminDates);
     return {
       statusUrl: '/api/site-status',
@@ -51,7 +51,7 @@ export function provideSiteMigrations(): EnvironmentProviders {
       migrationsRoute: MIGRATIONS_PATH,
       isAdmin: () => auth.isAdmin(),
       isSignedIn: () => auth.signedIn(),
-      signIn: () => signInOrSayWhy(auth, i18n, toast),
+      signIn: () => signInOrShowWhy(auth, router),
       // The language on the page: the reader's, English in the admin panel - the words below are in it.
       language: () => i18n.effectiveLanguage(),
       // Read whenever the page draws: it follows a change of language or of the strings.

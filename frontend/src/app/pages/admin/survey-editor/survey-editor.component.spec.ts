@@ -15,7 +15,7 @@ import { SurveyEditorComponent } from './survey-editor.component';
 const ENGLISH: AdminLanguage = { code: 'en', name: 'English', native_name: 'English', enabled: true, sort_order: 1, seeded: true, strings: 0 };
 const SLOVAK: AdminLanguage = { code: 'sk', name: 'Slovak', native_name: 'Slovenčina', enabled: true, sort_order: 2, seeded: true, strings: 0 };
 const CZECH: AdminLanguage = { code: 'cs', name: 'Czech', native_name: 'Čeština', enabled: false, sort_order: 3, seeded: false, strings: 0 };
-const OWNER: Person = { id: '1', name: 'owner', email: 'owner@example.test' };
+const OWNER: Person = { id: '1', name: 'owner' };
 const PICTURE: SurveyImage = { id: 'img1', alt: 'A cup on a table', width: 40, height: 30, src: '/api/images/img1.png' };
 
 /**

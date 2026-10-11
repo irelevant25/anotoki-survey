@@ -69,24 +69,31 @@ test('the build: exactly what to upload - no settings, no tools, no composer fil
     $top = array_values(array_unique(array_map(static fn(string $file): string => explode('/', $file)[0], $files)));
     sort($top);
     assert_same(['.htaccess', '.survey-build', 'api', 'config', 'index.html', 'main-TEST.js', 'media', 'migrations', 'setup.php', 'storage', 'styles-TEST.css', 'theme-boot.js', 'vendor'], $top);
-    foreach (['api/index.php', 'api/.htaccess', 'api/bootstrap.php', 'api/anotoki_iam.php', 'api/translations.php', 'api/routes/admin.php', 'api/migrations.php',
+    foreach (['api/index.php', 'api/.htaccess', 'api/bootstrap.php', 'api/translations.php', 'api/routes/admin.php', 'api/migrations.php',
+        'api/auth.php', 'api/people.php', 'api/admin_tools.php',
         'config/config.php', 'config/.htaccess', 'migrations/survey/001_initial_schema.sql', 'migrations/.htaccess', 'vendor/autoload.php',
         'vendor/slim/slim/Slim/App.php', 'vendor/anotoki/lib/php/src/Migrations/Migrator.php', 'vendor/anotoki/lib/php/src/Migrations/Http/SiteGate.php',
-        'migrations/survey/010_strings_through_the_library.sql',
+        'migrations/survey/010_strings_through_the_library.sql', 'migrations/survey/011_people.sql', 'migrations/survey/012_sign_in_words.sql',
         // The anotoki library's words: its code, its migration set and the words it ships - run and read on the host.
         'vendor/anotoki/lib/php/src/Translations/Translations.php', 'vendor/anotoki/lib/php/src/Translations/Http/TranslationsRoutes.php',
         'vendor/anotoki/lib/php/migrations/translations/001_languages_and_strings.sql', 'vendor/anotoki/lib/php/migrations/translations/002_library_words.sql',
+        'vendor/anotoki/lib/php/migrations/translations/003_sign_in_words.sql',
         'vendor/anotoki/lib/php/resources/library-words.json',
+        // Signing in, the people and the admin tools: the library's, run on the host - the IAM's SDK is no file of this site's any more.
+        'vendor/anotoki/lib/php/src/Auth/AccessTokens.php', 'vendor/anotoki/lib/php/src/Auth/Http/Identify.php',
+        'vendor/anotoki/lib/php/src/People/Scrubber.php', 'vendor/anotoki/lib/php/migrations/people/001_people.sql',
+        'vendor/anotoki/lib/php/src/Backups/Backups.php', 'vendor/anotoki/lib/php/src/ErrorLog/ErrorLog.php', 'vendor/anotoki/lib/php/src/Audit/AuditLog.php',
+        'vendor/anotoki/lib/php/migrations/admin/001_audit_log.sql',
         'vendor/.htaccess', 'storage/.htaccess', 'media/font-TEST.woff2'] as $file) {
         assert_true(in_array($file, $files, true), "$file is in the upload");
     }
+    assert_false(in_array('api/anotoki_iam.php', $files, true), 'the IAM\'s PHP SDK is the library\'s now (Anotoki\Lib\Auth)');
     assert_false(in_array('tools/translation_keys.php', $files, true), 'the key scan stays on computers with a shell');
     foreach ($files as $file) {
         // ^translations\.php$ is the command line's, beside setup.php - anchored, because api/translations.php is the API's and must be there.
         assert_false((bool) preg_match('~\.local\.php$|^tests/|^tools/|router\.php|migration\.php|^translations\.php$|^secret\.php|^\.htaccess.+|^composer\.(json|lock)$|package\.json~', $file), "$file should not be uploaded");
     }
     assert_false(is_dir("$dist/tools"), 'tools/ - the build itself, the key scan - is for computers with a shell');
-    assert_same(md5_file(TEST_BACKEND . '/api/anotoki_iam.php'), md5_file("$dist/api/anotoki_iam.php"), 'the IAM\'s verifier as it is');
     foreach (['config', 'migrations', 'vendor', 'storage'] as $folder) {
         assert_match('/Require all denied/', (string) file_get_contents("$dist/$folder/.htaccess"), "$folder/ is closed to the web");
     }
@@ -140,7 +147,8 @@ test('the setup page on a real host: the token, the tests, the database - and th
 
     $done = site_form($site, '/setup.php', form($token, $database));
     assert_match('/<h1>Installed<\/h1>/', $done['raw']);
-    assert_match('/Made the tables \(001_initial_schema\.sql, 002_/', $done['raw']);
+    assert_match('/Made the tables \(anotoki_admin\/001_audit_log\.sql, anotoki_admin\/002_feedback\.sql, 001_initial_schema\.sql, 002_/', $done['raw'], 'the library\'s admin set first, by its set; the site\'s own by their names');
+    assert_match('/anotoki_people\/001_people\.sql\)/', $done['raw'], 'the library\'s people last');
     assert_match('/The setup page has deleted itself/', $done['raw']);
     assert_same(['issuer' => 'https://iam.anotoki.eu', 'client_id' => 'survey', 'cache_dir' => 'storage/cache'], require "$dist/config/iam.local.php");
     assert_same($database, (require "$dist/config/database.local.php")['name']);
@@ -148,10 +156,11 @@ test('the setup page on a real host: the token, the tests, the database - and th
     assert_false(is_file("$dist/setup.php"), 'the setup page deleted itself');
     assert_false(is_file("$dist/storage/setup-token.php"), 'and the token');
 
-    // the site itself, through api/index.php - asking a file, not the real IAM,
-    // whether sign-in is required (none there: the IAM out of reach, required)
-    file_put_contents("$dist/config/iam.local.php", '<?php return ' . var_export(['application_file' => test_application_file()] + (require "$dist/config/iam.local.php"), true) . ";\n");
-    assert_same(['issuer' => 'https://iam.anotoki.eu', 'clientId' => 'survey', 'loginRequired' => true, 'visitorDays' => 30], site($site, 'GET', '/api/auth/config')['body']);
+    // the site itself, through api/index.php - asking files, not the real IAM,
+    // whether sign-in is required and whom it deleted (none there: the IAM out
+    // of reach - required, nobody scrubbed)
+    file_put_contents("$dist/config/iam.local.php", '<?php return ' . var_export(['application_file' => test_application_file(), 'anonymized_file' => test_anonymized_file()] + (require "$dist/config/iam.local.php"), true) . ";\n");
+    assert_same(['issuer' => 'https://iam.anotoki.eu', 'client_id' => 'survey', 'login_required' => true, 'sign_in_available' => true, 'visitor_days' => 30], site($site, 'GET', '/api/auth/config')['body']);
     assert_same(401, site($site, 'GET', '/api/surveys')['status'], 'nothing of a survey without a sign-in');
     assert_same(401, site($site, 'GET', '/api/admin/surveys')['status']);
     assert_same(['ok' => true], site($site, 'GET', '/api/health')['body'], 'a stranger learns only that it is up');

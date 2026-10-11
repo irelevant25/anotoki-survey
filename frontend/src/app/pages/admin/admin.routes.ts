@@ -4,11 +4,17 @@ import { AdminLayoutComponent } from '../../layouts/admin-layout/admin-layout.co
 
 /**
  * /admin: the surveys, and for each its editor, its results and each response
- * on its own page; and the site's own words - the strings in every language
+ * on its own page; the site's own words - the strings in every language
  * (translations) and the languages themselves, the anotoki family's pages
  * (@anotoki/lib/translations/admin: an entry point of their own, never in the
  * first load; their guard is the eager entry point's); and, for an ADMIN, the
- * database's migrations.
+ * System pages (system/): the people who signed in, the error log, the audit
+ * log, the backups and the database's migrations - each the anotoki family's
+ * page (@anotoki/lib/people/page, @anotoki/lib/admin/errors, /audit, /backups,
+ * @anotoki/lib/migrations/page), an entry point of its own on a lazy route,
+ * configured in core/admin/admin-tools.ts and core/migrations.ts. Each says to
+ * anybody but the site's ADMIN whose it is, and asks the server nothing; the
+ * server refuses them all the same.
  */
 export const ADMIN_ROUTES: Routes = [
   {
@@ -36,9 +42,14 @@ export const ADMIN_ROUTES: Routes = [
         canDeactivate: [anotokiUnsavedChangesGuard],
         loadComponent: () => import('@anotoki/lib/translations/admin').then((m) => m.LanguagesPageComponent),
       },
-      // The anotoki family's Migrations page (@anotoki/lib/migrations/page: an entry point of its own, never in the first
-      // load): ADMIN alone (it says so to an EDITOR, and asks nothing); the one page of the site drawn while a database
-      // update waits - for an ADMIN (<anotoki-site-gate>).
+      // The ADMIN's System pages: what keeps the site running - its links, then each page.
+      { path: 'system', title: 'System', loadComponent: () => import('./system/system.component').then((m) => m.SystemComponent) },
+      { path: 'people', title: 'People', loadComponent: () => import('@anotoki/lib/people/page').then((m) => m.PeoplePageComponent) },
+      { path: 'errors', title: 'Error log', loadComponent: () => import('@anotoki/lib/admin/errors').then((m) => m.ErrorLogPageComponent) },
+      { path: 'audit', title: 'Audit log', loadComponent: () => import('@anotoki/lib/admin/audit').then((m) => m.AuditLogPageComponent) },
+      { path: 'backups', title: 'Backups', loadComponent: () => import('@anotoki/lib/admin/backups').then((m) => m.BackupsPageComponent) },
+      // The anotoki family's Migrations page: the one page of the site drawn while a database update waits - for an
+      // ADMIN (<anotoki-site-gate>).
       { path: 'migrations', title: 'Migrations', loadComponent: () => import('@anotoki/lib/migrations/page').then((m) => m.MigrationsPageComponent) },
       { path: '**', title: 'Not found', loadComponent: () => import('../not-found/not-found.component').then((m) => m.NotFoundComponent) },
     ],

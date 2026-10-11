@@ -18,13 +18,15 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  * browser keeps it and sends it back in the X-Visitor-Key request header. The
  * row keeps only its SHA-256, and a request is that visitor when the hash of
  * the key it sends is a row's - the key has 256 bits, so a plain lookup is safe.
- * A key makes somebody a visitor only in requireTaker() (api/meddleware/auth.php);
- * the one other reader is POST /api/visitor/move (routes/visitor.php), which needs
- * a verified token as well and only hands the key in. A visitor reaches the open
- * surveys and its own answers, and nothing else - no admin panel, no role.
+ * A key makes somebody a visitor only on the surveys' own routes (the library's
+ * Identify there, routes/surveys.php, asks visitorFound()); the one other reader
+ * is POST /api/visitor/move (routes/visitor.php), which needs a verified token as
+ * well and only hands the key in. A visitor reaches the open surveys and its own
+ * answers, and nothing else - no admin panel, no role.
  *
- *   visitorFind()       the visitor of a key, seen now (written at most once an hour);
- *                       unknown or malformed: 401 visitor_unknown
+ *   visitorFound()      the visitor of a key, seen now (written at most once an hour); null
+ *                       for a key that is nobody's, or no key - the library's Identify answers
+ *                       401 visitor_unknown then
  *   visitorMake()       a new visitor, inside the transaction that keeps its first answers -
  *                       after the limits (new ones an hour per address and in all, visitors
  *                       with a key at once); a refused or failed send makes none and counts nothing
@@ -60,15 +62,19 @@ function visitorHash(string $key): string
     return hash('sha256', $key);
 }
 
-/** The visitor of this key, seen now - 401 visitor_unknown for a key that is nobody's, or not a key. */
-function visitorFind(string $key): SiteUser
+/**
+ * The visitor of this key, seen now - or null for a key that is nobody's, or
+ * not a key: the library's Identify (api/auth.php) answers 401 visitor_unknown
+ * then, and nothing else is read of the request.
+ */
+function visitorFound(string $key): ?SiteUser
 {
     if (!visitorKeyWellFormed($key)) {
-        throw visitorUnknown();
+        return null;
     }
     $row = dbOne("SELECT id, (last_seen_at < now() - interval '1 hour')::int AS stale FROM users WHERE visitor_key_hash = ?", [visitorHash($key)]);
     if ($row === null) {
-        throw visitorUnknown();
+        return null;
     }
     $id = (int) $row['id'];
     if ((int) $row['stale'] === 1) {
@@ -80,7 +86,7 @@ function visitorFind(string $key): SiteUser
 
 function visitorUser(int $id): SiteUser
 {
-    return new SiteUser($id, null, null, [], true);
+    return new SiteUser($id, null, [], true);
 }
 
 /**

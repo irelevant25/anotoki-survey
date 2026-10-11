@@ -26,22 +26,28 @@ drawn while the site cannot run and the admin panel's Migrations page - the
 site's words - the tables' one implementation on the server (the bundle, the
 admin routes, the command line), the language and the strings in the browser,
 the admin panel's Translations and Languages pages (`backend/api/translations.php`
-and the frontend's `core/translations.ts` wire them in) - and the UI kit - the
+and the frontend's `core/translations.ts` wire them in) - the UI kit - the
 family's styles and tokens, its components, the top bar and the theme (the
-frontend's `core/kit.ts` wires it in) - are
+frontend's `core/kit.ts` wires it in) - signing in through the IAM (both
+halves' `Auth`: `backend/api/auth.php`, the frontend's `core/auth/`), the
+people (`backend/api/people.php`, the People page) and the admin tools (the
+error log, the audit log, the backups: `backend/api/admin_tools.php`, the
+frontend's `core/admin/admin-tools.ts`) - are
 the shared library **anotoki-lib** (`https://github.com/irelevant25/anotoki-lib`,
 its README), one version for both halves:
 
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
-| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.3"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, and its migration set `anotoki_translations` (`php/migrations/translations`), which runs after the site's own |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.3.0/anotoki-lib-0.3.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.4"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`php/testing/stand-in-iam.php`), and its migration sets (`php/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.4.1/anotoki-lib-0.4.1.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-Both halves are at 0.3.0. The kit is imported a piece at a time, each from its
+Both halves are at 0.4.1. The kit is imported a piece at a time, each from its
 own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
 smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages
-of the words come with a lazy entry point of their own
-(`@anotoki/lib/translations/admin`). The package brings Manrope
+of the words, the People page and the admin tools' pages come with lazy entry
+points of their own (`@anotoki/lib/translations/admin`,
+`@anotoki/lib/people/page`, `@anotoki/lib/admin/errors`, `/audit`,
+`/backups`). The package brings Manrope
 with it (`@fontsource-variable/manrope`, its dependency) and the theme's
 `theme-boot.js` (`angular.json` copies it next to `index.html`).
 
@@ -300,12 +306,14 @@ button, a click outside), the owner writes and opens a
 survey with a picture, somebody takes it once, the results, the roles, a phone
 width, and then the pages people take surveys on in Slovak (no key where a word
 should be, the admin panel English all the same) - signing in through the
-stand-in IAM (`backend/tests/tools/fake-iam.php`),
+anotoki library's stand-in IAM (`backend/vendor/anotoki/lib/php/testing/stand-in-iam.php`),
 on a throwaway database, then everything stopped and dropped. The skill
 (`.claude/skills/check-in-browser/SKILL.md`) has the details, and how to click
 through the same throwaway copy by hand.
 
-It also walks the states a happy path never draws: a save of strings that
+It also walks the states a happy path never draws: a sign-in the IAM turns
+down, or one the browser cannot start (the family's screen that says why, in
+English and in formal Slovak), a save of strings that
 fails, a session ending over boxes typed and not saved (they are back after
 signing in again), signing out over them, a language added hidden, an open
 survey with a text not translated yet, an author saving over a translator's
@@ -315,8 +323,13 @@ out of reach - with "Try again" - and visitors:
 the stand-in's "Sign-in required" switched off, surveys taken without signing
 in (in a second browser too), "Visitor N" / "Not signed in" in the results,
 a sign-in that moves the answers and the draft into the account, and the
-switch on again sending a visitor to sign in. It takes about seven minutes
-after the build.
+switch on again sending a visitor to sign in; and the ADMIN's System pages -
+the People page (an account the IAM deleted, scrubbed on "Check now"; a
+person's answers deleted after its question), the error log, the audit log,
+the backups (one made after a new sign-in, downloaded by its link, deleted) -
+and an EDITOR kept out of them. It takes about eight minutes after the build.
+`CHROME=` names the browser (Edge where Chrome is not installed) and `PHP=`
+a PHP 8.2+ where `php` is an older one.
 
 ## Building and deploying
 

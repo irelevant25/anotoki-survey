@@ -42,73 +42,113 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   self-delete). Never print the database password; never copy it anywhere git
   would publish.
 - **While the site cannot run, the anotoki family's library decides what
-  happens** (anotoki-lib 0.3.0 - `anotoki/lib` in `backend/vendor/`,
+  happens** (anotoki-lib 0.4.1 - `anotoki/lib` in `backend/vendor/`,
   `@anotoki/lib` in the frontend, one version; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
   GitHub, never a local path). Its `SiteGate` stands in front of every route:
   without the settings every address but `/api/site-status` is `503
   {code: "not_set_up"}` (with the setup page only while the site was never
   installed - `storage/installed.lock`); with a migration pending `503
-  {code: "update_pending"}`, but signing in (`/api/auth/config`), the strings
+  {code: "update_pending"}`, but signing in (`/api/auth/config`, the library's
+  `AuthRoutes::openPath()`), the strings
   (`GET /api/translations/{code}`, the library's `TranslationsRoutes::openPath()`),
-  `/api/health` and the Migrations page's three routes (`/api/admin/migrations`,
-  `/file`, `/apply` - each exactly, never what is under them; ADMIN judged
-  from the token alone) keep working (`siteOpenWhileUpdating()`,
-  `api/migrations.php`). In the browser the family's page stands instead of
+  `/api/health`, the Migrations page's three routes (`/api/admin/migrations`,
+  `/file`, `/apply` - each exactly, never what is under them) and the error
+  log's and the backups' (the library's `openPaths()`; a restore stays
+  closed) keep working - ADMIN judged from the token alone
+  (`siteOpenWhileUpdating()`, `api/migrations.php`). In the browser the
+  family's page stands instead of
   every page (`<anotoki-site-gate>`, the router outlet given to it as the
   `<ng-template anotokiSitePages>` so that no page is made behind it; the
   guards send nobody to the IAM then):
   "being updated" for everybody - a quiet Sign in while nobody is signed in -
   and the way to the Migrations page for the site's ADMIN. Applying takes one
-  lock (`DATABASE_UPDATE_LOCK`) shared with `setup.php`, `migration.php` and
-  the tests' template.
+  lock (`DATABASE_UPDATE_LOCK`) shared with `setup.php`, `migration.php`, the
+  tests' template and the backups; the Apply and `migration.php` make a backup
+  of the database first (none can be made: nothing is applied).
   A third file is optional and nobody's but the owner's:
   `config/visitors.local.php` (the visitors' limits and trusted proxies; put
   there by hand, never written by `setup.php`; defaults without it).
+- **Signing in is the anotoki family's library's** (anotoki-lib 0.4.1, the
+  `Auth` module on both halves - the IAM's SDKs are gone from this site):
+  `Anotoki\Lib\Auth` on the server (`api/auth.php`, `meddleware/auth.php`),
+  `@anotoki/lib/auth` in the browser (`AnotokiAuth`, its interceptor, guards,
+  callback page and the screen of a failed sign-in; wired in
+  `core/auth/auth.config.ts`, with `core/auth/auth.service.ts` the survey's
+  face of it). No automatic sign-in by the IAM's hint here (`hint: false`:
+  the owner's decision - genshin's and the build analyzer's).
 - **Every page is for somebody signed in - unless the IAM says otherwise**:
   the IAM's "Sign-in required" switch is read (`authLoginRequired()`, the
-  SDK's `anotoki_iam_login_required()`: kept a minute, **true unless the IAM
-  said false**) and relayed as `loginRequired` (and `visitorDays`) in
-  `/api/auth/config`. Required: somebody not signed in goes to the IAM first
-  (`signInGuard` on the admin panel, `takeSurveysGuard` on the pages people
-  take surveys on) and comes back to the page asked for. Switched off, those
-  pages take **visitors** (below): the browser keeps the key the server made
-  (`core/auth/visitor-key.ts`), and its next sign-in moves the visitor's
+  library's `SignInRule`: kept a minute, **true unless the IAM said false**)
+  and relayed as `login_required` (and `visitor_days`) in `/api/auth/config`.
+  Required: somebody not signed in goes to the IAM first (the library's
+  `personGuard` on the admin panel and the preview, `personOrVisitorGuard` on
+  the pages people take surveys on) and comes back to the page asked for; a
+  sign-in that came back without one, or could not start, is said by the
+  library's screen on `/auth/callback` (in the site's words, from the code -
+  migration 012; `signInFailureGuard` sends a visitor and somebody still
+  signed in there too). Switched off, those pages take **visitors** (below):
+  the browser keeps the key the server made (`core/auth/visitor-key.ts`, the
+  library's `VisitorKeyStore`), and its next sign-in moves the visitor's
   answers and drafts into the account. The admin panel and the editor's
   preview sign in first whatever the switch. Only the pages drawn while the
   site cannot run (the family's page, the "cannot be reached" card) draw
   without either.
-- **Who a request is is decided when it is issued** (frontend): `ApiService`
-  marks each request `ISSUED_AS` person or visitor from the state at that
-  moment; the interceptor sends a person's with the token or not at all (a
-  null token fails locally as 401 `sign_in_required` - never as nobody's,
-  which would make a visitor), a visitor's with the key - only to
-  `/api/surveys`, only while sign-in is not required. The key is kept while
-  sign-in is required (never forgotten on `sign_in_required`), forgotten on
-  `visitor_unknown`. A sign-in waits for the sends on their way
-  (`SavesInFlight`).
-- **Who a request is comes only from a verified IAM token** (`api/auth.php`,
-  the vendored `api/anotoki_iam.php`): never from a body, an address or a
-  header of the site's own. Only `Authorization: Bearer` claims to be somebody
-  (`authSentCredentials()`): a bad or empty one is 401 `invalid_token`, another
-  scheme (`Basic`) is ignored. Roles: `requireRole(...ROLES_STAFF)` for the admin
-  panel, `requireRole(ROLE_ADMIN)` for deleting; MEMBER is an ordinary person,
-  asked for nowhere. The frontend's `isStaff` /
+- **Who a request is is decided when it is issued** (frontend, the library's
+  `anotokiAuthInterceptor`): `ApiService` marks the surveys' requests
+  `issuedAs('caller')` - whoever the page is shown to then; the interceptor
+  sends a person's with the token or not at all (a missing token fails
+  locally as 401 `sign_in_required` - never as nobody's, which would make a
+  visitor), a visitor's with the key - only to `/api/surveys`, only while
+  sign-in is not required. The key is kept while sign-in is required (never
+  forgotten on `sign_in_required`), forgotten on `visitor_unknown`. A sign-in
+  waits for the sends on their way (the library's `SavesInFlight`).
+- **Who a request is comes only from a verified IAM token** (the library's
+  `Identify` in front of each route group - `surveyIdentify()`): never from a
+  body, an address or a header of the site's own. Only `Authorization:
+  Bearer` claims to be somebody: a bad or empty one is 401 `invalid_token`,
+  another scheme (`Basic`) is ignored. Roles: `requireStaff()` for the admin
+  panel, `requireAdmin()` for deleting, the migrations and the system pages;
+  MEMBER is an ordinary person, asked for nowhere. The frontend's `isStaff` /
   `isAdmin` only hide what the server refuses anyway. **The one exception is a
   visitor** (`api/visitors.php`, migration 006): on the surveys' own routes
-  only (`requireTaker()`: a key makes somebody a visitor nowhere else; the one
+  only (`surveyIdentify(..., visitors: true)` and the library's
+  `RequireCaller`: a key makes somebody a visitor nowhere else; the one
   other reader of `X-Visitor-Key` is `POST /api/visitor/move`, which needs a
   verified token as well and only hands the key in), while the IAM
   says sign-in is not required and no Bearer header was sent, the key the
   server made for that browser (only its hash stored) is a `users` row with a
   negative id, no name, no roles - made by its first answers that are kept, in
-  their transaction, within the limits. `requireUser()` / `requireRole()`
+  their transaction, within the limits. `RequirePerson` / `requireStaff()`
   refuse a visitor; every other survey route is one of them, and nothing of a
   survey reaches anybody without a token while sign-in is required, but its
   pictures (an `<img>` sends no token; their addresses are random UUIDs). A
   visitor unseen for 30 days ends and its answers stay as "Visitor N"; at
   sign-in `POST /api/visitor/move` (token and key) moves its answers into the
   account. The key is never logged, never in a body or an address.
+- **People are the library's people module over `users`** (`api/people.php`,
+  migration 011; the owner's decisions): a person's row is recorded from the
+  token (`RecordPerson`, on the routes that touch the site's data) - the
+  IAM's id and name, **no address** (011 dropped `users.email`: the IAM is the
+  only holder); an account the IAM deletes is scrubbed here (`PeopleUpkeep`,
+  at most hourly after an answer, or the People page's Check now): its name
+  becomes `deleted-{id}`, `anonymized_at` the IAM's time, the answers stay.
+  The People page (ADMIN) lists them with how many surveys each answered and
+  wrote, and deletes a person's answers after its question alone - audited.
+- **The admin tools are the library's, for the site's ADMIN alone**
+  (`api/admin_tools.php`, the System page `/admin/system`): the error log
+  (files under `storage/logs`, redacted), the audit log (`anotoki_audit_log`,
+  its set `anotoki_admin`) and the backups (`storage/backups`, every table by
+  COPY - the pictures too - daily after an answer, before every update, by
+  hand; made, downloaded, deleted or restored only after a sign-in of the
+  last ten minutes; **not encrypted** and **kept until the owner deletes them
+  - no maximum age**, the owner's decisions of 2026-10-11; a failed one in the
+  error log; after a restore the scrub runs again, and one it cannot finish is
+  the restore's `after_restore_error` - the next request runs it again; until
+  the library's 0.4.2 a restore brings back answers deleted for a person). No
+  feedback and no file explorer (the owner's decision); the browser's errors
+  come to the error log with the library's 0.4.2 (`ErrorLogRoutes::client` is
+  not mounted before). Who acts is the token's person.
 - **The rules are written twice, in the same words**: `frontend/src/app/core/survey/`
   (`answer-rules.ts`, `survey-problems.ts`, `localize.ts`) and
   `backend/api/survey_rules.php`. Change one, change the other, and their tests.
@@ -127,7 +167,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   (`localizedSurvey()`, `core/survey/localize.ts`).
 - **The site's own words are in the database** (`languages`, `translation_keys`,
   `translations`), English and Slovak - kept by the anotoki family's
-  translations module (anotoki-lib 0.3.0, the owner's decision; `docs/decisions.md`):
+  translations module (anotoki-lib 0.3.0 and later, the owner's decision; `docs/decisions.md`):
   on the server `Anotoki\Lib\Translations` - the bundle, the admin routes,
   every check of a string, the command line - wired in `api/translations.php`;
   in the browser `@anotoki/lib/translations` - the `TranslationService`, the
@@ -141,15 +181,15 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   admin panel stays English, written in its templates. Migrations write the
   keys and their first strings; the admin panel (`/admin/translations`,
   `/admin/languages`) only rewords them. The library's own words are keys
-  too, under `anotoki.` (the kit's, the status page's): its migration set
-  `anotoki_translations` writes them after the site's migrations, only where
-  a key has no string, and migration 010 moved the site's strings for the
-  kit under them first. A key with no string shows as itself, on purpose. A
-  string is text, never HTML. Slovak here addresses the reader formally (Vy,
-  capital V) - unlike the other anotoki sites and the library's own Slovak:
-  010 writes the library's words that speak to the reader formally, and
-  `FORMAL_SLOVAK` (`core/translations.ts`) says them while the database
-  cannot be read.
+  too, under `anotoki.` (the kit's, the status page's, the sign-in's): its
+  migration set `anotoki_translations` writes them after the site's
+  migrations, only where a key has no string, and migrations 010 (the kit's)
+  and 012 (the sign-in's) moved the site's own strings under them first. A
+  key with no string shows as itself, on purpose. A string is text, never
+  HTML. Slovak here addresses the reader formally (Vy, capital V) - unlike the
+  other anotoki sites and the library's own Slovak: 010 and 012 write the
+  library's words that speak to the reader formally, and `FORMAL_SLOVAK`
+  (`core/translations.ts`) says them while the database cannot be read.
 - **Saves carry a revision.** The editor saves through `AdminStore.updateSurvey()`
   (in the editor, through `SurveyEditing`, by id); a save made to an old
   revision is a conflict the editor settles - never overwrite it silently, and
@@ -159,9 +199,11 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   never changed, and deleted a day after no survey shows them.
 - **Migrations are the schema**: `backend/migrations/survey/NNN_name.sql`, the
   family's engine (anotoki-lib's `Migrator`, through `surveyMigrator()` in
-  `api/migrations.php`; the `migrations` table as it always was), and after
-  them the library's own set (`anotoki_translations`, recorded as
-  `anotoki_translations/NNN_….sql`; `surveyMigrationSets()`). Never edit an applied one.
+  `api/migrations.php`; the `migrations` table as it always was), and around
+  them the library's own sets, recorded as `<set>/NNN_….sql`
+  (`surveyMigrationSets()`, in the README's order): `anotoki_admin` first (the
+  audit log's table), the site's, `anotoki_translations`, `anotoki_people`.
+  Never edit an applied one.
   Data-changing ones end with a `DO $$` gate that fails loudly. A string the
   site gains, rewords or stops using is a migration too (`003_site_strings.sql`
   is the pattern: a key, its English and its Slovak string, inserts that never
@@ -176,7 +218,8 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   parseable by PHP 7.4.
 - **The top bar is the anotoki family's** - the library's `<anotoki-top-bar>`
   (`@anotoki/lib/shell`), told by the site's thin wrapper `layouts/top-bar`
-  what is this site's: its brand, its sections (Migrations alone while an
+  what is this site's: its brand, its sections (System - the people, the
+  logs, the backups, the migrations - for an ADMIN; Migrations alone while an
   update waits), the person and their role, "Your anotoki account" and the
   way into the admin panel or back, signing in and out (saved first, asked
   when something would be lost). One row - brand, links, language, theme, the
@@ -184,7 +227,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   button holds the links and the person's menu.
 - **The theme, the date order, the clock and the language are the anotoki
   account's** for somebody signed in (the IAM's migration 015, the owner's
-  decision of 2026-10-06; the vendored SDK 1.2.0 - `AuthService.preferences`,
+  decision of 2026-10-06; the library's `AnotokiAuth` - `AuthService.preferences`,
   `savePreferences()`): one theme for every site and every part of each, the
   admin panel too (the library's `ThemeService`, configured in
   `core/kit.ts`); dates in the account's order on both sides
@@ -199,7 +242,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. **The UI kit is the anotoki family's**
-  (anotoki-lib 0.3.0: each piece from its own entry point -
+  (anotoki-lib 0.4.1: each piece from its own entry point -
   `@anotoki/lib/ui/button`, `/ui/icon`, `/ui/config`, ... - never the
   `@anotoki/lib/ui` barrel, for the first load; `@anotoki/lib/shell`; its class
   names its own, `.anotoki-<piece>__<part>`; the owner's decisions of

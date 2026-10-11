@@ -17,6 +17,7 @@ import {
   iconCollapse,
   iconColumns,
   iconCornerDownRight,
+  iconDatabase,
   iconDownload,
   iconEraser,
   iconExpand,
@@ -25,10 +26,12 @@ import {
   iconGlobe,
   iconGrip,
   iconHighlighter,
+  iconHistory,
   iconImage,
   iconImageOff,
   iconImagePlus,
   iconItalic,
+  iconLayers,
   iconLink,
   iconListBullets,
   iconListOrdered,
@@ -65,8 +68,9 @@ import { AuthService } from './auth/auth.service';
 /**
  * The icons this site's own templates name beyond the kit's own (sun, moon,
  * menu, x, check, alert, search, ...): every other one it draws. The
- * question types, the editor's toolbar and the results are the survey's own;
- * `survey` is the family's clipboard.
+ * question types, the editor's toolbar, the results and the System page
+ * (database, history, layers) are the survey's own; `survey` is the family's
+ * clipboard.
  */
 export const SURVEY_ICONS = {
   arrowDown: iconArrowDown,
@@ -81,6 +85,7 @@ export const SURVEY_ICONS = {
   collapse: iconCollapse,
   columns: iconColumns,
   cornerDownRight: iconCornerDownRight,
+  database: iconDatabase,
   download: iconDownload,
   eraser: iconEraser,
   expand: iconExpand,
@@ -89,10 +94,12 @@ export const SURVEY_ICONS = {
   globe: iconGlobe,
   grip: iconGrip,
   highlighter: iconHighlighter,
+  history: iconHistory,
   image: iconImage,
   imageOff: iconImageOff,
   imagePlus: iconImagePlus,
   italic: iconItalic,
+  layers: iconLayers,
   link: iconLink,
   listBullets: iconListBullets,
   listOrdered: iconListOrdered,
@@ -142,9 +149,9 @@ export function provideSiteUi(): EnvironmentProviders {
  * top bar - wired to the anotoki account and this site's languages:
  *
  * - the theme is the account's while somebody is signed in and the IAM sends
- *   preferences (its migration 015), saved to it with the SDK's
- *   savePreferences() - one save at a time, the latest last; the device's
- *   otherwise, and nothing saved;
+ *   preferences (its migration 015), saved to it with the anotoki library's
+ *   savePreferences() (AuthService) - one save at a time, the latest last;
+ *   the device's otherwise, and nothing saved;
  * - the languages are the site's, each by the name its speakers give it
  *   (TranslationService.forShell()); a choice is the service's setLanguage(),
  *   which saves it to the account itself, and a refusal is said under the

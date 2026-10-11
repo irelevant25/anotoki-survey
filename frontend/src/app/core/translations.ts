@@ -6,11 +6,12 @@ import { MIGRATIONS_PATH } from './migrations';
 /**
  * The library's words whose Slovak speaks to the reader - informally (ty), as
  * the other anotoki sites do - said this site's way: formally (Vy, with its
- * capital; docs/decisions.md). The database has the same words (migration
- * 010, and an administrator may reword them on the Translations page); these
- * are for the moments it cannot be read - the family's page while the site
- * cannot run, a first visit whose strings did not come - when the library
- * would otherwise say its own built-in Slovak. Held to the database's by
+ * capital; docs/decisions.md). The database has the same words (migrations
+ * 010 and 012 - the sign-in's callback page and failure screen - and an
+ * administrator may reword them on the Translations page); these are for the
+ * moments it cannot be read - the family's page while the site cannot run, a
+ * first visit whose strings did not come - when the library would otherwise
+ * say its own built-in Slovak. Held to the database's by
  * backend/tests/unit/translations.test.php.
  */
 export const FORMAL_SLOVAK: Readonly<Record<string, string>> = {
@@ -22,6 +23,11 @@ export const FORMAL_SLOVAK: Readonly<Record<string, string>> = {
   'anotoki.language.notSaved': 'Jazyk sa nepodarilo uložiť do Vášho anotoki účtu – platí len počas tejto návštevy.',
   'anotoki.theme.notSaved': 'Vzhľad sa nepodarilo uložiť do Vášho anotoki účtu. Skúste to, prosím, znova.',
   'anotoki.siteStatus.unavailableText': 'Skúste to, prosím, znova o pár minút. Táto stránka sa obnoví sama.',
+  'anotoki.signIn.signingIn': 'Prihlasujeme Vás…',
+  'anotoki.signIn.expired': 'Prihlásenie trvalo príliš dlho alebo sa nezačalo na tejto stránke. Skúste to, prosím, znova.',
+  'anotoki.signIn.storageUnavailable':
+    'Tento prehliadač nedovolil stránke zapamätať si prebiehajúce prihlásenie. Povoľte tejto stránke ukladať údaje (súbory cookie a údaje stránok) a potom sa prihláste znova.',
+  'anotoki.signIn.unavailable': 'Prihlásenie teraz nie je dostupné. Skúste to, prosím, znova o pár minút.',
 };
 
 /** The library's words this site says its own way, by language: what `libraryWords` is given. */

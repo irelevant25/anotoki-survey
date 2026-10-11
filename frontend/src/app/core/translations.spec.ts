@@ -3,8 +3,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { TranslationService, translationSettings } from '@anotoki/lib/translations';
-import { LIBRARY_WORDS } from '@anotoki/lib/ui/config';
-import { type AnotokiPreferences } from './auth/anotoki-auth';
+import { LIBRARY_WORDS } from '@anotoki/lib/words';
+import { type AnotokiPreferences } from '@anotoki/lib/auth';
 import { AuthService, BootStatus } from './auth/auth.service';
 import { Person } from './survey/survey.model';
 import { FORMAL_SLOVAK, provideSiteTranslations, siteTranslationsConfig } from './translations';
@@ -64,7 +64,7 @@ describe('The site’s words through the family’s translations module (core/tr
     expect(account.decides!()).toBe(false);
     expect(account.userKey!()).toBeNull();
 
-    person.set({ id: '7', name: 'owner', email: 'owner@example.test' });
+    person.set({ id: '7', name: 'owner' });
     expect(account.language()).toBe('sk');
     expect(account.decides!()).toBe(false);
     expect(account.userKey!()).toBe('7');
@@ -96,9 +96,10 @@ describe('The site’s words through the family’s translations module (core/tr
 
   it('says the library’s words that speak to the reader formally in Slovak - never the library’s informal ty', () => {
     expect(config().libraryWords).toEqual({ sk: FORMAL_SLOVAK });
+    // Every library word, the kit's and each module's (the sign-in's too).
     const informal: Readonly<Record<string, string>> = LIBRARY_WORDS.sk;
     for (const [key, words] of Object.entries(FORMAL_SLOVAK)) {
-      expect(words, key).toMatch(/Vaša|Váš|Skúste|Označte/);
+      expect(words, key).toMatch(/Vaša|Váš|Vás|Skúste|Označte|Povoľte/);
       expect(Object.hasOwn(informal, key), `${key} is one of the library's words`).toBe(true);
       expect(words, key).not.toBe(informal[key]);
     }

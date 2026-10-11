@@ -581,9 +581,11 @@ test('a language out as a file and back in: its own strings only; unknown keys r
         $refused = as_user(EDITH, 'PUT', "/api/admin/translations/$language/import", $body);
         assert_same([422, $code], [$refused['status'], $refused['body']['code'] ?? null], test_show($refused['body']));
     }
-    foreach (['a list' => [['Hallo', 'Tschüss'], []], 'a text' => ['"Hallo"', ['Content-Type: application/json']]] as $what => [$body, $headers]) {
+    // A JSON list is a map whose keys are numbers - keys the site does not have (anotoki-lib 0.4.0: unknown_key); a
+    // text is no map at all.
+    foreach (['a list' => [['Hallo', 'Tschüss'], [], 'unknown_key'], 'a text' => ['"Hallo"', ['Content-Type: application/json'], 'invalid_value']] as $what => [$body, $headers, $code]) {
         $refused = as_user(EDITH, 'PUT', '/api/admin/translations/de/import', $body, $headers);
-        assert_same([422, 'invalid_value'], [$refused['status'], $refused['body']['code'] ?? null], $what);
+        assert_same([422, $code], [$refused['status'], $refused['body']['code'] ?? null], $what);
     }
     assert_same(404, as_user(EDITH, 'PUT', '/api/admin/translations/fr/import', ['test.bye' => 'Au revoir'])['status'], 'a language there is not');
     assert_same($before, every_string(), 'nothing refused was kept');

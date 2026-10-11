@@ -1,11 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { TranslatePipe, TranslatePluralPipe, TranslationService } from '@anotoki/lib/translations';
+import { Router } from '@angular/router';
+import { TranslatePipe, TranslatePluralPipe } from '@anotoki/lib/translations';
 import { AlertComponent } from '@anotoki/lib/ui/alert';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { IconComponent } from '@anotoki/lib/ui/icon';
-import { ToastService } from '@anotoki/lib/ui/toast';
+import { signInOrShowWhy } from '../../../core/auth/auth.config';
 import { AuthService } from '../../../core/auth/auth.service';
-import { signInOrSayWhy } from '../../../core/auth/sign-in-failure';
 
 /**
  * What somebody taking surveys without signing in is told: that this browser
@@ -24,11 +24,10 @@ import { signInOrSayWhy } from '../../../core/auth/sign-in-failure';
 })
 export class VisitorNoticeComponent {
   protected readonly auth = inject(AuthService);
-  private readonly _i18n = inject(TranslationService);
-  private readonly _toast = inject(ToastService);
+  private readonly _router = inject(Router);
 
-  /** To the IAM and back to this page - once the answers on their way have arrived; a toast if it cannot start. */
+  /** To the IAM and back to this page - once the answers on their way have arrived; the screen that says why if it cannot start. */
   protected signIn(): void {
-    void signInOrSayWhy(this.auth, this._i18n, this._toast);
+    void signInOrShowWhy(this.auth, this._router);
   }
 }

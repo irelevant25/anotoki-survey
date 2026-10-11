@@ -1,6 +1,6 @@
 ---
 name: check-in-browser
-description: Check the survey site in a real browser, signed in, end to end - every page signed in first (to the IAM and back, nothing of a survey before), the family's top bar at 360, 390 and 1280 px with its phone menu; the owner writes and opens a survey with a picture, somebody takes it once, the results and the roles; the pages people take surveys on in Slovak (the top bar on a phone, a survey step by step, no key where a word should be, the admin panel English all the same); and the translating itself (the Translations and Languages pages, a survey translated in the editor, read in Slovak, in English where a text is missing, and which language each person read it in); and what goes wrong (a save the server fails on, a session that ends over unsaved strings, a save over a translator's save, the site not set up - never installed, or installed once - or out of reach, a database behind the code: the anotoki family's page for everybody and the admin panel's Migrations page that applies it, reached by a Sign in from that page); and visitors - the IAM's "Sign-in required" switched off: surveys taken without signing in, in two browsers, "Visitor N" / "Not signed in" in the admin panel, the answers and the draft moved into the account at a sign-in, and a visitor sent to sign in once the switch is on again - with headless Chrome and the stand-in IAM, on a throwaway database. Use after any change to the frontend, the API, sign-in, the site's strings or a survey's translations, before saying a change works, when a page renders blank or looks broken, or when the user asks to see or screenshot the site.
+description: Check the survey site in a real browser, signed in, end to end - every page signed in first (to the IAM and back, nothing of a survey before), the family's top bar at 360, 390 and 1280 px with its phone menu; the owner writes and opens a survey with a picture, somebody takes it once, the results and the roles; the pages people take surveys on in Slovak (the top bar on a phone, a survey step by step, no key where a word should be, the admin panel English all the same); and the translating itself (the Translations and Languages pages, a survey translated in the editor, read in Slovak, in English where a text is missing, and which language each person read it in); and what goes wrong (a sign-in the IAM turns down or the browser cannot start - the anotoki family's screen that says why, in English and formal Slovak -, a save the server fails on, a session that ends over unsaved strings, a save over a translator's save, the site not set up - never installed, or installed once - or out of reach, a database behind the code: the anotoki family's page for everybody and the admin panel's Migrations page that applies it, reached by a Sign in from that page); and visitors - the IAM's "Sign-in required" switched off: surveys taken without signing in, in two browsers, "Visitor N" / "Not signed in" in the admin panel, the answers and the draft moved into the account at a sign-in, and a visitor sent to sign in once the switch is on again; and the ADMIN's System pages (People with the scrub of an account the IAM deleted and a person's answers deleted, the error log, the audit log, the backups made after a new sign-in, downloaded and deleted) and an EDITOR kept out of them - with headless Chrome or Edge and the anotoki library's stand-in IAM, on a throwaway database. Use after any change to the frontend, the API, sign-in, the site's strings or a survey's translations, before saying a change works, when a page renders blank or looks broken, or when the user asks to see or screenshot the site.
 ---
 
 # Check the survey site in a browser
@@ -41,8 +41,12 @@ numbered in the order of the flow (three digits: there are more than a
 hundred). Look at them - a check can pass on a page that looks wrong:
 
 - `en-1280-bar-*`: the top bar on a desktop, signed in (brand, Surveys, EN, the
-  theme, the person); `en-1280-signed-out-*`: a sign-in the IAM turned down -
-  the card "You are not signed in", Sign in in the bar;
+  theme, the person); `en-1280-sign-in-failed-*`: a sign-in the IAM turned down -
+  the anotoki family's screen "Signing in did not work", why in the site's
+  words, Try again and Back (`en-390-sign-in-failed-*` on a phone,
+  `en-1280-storage-refused`: the browser refusing the site its storage);
+  `en-1280-signed-out-*`: a session that ended with the page open - the card
+  "You are not signed in", Sign in in the bar;
 - then the English pass on a desktop window (the admin panel, the user menu,
   the editor, the welcome, the thanks, the no-access page, the results);
   `admin-761-bar`, `admin-960-bar`, `admin-961-bar`: the admin panel's bar on
@@ -52,9 +56,11 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   `en-390-home-*` and `en-390-phone-menu-*` the phone's bar and its menu (the
   links, then the person's menu), `en-360-home-signed-out-*` and
   `en-360-phone-menu-signed-out-*` the card and the menu with Sign in;
-- `sk-360-*`, `sk-390-*`: the same pages in Slovak - signed out (the card, and
-  the phone menu with "Prihlásiť sa"), the chooser's menu, a survey signed
-  out (the card, nothing of the survey), the person's menu, the welcome, a
+- `sk-360-*`, `sk-390-*`: the same pages in Slovak - a sign-in turned down
+  (`sk-360-sign-in-failed-*`: the screen in formal Slovak, "Ak ste ho
+  nezrušili Vy"; `sk-360-survey-sign-in-failed-*`: at a survey's address,
+  nothing of the survey), signed out (the card, and
+  the phone menu with "Prihlásiť sa"), the chooser's menu, the person's menu, the welcome, a
   step with its errors, the last step, carrying on, sent, already taken,
   nothing here; `sk-760-bar-*` / `sk-761-bar-*`: the top bar where it folds
   into the menu button and where the links come back; `sk-360-phone-menu-*`
@@ -107,12 +113,13 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   `en-1280-behind-admin` ("A database update is waiting" and "Open
   Migrations", in English on a Slovak page too);
   `admin-migrations-behind-1280` (the family's Migrations page in the admin
-  layout: four files pending under two sets - `migrations/survey/` and
-  `migrations/anotoki_translations/` - only Migrations in the bar),
+  layout: six files pending in one list, in the order they run - the site's by
+  their names, the library's with their set - only Migrations in the bar),
   `admin-migrations-failed-1280` / `-390-*` ("Stopped at
-  survey/004_response_language.sql" and the database's error in its box - look at the
+  004_response_language.sql" and the database's error in its box, the backup
+  made before it named under it - look at the
   box on a phone: the error wraps, nothing wider than the window),
-  `admin-migrations-up-to-date-1280` / `-390-*` ("Up to date", the three
+  `admin-migrations-up-to-date-1280` / `-390-*` ("Up to date", the five
   files applied, the four links);
 - visitors ("Sign-in required" off): `admin-results-visitor-1280` (the
   results' people: "Visitor N", "Not signed in"), `-drawer-1280` (the drawer
@@ -126,6 +133,20 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   (the toast after the sign-in: one survey moved, one kept the owner's
   answers); `admin-results-visitor-390-*` (the owner and the other browser's
   visitor side by side);
+- the ADMIN's System pages, each the anotoki family's: `admin-system-1280-*` /
+  `-390-*` (the way to People, the error log, the audit log, the backups and
+  Migrations; System lit in the bar), `admin-people-1280-*` / `-390-*` (who
+  signed in, how many surveys each answered and wrote, "you", the visitors'
+  line - Delete pressable only where there are answers),
+  `admin-people-scrubbed-1280-*` ("deleted-101", "Deleted at the IAM on …",
+  the check's line), `admin-people-delete-asked-1280` (the question in the
+  site's words), `admin-errors-1280-*` / `-390-*` (a 404 asked for, without its
+  query string; the gate's 503 of the update), `admin-backups-1280-*` /
+  `-390-*` (the two made before the update, the daily one, not encrypted),
+  `admin-backups-sign-in-again-1280` ("Sign in again first" in the dialog),
+  `admin-backups-downloaded-1280` (the one made by hand, "Downloading"),
+  `admin-audit-1280-*` / `-390-*` (who did what, the newest first: the
+  backups, the people, the update, the surveys);
 - `en-390-not-set-up-*` (never installed: "This site is not set up yet", the
   setup page), `en-390-not-available-*` (installed once: "not available right
   now", no setup page), `en-390-unavailable-*` (nothing answers) - the
@@ -149,7 +170,8 @@ it on a phone, nothing wider than a phone.
 What it needs: the site set up once on this computer (`backend/config/database.local.php`
 - the tests borrow its PostgreSQL server and user), PHP 8.2 or later on the
 PATH (or `PHP=` naming it - `PHP=php8` where `php` is an older one), and
-Chrome or Edge (or `CHROME=`). Ports 8590 (the site), 8597 (the stand-in IAM)
+Chrome or Edge (or `CHROME=`: where only Edge is installed,
+`CHROME="C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe"`). Ports 8590 (the site), 8597 (the stand-in IAM)
 and 8591 (Chrome) must be free - or name others: the anotoki sites' checks
 share 8590-8599, so beside another one running give
 `SURVEY_CHECK_SITE_PORT`, `SURVEY_CHECK_IAM_PORT` and
@@ -170,9 +192,13 @@ launcher exits at once, and the browser it hands over to would outlive it).
    `config/*.local.php`. The site's strings are in it because the migrations
    put them there (`php tests/tools/testdb.php template --fresh` after editing
    a migration that the template has already applied).
-3. The stand-in IAM, `backend/tests/tools/fake-iam.php`, with a key of its own:
-   it signs in whoever `POST /_test/state {user}` says, at once, with PKCE and
-   refresh tokens like the real one. The user's `locale` (default `en`) is the
+3. The stand-in IAM - the anotoki library's,
+   `backend/vendor/anotoki/lib/php/testing/stand-in-iam.php` (built from this
+   site's own, which it replaced), with a key of its own the library's
+   `TestIam` writes: it signs in whoever `POST /_test/state {user}` says, at
+   once, with PKCE and refresh tokens like the real one; `{deny}` turns a
+   sign-in down, `{auth_time}` makes the next one older (the backups' proof),
+   `{anonymized}` lists accounts the IAM deleted (the People page's scrub). The user's `locale` (default `en`) is the
    token's `locale` claim - the language the account is set to. A user given
    `preferences` (`{theme, date_format, time_format}`) has them in the tokens,
    as an IAM with its migration 015 sends them, and `POST
@@ -203,13 +229,18 @@ which holds for the tab and is taken out of the address:
    token for the surveys, a survey and the admin panel. The chooser says `EN` (named "Language: English (EN)"),
    the tab's title. The bar at 1280 px: one row - brand ("anotoki survey",
    linking `/`), Surveys (the page), the chooser, the theme, the person. A
-   sign-in the IAM turns down (`deny`): on `/admin` the card says "You are
-   not signed in" (never "Your session has ended"); on `/` the card and the
-   bar's Sign in, which signs in. The browser refusing the site the storage
-   the sign-in needs (a script makes the SDK's `setItem` throw): the card,
-   and a toast that says why - not a blank page. `/admin` signs in through the IAM and comes back; no chooser
-   there, its links Surveys, Translations, Languages and - the owner is an
-   ADMIN - Migrations (the bar measured at 761, 960 and 961 px with all four).
+   sign-in the IAM turns down (`deny`), at `/admin`: the anotoki family's
+   screen on `/auth/callback` - "Signing in did not work", why in the site's
+   words (`access_denied`), Try again and Back, the tab "Signing in · anotoki
+   survey", `noindex`, nothing of the admin panel; Back asks the IAM again
+   (turned down again: the same screen), Try again - let through - lands on
+   `/admin`. A session that ends with `/` open (another tab signed out): the
+   card and the bar's Sign in, which signs in. The browser refusing the site
+   the storage the sign-in needs (a script makes the client's `setItem`
+   throw): the screen, saying why - not a blank page. `/admin` signs in
+   through the IAM and comes back; no chooser there, its links Surveys,
+   Translations, Languages and - the owner is an ADMIN - System (the bar
+   measured at 761, 960 and 961 px with all four).
 2. The user menu: focus on its first item, ArrowDown, End, round to the
    first, Escape gives the focus back to the button; Tab from the first, a
    middle and the last item (and Shift+Tab) closes it with the focus on the
@@ -219,33 +250,36 @@ which holds for the tab and is taken out of the address:
    is not theirs - on the Translations page too, whose "See the open surveys"
    still leaves it). The owner's menu has the way in; the owner reads the answer
    and may delete it. Edith sees everything but the deletes - and no
-   Migrations: not in her bar, at its address the page says it is for
-   administrators (and asks the server nothing), and the API refuses her.
+   System: not in her bar, at the Migrations page's address the page says it
+   is for administrators (and asks the server nothing), and the API refuses her.
 4. A phone, 360 and 390 px, signed in and signed out: the top bar fits (brand
    with "survey" alone, chooser, theme, menu button), no sideways scroll, a
    step's error, no key on the page; the phone menu - the links, then the
    person's menu; focus in, arrows, Home, Escape back to its button, a click
    outside, Tab and Shift+Tab from the first, a middle and the last item back
-   to its button, a link chosen; signed out the card, and Sign in in the
-   menu.
+   to its button, a link chosen; signed out (a session ended) the card, and
+   Sign in in the menu; a sign-in turned down, the screen at 390 px.
 
 In Slovak:
 
 - First, a browser set to Slovak (`browserLanguage('sk-SK')`), nothing stored,
-  nobody signed in (the IAM turns the sign-in down), no `?lang=`: the card is
-  Slovak, and its strings were asked for in Slovak alone -
+  nobody signed in (the IAM turns the sign-in down), no `?lang=`: the screen
+  of a failed sign-in is Slovak - the site's formal words ("Ak ste ho
+  nezrušili Vy"), "Skúsiť znova", "Späť", the tab "Prihlasovanie · anotoki
+  prieskum" - and its strings were asked for in Slovak alone -
   `GET /api/translations/sk-sk` (which the server answers by the base
   language), and after the IAM the cached `sk` again; never English first.
   The browser is put back to English afterwards.
 
-5. Storage cleared, `/?lang=sk`, signed out (turned down), 360 px:
-   `<html lang="sk">` through the IAM and back, the card "Nie ste
-   prihlásení" with "Prihlásiť sa", the chooser `SK` (named "Jazyk:
-   Slovenčina (SK)") and its menu, the tab's title, the brand "prieskum", the menu
-   button "Ponuka" and its menu; the bar at 390, 760 and 761 px (the menu
-   button up to 760, the links and Sign in in the row from 761); a survey
-   signed out - the card, nothing of the survey drawn or asked of the API.
-6. Nina signs in from that card - her account is English, the tab stays
+5. Storage cleared, `/?lang=sk`, turned down, 360 px: `<html lang="sk">`
+   through the IAM and back, the screen in Slovak; then signed in and the
+   session ended over the page: the card "Nie ste prihlásení" with
+   "Prihlásiť sa", the chooser `SK` (named "Jazyk: Slovenčina (SK)") and its
+   menu, the tab's title, the brand "prieskum", the menu button "Ponuka" and
+   its menu; the bar at 390, 760 and 761 px (the menu button up to 760, the
+   links and Sign in in the row from 761); a survey's address, turned down -
+   the screen, nothing of the survey drawn or asked of the API.
+6. Nina signs in from that screen's "Skúsiť znova" - her account is English, the tab stays
    Slovak through the IAM and back, and she is back on the survey's page:
    her menu, the welcome, the step about her with its errors
    (360 and 390 px), the last step, the home page's "Začatý", carrying on,
@@ -256,8 +290,9 @@ In Slovak:
    owner - through the menu's "Administrátorský panel" and by the address - English,
    `<html lang="en">`, no chooser, the shared top bar in English; back to `/`
    it is Slovak again.
-8. Storage cleared, Zuzana (her token says `locale: sk`): English while signed
-   out (the browser's), Slovak once signed in, and nothing stored; her
+8. Storage cleared, Zuzana (her token says `locale: sk`): English while
+   turned down (the browser's: the screen in English), Slovak once signed in
+   with its Try again, and nothing stored; her
    twenty-character name whole in the phone menu at 360 px, and in the bar at
    960 / 961 px (the initial alone, then the name).
 9. The chooser: English chosen, at once, kept on the device, and still there
@@ -285,9 +320,9 @@ cleared, `/?lang=en`), the owner in the admin panel:
     signed out" (not "no editor role") with its own Sign in, the bar fits at
     390 px (brand, theme, the menu button - its menu the sections and Sign in), the
     brand link and Back still navigate (the guard is asked with no page);
-    the browser asks "Leave site?" once on the way to the sign-in (the
-    family's drafts ask whenever boxes wait - the site's own asked nothing
-    while nobody was signed in); signed in again, both boxes
+    the browser asks nothing on the way to the sign-in (nobody is signed in:
+    the family's drafts wait in the tab - anotoki-lib 0.4.0; 0.3.0 asked
+    "Leave site?" here); signed in again, both boxes
     hold what was typed, marked as changed. Signing out over them asks first
     ("Stay" keeps everything) - in Slovak too, from the home page at 360 px,
     where "sign out anyway" gives them up: out at the IAM and - every page
@@ -370,13 +405,14 @@ A database behind the code - the one stage that changes the database itself
 `SURVEY_CHECK_PHP`, `SURVEY_CHECK_BACKEND`, `SURVEY_CHECK_CONFIG`):
 
 22. This release's update, as an installed site meets it: the rows of
-    `004_response_language.sql`, `010_strings_through_the_library.sql` and
-    the anotoki library's set (`anotoki_translations/001_…`, `/002_…`) taken
-    out of `migrations`; and one of the kit's words put back as it was before
-    010 - the site's own key `topbar.roleAdmin`, reworded by its owner
-    ("Administrator of the surveys"), and no `anotoki.topbar.roleAdmin`. The
-    strings answer all the same (the library's open path), with the owner's
-    words under the old key. The API is 503 `update_pending` with `Retry-After: 60`,
+    `004_response_language.sql`, `011_people.sql`, `012_sign_in_words.sql`
+    and the anotoki library's files of it (`anotoki_translations/003_…`,
+    `/004_…`, `anotoki_people/001_…`) taken out of `migrations` (each of
+    them but 004 can run again); and one of the sign-in's words put back as
+    it was before 012 - the site's own key `signIn.notCompleted`, reworded by
+    its owner, and no `anotoki.signIn.notCompleted`. The strings answer all
+    the same (the library's open path), with the owner's words under the old
+    key. The API is 503 `update_pending` with `Retry-After: 60`,
     the sign-in's settings answer (no `update` field), `/api/site-status` says
     `update_pending`. Nobody signed in, `?lang=sk`, 390 px: the anotoki
     family's page, "Stránku práve aktualizujeme", in Slovak - no trip to the
@@ -392,22 +428,23 @@ A database behind the code - the one stage that changes the database itself
     the strings (the owner, the Migrations page's list too: `askedBehind()`),
     and no toast came. The owner, signed
     out at `/admin/migrations`, signs in from it: back there, on the family's
-    Migrations page - the four files pending, under `migrations/survey/` and
-    then `migrations/anotoki_translations/`, only "Migrations" in the bar, the
-    tab "Migrations · …", and the person's menu saying the library's own word
-    for the role ("Administrator": the owner's is under a key nothing reads
-    now). On a Slovak page the
-    owner reads "A database update is waiting" (English, `lang="en"`) with
-    "Open Migrations", which opens the page at 1280. "Apply pending", asked
-    "Apply 4 pending migrations?": "Stopped at survey/004_response_language.sql",
-    nothing applied, rolled back, and PostgreSQL's error ("column "language"
-    of relation "responses" already exists", with the statement) in its box -
-    at 1280 and 390. 004's row put back; Apply again: "Up to date - Applied:
-    survey/010_strings_through_the_library.sql, anotoki_translations/001_…,
-    anotoki_translations/002_….", nothing pending, the bar's four links back,
-    the strings read again - the menu says the owner's "Administrator of the
-    surveys", under the library's key now (010 moved it) - no key on the
-    page; at 1280 and 390; Surveys opens the list, no reload.
+    Migrations page - the six files pending in one list in the order they
+    run (the site's by their names, the library's with their set, anotoki-lib
+    0.4.0), only "Migrations" in the bar, the tab "Migrations · …". On a
+    Slovak page the owner reads "A database update is waiting" (English,
+    `lang="en"`) with "Open Migrations", which opens the page at 1280.
+    "Apply pending", asked "Apply 6 pending migrations?": a backup of the
+    database first (named under the result), then "Stopped at
+    004_response_language.sql", nothing applied, rolled back, and
+    PostgreSQL's error ("column "language" of relation "responses" already
+    exists", with the statement) in its box - at 1280 and 390. 004's row put
+    back; Apply again: "Up to date - Applied: 011_people.sql,
+    012_sign_in_words.sql, anotoki_translations/003_…, anotoki_translations/004_…,
+    anotoki_people/001_….", nothing pending, the bar's four links back, the
+    strings read again - the owner's rewording under the library's key now
+    (012 moved it), and a sign-in turned down afterwards says it on the
+    family's screen - no key on the page; at 1280 and 390; Surveys opens the
+    list, no reload.
 
 Visitors - the IAM's "Sign-in required" switched off (the stand-in's
 `login_required`, and the kept answer in the work folder's `config/cache`
@@ -415,19 +452,20 @@ deleted, so the site asks again at once):
 
 23. The owner makes three open surveys through the API ("Visit one", "two",
     "three" - one question, Slovak whole) and answers "Visit two" as
-    themselves. `/api/auth/config` says `loginRequired: false`,
-    `visitorDays: 30`. A **second browser** (a context of its own, nothing
+    themselves. `/api/auth/config` says `login_required: false`,
+    `visitor_days: 30`. A **second browser** (a context of its own, nothing
     stored) opens `/`: no trip to the IAM, the three surveys "New", the
     notice; it answers "Visit one" - a key in its `localStorage`. The owner's
     results of "Visit one" list it as "Visitor N" (N from its negative id),
-    "Not signed in" where the address is - in the table, the drawer, and on
-    the page of its answers at 390 px. Then the first browser forgets its
+    "Not signed in" under the name - in the table, the drawer, and on
+    the page of its answers at 390 px; nobody has an address. Then the first browser forgets its
     session: `/?lang=en` at 390 px is the list with no trip to the IAM, the
     notice ("for 30 days after your last visit", Sign in), the welcome's
     visitor line; no key before the first answers, one after; "already
     taken" again; "Visit two" sent, "Visit three" started and left; after a
     page load "Taken, Taken, Started". `/admin` and `/preview/{id}` still go
-    to the IAM (turned down here): their cards, the refusal's toast. In
+    to the IAM (turned down here): the screen of a failed sign-in, why in the
+    owner's words, nothing of either; the key kept. In
     Slovak: the notice ("ešte 30 dní"), "Vyplnený, Vyplnený, Začatý", the
     line, "Pokračovať" for the draft, at 390 and 360 px, no key on the page.
     Sign in from the notice, as the owner: the toast says one survey moved
@@ -436,11 +474,36 @@ deleted, so the site asks again at once):
     owner's beside the other browser's visitor, "Visit two" kept the owner's
     own answer only. Switched on again: the second browser, holding its key,
     goes to the IAM before anything of a survey is asked for (turned down
-    here: the card), and keeps its key.
+    here: the screen), and keeps its key.
+
+The ADMIN's System pages (anotoki-lib 0.4.1, each the family's), English:
+
+24. Edith (EDITOR) at `/admin/system`: whose the pages are, no link; at
+    `/admin/people`: "People are for administrators.", nothing asked; the API
+    refuses her the people, the error log, the audit log and the backups (403).
+    The owner: System in the bar opens the System page - the way to People,
+    the error log, the audit log, the backups and Migrations, System lit in the
+    bar - at 1280 and 390 px. People: the columns (name, IAM id, first and last
+    seen, surveys answered and written), "you" on the owner's row, the
+    visitors' line in the site's words, no Delete to press for Edith (nothing
+    answered). The stand-in's `anonymized` names Pat's account deleted at the
+    IAM: "Check now" scrubs it here - "deleted-101", "Deleted at the IAM on …",
+    the answers kept, the results naming the placeholder. Delete for Nina asks
+    only its question (her answers counted, what stays; no password), and the
+    page says what went; her row then has nothing to delete. The error log: a
+    404 asked for here, its path without the query string. The backups: the
+    two the Applies made before the update; with the stand-in's sign-in an
+    hour old (`auth_time`), Back up now says "Sign in again first", whose
+    button goes through the IAM and back; then one is made by hand (its
+    description), downloaded by its single-use link (the file
+    `survey-<id>.anotoki-backup`, `ANOTOKI-BACKUP 1`) and deleted. The audit
+    log: the backup made, downloaded and deleted, the answers deleted, the
+    scrub, the update - by the owner, named. Every page at 1280 and 390 px,
+    light and dark.
 
 The pages drawn instead of the site - storage cleared, 390 px:
 
-24. Every request to the API answered as the backend's gate answers a site
+25. Every request to the API answered as the backend's gate answers a site
     not set up and never installed (`/api/site-status`: `not_set_up`,
     `installed: false`): the family's "This site is not set up yet" in
     English, with "Open the setup page" (`/setup.php`), and the tab named by
@@ -464,9 +527,14 @@ both see them), `setFiles(selector, n, files)` (a file input, through
 in `user`, then out through the top bar's menu - and in again at once, for `/`
 asks first; `words` is `EN` or `SK`, the language the page is in),
 `signOut(words)` (out, and in again as whoever the stand-in signs in now),
-`signedOutOn(path)` (nobody signed in on `path`: the session forgotten and the
-stand-in told to `deny`, so the page comes back without a sign-in and draws
-its card; `setIam({ deny: false })` and a Sign in end it), `forgetSession()`,
+`refusedOn(path)` (a sign-in turned down on `path`: the session forgotten and
+the stand-in told to `deny`, so the page comes back without one - the screen
+of a failed sign-in, `FAILURE_SCREEN`, read by `failureScreen()`: its heading,
+why, its buttons, its `lang`; `setIam({ deny: false })` and `tryAgain()` end
+it), `sessionEndsOn(path)` (signed in on `path`, then the session ends the way
+another tab ends it - the stored tokens gone, with a `storage` event: the
+layout's card and the bar's Sign in; a page load from there goes to the IAM
+again), `forgetSession()`,
 `SIGNED_IN` (an expression: the site holds tokens and the bar is drawn),
 `whoIsIn()` (the name the bar says - on a phone read from its menu),
 `openUserMenu()` (the person's button, or the phone's menu button),
@@ -489,7 +557,9 @@ For the stages where something fails: `intercept(pattern, say)` /
 `{status, body}` answers it - JSON, or a bare page when `body` is a text),
 `requested` (every request the page made, as `GET /api/translations/sk`: a
 stage counts from `requested.length` as it begins), `setIam(changes)` (the
-stand-in IAM's state: `{user}`, `{refuse: true}` - refreshing is refused),
+stand-in IAM's state: `{user}`, `{deny: true}` - a sign-in turned down,
+`{refuse: true}` - refreshing is refused, `{auth_time}` - the next sign-in that
+old, `{anonymized: [{sub, anonymized_at}]}` - accounts the IAM deleted),
 `browserLanguage('sk-SK')` (what the browser itself says its language is),
 `question()` (a question of the site's or of the family's pages - a dialog
 of the page, not the browser's: its heading, text and buttons),
@@ -524,11 +594,13 @@ Things that cost time to find out:
   the window's width.
 - Nobody is ever signed out for long (but in the visitors' stage, with the
   switch off): every page sends somebody not signed in to the IAM, and the
-  stand-in signs in at once. A signed-out page is one the IAM turned
-  down (`setIam({ deny: true })` - the stand-in answers `access_denied`): the
-  guard lets that page load through, the layout draws its card, and a toast
-  says the sign-in did not go through (`signedOutOn()` dismisses it). Forget
-  `deny: false` and every later sign-in is turned down.
+  stand-in signs in at once. A sign-in the IAM turns down
+  (`setIam({ deny: true })` - the stand-in answers `access_denied`) ends on the
+  library's screen at `/auth/callback` (`refusedOn()`), never on a page of the
+  site: there is no bar there. A signed-out page with the bar is one whose
+  session ended while it was open (`sessionEndsOn()`) - and only until the next
+  page load, which goes to the IAM again. Forget `deny: false` and every later
+  sign-in is turned down.
 - While the site cannot run (a database behind, stage 22) nobody is sent to
   the IAM: the family's page stands with its own quiet Sign in, which
   `signInThere(user, words)` presses (`signedOutBehind(path)` gets there with
@@ -596,8 +668,20 @@ Things that cost time to find out:
 - A session ends for the page when its access token has run out and the IAM
   will not renew it: `setIam({ refuse: true })`, the stored token's
   `access_expires_at` set to 0 with a `storage` event (as another tab would
-  write it - the SDK listens), then anything that needs a token. Set `refuse`
-  back before signing in again.
+  write it - the library's client listens, under the SDK's old keys), then
+  anything that needs a token. Set `refuse` back before signing in again.
+- The admin tools' pages and the People page are the library's markup:
+  `anotoki-people-page` (`tr[data-person="<id>"]`, `[data-column="answered"]`,
+  `[data-deleted]`, `[data-delete]`, `[data-sync-now]`, `[data-visitors]`, the
+  question `[data-confirm]` with `[data-confirm-delete]`, `[data-outcome]`),
+  `anotoki-error-log-page` (`[data-groups]`), `anotoki-audit-log-page`
+  (`[data-entries]`, `.anotoki-audit-log-page__action`, `td[data-label="Who"]`)
+  and `anotoki-backups-page` (`[data-backups]`, `[data-kind]`, `[data-create]`,
+  the dialog `[data-guarded]` with `[data-guarded-confirm]` and its
+  `[data-sign-in-needed] [data-sign-in]`, `[data-download]`, `[data-delete]`).
+  An audit entry's details may name a string's key (`home.title`): no
+  `expectNoKeys` there. The backups' download goes to a folder of the work
+  folder (`Page.setDownloadBehavior`), named `survey-<id>.anotoki-backup`.
 - Every account holds MEMBER (the IAM gives it to everyone): an ordinary
   person's roles are `['MEMBER']`, never `[]`.
 - The stand-in also answers the IAM's public question about the site
@@ -646,9 +730,9 @@ The same pieces, to click through yourself (ports as above):
 ```bash
 cd backend
 php tests/tools/testdb.php template
-php -r 'require "api/anotoki_iam.php"; @mkdir("storage/manual-iam", 0777, true); file_put_contents("storage/manual-iam/key.json", json_encode(anotoki_iam_test_keypair("manual")));'
+php -r 'require "vendor/autoload.php"; Anotoki\Lib\Auth\Testing\TestIam::create("storage/manual-iam", "http://127.0.0.1:8597", "survey", "manual");'
 php tests/tools/testenv.php storage/manual --db=survey_test_manual --issuer=http://127.0.0.1:8597
-FAKE_IAM_DIR=storage/manual-iam FAKE_IAM_ISSUER=http://127.0.0.1:8597 php -S 127.0.0.1:8597 tests/tools/fake-iam.php
+STAND_IN_DIR=storage/manual-iam STAND_IN_ISSUER=http://127.0.0.1:8597 php -S 127.0.0.1:8597 vendor/anotoki/lib/php/testing/stand-in-iam.php
 SURVEY_TEST_CONFIG=storage/manual php -S 127.0.0.1:8590 router.php     # in another terminal
 # who signs in: curl -X POST -d '{"user":{"id":1,"username":"owner","roles":["MEMBER","ADMIN"]}}' http://127.0.0.1:8597/_test/state
 # with an account set to Slovak: ... -d '{"user":{"id":103,"username":"zuzana","roles":["MEMBER"],"locale":"sk"}}' ...

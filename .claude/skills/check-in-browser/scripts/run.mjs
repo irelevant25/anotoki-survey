@@ -4,7 +4,9 @@
 //
 // It builds the frontend (unless --no-build), makes a throwaway database
 // (survey_test_browser, from survey_test_template - `php tests/run.php` keeps
-// that current), starts the stand-in IAM on 8597 and the site on 8590 (the
+// that current), starts the stand-in IAM on 8597 - the anotoki library's
+// (vendor/anotoki/lib/php/testing/stand-in-iam.php, its key made by the
+// library's TestIam) - and the site on 8590 (the
 // built app and the API on one origin, as on the hosting), starts headless
 // Chrome with a profile of its own on 8591 - in English (--lang=en-GB), so the
 // language the site starts in is never the computer's - runs flow.mjs, and then stops all
@@ -132,9 +134,10 @@ try {
   run(php, ['tests/tools/testdb.php', 'template'], { cwd: backend });
   run(php, ['tests/tools/testdb.php', 'drop', DATABASE], { cwd: backend });
 
-  // The stand-in IAM's own key, and the site's settings pointing at it.
-  const iamDir = join(work, 'fake-iam');
-  run(php, ['-r', 'require "api/anotoki_iam.php"; @mkdir($argv[1], 0777, true); file_put_contents($argv[1] . "/key.json", json_encode(anotoki_iam_test_keypair("browser-check")));', iamDir], { cwd: backend });
+  // The stand-in IAM's own key (the anotoki library's TestIam writes it into the folder the stand-in reads), and the
+  // site's settings pointing at it.
+  const iamDir = join(work, 'stand-in-iam');
+  run(php, ['-r', 'require "vendor/autoload.php"; \\Anotoki\\Lib\\Auth\\Testing\\TestIam::create($argv[1], $argv[2], "survey", "browser-check");', '--', iamDir, `http://127.0.0.1:${IAM}`], { cwd: backend });
   run(php, ['tests/tools/testenv.php', join(work, 'config'), `--db=${DATABASE}`, `--issuer=http://127.0.0.1:${IAM}`], { cwd: backend });
 
   // Free ports only: a server that cannot have its port fails quietly, and the check would then drive whatever
@@ -144,7 +147,7 @@ try {
       throw new Error(`Port ${port} is taken (another site's check?): name a free one with SURVEY_CHECK_${name}_PORT.`);
     }
   }
-  start(php, ['-S', `127.0.0.1:${IAM}`, 'tests/tools/fake-iam.php'], { cwd: backend, env: { ...process.env, FAKE_IAM_DIR: iamDir, FAKE_IAM_ISSUER: `http://127.0.0.1:${IAM}` } });
+  start(php, ['-S', `127.0.0.1:${IAM}`, 'vendor/anotoki/lib/php/testing/stand-in-iam.php'], { cwd: backend, env: { ...process.env, STAND_IN_DIR: iamDir, STAND_IN_ISSUER: `http://127.0.0.1:${IAM}` } });
   start(php, ['-S', `127.0.0.1:${SITE}`, 'router.php'], { cwd: backend, env: { ...process.env, SURVEY_TEST_CONFIG: join(work, 'config') } });
   // --lang: the browser's own language decides which language the site starts in, so it is said here and
   // never left to the computer the check runs on. English; the flow asks for Slovak where it wants it.

@@ -12,9 +12,12 @@ declare(strict_types=1);
  *   php tests/run.php tests/api/auth.test.php …    some files
  *
  * With another PHP - the hosting's version, say - call that binary instead of
- * `php` (any PHP 8.2 or newer with pdo_pgsql, openssl, dom and curl): every file
- * runs under the PHP that runs this. The databases are made on the server in
- * config/database.local.php, so set the site up first (setup.php).
+ * `php` (any PHP 8.2 or newer with pdo_pgsql, openssl, dom, curl and mbstring):
+ * every file runs under the PHP that runs this - and the servers the tests
+ * start too, so a PHP whose extensions come from its own php.ini is given it
+ * with PHPRC=<its folder>, never -c (a child process does not get -c). The
+ * databases are made on the server in config/database.local.php, so set the
+ * site up first (setup.php).
  */
 
 $root = dirname(__DIR__);
@@ -22,7 +25,7 @@ $files = array_slice($argv, 1);
 if (!$files) {
     $files = array_merge(glob("$root/tests/unit/*.test.php") ?: [], glob("$root/tests/api/*.test.php") ?: []);
 }
-foreach (['pdo_pgsql', 'openssl', 'dom', 'curl'] as $extension) {
+foreach (['pdo_pgsql', 'openssl', 'dom', 'curl', 'mbstring'] as $extension) {
     if (!extension_loaded($extension)) {
         fwrite(STDERR, "The tests need PHP's $extension extension; this PHP (" . PHP_VERSION . ") has none.\n");
         exit(1);

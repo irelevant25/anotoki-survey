@@ -25,8 +25,9 @@ cd ../backend && php tools/build.php
 
 `dist/` at the top of the repository holds the upload: the app, `.htaccess`,
 `setup.php`, `api/`, `config/config.php`, `migrations/`, `vendor/` (with
-`vendor/anotoki/lib`, the family's library - its migration set
-`php/migrations/translations/` too, which runs after the site's own), `storage/`.
+`vendor/anotoki/lib`, the family's library - its migration sets
+`php/migrations/` too: `admin/` before the site's own, `translations/` and
+`people/` after them), `storage/`.
 No `*.local.php`, no tests or tools, no `migration.php` or `translations.php`
 (the command line's), no composer files - check it, it is what the world will
 be able to read.
@@ -50,6 +51,26 @@ page that was open (an old page no longer reads or saves a language's
 `native_name` and `sort_order`). 010 moves the site's strings for the kit
 under the library's keys, an owner's rewording with them, and stops - rolled
 back whole - if anything would be lost.
+
+**The version on anotoki-lib 0.4.1** (signing in, the people and the admin
+tools are the library's): seven files on the Migrations page, in the order they
+run - `anotoki_admin/001_audit_log.sql`, `/002_feedback.sql`,
+`011_people.sql` (**drops `users.email`**: the site keeps no address - the
+owner's decision; its gate proves every other column of every row
+unchanged), `012_sign_in_words.sql` (the site's sign-in strings under the
+library's keys, an owner's rewording with them), then
+`anotoki_translations/003_…`, `/004_…` and `anotoki_people/001_people.sql`.
+Export each language first, as above. The Apply makes a backup of the
+database first (the library's, `storage/backups/`): PHP must be able to write
+`storage/` (it makes `logs/` and `backups/`). After the upload delete
+`api/anotoki_iam.php` from the host (read by nothing now), and check that
+`https://survey.anotoki.eu/storage/anotoki-lib.key` answers 403 (the
+library's key: never served). That first backup, `before-migration`, is made
+before 011 runs and still holds `users.email`: once the site runs again and
+works, **the owner deletes it** on System → Backups. The IAM must have
+its `GET /api/public/anonymized-accounts` (its 016) for the scrub of deleted
+accounts; until it answers, the People page says the check stopped, and
+nothing else is affected.
 
 ## 2. Upload
 
@@ -84,8 +105,10 @@ results list that answer as "Visitor N", "Not signed in".
   It locks (`storage/installed.lock`) and deletes itself.
 - **A version with a new migration**: the site is closed until it is applied
   - the API answers 503 `update_pending`, and everybody reads the anotoki
-  family's "The site is being updated" (no error, no setup page). Back the
-  database up first. The usual way: the owner signs in as an ADMIN from that
+  family's "The site is being updated" (no error, no setup page). The Apply
+  backs the database up first (the library's backups - a backup that cannot
+  be made stops it before anything runs; System → Backups lists it, kept until
+  the owner deletes it). The usual way: the owner signs in as an ADMIN from that
   page's quiet "Sign in" (or straight at `/admin/migrations`, where the
   sign-in comes back to the page) - "A database update is waiting" links to
   the admin panel's **Migrations** page (nobody else gets the link) - and
@@ -127,11 +150,16 @@ ADMIN only to the administrators the IAM had when it ran.
 ## 5. Check
 
 - `https://survey.anotoki.eu/api/health` → `{"ok":true}`;
-  `/api/auth/config` → the live IAM and `survey`, and `loginRequired` - `true`
-  until the IAM's 010 is applied there and its "Sign-in required" is switched
-  off for the survey (the site asks the IAM through the SDK; `storage/cache/`
-  must be writable); `visitorDays` - 30, or the `keep_days` of
+  `/api/auth/config` → the live IAM and `survey` (`issuer`, `client_id`),
+  and `login_required` - `true` until the IAM's 010 is applied there and its
+  "Sign-in required" is switched off for the survey (the site asks the IAM
+  through the library's `SignInRule`; `storage/cache/` must be writable);
+  `sign_in_available` - `true`; `visitor_days` - 30, or the `keep_days` of
   `config/visitors.local.php`.
+- As the owner (ADMIN): System in the admin panel's bar - People lists the
+  people who signed in; the error log, the audit log and the backups open
+  (the Apply's backup listed); `/storage/logs/`, `/storage/backups/` and
+  `/storage/anotoki-lib.key` are refused (403), not served.
 - `https://survey.anotoki.eu/setup.php` does not show the installer.
 - `/config/database.local.php`, `/storage/`, `/vendor/composer/installed.json`,
   `/api/auth.php` are refused (403), not served.

@@ -2,9 +2,7 @@ import { InjectionToken, WritableSignal, inject, signal } from '@angular/core';
 import { SiteStatus } from '@anotoki/lib/migrations';
 import { ThemeService } from '@anotoki/lib/shell';
 import { TranslationService } from '@anotoki/lib/translations';
-import { ToastService } from '@anotoki/lib/ui/toast';
 import { AuthService } from './auth/auth.service';
-import { sayWhySignInFailed } from './auth/sign-in-failure';
 import { VisitorKey } from './auth/visitor-key';
 import { adoptVisitorDrafts } from './survey/drafts';
 
@@ -25,9 +23,11 @@ export const BOOTED = new InjectionToken<WritableSignal<boolean>>('the start has
  * (so nothing flashes); the sign-in - which, back from the IAM, puts the
  * address the person came from back in the address bar before the router
  * reads it; the language and its strings, which need to know who is signed in
- * and what the address is; and only then a failed sign-in, said in words that
- * exist by now. Last of all it says the start is over (BOOTED) - which always
- * comes: neither the status, the sign-in nor the language ever rejects.
+ * and what the address is. Last of all it says the start is over (BOOTED) -
+ * which always comes: neither the status, the sign-in nor the language ever
+ * rejects. A sign-in that came back without one is said by the anotoki
+ * family's screen, where the guards send the first navigation (app.routes.ts) -
+ * in words that exist by then.
  *
  * Where the site stands comes first, so the first navigation knows it: while
  * the site cannot run (not set up, a database update waiting, the database out
@@ -52,7 +52,6 @@ export async function boot(): Promise<void> {
   const auth = inject(AuthService);
   inject(VisitorKey);
   const i18n = inject(TranslationService);
-  const toast = inject(ToastService);
   const booted = inject(BOOTED);
 
   // Starting again (the load error page's "Try again"): the site waits for its strings again.
@@ -64,10 +63,5 @@ export async function boot(): Promise<void> {
     adoptVisitorDrafts(person.id);
   }
   await i18n.init();
-
-  const failure = auth.signInFailure();
-  if (failure) {
-    sayWhySignInFailed(failure, i18n, toast);
-  }
   booted.set(true);
 }

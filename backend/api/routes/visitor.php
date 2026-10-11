@@ -2,13 +2,15 @@
 
 declare(strict_types=1);
 
+use Anotoki\Lib\Auth\Http\RequirePerson;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
  * At sign-in, what this browser answered as a visitor becomes the signed-in
  * person's - the one place the two meet, so it takes both: the person's token
- * (requireUser(); a visitor alone is refused) and the visitor's key.
+ * (the library's RequirePerson; a visitor alone is refused - its key is not
+ * even looked up here) and the visitor's key, which the route hands in.
  *
  *   POST /api/visitor/move   X-Visitor-Key: <key>   -> {found, moved, kept}
  *
@@ -23,9 +25,11 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  * It works whether or not the IAM says this site requires sign-in: switching
  * that on stops a key from being somebody, not from being handed in with a
  * token - so what a visitor answered before still comes into their account
- * when they sign in. Never while a migration waits (the setup gate).
+ * when they sign in. Never while a migration waits (the site gate).
  *
  * @var \Slim\App $app
+ * @var \Anotoki\Lib\Auth\Http\Identify $identify   Identify that reads no visitor's key (api/index.php)
+ * @var \Anotoki\Lib\People\Http\RecordPerson $recordPerson
  */
 
 $app->post('/api/visitor/move', function (Request $request, Response $response): Response {
@@ -37,5 +41,5 @@ $app->post('/api/visitor/move', function (Request $request, Response $response):
         throw new ApiError(422, 'invalid_visitor_key', 'The X-Visitor-Key header is not a visitor key.');
     }
 
-    return respondJson($response, visitorMoveInto(signedInUser($request), $key));
-})->add(requireUser());
+    return respondJson($response, visitorMoveInto(currentPerson($request), $key));
+})->add($recordPerson)->add(new RequirePerson())->add($identify);

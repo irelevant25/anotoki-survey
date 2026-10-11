@@ -15,9 +15,10 @@ declare(strict_types=1);
  *   SURVEY_TEST_CONFIG=FOLDER php -S 127.0.0.1:8590 router.php
  *
  * and drop it afterwards: php tests/tools/testdb.php drop survey_test_manual.
- * The IAM is --issuer: the stand-in, tests/tools/fake-iam.php (its header
- * says how to run it), never the real one; --jwks gives it a key set on disk
- * instead of the one it would download.
+ * The IAM is --issuer: the anotoki library's stand-in IAM,
+ * vendor/anotoki/lib/php/testing/stand-in-iam.php (its header says how to run
+ * it), never the real one; --jwks gives it a key set on disk instead of the
+ * one it would download.
  */
 
 if (PHP_SAPI !== 'cli') {

@@ -8,9 +8,8 @@ import { MigrationsPageComponent } from '@anotoki/lib/migrations/page';
 import { firstValueFrom } from 'rxjs';
 import { AppComponent } from './app.component';
 import { AdminDates } from './core/admin/admin-dates.service';
-import { type AnotokiPreferences } from './core/auth/anotoki-auth';
+import { ANOTOKI_AUTH_CONFIG, AnotokiAuth, type AnotokiPreferences, personGuard } from '@anotoki/lib/auth';
 import { AuthService, BootStatus, SignInFailure } from './core/auth/auth.service';
-import { signInGuard } from './core/auth/sign-in.guard';
 import { BOOTED } from './core/boot';
 import { provideSiteMigrations } from './core/migrations';
 import { provideTestTranslations } from './core/testing/test-translations';
@@ -51,10 +50,17 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
     onAuthChange: () => () => undefined,
     savePreferences: async () => ({}),
     init: async () => undefined,
-    signIn: vi.fn(async (_returnTo?: string, _uiLocales?: string) => {
+    signIn: vi.fn(async (_returnTo?: string, _prompt?: 'login') => {
       signedInFrom = TestBed.inject(Router).url;
       return true;
     }),
+  };
+  /** The anotoki family's sign-in as its guard (personGuard) reads it: whose the page is, and nothing to say of a failure. */
+  const library = {
+    state: () => (signedIn() ? 'signed-in' : 'signed-out'),
+    roles: () => roles(),
+    signInFailure: () => null,
+    signIn: vi.fn(async () => true),
   };
   let fixture: ComponentFixture<AppComponent>;
   let host: HTMLElement;
@@ -78,7 +84,7 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
         provideRouter([
           {
             path: 'admin',
-            canActivate: [signInGuard],
+            canActivate: [personGuard],
             children: [
               { path: 'migrations', component: MigrationsPageComponent },
               { path: '', component: TestPageComponent },
@@ -88,6 +94,8 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
         ]),
         provideSiteMigrations(),
         { provide: AuthService, useValue: auth },
+        { provide: AnotokiAuth, useValue: library },
+        { provide: ANOTOKI_AUTH_CONFIG, useValue: { config: () => null } },
       ],
     });
   }
@@ -140,6 +148,7 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
     preferences.set(null);
     signedInFrom = null;
     auth.signIn.mockClear();
+    library.signIn.mockClear();
     TestPageComponent.made = 0;
   });
 
@@ -221,6 +230,7 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
       }
       expect(TestBed.inject(Router).url).toBe('/admin/migrations');
       expect(auth.signIn).not.toHaveBeenCalled();
+      expect(library.signIn).not.toHaveBeenCalled();
     });
 
     it('shows an EDITOR the same page as everybody: the update is an ADMIN’s', async () => {
@@ -281,8 +291,10 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
 
       statusPage()!.querySelector<HTMLButtonElement>('button')!.click();
       await fixture.whenStable();
-      // To the IAM in the reader's language, and back to where the button was pressed (AuthService.signIn()'s own default).
-      expect(auth.signIn).toHaveBeenCalledWith(undefined, 'en');
+      // To the IAM, and back to where the button was pressed (AuthService.signIn()'s own default) - the library says the
+      // reader's language to the IAM itself (core/auth/auth.config.ts).
+      expect(auth.signIn).toHaveBeenCalledTimes(1);
+      expect(auth.signIn.mock.calls[0][0]).toBeUndefined();
       expect(signedInFrom).toBe('/admin/migrations');
 
       // Back from the IAM as the site's ADMIN, at that address.

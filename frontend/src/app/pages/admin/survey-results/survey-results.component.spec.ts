@@ -10,7 +10,7 @@ import { SurveyResultsComponent } from './survey-results.component';
 describe('SurveyResultsComponent: a visitor among everybody', () => {
   async function show(response?: string): Promise<HTMLElement> {
     const survey = { ...newSurvey([]), id: 's1', askAboutYou: false };
-    const responses = [answersOf('r1', 'Zuzka', 'zuzka@example.com', false), answersOf('r2', 'Visitor 3', '', true)];
+    const responses = [answersOf('r1', 'Zuzka', false), answersOf('r2', 'Visitor 3', true)];
     const store = {
       survey: () => survey,
       loadError: () => null,
@@ -37,12 +37,12 @@ describe('SurveyResultsComponent: a visitor among everybody', () => {
     return fixture.nativeElement as HTMLElement;
   }
 
-  it('lists a visitor as "Not signed in" where a person’s address is', async () => {
+  it('lists a visitor as "Not signed in" under the name, and a person by their name alone - the site keeps no address', async () => {
     const host = await show();
     const rows = [...host.querySelectorAll('tbody tr')].map((row) => [row.querySelector('.who-name')?.textContent, row.querySelector('.who-email')?.textContent]);
 
     expect(rows).toEqual([
-      ['Zuzka', 'zuzka@example.com'],
+      ['Zuzka', undefined],
       ['Visitor 3', 'Not signed in'],
     ]);
   });
@@ -53,9 +53,9 @@ describe('SurveyResultsComponent: a visitor among everybody', () => {
     expect(host.querySelector('anotoki-drawer .anotoki-drawer__subtitle')?.textContent).toBe('Not signed in');
   });
 
-  it('and a person’s address in theirs', async () => {
+  it('and nothing under a person’s name in theirs', async () => {
     const host = await show('r1');
 
-    expect(host.querySelector('anotoki-drawer .anotoki-drawer__subtitle')?.textContent).toBe('zuzka@example.com');
+    expect(host.querySelector('anotoki-drawer .anotoki-drawer__subtitle')).toBeNull();
   });
 });

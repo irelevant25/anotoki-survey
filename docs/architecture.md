@@ -3,15 +3,19 @@
 ```
  browser (Angular)                    backend (PHP, Slim 4)                    PostgreSQL (anotoki_survey)
  ─────────────────                    ─────────────────────                    ───────────────────────────
- AuthService ── sign-in ──▶ the anotoki IAM (OIDC code + PKCE; tokens in localStorage)
- VisitorKey (the key, the move)
- SiteStatus ── /api/site-status ──▶ index.php: security headers ▶ error handler ▶ site gate (anotoki/lib) ▶ route
+ AnotokiAuth (@anotoki/lib/auth) ── sign-in ──▶ the anotoki IAM (OIDC code + PKCE; tokens in localStorage)
+   AuthService (the survey's face of it), VisitorKey (the key, the move)
+ SiteStatus ── /api/site-status ──▶ index.php: error log ▶ security headers ▶ error handler ▶ site gate
+                                     ▶ people's upkeep, daily backup (after the answer) ▶ route (anotoki/lib)
  ApiService ── /api/... + Bearer, or X-Visitor-Key ──▶ the same way in
-                                        ├─ requireUser / requireRole: the token, checked here;
-                                        │  requireTaker (the surveys' routes): the token, or a visitor's key
+                                        ├─ Identify (anotoki/lib): the token, checked here - or, on the
+                                        │  surveys' routes, a visitor's key; RecordPerson keeps users
+                                        ├─ requireStaff / requireAdmin / RequireCaller: who may ask
                                         ├─ visitors.php, client_address.php: visitors, their limits, the move
                                         ├─ surveys.php, responses.php, images.php ─────────▶ surveys, responses,
                                         ├─ survey_rules.php, rich_text.php: what may be kept   images, survey_images, users
+                                        ├─ people.php, admin_tools.php (anotoki/lib) ──────▶ users, anotoki_people_*,
+                                        │  error log and backups: files under storage/          anotoki_audit_log
  TranslationService ── /api/translations/{code} ──▶ translations.php ─────────────────────▶ languages, translation_keys,
    (no token: the same for everybody)                                                        translations
 ```
@@ -23,46 +27,58 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 
 ## Signing in, and the roles
 
-The site has no login of its own. The frontend signs people in through the
-anotoki IAM with its vendored browser SDK (`frontend/src/app/core/auth/anotoki-auth.mjs`
-and `.d.ts`, v1.2.0, byte for byte the IAM's `sdk/js/`), as client `survey`:
+The site has no login of its own. People sign in through the anotoki IAM, as
+client `survey`, with the anotoki family's library (anotoki-lib 0.4.1, its
+`Auth` module on both halves - the IAM's SDKs, which the site vendored until
+then, are gone; the library holds what they did, under the same storage keys,
+so nobody was signed out by the move):
 
 - `AuthService.init()` runs before the first page (the app initializer,
   `boot()` in `core/boot.ts`), right after the start has asked where the site
   stands (`SiteStatus.check()`, *A database behind the code*, below): it reads
-  `GET /api/auth/config` (`{issuer, clientId, loginRequired, visitorDays}` - or
-  503 `not_set_up`, and the family's page says so; answered while a migration
-  is pending too), then lets the SDK finish a callback
-  (`/auth/callback`; the SDK puts back the address the person came from before
-  the router reads it) or restore the stored session. `loginRequired` (the
-  IAM's switch, below) becomes `AuthService.loginRequired` - true unless the
-  backend says false - and, with `visitorDays` (a backend that does not say
-  it is one from before visitors), `visitorsWelcome`: the pages people take
-  surveys on are open to visitors (*Visitors in the browser*, below). `boot()`
-  makes `VisitorKey` before it awaits anything, and, back from a sign-in,
-  makes this browser's visitor drafts the person's before the first page is
-  drawn. The language and its strings come next (*The site's own words*,
-  below), and the site is drawn only once both are there.
-- `authInterceptor` puts `Authorization: Bearer <access token>` on every `/api/`
-  call issued for a person (not on `/api/site-status`, `/api/auth/config`, the
-  pictures or `/api/translations/`), and retries once with a fresh token after a 401. A
-  person's call whose token comes back null is never sent (401
-  `sign_in_required`, at once); a visitor's call carries the visitor key
-  instead (below).
-- `AuthService.signIn(returnTo, uiLocales)` sends the person to the IAM with the
-  language they read this site in, so the IAM's pages open in the same one.
-- The backend checks the token with the vendored SDK
-  (`backend/api/anotoki_iam.php`, v1.1.0, byte for byte the IAM's `sdk/php/`):
-  RS256, typ `at+jwt`, the IAM's published keys (cached in `storage/cache/`),
-  iss, aud `survey`, exp. `sub` is the person; `roles` their roles in this
-  site. A person is recorded in `users` (id = the IAM's user id, name and
-  address from the token) as they come. Only an `Authorization: Bearer` header
-  claims to be somebody (`authSentCredentials()`): one whose token does not
-  check out - an empty one too - is 401 `invalid_token`, never "nobody"; any
-  other scheme (`Basic`, from a host behind a password file) is not looked at.
+  `GET /api/auth/config` (the library's `AuthRoutes`: `{issuer, client_id,
+  login_required, sign_in_available}` and the site's `visitor_days` - or 503
+  `not_set_up`, and the family's page says so; answered while a migration is
+  pending too), hands it to the library's `AnotokiAuth` (`bootConfig()`, the
+  `config` of `provideSiteAuth()` in `core/auth/auth.config.ts`) and starts
+  it: a callback finished (`/auth/callback`; the address the person came from
+  put back before the router reads it) or the stored session restored.
+  `login_required` (the IAM's switch, below) becomes
+  `AuthService.loginRequired` - true unless the backend says false - and, with
+  `visitor_days` (a backend that does not say it is one from before visitors;
+  the library is then told sign-in is required too), `visitorsWelcome`: the
+  pages people take surveys on are open to visitors (*Visitors in the
+  browser*, below). `boot()` makes `VisitorKey` before it awaits anything,
+  and, back from a sign-in, makes this browser's visitor drafts the person's
+  before the first page is drawn. The language and its strings come next
+  (*The site's own words*, below), and the site is drawn only once both are
+  there. No sign-in by the IAM's hint cookie (`hint: false` - the owner's
+  decision: the automatic sign-in is genshin's and the build analyzer's): a
+  visitor with an account stays a visitor until they press Sign in.
+- The library's `anotokiAuthInterceptor` puts `Authorization: Bearer <access
+  token>` on every `/api/` call issued for a person (not on `/api/site-status`,
+  `/api/auth/config`, the pictures or `/api/translations/`), and retries once
+  with a fresh token after a 401. A person's call with no token to send is
+  never sent (401 `sign_in_required`, at once); a visitor's call carries the
+  visitor key instead (below).
+- `AuthService.signIn(returnTo, prompt)` sends the person to the IAM - the
+  library says the language they read this site in (`language` of the
+  configuration), so the IAM's pages open in the same one; `prompt: 'login'`
+  asks for the password again (the backups' proof, *The admin tools*).
+- The backend checks the token with the library (`Anotoki\Lib\Auth`: its
+  `Identify` in front of each group of routes, `surveyIdentify()` in
+  `api/auth.php`, and `AccessTokens`): RS256, typ `at+jwt`, the IAM's
+  published keys (cached in `storage/cache/`), iss, aud `survey`, exp. `sub` is
+  the person; `roles` their roles in this site; `auth_time` when they last
+  signed in at the IAM. A person is recorded in `users` (id = the IAM's user
+  id, the name from the token; never an address) by the library's
+  `RecordPerson` (*People*, below). Only an `Authorization: Bearer` header
+  claims to be somebody: one whose token does not check out - an empty one
+  too - is 401 `invalid_token`, never "nobody"; any other scheme (`Basic`,
+  from a host behind a password file) is not looked at.
 - **Sign-in required** is the IAM's to say, per site (its admin panel:
   Applications -> survey -> "Sign-in required"). `authLoginRequired()` asks it
-  through the SDK (`anotoki_iam_login_required()`:
+  through the library's `SignInRule` (`surveySignInRule()`:
   `GET {issuer}/api/public/applications/survey`), keeps the answer a minute in
   `storage/cache/` (one request asks when the minute is up, the others use the
   kept answer; an IAM that does not answer is asked again a minute later), and
@@ -79,16 +95,18 @@ and `.d.ts`, v1.2.0, byte for byte the IAM's `sdk/js/`), as client `survey`:
 | --- | --- |
 | `MEMBER` | every account holds it (the IAM gives it to everyone): an ordinary person - take surveys, once each, while open. No check here asks for it; a token without it (an older one) is the same |
 | `EDITOR` | the admin panel: write and translate surveys, open and close them, preview, read every answer, export; reword the site's strings, add and hide languages |
-| `ADMIN` | all of that, and delete surveys, answers and languages; see and apply the database's migrations (the Migrations page) |
+| `ADMIN` | all of that, and delete surveys, answers and languages; see and apply the database's migrations (the Migrations page); the System pages - the people, the error log, the audit log, the backups |
 
 The frontend hides what a role may not do (`AuthService.isStaff`, `isAdmin`);
-the backend decides (`requireRole()` in `api/meddleware/auth.php`). Every page
-needs somebody signed in first (`signInGuard`: off to the IAM before anything
-of the page is drawn, and back to the address asked for) - the admin panel
-(`canActivate`, once as it is entered), the editor's preview (its own
-`canActivate`), and, while sign-in is required, every page people take
-surveys on (`takeSurveysGuard`, `canActivateChild` of their layout, so each
-page asks again; with visitors welcome it lets anybody through); while sign-in
+the backend decides (`requireStaff()`, `requireAdmin()` in
+`api/meddleware/auth.php` - the library's `RequireRole` in this site's
+words). Every page needs somebody signed in first (the library's
+`personGuard`: off to the IAM before anything of the page is drawn, and back
+to the address asked for) - the admin panel (`canActivate`, once as it is
+entered), the editor's preview (its own `canActivate`), and, while sign-in is
+required, every page people take surveys on (`personOrVisitorGuard`,
+`canActivateChild` of their layout, so each page asks again; with visitors
+welcome it lets anybody through); while sign-in
 is required the API answers nothing of a survey without a token - its
 pictures aside, which an `<img>` loads with no token, at addresses that are
 random UUIDs ([API](api.md#the-people-taking-surveys)). Only the pages drawn
@@ -113,13 +131,13 @@ visiting; to keep somebody out entirely, keep "Sign-in required" on.
 While the IAM says sign-in is not required, somebody who is not signed in may
 take the open surveys too, once each, as a **visitor** (`api/visitors.php`,
 migration 006). Who a request is, on the surveys' own routes only
-(`requireTaker()` in `api/meddleware/auth.php`): a Bearer header - that person
-or 401, the key not even read; else, while sign-in is required, 401
-`sign_in_required` for a key and for nobody alike; else the visitor of the
-`X-Visitor-Key` header (401 `visitor_unknown` for a key that is nobody's);
-else nobody. `requireUser()` / `requireRole()` refuse a visitor as they
-refuse nobody - the admin panel, the Migrations page and the move are a
-verified token's alone.
+(`surveyIdentify(..., visitors: true)` and the library's `RequireCaller`): a
+Bearer header - that person or 401, the key not even read; else, while
+sign-in is required, 401 `sign_in_required` for a key and for nobody alike;
+else the visitor of the `X-Visitor-Key` header (401 `visitor_unknown` for a
+key that is nobody's); else nobody. `RequirePerson`, `requireStaff()` and
+`requireAdmin()` refuse a visitor as they refuse nobody - the admin panel, the
+Migrations page, the System pages and the move are a verified token's alone.
 
 - **A visitor is a row of `users` with a negative id** (the sequence
   `visitor_ids` counts down from -1; an IAM id is always positive), no name,
@@ -154,22 +172,22 @@ verified token's alone.
 
 ### Visitors in the browser
 
-`AuthService.visitorsWelcome` (the site runs, `loginRequired` is false, the
-backend said `visitorDays`) opens the pages people take surveys on to anybody
-(`takeSurveysGuard`); `AuthService.taker` says who takes them - the person
-signed in, else this browser's visitor (`{id: 'visitor', visitor: true}`),
-else nobody - and `visiting` that it is the visitor.
+`AuthService.visitorsWelcome` (the site runs, `login_required` is false, the
+backend said `visitor_days`) opens the pages people take surveys on to anybody
+(the library's `personOrVisitorGuard`); `AuthService.taker` says who takes
+them - the person signed in, else this browser's visitor (`{id: 'visitor',
+visitor: true}`), else nobody - and `visiting` that it is the visitor.
 
-- **Who a request is, decided when it is issued** (`ISSUED_AS` in
-  `core/api/api.service.ts`): `ApiService` marks the three survey routes the
-  person's while somebody is signed in and the visitor's otherwise, the move
-  always the person's; anything unmarked is decided as it is handed over.
-  `authInterceptor` sends a person's call with the token or not at all - a
-  token that comes back null (a refresh refused, signed out in another tab)
-  fails the call at once as 401 `sign_in_required`, so a person's answers
-  never go out as nobody's and never make a visitor. A visitor's call goes
-  without a token, and to `/api/surveys` - only there, only while
-  `loginRequired` is false - with the key held now; the answer that made a
+- **Who a request is, decided when it is issued** (the library's `ISSUED_AS`):
+  `ApiService` marks the three survey routes `issuedAs('caller')` - whoever
+  the page is shown to as they are issued - and the move always the
+  person's; anything unmarked is decided as it is handed over. The library's
+  interceptor sends a person's call with the token or not at all - none to
+  send (a refresh refused, signed out in another tab) fails the call at once
+  as 401 `sign_in_required`, so a person's answers never go out as nobody's
+  and never make a visitor. A visitor's call goes without a token, and to
+  `/api/surveys` - only there (`visitorPrefixes`), only while sign-in is not
+  required - with the key held now; the answer that made a
   visitor brings its key (`X-Visitor-Key`), which is kept; a key on a
   person's answer is ignored. A 401 `visitor_unknown` forgets the key (only
   while it is the one held) and sends once more without it; a 401
@@ -183,7 +201,10 @@ else nobody - and `visiting` that it is the visitor.
   dropped, its answer stays a visitor of its own); in memory for the tab when
   storage refuses. **Kept while sign-in is required** - the server refuses it
   then, and the next sign-in still moves what it answered; switching the
-  requirement off again within `visitorDays` brings it back. After every
+  requirement off again within `visitor_days` brings it back. It is the
+  library's `VisitorKeyStore` (`visitors` of the configuration): the
+  interceptor reads `current()`, keeps a key a first answer brings
+  (`remember()`) and forgets one the server no longer knows (`forget()`). After every
   sign-in with a key held (an effect - `AuthService` never reads
   `VisitorKey`) it asks for the move, one at a time; a 200 forgets the key,
   counts `moves` (home and the survey page ask again) and leaves `moved` for
@@ -198,50 +219,148 @@ else nobody - and `visiting` that it is the visitor.
   in another tab, and by the survey page itself before it reads a person's
   draft (`adoptVisitorDraft()`); where the person has a draft of their own,
   theirs stays and the visitor's goes - the rule the move keeps for answers.
-- **A sign-in waits for the sends on their way** (`SavesInFlight`, counted
-  by the interceptor; `AuthService.signIn()` waits at most 30 s): a visitor's
+- **A sign-in waits for the sends on their way** (the library's
+  `SavesInFlight`, counted by its interceptor): a visitor's
   first answers bring the key the move needs, and a page left before their
   answer arrived would leave them out of the browser's reach.
 - **The pages**: the participant layout draws its page for a visitor (never
   the editor's preview: the card stands there for anybody not signed in);
   home and the survey page show the visitor notice (`visitor.notice`, its
-  days from `visitorDays`, with a Sign in button) - home above the list, the
+  days from `visitor_days`, with a Sign in button) - home above the list, the
   survey on its welcome, "answered" and "sent", never on the steps - and the
   welcome says `take.asVisitor` where a person reads whom they are signed in
   as. Their answers refused because the switch went on say
   `take.refused.signInRequired`; past the limits on new visitors,
   `take.refused.tooManyVisitors`. A sign-in that came back refused while
-  visiting (`access_denied`: a person whose MEMBER was taken away) is said
-  in its toast as ever, and the page goes on as the visitor's.
+  visiting (`access_denied`: a person whose MEMBER was taken away) is said on
+  the screen of a failed sign-in (below; `signInFailureGuard`), whose Back
+  goes on as the visitor's.
 - **The admin panel** shows a visitor's answers like anybody's, under the
-  name the server gives them ("Visitor 12"), and says "Not signed in" where a
-  person's address would be (`Person.visitor`: the results' table of people,
-  the lists a number opens, the drawer of their answers, the page of their
-  answers). The CSV has the name and an empty address. The delete question is
-  the same as for a person - "Visitor 12 can take the survey again": their
-  browser can, while its key lives, and an ended visitor's browser can anyway.
+  name the server gives them ("Visitor 12"), and says "Not signed in" under
+  it (`Person.visitor`: the results' table of people, the lists a number
+  opens, the drawer of their answers, the page of their answers) - a person
+  has nothing under their name: the site keeps no address. The CSV has the
+  name. The delete question is the same as for a person - "Visitor 12 can
+  take the survey again": their browser can, while its key lives, and an
+  ended visitor's browser can anyway.
+
+**A sign-in that came back without one** (refused, cancelled, a state that
+does not match), **or could not start** (the browser refuses the site the
+`sessionStorage` where the sign-in in progress is kept: `storage_unavailable`),
+is said by the library's screen (`<anotoki-sign-in-failure>`, on the callback
+route `/auth/callback`, in the family's status page's frame): "Signing in did
+not work", why - from the code alone, never the IAM's sentence, in the site's
+words (`anotoki.signIn.*`: migration 012 moved the site's own sentences there,
+formal Slovak and an owner's rewording with them; `FORMAL_SLOVAK` while the
+database cannot be read) - Try again (the sign-in once more, back where it
+started) and Back (there, without signing in; it puts the failure away). The
+library's guards send the browser there instead of to the IAM - straight back,
+it would go round for ever - and `signInFailureGuard`
+(`core/auth/auth.config.ts`) sends the pages its guards let through all the
+same: a visitor's, and those of somebody still signed in from before (the
+backups' "Sign in again" that came back without one). A Sign in button whose
+sign-in could not start opens it too (`signInOrShowWhy()`). The search engines
+are asked not to index it.
 
 What is left of "signed out" is drawn by the layouts where the page would be,
 with a Sign in button of their own (on a phone the top bar's is inside its
 menu): a session that ended with the page open (the admin panel's "You are
 signed out", with what is kept; the participant layout's "You are not signed
-in", `signedOut.*`), or a sign-in that came back without one (refused,
-cancelled; the admin panel's card is then "You are not signed in" - nobody had
-a session to end) - the guard lets every page of that page load through
-(`signInFailure` is never cleared) rather than send the browser round between
-the site and the IAM for ever, and the toast says what went wrong. A sign-in
-that cannot even start is the same: the SDK keeps the sign-in in progress in
-`sessionStorage`, and when the browser refuses it (`storage_unavailable`)
-`AuthService.signIn()` answers false and sets `signInFailure`; the guard lets
-the page through to its card, and it - or the Sign in button pressed
-(`signInOrSayWhy()`) - says why in a toast (`signIn.storageUnavailable`),
-where it was a blank page. Nothing of a survey is drawn then: the layout holds
-back its `<router-outlet>`.
+in", `signedOut.*`). Nothing of a survey is drawn then: the layout holds back
+its `<router-outlet>`.
+
+## People
+
+The people who signed in are the site's `users` table, kept and read by the
+anotoki family's people module (anotoki-lib 0.4.1, `Anotoki\Lib\People` over a
+mapping of the table - `api/people.php`; never a table of the library's: every
+answer, every survey's author and every visitor lives in `users`):
+
+- **Recorded from the token** (the library's `RecordPerson`, on the routes that
+  read or write the site's data - never the Migrations routes, the error
+  log's or the backups', which work while `users` waits for an update): the
+  row made on a first request, the name kept to the token's
+  `preferred_username` (a token without one keeps the stored name),
+  `last_seen_at` at most every five minutes. A visitor (a negative id) is
+  never recorded by it: it is `api/visitors.php`'s. **No address**: the IAM
+  is the only holder (the owner's decision; migration 011 dropped
+  `users.email`, and nothing here reads one - the menu's address is the ID
+  token's, shown, never kept).
+- **Scrubbed when the IAM deletes an account** (thirty days after its owner
+  asked): the library's `Scrubber` reads `GET {issuer}/api/public/anonymized-accounts`
+  from where it stopped (`anotoki_people_sync`, its set `anotoki_people`) -
+  after an answer at most once an hour (`PeopleUpkeep`, `api/index.php`) or
+  on the People page's "Check now" - and writes the IAM's placeholder,
+  `deleted-{id}`, as the name and the IAM's time as `anonymized_at` (011
+  added it); everything else stays, nobody's now - their answers too. No copy
+  of a name lives anywhere else here, so the scrub needs no hook. After a
+  restore of a backup it runs again at once (the restored cursor would leave
+  out whoever the IAM deleted since) - `surveyScrubAfterRestore()`: a run
+  that does not finish (the IAM out of reach, its time up, another run
+  going) is the restore's `after_restore_error` and an error-log line, and
+  the hourly stamp goes after the answer, so the next request runs it again.
+- **The People page** (`/admin/people`, the family's page, ADMIN): everybody
+  who signed in, the most recently seen first, with how many surveys each
+  answered and wrote (the site's columns, `peopleColumns()`), the visitors in
+  one line, where the scrub stands - and Delete: every answer of a person's,
+  after the page's question alone (the owner's decision: no proof of a recent
+  sign-in), audited (`person.data_deleted`); their row and the surveys they
+  wrote stay.
+
+## The admin tools
+
+The error log, the audit log and the backups are the anotoki family's
+(anotoki-lib 0.4.1: `Anotoki\Lib\ErrorLog`, `Audit`, `Backups` - wired in
+`api/admin_tools.php`, their routes in `routes/admin.php`; the pages
+`@anotoki/lib/admin/errors`, `/audit`, `/backups`, configured in
+`core/admin/admin-tools.ts`), for the site's ADMIN alone (the owner's
+decision): ADMIN from the token, both sides; an EDITOR is told whose the pages
+are, and the API refuses. The admin panel's System page (`/admin/system`, the
+top bar's System link) leads to them, the People page and the Migrations page.
+No feedback form and no file explorer (the owner's decision: the pictures live
+in the database, and are in every backup).
+
+- **The error log** - files, `storage/logs/errors-YYYY-MM-DD.jsonl` (UTC days,
+  30 kept, 64 MB in all): an exception answered 5xx, an answer of 404, 405,
+  413, 415, 429 or 5xx, PHP's own warnings and fatal errors - with the route,
+  who (the token's person) and an HMAC of the address bucket, never a body, a
+  header, a cookie, a query string or a token; the database's words redacted.
+  Outermost in the stack, so the gate's 503s are written too. Files: it works
+  while the database is out of reach or an update waits. The browser's errors
+  are not written yet: the library's client route is not mounted - they come
+  with its 0.4.2 and its Angular reporter.
+- **The audit log** - the library's table `anotoki_audit_log` (its set
+  `anotoki_admin`, the first to run): who did what in the admin panel - a
+  survey made, opened, closed, deleted; answers deleted; the site's words
+  saved, imported; a language added, changed, deleted; a person's answers
+  deleted, the scrub run; backups made, downloaded, deleted, restored; the
+  error log cleared; migrations applied. By the token's `sub`, named by
+  `users` on the page. Written on the request's own connection, so an entry
+  inside a change's transaction commits (or not) with it; while its table
+  waits for an update the entries wait in `storage/logs/audit-pending.jsonl`
+  and go in after the Apply.
+- **The backups** - `storage/backups/<id>.anotoki-backup`: every table by
+  COPY through PDO in one snapshot (the pictures' bytes too), with the
+  migrations it was made at; daily after an answer (14 kept), before every
+  update (5 - the Apply and `migration.php` stop when one cannot be made),
+  before a restore (5), by hand (until deleted) - no maximum age: nothing
+  deletes a backup for being old (the owner's decision of 2026-10-11), so a
+  person the IAM deleted stays in the backups made before until they are
+  deleted. Made, downloaded, deleted and
+  restored only after a sign-in of the last ten minutes (the token's
+  `auth_time`; refused `reauth_required`, and the page offers "Sign in again"
+  - the IAM asks for the password, `prompt=login`); downloaded by a
+  single-use link of a minute. **Not encrypted** (the owner's decision of
+  2026-10-11: only the IAM's backups are) - the files stay under `storage/`,
+  which the web never reaches. One backup or update at a time (the
+  migrations' lock). A backup that fails is written in the error log as well
+  as PHP's (`onError`). Until the library's 0.4.2 a restore brings back the
+  answers deleted for a person since the backup was made.
 
 ## The top bar
 
 The bar is the anotoki family's, the library's `<anotoki-top-bar>`
-(`@anotoki/lib/shell`, anotoki-lib 0.3.0 - built from this site's own bar,
+(`@anotoki/lib/shell`, since anotoki-lib 0.3.0 - built from this site's own bar,
 which the IAM, Japanese, Piano and the build analyzer had copied), and
 `layouts/top-bar` is this site's thin wrapper around it: it tells the bar what
 is this site's, worded - its brand, its sections, the person and their role,

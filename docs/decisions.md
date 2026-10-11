@@ -200,9 +200,11 @@ family's*, below; the PHP half stays 0.1.0):
   them (`/api/admin/migrations/../../surveys`, escaped or not) is closed by the
   gate itself, never left to the routes not matching it.
 - **The Migrations page's routes judge ADMIN from the token alone**
-  (`requireTokenRole()`): the rest of the API records each visit in `users`, and
-  these must work on a database a pending migration has yet to build - from
-  nothing at all, where `users` is not there either.
+  (`requireAdmin()`, the library's `RequireRole`; the error log's and the
+  backups' too since anotoki-lib 0.4.1): the rest of the API records each visit
+  in `users` (the library's `RecordPerson`), and these must work on a database
+  a pending migration has yet to build - from nothing at all, where `users` is
+  not there either.
 - The card for a server that did not answer as the site started stays, for the
   one case the family's page does not cover: the status answered, the sign-in's
   settings did not.
@@ -232,7 +234,8 @@ The default role for users should be member. Every user needs to have a role."
 So the IAM has a "Sign-in required" switch per site (on for the survey), and
 gives every account MEMBER in every site. The backend reads the switch through
 the IAM's PHP SDK (`anotoki_iam_login_required()`, vendored byte for byte like
-the verifier - no site writes its own fetch) and relays it in
+the verifier - no site writes its own fetch; since anotoki-lib 0.4.1 the
+library's `SignInRule`, the same rule for every site) and relays it in
 `/api/auth/config`; the browser never asks the IAM. The answer is kept a minute
 on disk and is **true unless the IAM said false**: an IAM never reached, an
 application it does not know (404) and an answer about another site all mean
@@ -290,11 +293,13 @@ its answers.
 
 **In the admin panel a visitor is "Visitor N", "Not signed in" - no badge.**
 The name comes from the server (from the visitor's own id, so it never
-changes and two visitors never share one), and "Not signed in" stands where a
-person's address is - the one place a person and a visitor differ in the
-lists. The plan also gave the row a "Visitor" badge; beside "Visitor 12" it
-said the same thing twice, so it was left out. An IAM account that happens to
-be called "Visitor 12" still shows its address, which tells the two apart.
+changes and two visitors never share one), and "Not signed in" stands under
+it - the one place a person and a visitor differ in the lists (a person had
+their address there until the site stopped keeping addresses, anotoki-lib
+0.4.1; now nothing). The plan also gave the row a "Visitor" badge; beside
+"Visitor 12" it said the same thing twice, so it was left out. An IAM account
+that happens to be called "Visitor 12" has no "Not signed in" under it, which
+tells the two apart.
 
 **A survey that must count one answer per person keeps sign-in required.**
 With visitors, a fresh browser is a fresh respondent. The limits on new
@@ -445,6 +450,75 @@ strong border - a dashed frame, a quote's bar - keeps its colour
 (`--rule-strong`). (Since 0.3.0 the kit reads its words from the library's own
 keys in the site's database instead of a mapping onto the site's - *The site's
 words are the family's library's*, under *Languages*.)
+
+**Signing in, the people and the admin tools are the family's library's -
+anotoki-lib 0.4.1 (2026-10-11).** The owner's round moved what every anotoki
+site did on its own into the library, and each site onto it. The survey takes:
+
+- **Signing in** (`Auth`, both halves): the IAM's SDKs it vendored are gone -
+  the library's client keeps the same storage, so nobody was signed out - and
+  with them the site's interceptor, guards, callback page and sign-in toasts.
+  A sign-in that came back without one, or could not start, is the library's
+  screen on `/auth/callback` (one for every site, the "what's new" a reader
+  notices), worded by the site: migration 012 moved the site's four sentences
+  under the library's keys - every language, an owner's rewording with them -
+  and writes this site's formal Slovak for the two the library says
+  informally. The cards that said it before ("You are not signed in" after a
+  refused sign-in, with a toast) went; the layouts' cards stay for a session
+  that ends with the page open. **No sign-in by the IAM's hint cookie** - the
+  owner's decision: the automatic sign-in is genshin's and the build
+  analyzer's, the sites that let visitors in and want them signed in; here a
+  visitor with an account stays a visitor until they press Sign in (and the
+  library's "follow the IAM" refresh, which reads the hint, has nothing to
+  follow).
+- **People** (the library's people module over `users`): **the site keeps no
+  address** - the owner's decision: the IAM is the only holder of anybody's
+  address, so 011 dropped `users.email` (its gate proves every other column of
+  every row unchanged) and nothing here reads one; the CSV and the results name
+  a person by name. An account the IAM deletes is scrubbed here - its name the
+  IAM's placeholder, its answers kept (the owner's "keep everything", nobody's
+  now). The People page's Delete takes a person's answers after its question
+  alone - the owner's decision: no proof of a recent sign-in - and every
+  delete is audited.
+- **The admin tools** - the error log, the audit log, the backups - **for the
+  site's ADMIN alone** (the owner's decision for every site: an EDITOR writes
+  surveys, and reads none of them). **No feedback form** here (the owner's
+  decision) and **no file explorer** (the pictures live in the database, and
+  are in every backup). Reached from one link of the admin panel's bar,
+  System, and its page - the bar holds four sections at its narrowest desktop
+  width, and a link a tool would overflow it.
+- **The backups are not encrypted** - the owner's decision of 2026-10-11,
+  for every site: only the IAM's backups are (from its master key). This
+  site has no secret of its own to derive a key from, and one kept beside
+  the files in `storage/` would protect nothing; a downloaded backup is as
+  private as the place it is kept.
+- **A backup is kept until the owner deletes it - no maximum age** (the
+  owner's decision of 2026-10-11, for every site): nothing deletes a backup
+  for being old. One made by hand stays until it is deleted on the Backups
+  page (the page marks it after 90 days, and deletes nothing); the automatic
+  ones go only as the library's keeping by kind replaces them with newer ones
+  (the daily 14, before an update 5, before a restore 5). So a person the IAM
+  deleted - scrubbed here - stays in the backups made before, until those are
+  deleted; a restore runs the scrub again at once, and one that cannot finish
+  it (the IAM out of reach) says so - the restore stands, the Backups page
+  shows why, the error log has it - and the next request runs it again, not
+  an hour later.
+- **A restore brings back the answers deleted for a person** (People →
+  Delete their answers) since the backup was made - until the library's
+  0.4.2, which keeps such a delete across a restore. Until then, after a
+  restore, delete them again.
+- **A backup that fails is written in the site's error log** (System → Error
+  log), beside PHP's own log: the daily one after an answer, the one before
+  an update, the work after a restore (the library's `onError`, as its README
+  wires it).
+- **Browser errors are not in the error log yet**: the library's route for
+  them (`ErrorLogRoutes::client`) is not mounted - they come to every site's
+  error log with the library's 0.4.2 and its Angular reporter (the owner's
+  plan of 2026-10-11).
+- **The error log is the outermost layer** (as the library's README wires
+  it): what the site gate answers - its 503s while an update waits or the site
+  is not set up - is written down too, so an outage is something the log can
+  report.
 
 ## Languages
 

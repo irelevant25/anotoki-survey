@@ -1,8 +1,9 @@
 <?php
 
 // The migration engine - the anotoki family's (anotoki/lib, through
-// api/migrations.php): a database is built from migrations/survey/ in order,
-// then from the library's own set (anotoki_translations), each file once,
+// api/migrations.php): a database is built from the library's admin set
+// (anotoki_admin) first, then migrations/survey/ in order, then the library's
+// words (anotoki_translations) and people (anotoki_people), each file once,
 // recorded in the `migrations` table the site has always had - the library's
 // files as set/name - by the engine, and by the command line from nothing at
 // all - and what it builds keeps the rules the code leans on.
@@ -28,13 +29,17 @@ function migration_cli(string $config, array $arguments = []): array
 
 test('an empty database gets every migration, recorded once - in the table the site has always had', function (): void {
     $entries = migration_entries();
-    assert_same(['set' => 'survey', 'name' => '001_initial_schema.sql'], $entries[0] ?? null, 'the files, in the order they run');
+    $sets = array_values(array_unique(array_column($entries, 'set')));
+    assert_same(['anotoki_admin', 'survey', 'anotoki_translations', 'anotoki_people'], $sets, 'the sets in the order they run: the library\'s admin set first, the site\'s, then the library\'s words and people');
     assert_same(
-        [['set' => 'anotoki_translations', 'name' => '001_languages_and_strings.sql'], ['set' => 'anotoki_translations', 'name' => '002_library_words.sql']],
-        array_values(array_filter($entries, static fn(array $entry): bool => $entry['set'] !== 'survey')),
-        'the anotoki library\'s set after the site\'s own'
+        [['set' => 'anotoki_admin', 'name' => '001_audit_log.sql'], ['set' => 'anotoki_admin', 'name' => '002_feedback.sql'], ['set' => 'survey', 'name' => '001_initial_schema.sql']],
+        array_slice($entries, 0, 3),
+        'the files, in the order they run'
     );
-    assert_same('survey', $entries[count($entries) - 3]['set'], 'every file of the site\'s own before the library\'s');
+    $survey = array_keys(array_filter($entries, static fn(array $entry): bool => $entry['set'] === 'survey'));
+    assert_same(range($survey[0], $survey[count($survey) - 1]), $survey, 'the site\'s own one after the other');
+    assert_same(['set' => 'survey', 'name' => '012_sign_in_words.sql'], $entries[end($survey)], 'the site\'s last file before the library\'s words');
+    assert_same(['set' => 'anotoki_people', 'name' => '001_people.sql'], $entries[count($entries) - 1], 'the people\'s tables last: after 011 adds the column the scrub writes');
     $name = test_empty_db('fresh');
     $migrator = surveyMigrator(server_pdo($name));
     assert_same($entries, $migrator->applicable(), 'all of them pending...');
@@ -45,7 +50,8 @@ test('an empty database gets every migration, recorded once - in the table the s
     assert_same(['applied' => $entries, 'failed' => null, 'error' => null, 'busy' => false, 'note' => null], $result);
     assert_same([], $migrator->applicable());
     assert_same(['applied' => [], 'failed' => null, 'error' => null, 'busy' => false, 'note' => null], $migrator->apply(), 'a second run applies nothing');
-    foreach (['users', 'surveys', 'responses', 'images', 'survey_images', 'languages', 'translation_keys', 'translations'] as $table) {
+    foreach (['users', 'surveys', 'responses', 'images', 'survey_images', 'languages', 'translation_keys', 'translations',
+        'anotoki_audit_log', 'anotoki_feedback', 'anotoki_people_sync', 'anotoki_people_anonymized'] as $table) {
         assert_true((bool) $pdo->query("SELECT to_regclass('$table') IS NOT NULL")->fetchColumn(), "the table $table");
     }
 
@@ -56,7 +62,7 @@ test('an empty database gets every migration, recorded once - in the table the s
     );
     assert_same(array_map('migration_record', $entries), $pdo->query('SELECT filename FROM migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN), 'one row a file, in the order they ran - the library\'s with its set');
     $status = $migrator->status();
-    assert_same([['survey', 'anotoki_translations'], [], []], [$status['sets'], $status['pending'], $status['missing']]);
+    assert_same([['anotoki_admin', 'survey', 'anotoki_translations', 'anotoki_people'], [], []], [$status['sets'], $status['pending'], $status['missing']]);
     foreach ($status['applied'] as $row) {
         assert_match('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/D', (string) $row['applied_at'], 'when, in UTC');
     }
@@ -129,7 +135,7 @@ test('the database itself keeps the rules: one answer per person, one live surve
     assert_same(0, (int) dbValue('SELECT count(*) FROM responses'), 'a survey\'s answers go with it');
 });
 
-test('the database keeps the visitors\' rules: a negative id, nameless, a key\'s hash only theirs and only once; no id 0', function (): void {
+test('the database keeps the visitors\' rules: a negative id, nameless, never deleted at the IAM, a key\'s hash only theirs and only once; no id 0', function (): void {
     test_db();
     $first = (int) dbValue("SELECT nextval('visitor_ids')");
     assert_same([true, $first - 1], [$first < 0, (int) dbValue("SELECT nextval('visitor_ids')")], 'visitors count down, below every IAM id');
@@ -139,7 +145,7 @@ test('the database keeps the visitors\' rules: a negative id, nameless, a key\'s
     assert_throws(static fn() => dbExec('INSERT INTO users (id, visitor_key_hash) VALUES (-52, ?)', [$hash]), '/users_visitor_key_hash_unique/');
     assert_throws(static fn() => dbExec('INSERT INTO users (id, visitor_key_hash) VALUES (52, ?)', [hash('sha256', 'b')]), '/users_visitor_check/');
     assert_throws(static fn() => dbExec("INSERT INTO users (id, preferred_username) VALUES (-53, 'somebody')"), '/users_visitor_check/');
-    assert_throws(static fn() => dbExec("INSERT INTO users (id, email) VALUES (-54, 'a@b')"), '/users_visitor_check/');
+    assert_throws(static fn() => dbExec("INSERT INTO users (id, anonymized_at) VALUES (-54, now())"), '/users_visitor_check/');
     assert_throws(static fn() => dbExec('INSERT INTO users (id) VALUES (0)'), '/users_visitor_check/');
     assert_throws(static fn() => dbExec('INSERT INTO users (id, visitor_key_hash) VALUES (-55, ?)', [strtoupper(hash('sha256', 'c'))]), '/users_visitor_check/');
     assert_throws(static fn() => dbExec("INSERT INTO users (id, visitor_key_hash) VALUES (-56, 'the key itself')"), '/users_visitor_check/');

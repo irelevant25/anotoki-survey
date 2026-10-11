@@ -1,221 +1,252 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { SavesInFlight } from '@anotoki/lib/auth';
+import { type TestAnotokiAuth, type TestAnotokiAuthOptions, provideTestAnotokiAuth, testAnotokiAuth } from '@anotoki/lib/auth/testing';
+import { VISITOR_SLOT } from '../survey/drafts';
 import { AuthService } from './auth.service';
-import { SavesInFlight } from './saves-in-flight';
 
-describe('AuthService.signIn()', () => {
-  let auth: AuthService;
-  const login = vi.fn();
+/**
+ * AuthService is the survey's face of the anotoki family's sign-in
+ * (@anotoki/lib/auth): it reads the backend's boot configuration itself and
+ * hands it to the library, which the specs run with the library's own client
+ * in memory (provideTestAnotokiAuth) - nothing leaves the test.
+ */
+const IAM = { issuer: 'https://iam.example.test', client_id: 'survey' };
 
-  beforeEach(() => {
-    login.mockReset();
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
-    auth = TestBed.inject(AuthService);
-    // The SDK as init() leaves it - only login() is asked for here.
-    (auth as unknown as { _client: { login: typeof login } })._client = { login };
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+interface Started {
+  auth: AuthService;
+  http: HttpTestingController;
+  handle: TestAnotokiAuth;
+}
+
+function setUp(options: TestAnotokiAuthOptions = {}): Started {
+  const handle = testAnotokiAuth();
+  TestBed.configureTestingModule({
+    providers: [
+      provideHttpClient(),
+      provideHttpClientTesting(),
+      // The boot configuration is the one AuthService read from the backend, as in the app (core/auth/auth.config.ts).
+      ...provideTestAnotokiAuth({ ...options, config: { config: () => inject(AuthService).bootConfig() } }, handle),
+    ],
   });
+  return { auth: TestBed.inject(AuthService), http: TestBed.inject(HttpTestingController), handle };
+}
 
-  afterEach(() => vi.restoreAllMocks());
+/** The start, with the backend answering `config` to GET /api/auth/config. */
+async function start(started: Started, config: object): Promise<void> {
+  const done = started.auth.init();
+  started.http.expectOne('/api/auth/config').flush(config);
+  await done;
+}
 
-  it('answers true on the way to the IAM, back to the address and in the language asked for', async () => {
-    login.mockResolvedValue(undefined);
-    expect(await auth.signIn('/genshin-6-1?x=1', 'sk')).toBe(true);
-    expect(login).toHaveBeenCalledWith({ returnTo: '/genshin-6-1?x=1', uiLocales: 'sk' });
-    expect(auth.signInFailure()).toBeNull();
-  });
+afterEach(() => vi.restoreAllMocks());
 
-  it('answers false, and says why in signInFailure, when the browser refuses the site the storage the sign-in needs', async () => {
-    login.mockRejectedValue(Object.assign(new Error('This browser will not let the site remember the sign-in in progress'), { code: 'storage_unavailable' }));
-    expect(await auth.signIn('/', 'en')).toBe(false);
-    expect(auth.signInFailure()).toEqual({ code: 'storage_unavailable', message: 'This browser will not let the site remember the sign-in in progress' });
-  });
-
-  it('keeps no code that is not a string: the failure is then one without a sentence of its own', async () => {
-    login.mockRejectedValue({ code: 42 });
-    expect(await auth.signIn('/')).toBe(false);
-    expect(auth.signInFailure()).toEqual({ code: '', message: '' });
-  });
-
-  it('leaves for the IAM only once the sends on their way have their answers: a visitor’s first answers bring the key the move needs', async () => {
-    login.mockResolvedValue(undefined);
-    const saves = TestBed.inject(SavesInFlight);
-    const end = saves.begin();
-    const going = auth.signIn('/genshin-6-1', 'sk');
-    await new Promise((done) => setTimeout(done));
-    expect(login).not.toHaveBeenCalled();
-    end();
-    expect(await going).toBe(true);
-    expect(login).toHaveBeenCalledTimes(1);
-  });
-
-  it('answers false, with nothing to say, before the sign-in is set up', async () => {
-    (auth as unknown as { _client: null })._client = null;
-    expect(await auth.signIn('/')).toBe(false);
-    expect(auth.signInFailure()).toBeNull();
-  });
-});
-
-describe("AuthService.init(): what the sign-in settings say - the IAM's switch", () => {
-  let auth: AuthService;
-  let http: HttpTestingController;
-
-  beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
-    auth = TestBed.inject(AuthService);
-    http = TestBed.inject(HttpTestingController);
-    // The SDK, already made: init() only restores the session here.
-    const roles = ['ADMIN'];
-    (auth as unknown as { _client: object })._client = {
-      init: async () => ({}),
-      user: () => ({ sub: 1, preferred_username: 'owner', roles }),
-      isAuthenticated: () => true,
-    };
-  });
-
-  async function started(config: object): Promise<void> {
-    const done = auth.init();
-    http.expectOne('/api/auth/config').flush(config);
-    await done;
-  }
-
-  it('signs in - the status is ready - and the token says who is the site’s ADMIN (the one the Migrations page is for)', async () => {
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey' });
-    expect(auth.status()).toBe('ready');
-    expect(auth.signedIn()).toBe(true);
-    expect(auth.isAdmin()).toBe(true);
-    expect(auth.isStaff()).toBe(true);
-  });
-
-  it('reads the IAM\'s "Sign-in required" switch as the backend relays it: true unless it says false', async () => {
-    expect(auth.loginRequired()).toBe(true);
-    expect(auth.visitorsWelcome()).toBe(false);
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey', loginRequired: false, visitorDays: 30 });
-    expect(auth.loginRequired()).toBe(false);
-    expect(auth.visitorDays()).toBe(30);
-    expect(auth.visitorsWelcome()).toBe(true);
-  });
-
-  it('welcomes no visitor from a backend that does not say how long it keeps one: a backend from before visitors', async () => {
-    for (const visitorDays of [undefined, 0, 1.5, '30', null]) {
-      await started({ issuer: 'https://iam.example.test', clientId: 'survey', loginRequired: false, visitorDays });
-      expect(auth.visitorDays()).toBeNull();
-      expect(auth.visitorsWelcome()).toBe(false);
-    }
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey', loginRequired: false, visitorDays: 7 });
-    expect(auth.visitorDays()).toBe(7);
-    expect(auth.visitorsWelcome()).toBe(true);
-  });
-
-  it('stops welcoming visitors when the server says sign-in has become required since the page loaded', async () => {
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey', loginRequired: false, visitorDays: 30 });
-    auth.noteLoginRequired();
-    expect(auth.loginRequired()).toBe(true);
-    expect(auth.visitorsWelcome()).toBe(false);
-  });
-
-  it('says who takes the surveys: the person signed in by their id, else the visitor while visitors are welcome, else nobody', async () => {
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey', loginRequired: false, visitorDays: 30 });
-    expect(auth.taker()).toEqual({ id: '1', visitor: false });
-    expect(auth.visiting()).toBe(false);
-
-    (auth as unknown as { _client: { isAuthenticated: () => boolean; user: () => null } })._client.isAuthenticated = () => false;
-    (auth as unknown as { _client: { user: () => null } })._client.user = () => null;
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey', loginRequired: false, visitorDays: 30 });
-    expect(auth.taker()).toEqual({ id: 'visitor', visitor: true });
-    expect(auth.visiting()).toBe(true);
-
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey', loginRequired: true, visitorDays: 30 });
-    expect(auth.taker()).toBeNull();
-    expect(auth.visiting()).toBe(false);
-  });
-
-  it('requires sign-in when the backend says so, says nothing, or says something that is not false', async () => {
-    for (const loginRequired of [true, undefined, 'false', 0, null]) {
-      await started({ issuer: 'https://iam.example.test', clientId: 'survey', loginRequired });
-      expect(auth.loginRequired()).toBe(true);
-      expect(auth.visitorsWelcome()).toBe(false);
-    }
-  });
-
-  it('welcomes nobody while the site cannot run, whatever the switch', async () => {
-    const done = auth.init();
-    http.expectOne('/api/auth/config').flush({ code: 'not_set_up' }, { status: 503, statusText: 'Service Unavailable' });
-    await done;
-    expect(auth.status()).toBe('not-set-up');
-    expect(auth.visitorsWelcome()).toBe(false);
+describe('AuthService.init(): what the sign-in settings say', () => {
+  it('signs in - the status is ready - and the token says who is the site’s ADMIN (the one the system pages are for)', async () => {
+    const started = setUp({ user: { sub: '1', preferred_username: 'owner' }, roles: ['MEMBER', 'ADMIN'] });
+    expect(started.auth.status()).toBe('loading');
+    expect(started.auth.bootConfig()).toBeNull();
+    await start(started, { ...IAM, login_required: true, visitor_days: 30 });
+    expect(started.auth.status()).toBe('ready');
+    expect(started.auth.signedIn()).toBe(true);
+    expect(started.auth.isAdmin()).toBe(true);
+    expect(started.auth.isStaff()).toBe(true);
+    expect(started.auth.person()).toEqual({ id: '1', name: 'owner' });
+    expect(started.auth.bootConfig()).toEqual({ ...IAM, login_required: true, visitor_days: 30 });
   });
 
   it('a MEMBER - every account holds it - is an ordinary person: neither staff nor an ADMIN', async () => {
-    (auth as unknown as { _client: { user: () => object } })._client.user = () => ({ sub: 3, preferred_username: 'pat', roles: ['MEMBER'] });
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey' });
-    expect(auth.signedIn()).toBe(true);
-    expect(auth.isStaff()).toBe(false);
-    expect(auth.isAdmin()).toBe(false);
+    const started = setUp({ user: { sub: '3', preferred_username: 'pat' }, roles: ['MEMBER'] });
+    await start(started, IAM);
+    expect(started.auth.signedIn()).toBe(true);
+    expect(started.auth.isStaff()).toBe(false);
+    expect(started.auth.isAdmin()).toBe(false);
   });
 
-  it('an EDITOR is staff, and no ADMIN: the Migrations page is not theirs', async () => {
-    (auth as unknown as { _client: { user: () => object } })._client.user = () => ({ sub: 2, preferred_username: 'edith', roles: ['EDITOR'] });
-    await started({ issuer: 'https://iam.example.test', clientId: 'survey' });
-    expect(auth.isStaff()).toBe(true);
-    expect(auth.isAdmin()).toBe(false);
+  it('an EDITOR is staff, and no ADMIN: the system pages are not theirs', async () => {
+    const started = setUp({ user: { sub: '2', preferred_username: 'edith' }, roles: ['MEMBER', 'EDITOR'] });
+    await start(started, IAM);
+    expect(started.auth.isStaff()).toBe(true);
+    expect(started.auth.isAdmin()).toBe(false);
+  });
+
+  it('names the person by the IAM’s name - by the address in the token only when there is no name; it keeps no address itself', async () => {
+    const started = setUp({ user: { sub: '4', preferred_username: null, email: 'nameless@example.test' } });
+    await start(started, IAM);
+    expect(started.auth.person()).toEqual({ id: '4', name: 'nameless@example.test' });
+  });
+
+  it('reads the IAM\'s "Sign-in required" switch as the backend relays it: true unless it says false', async () => {
+    const started = setUp();
+    expect(started.auth.loginRequired()).toBe(true);
+    expect(started.auth.visitorsWelcome()).toBe(false);
+    await start(started, { ...IAM, login_required: false, visitor_days: 30 });
+    expect(started.auth.loginRequired()).toBe(false);
+    expect(started.auth.visitorDays()).toBe(30);
+    expect(started.auth.visitorsWelcome()).toBe(true);
+    expect(started.auth.visiting()).toBe(true);
+  });
+
+  it('reads the camelCase a backend from before the library answered, too', async () => {
+    const started = setUp();
+    await start(started, { issuer: IAM.issuer, clientId: 'survey', loginRequired: false, visitorDays: 7 });
+    expect(started.auth.loginRequired()).toBe(false);
+    expect(started.auth.visitorDays()).toBe(7);
+    expect(started.auth.visitorsWelcome()).toBe(true);
+  });
+
+  for (const visitor_days of [undefined, 0, 1.5, '30', null]) {
+    it(`welcomes no visitor from a backend that does not say how long it keeps one (${JSON.stringify(visitor_days)}) - and tells the library so`, async () => {
+      const started = setUp();
+      await start(started, { ...IAM, login_required: false, visitor_days });
+      expect(started.auth.visitorDays()).toBeNull();
+      expect(started.auth.visitorsWelcome()).toBe(false);
+      expect(started.auth.loginRequired()).toBe(true);
+      expect(started.auth.bootConfig()?.login_required).toBe(true);
+    });
+  }
+
+  for (const login_required of [true, undefined, 'false', 0, null]) {
+    it(`requires sign-in when the backend says so, says nothing, or says something that is not false (${JSON.stringify(login_required)})`, async () => {
+      const started = setUp();
+      await start(started, { ...IAM, login_required, visitor_days: 30 });
+      expect(started.auth.loginRequired()).toBe(true);
+      expect(started.auth.visitorsWelcome()).toBe(false);
+    });
+  }
+
+  it('stops welcoming visitors when the server says sign-in has become required since the page loaded', async () => {
+    const started = setUp();
+    await start(started, { ...IAM, login_required: false, visitor_days: 30 });
+    started.auth.noteLoginRequired();
+    expect(started.auth.loginRequired()).toBe(true);
+    expect(started.auth.visitorsWelcome()).toBe(false);
+  });
+
+  it('welcomes nobody while the site is not set up, whatever the switch - and starts no sign-in', async () => {
+    const started = setUp();
+    const done = started.auth.init();
+    started.http.expectOne('/api/auth/config').flush({ code: 'not_set_up' }, { status: 503, statusText: 'Service Unavailable' });
+    await done;
+    expect(started.auth.status()).toBe('not-set-up');
+    expect(started.auth.visitorsWelcome()).toBe(false);
+    expect(started.handle.client).toBeNull();
+  });
+
+  it('says the server could not be reached - the load error card - and starts the sign-in once it answers (Try again)', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const started = setUp({ user: { sub: '1' } });
+    const failed = started.auth.init();
+    started.http.expectOne('/api/auth/config').error(new ProgressEvent('error'));
+    await failed;
+    expect(started.auth.status()).toBe('error');
+    expect(started.handle.client).toBeNull();
+
+    await start(started, IAM);
+    expect(started.auth.status()).toBe('ready');
+    expect(started.auth.signedIn()).toBe(true);
+  });
+});
+
+describe('AuthService: who takes the surveys', () => {
+  it('the person signed in, by their id', async () => {
+    const started = setUp({ user: { sub: '1', preferred_username: 'owner' } });
+    await start(started, { ...IAM, login_required: false, visitor_days: 30 });
+    expect(started.auth.taker()).toEqual({ id: '1', visitor: false });
+    expect(started.auth.visiting()).toBe(false);
+  });
+
+  it('else this browser’s visitor while visitors are welcome', async () => {
+    const started = setUp();
+    await start(started, { ...IAM, login_required: false, visitor_days: 30 });
+    expect(started.auth.taker()).toEqual({ id: VISITOR_SLOT, visitor: true });
+  });
+
+  it('else nobody', async () => {
+    const started = setUp();
+    await start(started, { ...IAM, login_required: true, visitor_days: 30 });
+    expect(started.auth.taker()).toBeNull();
+    expect(started.auth.visiting()).toBe(false);
+  });
+});
+
+describe('AuthService.signIn()', () => {
+  it('answers true on the way to the IAM, back to the address asked for', async () => {
+    const started = setUp();
+    await start(started, IAM);
+    expect(await started.auth.signIn('/genshin-6-1?x=1')).toBe(true);
+    expect(started.handle.client?.logins).toEqual([expect.objectContaining({ returnTo: '/genshin-6-1?x=1' })]);
+    expect(started.auth.signInFailure()).toBeNull();
+  });
+
+  it('asks the IAM for the password again for the backups’ proof (prompt=login)', async () => {
+    const started = setUp({ user: { sub: '1' }, roles: ['ADMIN'] });
+    await start(started, IAM);
+    expect(await started.auth.signIn('/admin/backups', 'login')).toBe(true);
+    expect(started.handle.client?.logins).toEqual([expect.objectContaining({ returnTo: '/admin/backups', prompt: 'login' })]);
+  });
+
+  it('answers false, and says why in signInFailure, when the browser refuses the site the storage the sign-in needs', async () => {
+    const started = setUp();
+    await start(started, IAM);
+    started.handle.client!.login = () => Promise.reject(Object.assign(new Error('This browser will not let the site remember the sign-in in progress'), { code: 'storage_unavailable' }));
+    expect(await started.auth.signIn('/genshin-6-1')).toBe(false);
+    expect(started.auth.signInFailure()).toEqual(expect.objectContaining({ code: 'storage_unavailable' }));
+  });
+
+  it('leaves for the IAM only once the sends on their way have their answers: a visitor’s first answers bring the key the move needs', async () => {
+    const started = setUp();
+    await start(started, { ...IAM, login_required: false, visitor_days: 30 });
+    const end = TestBed.inject(SavesInFlight).begin();
+    const going = started.auth.signIn('/genshin-6-1');
+    await new Promise((done) => setTimeout(done));
+    expect(started.handle.client?.logins).toEqual([]);
+    end();
+    expect(await going).toBe(true);
+    expect(started.handle.client?.logins.length).toBe(1);
+  });
+
+  it('answers false, with nothing to say, before the sign-in is set up', async () => {
+    const started = setUp();
+    expect(await started.auth.signIn('/')).toBe(false);
+    expect(started.auth.signInFailure()).toBeNull();
   });
 });
 
 describe('AuthService: the account’s preferences - the theme, the date order and the clock every anotoki site follows', () => {
-  let auth: AuthService;
-  let http: HttpTestingController;
-  const client = { init: async () => ({}), user: vi.fn(), isAuthenticated: vi.fn(), savePreferences: vi.fn() };
-  const PREFERENCES = { theme: 'dark', date_format: 'ymd_dash', time_format: '24' };
-
-  beforeEach(() => {
-    client.user.mockReset();
-    client.isAuthenticated.mockReset();
-    client.savePreferences.mockReset();
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
-    auth = TestBed.inject(AuthService);
-    http = TestBed.inject(HttpTestingController);
-    // The SDK, already made: init() only restores the session here.
-    (auth as unknown as { _client: object })._client = client;
-  });
-
-  /** The site started with this person signed in - or nobody. */
-  async function startedWith(user: object | null): Promise<void> {
-    client.user.mockReturnValue(user);
-    client.isAuthenticated.mockReturnValue(user !== null);
-    const done = auth.init();
-    http.expectOne('/api/auth/config').flush({ issuer: 'https://iam.example.test', clientId: 'survey' });
-    await done;
-  }
+  const PREFERENCES = { theme: 'dark', date_format: 'ymd_dash', time_format: '24' } as const;
 
   it('are the signed-in person’s, as the IAM sends them', async () => {
-    await startedWith({ sub: '7', preferred_username: 'owner', roles: ['MEMBER'], locale: 'sk', preferences: PREFERENCES });
-    expect(auth.preferences()).toEqual(PREFERENCES);
+    const started = setUp({ user: { sub: '7', preferred_username: 'owner', locale: 'sk', preferences: PREFERENCES } });
+    await start(started, IAM);
+    expect(started.auth.preferences()).toEqual(PREFERENCES);
   });
 
   it('are null while nobody is signed in, and for an IAM that sends none - the site keeps its own then', async () => {
-    await startedWith(null);
-    expect(auth.preferences()).toBeNull();
-    await startedWith({ sub: '7', preferred_username: 'owner', roles: ['MEMBER'], locale: 'sk', preferences: null });
-    expect(auth.preferences()).toBeNull();
-    // A session kept by a copy of the SDK from before preferences.
-    await startedWith({ sub: '7', preferred_username: 'owner', roles: ['MEMBER'], locale: 'sk' });
-    expect(auth.preferences()).toBeNull();
+    const nobody = setUp();
+    await start(nobody, IAM);
+    expect(nobody.auth.preferences()).toBeNull();
+
+    TestBed.resetTestingModule();
+    const none = setUp({ user: { sub: '7', preferences: null } });
+    await start(none, IAM);
+    expect(none.auth.preferences()).toBeNull();
   });
 
-  it('are saved through the SDK - for every anotoki site - and its refusal, with the IAM’s code, is the caller’s', async () => {
-    await startedWith({ sub: '7', preferred_username: 'owner', roles: ['MEMBER'], locale: 'sk', preferences: PREFERENCES });
-    client.savePreferences.mockResolvedValue({ locale: 'sk', preferences: { ...PREFERENCES, theme: 'light' } });
-    await expect(auth.savePreferences({ theme: 'light' })).resolves.toEqual({ locale: 'sk', preferences: { ...PREFERENCES, theme: 'light' } });
-    expect(client.savePreferences).toHaveBeenCalledWith({ theme: 'light' });
+  it('are saved through the library - for every anotoki site - and its refusal, with the IAM’s code, is the caller’s', async () => {
+    const started = setUp({ user: { sub: '7', preferred_username: 'owner', locale: 'sk', preferences: PREFERENCES } });
+    await start(started, IAM);
+    await expect(started.auth.savePreferences({ theme: 'light' })).resolves.toEqual({ locale: 'sk', preferences: { ...PREFERENCES, theme: 'light' } });
+    expect(started.handle.client?.saved).toEqual([{ theme: 'light' }]);
 
-    client.savePreferences.mockRejectedValue(Object.assign(new Error('Not a language the IAM offers'), { code: 'invalid_request' }));
-    await expect(auth.savePreferences({ language: 'de' })).rejects.toMatchObject({ code: 'invalid_request' });
+    started.handle.client!.preferencesError = 'invalid_request';
+    await expect(started.auth.savePreferences({ language: 'de' })).rejects.toMatchObject({ code: 'invalid_request' });
   });
 
   it('cannot be saved before the sign-in is set up: login_required', async () => {
-    (auth as unknown as { _client: null })._client = null;
-    await expect(auth.savePreferences({ theme: 'light' })).rejects.toMatchObject({ code: 'login_required' });
+    const started = setUp();
+    await expect(started.auth.savePreferences({ theme: 'light' })).rejects.toMatchObject({ code: 'login_required' });
   });
 });

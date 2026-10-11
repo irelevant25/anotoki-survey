@@ -178,15 +178,16 @@ export interface Answer {
 }
 
 /**
- * Who took a survey: their anotoki account - the IAM's user id, name and
- * address - or a visitor who answered without signing in (while the IAM says
- * sign-in is not required): a negative id, "Visitor 12", no address.
+ * Who took a survey: their anotoki account - the IAM's user id and name (the
+ * IAM's placeholder, deleted-{id}, once it deleted the account; no address:
+ * the IAM keeps people's addresses, this site none) - or a visitor who
+ * answered without signing in (while the IAM says sign-in is not required): a
+ * negative id, "Visitor 12".
  */
 export interface Person {
   id: string;
   name: string;
-  email: string;
-  /** Answered without signing in: the admin panel says "Not signed in" where the address would be. */
+  /** Answered without signing in: the admin panel says "Not signed in" under the name. */
   visitor?: boolean;
 }
 

@@ -92,7 +92,7 @@ test('the visitor settings come from config/visitors.local.php beside the others
     localSettings(true);
     try {
         assert_same([14, VISITOR_DEFAULTS['max_active']], [visitorSettings()['keep_days'], visitorSettings()['max_active']]);
-        assert_same(14, authPublicConfig()['visitorDays']);
+        assert_same(14, authPublicConfig()['visitor_days']);
     } finally {
         putenv('SURVEY_TEST_CONFIG=' . $GLOBALS['TEST_CONFIG_DIR']);
         localSettings(true);
@@ -118,7 +118,7 @@ test('a visitors.local.php that cannot be read (a parse error, no array returned
             localSettings(true);
             assert_same(null, settingsProblem(), "$case: the site is set up");
             assert_same(VISITOR_DEFAULTS, visitorSettings(), "$case: the defaults");
-            assert_same(30, authPublicConfig()['visitorDays'], "$case: /api/auth/config still answers");
+            assert_same(30, authPublicConfig()['visitor_days'], "$case: /api/auth/config still answers");
             assert_match($logged, (string) @file_get_contents($log), "$case: logged");
         }
     } finally {

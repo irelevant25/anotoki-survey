@@ -96,7 +96,7 @@ describe('the CSV', () => {
     const csv = responsesCsv(genshin, [tricky, ...genshinResponses.slice(1)]);
     const lines = csv.trim().split('\r\n');
     expect(lines.length).toBe(genshinResponses.length + 1);
-    expect(csv.startsWith('﻿"Submitted","Name","Email","Gender","Age","1. How often')).toBe(true);
+    expect(csv.startsWith('﻿"Submitted","Name","Gender","Age","1. How often')).toBe(true);
     expect(lines[1]).toContain(`"'=HYPERLINK(""x"")"`);
   });
 });

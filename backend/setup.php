@@ -141,7 +141,7 @@ if (PHP_VERSION_ID < 80200) {
     setupPage('PHP is too old', '<p>The survey site needs PHP 8.2 or newer. This server runs PHP ' . h(PHP_VERSION)
         . '. Choose a newer PHP (in the hosting panel, on a host), then reload this page.</p>', 'bad');
 }
-$missing = array_values(array_filter(['pdo_pgsql', 'openssl', 'dom'], static function (string $extension): bool {
+$missing = array_values(array_filter(['pdo_pgsql', 'openssl', 'dom', 'mbstring'], static function (string $extension): bool {
     return !extension_loaded($extension);
 }));
 if ($missing) {
@@ -409,6 +409,18 @@ function setupShortError(string $message): string
 }
 
 /**
+ * A GET of the IAM from this server, as the anotoki library asks it
+ * (Anotoki\Lib\Support\HttpGet: http and https alone, no redirect followed):
+ * the body of a 200, or null.
+ */
+function setupHttpGet(string $url): ?string
+{
+    $answer = \Anotoki\Lib\Support\HttpGet::fetch($url, 5);
+
+    return $answer['status'] === 200 && is_string($answer['body']) ? $answer['body'] : null;
+}
+
+/**
  * Asks the IAM for its discovery document and its keys - from this server,
  * because this server is what checks every sign-in against them.
  *
@@ -416,7 +428,7 @@ function setupShortError(string $message): string
  */
 function setupTestIam(string $issuer): array
 {
-    $body = anotoki_iam_http_get($issuer . '/.well-known/openid-configuration', 5);
+    $body = setupHttpGet($issuer . '/.well-known/openid-configuration');
     if ($body === null) {
         return [false, 'No answer from ' . $issuer . '/.well-known/openid-configuration. Is the IAM running, and is the address right?'];
     }
@@ -428,7 +440,7 @@ function setupTestIam(string $issuer): array
         return [false, 'The IAM there calls itself ' . $discovery['issuer'] . ' - use exactly that address.'];
     }
 
-    $keys = anotoki_iam_http_get($discovery['jwks_uri'], 5);
+    $keys = setupHttpGet($discovery['jwks_uri']);
     $set = $keys === null ? null : json_decode($keys, true);
     $count = is_array($set) && isset($set['keys']) && is_array($set['keys']) ? count($set['keys']) : 0;
     if ($count === 0) {
@@ -502,7 +514,10 @@ if ($method === 'POST') {
             }
             $log = [
                 'Saved the database connection and the IAM in config/database.local.php and config/iam.local.php.',
-                $migrated['applied'] ? 'Made the tables (' . implode(', ', array_column($migrated['applied'], 'name')) . ').' : 'The tables were up to date.',
+                // The site's own files by their names, the anotoki library's with their set (anotoki_admin/...).
+                $migrated['applied'] ? 'Made the tables (' . implode(', ', array_map(static function (array $file): string {
+                    return ($file['set'] === 'survey' ? '' : $file['set'] . '/') . $file['name'];
+                }, $migrated['applied'])) . ').' : 'The tables were up to date.',
                 'People sign in through the IAM at ' . $form['issuer'] . ', where this site is "' . $form['client_id'] . '". '
                     . 'Who may write surveys (EDITOR) and administer them (ADMIN) is set there, in the admin panel.',
             ];

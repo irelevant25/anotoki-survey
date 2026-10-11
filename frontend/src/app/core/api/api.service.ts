@@ -1,8 +1,8 @@
-import { HttpClient, HttpContext, HttpContextToken, HttpErrorResponse } from '@angular/common/http';
+import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { CARRIES_VISITOR_KEY, VISITOR_KEY_HEADER, issuedAs } from '@anotoki/lib/auth';
 import { type AdminLanguage } from '@anotoki/lib/translations';
 import { Observable, firstValueFrom } from 'rxjs';
-import { AuthService } from '../auth/auth.service';
 import { AboutYou, Answer, Survey, SurveyImage, SurveyResponse, SurveyStatus, SurveySummary } from '../survey/survey.model';
 
 /**
@@ -22,39 +22,6 @@ export class ApiError extends Error {
   ) {
     super(message);
   }
-}
-
-/** The header a visitor's key travels in, both ways (core/auth/visitor-key.ts). */
-export const VISITOR_KEY_HEADER = 'X-Visitor-Key';
-
-/** Who a request is for: the signed-in person, or the visitor this browser is (or becomes, with its first answers). */
-export type Caller = 'person' | 'visitor';
-
-/**
- * Who a request of the site's own API is for, decided when it is ISSUED -
- * from the app's state then, never from whether a token happens to be there
- * when it leaves (authInterceptor reads it):
- *
- *   'person'   the token, or the request is never sent: it fails at once as a
- *              401 sign_in_required - a person's answers never go out as
- *              nobody's, and never make a visitor
- *   'visitor'  the visitor key (to /api/surveys, while the site does not
- *              require a sign-in), never a token
- *   null       a request this service did not mark: decided by the
- *              interceptor as it is handed over
- */
-export const ISSUED_AS = new HttpContextToken<Caller | null>(() => null);
-
-/**
- * The one request that carries the person's token and the visitor's key
- * together - the move after a sign-in: the interceptor adds the token and
- * leaves the key the request set itself.
- */
-export const CARRIES_VISITOR_KEY = new HttpContextToken<boolean>(() => false);
-
-/** A request's context saying who it is for. */
-export function issuedAs(caller: Caller): HttpContext {
-  return new HttpContext().set(ISSUED_AS, caller);
 }
 
 /** What the move after a sign-in did: whether the key was still a visitor's, how many surveys' answers became the person's, and how many kept the person's own. */
@@ -90,17 +57,17 @@ export interface ResponseSubmission {
 /**
  * The backend's API (backend/api/routes/), one method a route. Every call
  * resolves with what the route answers or rejects with an ApiError. The access
- * token - or the visitor key - is added by the interceptor, by whom the request
- * says it was issued for (ISSUED_AS): the three routes of the people taking
- * surveys are the person's while somebody is signed in and the visitor's
- * otherwise, the move is always the person's, and the rest (the admin area)
- * are decided as they are handed over - which, for a call made here, is the
- * same moment.
+ * token - or the visitor key - is added by the anotoki family's interceptor
+ * (@anotoki/lib/auth: anotokiAuthInterceptor), by whom the request says it was
+ * issued for (ISSUED_AS): the three routes of the people taking surveys are
+ * whoever the page is shown to as they are issued - the person signed in,
+ * else this browser's visitor - the move is always the person's, and the rest
+ * (the admin area) are decided as they are handed over - which, for a call
+ * made here, is the same moment.
  */
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly _http = inject(HttpClient);
-  private readonly _auth = inject(AuthService);
 
   // ── For the people taking surveys ────────────────────────────────────────
 
@@ -194,9 +161,14 @@ export class ApiService {
   // The database's migrations (ADMIN) are the anotoki family's Migrations page's own
   // (<anotoki-migrations-page>, @anotoki/lib/migrations): it asks /api/admin/migrations itself.
 
-  /** For whoever takes surveys now: the person signed in, or else the visitor - decided as the request is made. */
+  /**
+   * For whoever takes surveys now - decided as the request is made, by the
+   * library (AnotokiAuth.caller()): the person signed in (their token, or the
+   * request is never sent); else, while the site welcomes visitors, this
+   * browser's visitor (its key, never a token); else nobody.
+   */
   private _asTaker(): HttpContext {
-    return issuedAs(this._auth.signedIn() ? 'person' : 'visitor');
+    return issuedAs('caller');
   }
 
   private async _call<T>(request: Observable<T>): Promise<T> {
@@ -208,7 +180,12 @@ export class ApiService {
   }
 }
 
-/** Whatever a request failed with, as an ApiError. */
+/**
+ * Whatever a request failed with, as an ApiError. The API's own refusals say
+ * `{error, code}`; the anotoki family's interceptor, refusing a request it
+ * never sent (a person's with no token: 401 sign_in_required), says `{code,
+ * message}` - both read alike.
+ */
 export function toApiError(error: unknown): ApiError {
   if (error instanceof ApiError) {
     return error;
@@ -218,7 +195,8 @@ export function toApiError(error: unknown): ApiError {
       return new ApiError(0, 'offline', 'The site could not be reached. Check the connection and try again.');
     }
     const body = error.error && typeof error.error === 'object' ? (error.error as Record<string, unknown>) : {};
-    const message = typeof body['error'] === 'string' ? body['error'] : `The server answered ${error.status}.`;
+    const said = typeof body['error'] === 'string' ? body['error'] : body['message'];
+    const message = typeof said === 'string' ? said : `The server answered ${error.status}.`;
     const wait = Number(error.headers?.get('Retry-After') ?? Number.NaN);
     return new ApiError(error.status, typeof body['code'] === 'string' ? body['code'] : 'http_' + error.status, message, body, Number.isFinite(wait) && wait >= 0 ? wait : null);
   }

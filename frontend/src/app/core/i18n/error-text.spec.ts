@@ -1,7 +1,7 @@
 import { HttpErrorResponse, HttpHeaders } from '@angular/common/http';
 import { ApiError, toApiError } from '../api/api.service';
 import { DYNAMIC_KEYS } from './dynamic-keys';
-import { errorKey, errorParams, signInFailureKey, signInFailureParams } from './error-text';
+import { errorKey, errorParams } from './error-text';
 
 describe('errorKey(): a failed request in the reader’s words', () => {
   it('words the codes that mean the same on every page', () => {
@@ -22,6 +22,14 @@ describe('errorKey(): a failed request in the reader’s words', () => {
     expect(toApiError(new HttpErrorResponse({ status: 503, error: { code: 'visitor_move_retry' }, headers: headers('2') })).retryAfter).toBe(2);
     expect(toApiError(new HttpErrorResponse({ status: 503, error: { code: 'visitor_move_retry' } })).retryAfter).toBeNull();
     expect(toApiError(new HttpErrorResponse({ status: 429, error: { code: 'too_many_visitors' }, headers: headers('soon') })).retryAfter).toBeNull();
+  });
+
+  it('reads the anotoki family’s own refusal of a request it never sent - {code, message} - as the API’s {error, code}', () => {
+    const error = toApiError(new HttpErrorResponse({ status: 401, error: { code: 'sign_in_required', message: 'Please sign in.' } }));
+    expect([error.status, error.code, error.message]).toEqual([401, 'sign_in_required', 'Please sign in.']);
+    expect(errorKey(error)).toBe('error.sign_in_required');
+    const api = toApiError(new HttpErrorResponse({ status: 401, error: { error: 'Sign in to continue.', code: 'sign_in_required' } }));
+    expect(api.message).toBe('Sign in to continue.');
   });
 
   it('says the status of an answer that was not the API’s own', () => {
@@ -57,26 +65,5 @@ describe('errorKey(): a failed request in the reader’s words', () => {
     ];
     const answered = codes.map((code) => errorKey(new ApiError(code === 'http_502' ? 502 : 400, code, 'x')));
     expect([...new Set(answered)].sort()).toEqual([...declared].sort());
-  });
-});
-
-describe('signInFailureKey(): a sign-in that came back without one', () => {
-  it('has one sentence for access_denied, true whoever ended it', () => {
-    expect(signInFailureKey('access_denied')).toBe('signIn.notCompleted');
-  });
-
-  it('says why a sign-in could not start when the browser refused the site its storage', () => {
-    expect(signInFailureKey('storage_unavailable')).toBe('signIn.storageUnavailable');
-    // Map lookups only: a code named like an object's own property is "anything else".
-    expect(signInFailureKey('constructor')).toBe('signIn.failed');
-  });
-
-  it('says the code for anything else - the code, never somebody’s sentence', () => {
-    expect(signInFailureKey('state_mismatch')).toBe('signIn.failed');
-    expect(signInFailureKey('')).toBe('signIn.failed');
-    expect(signInFailureParams('state_mismatch')).toEqual({ code: 'state_mismatch' });
-    expect(signInFailureParams('http_503')).toEqual({ code: 'http_503' });
-    expect(signInFailureParams('Your account is locked. Call 0900 123 456')).toEqual({ code: 'unknown' });
-    expect(signInFailureParams('')).toEqual({ code: 'unknown' });
   });
 });

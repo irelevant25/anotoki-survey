@@ -72,7 +72,7 @@ const SLOVAK = {
     'Prieskumy vypĺňate bez prihlásenia. Tento prehliadač si pamätá, ktoré ste vyplnili, ešte {count} dní po Vašej poslednej návšteve – keď sa prihlásite, Vaše odpovede sa presunú do Vášho anotoki účtu.',
 };
 
-const YOU: Person = { id: 'person-you', name: 'You', email: 'you@example.com' };
+const YOU: Person = { id: 'person-you', name: 'You' };
 
 /** An open survey of so many questions to write: a minute each, and nothing else in it. Written in English, in no other language. */
 function openSurvey(id: string, title: string, questions: number, closesOn: string | null = null): ParticipantSurvey {

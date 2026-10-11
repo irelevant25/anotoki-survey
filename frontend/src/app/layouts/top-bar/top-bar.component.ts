@@ -1,14 +1,15 @@
 import { ChangeDetectionStrategy, Component, Injector, computed, inject, input, viewChild } from '@angular/core';
+import { Router } from '@angular/router';
 import { SiteStatus } from '@anotoki/lib/migrations';
 import { TopBarComponent as AnotokiTopBarComponent, type TopBarBrand, type TopBarLink, type TopBarMenuItem, type TopBarPerson } from '@anotoki/lib/shell';
 import { TranslationService } from '@anotoki/lib/translations';
 import type { LocalizationDrafts } from '@anotoki/lib/translations/admin';
 import { ConfirmService } from '@anotoki/lib/ui/dialog';
-import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminStore } from '../../core/admin/admin-store.service';
 import { AuthService } from '../../core/auth/auth.service';
-import { signInOrSayWhy } from '../../core/auth/sign-in-failure';
+import { signInOrShowWhy } from '../../core/auth/auth.config';
 import { MIGRATIONS_PATH } from '../../core/migrations';
+import { SYSTEM_PATH, SYSTEM_PATHS } from '../../pages/admin/system/system-pages';
 
 /**
  * A section of the site in the bar: its words, where it goes, and the addresses under it that are part of it.
@@ -29,13 +30,16 @@ export interface BarLink {
 
 /** Where people take surveys: the one section, the list of open surveys. */
 export const SURVEY_LINKS: readonly BarLink[] = [{ key: 'topbar.surveys', path: '/', under: [] }];
-/** The admin area's sections: Migrations for an ADMIN alone - and while the database waits for a migration, nothing else. */
+/** The admin area's sections: System for an ADMIN alone (it is lit on each of its pages too). */
 export const ADMIN_LINKS: readonly BarLink[] = [
   { key: 'topbar.surveys', path: '/admin', under: ['/admin/surveys/'] },
   { key: 'topbar.translations', path: '/admin/translations', under: [] },
   { key: 'topbar.languages', path: '/admin/languages', under: [] },
-  { key: null, label: 'Migrations', path: MIGRATIONS_PATH, under: [], adminOnly: true },
+  { key: null, label: 'System', path: SYSTEM_PATH, under: SYSTEM_PATHS, adminOnly: true },
 ];
+
+/** While the database waits for a migration: the Migrations page alone - the one page of the site that works then (an ADMIN's). */
+export const UPDATE_LINKS: readonly BarLink[] = [{ key: null, label: 'Migrations', path: MIGRATIONS_PATH, under: [], adminOnly: true }];
 
 /** Up to this width the bar is a phone's: the links and the person's menu fold into one menu button. */
 export const PHONE_BAR_MAX = 760;
@@ -70,12 +74,13 @@ export const NARROW_BAR_MAX = 960;
  * "Admin panel" - are the anotoki library's keys (`anotoki.topbar.*`), read
  * from the site's database as the kit reads its own (core/kit.ts): one string
  * for each, whichever bar says it. One
- * exception: the admin panel's Migrations link (an ADMIN's alone) is its
- * English word, as the admin panel's pages are - it came after the bar's keys,
- * and no reader ever sees it in another language. While a database update
- * waits it is the only link an ADMIN's bar shows in the admin panel
- * (SiteStatus, @anotoki/lib/migrations): the Migrations page is the one page
- * of the site that works then.
+ * exception: the admin panel's System link (an ADMIN's alone: the way to the
+ * people, the error and audit logs, the backups and the migrations - lit on
+ * each of those pages) is its English word, as the admin panel's pages are -
+ * it came after the bar's keys, and no reader ever sees it in another
+ * language. While a database update waits the Migrations link is the only one
+ * an ADMIN's bar shows in the admin panel (SiteStatus, @anotoki/lib/migrations):
+ * the Migrations page is the one page of the site that works then.
  */
 @Component({
   selector: 'app-top-bar',
@@ -96,7 +101,7 @@ export class TopBarComponent {
   private readonly _store = inject(AdminStore);
   private readonly _injector = inject(Injector);
   private readonly _confirm = inject(ConfirmService);
-  private readonly _toast = inject(ToastService);
+  private readonly _router = inject(Router);
   private readonly _bar = viewChild.required(AnotokiTopBarComponent);
 
   protected readonly phoneMax = PHONE_BAR_MAX;
@@ -117,7 +122,7 @@ export class TopBarComponent {
     }
     // While a database update waits the Migrations page is the one page of the admin panel that works (an ADMIN's).
     if (this._status.state() === 'update-pending' && this._auth.isAdmin()) {
-      return ADMIN_LINKS.filter((link) => link.path === MIGRATIONS_PATH);
+      return UPDATE_LINKS;
     }
     return ADMIN_LINKS.filter((link) => !link.adminOnly || this._auth.isAdmin());
   });
@@ -131,7 +136,7 @@ export class TopBarComponent {
       return null;
     }
     const role = this._auth.isAdmin() ? this._i18n.t('anotoki.topbar.roleAdmin') : this._auth.isStaff() ? this._i18n.t('anotoki.topbar.roleEditor') : null;
-    return { name: me.name, email: me.email || null, role };
+    return { name: me.name, email: this._auth.user()?.email || null, role };
   });
 
   /** Between the menu's head and Sign out: the anotoki account (a new tab), and the way into the admin panel - or back from it. */
@@ -151,8 +156,8 @@ export class TopBarComponent {
     return items;
   });
 
-  /** To the IAM, whose pages open in the language the person reads here - theirs, even from the admin area; a toast if it cannot start. */
-  protected readonly signIn = (): Promise<void> => signInOrSayWhy(this._auth, this._i18n, this._toast);
+  /** To the IAM, whose pages open in the language the person reads here - theirs, even from the admin area; the screen that says why if it cannot start. */
+  protected readonly signIn = (): Promise<void> => signInOrShowWhy(this._auth, this._router);
 
   /** The bar's Sign out: a promise, so its item waits ("Saving…") while the changes still waiting are saved. */
   protected readonly signOut = (): Promise<void> => this._signOutAfterSaves();

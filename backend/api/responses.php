@@ -159,7 +159,7 @@ function responsesOf(string $surveyId): array
         throw surveyNotFound();
     }
     $rows = dbAll(
-        'SELECT r.id, r.survey_id, r.user_id, u.preferred_username, u.email, r.gender, r.age, r.answers, r.language, r.started_at, r.submitted_at
+        'SELECT r.id, r.survey_id, r.user_id, u.preferred_username, r.gender, r.age, r.answers, r.language, r.started_at, r.submitted_at
            FROM responses r
            JOIN users u ON u.id = r.user_id
           WHERE r.survey_id = ?
@@ -169,7 +169,7 @@ function responsesOf(string $surveyId): array
 
     return array_map(static function (array $row): array {
         $answers = json_decode((string) $row['answers'], true, 64, JSON_THROW_ON_ERROR);
-        // A visitor (a negative id) has no name and no address: "Visitor 12", from its own id.
+        // A visitor (a negative id) has no name: "Visitor 12", from its own id.
         $visitor = (int) $row['user_id'] < 0;
 
         return [
@@ -177,9 +177,10 @@ function responsesOf(string $surveyId): array
             'surveyId' => $row['survey_id'],
             'person' => [
                 'id' => (string) $row['user_id'],
-                // The IAM always gives a username; the rest is for an account that has none any more.
-                'name' => $visitor ? 'Visitor ' . -(int) $row['user_id'] : ($row['preferred_username'] ?? $row['email'] ?? 'Person ' . $row['user_id']),
-                'email' => $visitor ? '' : ($row['email'] ?? ''),
+                // The IAM's name - its placeholder, deleted-{id}, once it deleted the account (api/people.php). The
+                // IAM always gives a username; the rest is for a row that has none. No address: the IAM keeps
+                // people's addresses, this site none (migration 011).
+                'name' => $visitor ? 'Visitor ' . -(int) $row['user_id'] : ($row['preferred_username'] ?? 'Person ' . $row['user_id']),
                 'visitor' => $visitor,
             ],
             'aboutYou' => $row['gender'] !== null && $row['age'] !== null ? ['gender' => $row['gender'], 'age' => $row['age']] : null,
@@ -195,18 +196,66 @@ function responsesOf(string $surveyId): array
 /**
  * Deletes one filled survey: its person may take the survey again (a visitor
  * too, while its key lives; an ended visitor left with no answers goes).
+ * Answers whose they were and which survey's, for the audit log.
+ *
+ * @return array{survey_id: string, user_id: int}
  */
-function responseDelete(string $id): void
+function responseDelete(string $id): array
 {
     $gone = static fn(): ApiError => new ApiError(404, 'not_found', 'There are no such answers.');
     if (!isUuid($id)) {
         throw $gone();
     }
-    dbTx(static function () use ($id, $gone): void {
-        $user = dbValue('DELETE FROM responses WHERE id = ? RETURNING user_id', [$id]);
-        if ($user === null) {
+
+    return dbTx(static function () use ($id, $gone): array {
+        $row = dbOne('DELETE FROM responses WHERE id = ? RETURNING survey_id, user_id', [$id]);
+        if ($row === null) {
             throw $gone();
         }
-        visitorsForgetEmpty([(int) $user]);
+        visitorsForgetEmpty([(int) $row['user_id']]);
+
+        return ['survey_id' => (string) $row['survey_id'], 'user_id' => (int) $row['user_id']];
     });
+}
+
+/**
+ * Deletes every filled survey of one person - what the People page's Delete
+ * takes (api/people.php) - holding their row first, as a send of their
+ * answers does (visitorHold()): one at that moment waits for the other. Their
+ * row stays: they are somebody who signed in, and the surveys they wrote are
+ * theirs. Null when there is nobody (no person) with that id.
+ */
+function responsesDeleteOf(PDO $pdo, int $userId): ?int
+{
+    if ($userId <= 0) {
+        return null;
+    }
+    $own = !$pdo->inTransaction();
+    if ($own) {
+        $pdo->beginTransaction();
+    }
+    try {
+        $held = $pdo->prepare('SELECT id FROM users WHERE id = ? AND id > 0 FOR UPDATE');
+        $held->execute([$userId]);
+        if ($held->fetchColumn() === false) {
+            if ($own) {
+                $pdo->rollBack();
+            }
+
+            return null;
+        }
+        $deleted = $pdo->prepare('DELETE FROM responses WHERE user_id = ?');
+        $deleted->execute([$userId]);
+        $count = $deleted->rowCount();
+        if ($own) {
+            $pdo->commit();
+        }
+
+        return $count;
+    } catch (Throwable $e) {
+        if ($own && $pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
 }

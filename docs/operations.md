@@ -54,8 +54,10 @@ convenient.) A version with a new migration closes the site until it is
 applied: people - visitors and signed-in alike - see the anotoki family's page,
 "The site is being updated", in their language, which asks again by itself and
 comes back on its own once the update is in; no error, no setup page. **An
-administrator applies it on the admin panel's Migrations page**: back the
-database up (`pg_dump`), open the site - the page there has a quiet "Sign in":
+administrator applies it on the admin panel's Migrations page** (the Apply
+makes a backup of the database first - the library's, *Backups* below; one
+that cannot be made stops the Apply before anything runs): open the site - the
+page there has a quiet "Sign in":
 sign in with an account that has `ADMIN` (straight at
 `https://survey.anotoki.eu/admin/migrations`, the sign-in comes back to the
 Migrations page) - "A database update is waiting" then has "Open Migrations"
@@ -144,6 +146,36 @@ was open. The upload carries `vendor/anotoki/lib/php/migrations/`
 (the library's set) - `tools/build.php` puts it there, under the deny-all
 `.htaccess` of `vendor/`.
 
+The version on anotoki-lib 0.4.1 (both halves) takes the rest of what every
+anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
+are gone - `api/anotoki_iam.php` stays on the host after the upload, read by
+nothing: delete it over FTP; the browser keeps its session, under the same
+keys); a sign-in that came back without one is said on the library's screen,
+in the site's words. **People** are the library's people module over
+`users`: the site keeps no address any more, and an account the IAM deletes
+is scrubbed here (the IAM's `GET /api/public/anonymized-accounts`, asked after
+an answer at most once an hour - the IAM must be one that has it, its 016).
+**The admin tools** - the error log, the audit log and the backups - are the
+ADMIN's, on the admin panel's System page; PHP must be able to write
+`storage/logs/` and `storage/backups/` (it makes them). It brings, in the
+order they run: the library's `anotoki_admin/001_audit_log.sql` and
+`002_feedback.sql` (the audit log's table; the feedback's, which this site
+does not use), the site's `011_people.sql` (`users.anonymized_at`, and
+**`users.email` dropped** - the owner's decision; its gate proves every other
+column of every row the same as before) and `012_sign_in_words.sql` (the
+site's four sign-in strings moved under the library's keys,
+`anotoki.signIn.*`, every language, who saved it and when - an owner's
+rewording with them; formal Slovak for the two the library says informally),
+then the library's `anotoki_translations/003_sign_in_words.sql`,
+`004_feedback_words.sql` and `anotoki_people/001_people.sql`. **Before the
+upload** export each language from the Translations page, as for 0.3.0.
+**After the upload** check that `/storage/anotoki-lib.key` answers 403 (the
+library's key for the error log's hashes - never served). The first Apply
+makes the site's first backup (`before-migration`), made before 011 ran: it
+still holds `users.email`, the only copy of the old addresses. Once the site
+runs again and a look round says the update went well, **the owner deletes
+that backup** on System → Backups.
+
 ## The site's words and languages
 
 The words the site says to people taking surveys are in the database and are
@@ -197,9 +229,10 @@ offered again they are back in it at their next page load, not the one after.
 person: a session that ends under somebody (the IAM's idle limit, a sign-out
 on another anotoki site) takes the page away, and signing in again as the same
 person puts every box back as it was, marked as changed. Only Save saves it.
-While there is any, the browser asks before the tab is left - on the way to
-the sign-in too, where nothing is lost - and "Sign out" in the top bar asks
-first and then gives it up.
+While there is any and somebody is signed in, the browser asks before the
+tab is left (on the way to the sign-in after a session ended it asks nothing:
+the boxes wait in the tab for the same person - anotoki-lib 0.4.0), and "Sign
+out" in the top bar asks first and then gives it up.
 
 ## The IAM
 
@@ -337,9 +370,58 @@ SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 
 ## Backups
 
 Everything is in the database, pictures and the site's reworded strings
-included: a `pg_dump` of `anotoki_survey` is the whole site's data. The config files are only the
-connection and the IAM's address; setup.php writes them again - all but
-`config/visitors.local.php`, which is put there by hand: keep a copy of it.
+included. The site backs it up itself - the anotoki family's backups
+(anotoki-lib 0.4.1), on the admin panel's System → **Backups** page, for its
+ADMIN: every table by COPY through PDO in one snapshot (no `pg_dump` on the
+host), each a file `storage/backups/<id>.anotoki-backup` (`ANOTOKI-BACKUP 1`,
+a JSON header, then a gzip'd tar of the manifest, the applied migrations' SQL
+and each table's rows - opened anywhere with `tail -n +3 <file> | tar -xz`).
+Made after the answer of the first request of each UTC day (14 kept), before
+every update (5), before a restore (5), and by hand (kept until deleted; marked
+after 90 days). **A backup is kept until the owner deletes it - no maximum
+age** (the owner's decision of 2026-10-11, for every site): nothing deletes
+one for being old - the automatic ones go only as newer ones of their kind
+replace them (the counts above), one made by hand only when it is deleted
+here. So a person the IAM deleted (scrubbed here) stays in the backups made
+before, until those are deleted - delete them on this page when that matters.
+Making, downloading, deleting and restoring one ask for a
+sign-in of the last ten minutes - "Sign in again" on the page, and the IAM asks
+for the password; a download is a single-use link of a minute. A restore is
+in place, all or nothing, after a backup of the database as it is, and only
+from a backup made at the same migrations (the page says why not otherwise);
+afterwards the scrub of the IAM's deleted accounts runs again. When it cannot
+finish (the IAM out of reach), the restore stands and the page says so -
+"The restore stands, but the site's own work after it failed: the accounts
+the IAM deleted were not checked again …" - and the error log has it: press
+Check now on the People page once the IAM answers (the next request also
+runs it). Until the library's 0.4.2 a restore also brings back the answers
+deleted for a person (People → Delete their answers) since the backup was
+made: delete them again. A backup that fails - the daily one, the one before
+an update - is in the error log too. **Not encrypted** (the owner's decision
+of 2026-10-11: only the IAM's backups are): the files hold everybody's
+answers and names - download them to a place as private as the database. The
+web never reaches `storage/` (its `.htaccess`, and each folder's own); what
+the folder holds besides the library's files stays as it is. The config files
+are only the connection and the IAM's address; setup.php writes them again -
+all but `config/visitors.local.php`, which is put there by hand: keep a copy
+of it.
+
+## The error log and the audit log
+
+On System → **Error log** (ADMIN): what failed on the server - an exception
+answered 5xx, an answer of 404, 405, 413, 415, 429 or 5xx, PHP's own warnings
+and fatal errors - from `storage/logs/errors-YYYY-MM-DD.jsonl` (UTC days, 30
+kept, 64 MB in all; never a body, a header, a cookie, a query string, a token
+or an address - an HMAC of its bucket instead). It works while the database
+cannot be reached or an update waits; "Clear" asks what goes. Errors in the
+browser are not written there yet: they come with the library's 0.4.2 (its
+Angular reporter; the client route is not mounted until then). The PHP error
+log of the host still has what the site writes there itself (`[auth]`,
+`[visitors]`, `[db]`, `[backups]` lines). On System → **Audit log** (ADMIN):
+who did what in the admin panel - the surveys, the answers, the words, the
+languages, the people, the backups, the error log, the updates - by the
+person's anotoki id and name; kept in the database (`anotoki_audit_log`), in
+every backup.
 
 ## When something goes wrong
 
@@ -348,7 +430,10 @@ connection and the IAM's address; setup.php writes them again - all but
 | The whole site says "The site is being updated" | A migration is pending (`GET /api/site-status` says `update_pending`). Sign in as an ADMIN from that page's quiet "Sign in" - the page then says "A database update is waiting" and links to the Migrations page, which applies it. |
 | The whole site says it is not set up, or "not available right now" | `config/database.local.php` or `config/iam.local.php` is missing or incomplete (`/api/site-status` says `not_set_up`) - "not set up yet" with the way to the setup page only while the site was never installed; once `storage/installed.lock` is there, "not available right now": put the file back, or run the setup again (above). `unavailable`: the database cannot be reached. |
 | The Migrations page says "Stopped at <file>" | That file failed and was rolled back whole; the box under it is PostgreSQL's own error (also in the server's log). The files before it stand. Fix the cause in the database (or the file, in a new version), then Apply again. |
-| Apply says another database update is running | Another Apply, the setup page or `php migration.php` is applying right now: wait a moment and look again. |
+| Apply says another database update is running | Another Apply, the setup page, `php migration.php` or a backup is running right now: wait a moment and look again. |
+| Apply stops before anything runs, saying a backup could not be made | The backup each Apply makes first failed (`storage/backups/` not writable, the disk full, PHP without `pdo_pgsql`'s COPY): the Backups page says which. Nothing was applied. |
+| The Backups page says "Sign in again first" | Making, downloading, deleting or restoring a backup needs a sign-in of the last ten minutes: its button goes through the IAM (which asks for the password) and back. |
+| A sign-in ends on "Signing in did not work" | The IAM turned the account away (taking its MEMBER blocks it), the person went back from the IAM, or the browser refuses the site's storage (blocked cookies and site data, some private modes) - the screen says which, in the reader's language. Try again goes to the IAM once more; Back goes back without signing in. |
 | `/setup.php` shows the site's page instead of the installer | `setup.php` is not on the host: it deleted itself when somebody opened it while `storage/installed.lock` was there. Delete the lock, upload `setup.php` again, open it. |
 | 500 on every page after an upload | The host refused a line of the root `.htaccess` (`Options -Indexes`, `CGIPassAuth`): remove it. |
 | Signing in ends at the IAM with an error about the redirect URI | The IAM does not have `https://survey.anotoki.eu/auth/callback` for `survey`. |
@@ -362,11 +447,11 @@ connection and the IAM's address; setup.php writes them again - all but
 | An editor's save is refused: "Say which language the survey is written in (language). A page that was open before the site was updated can no longer save: …" | The page was opened before the release that brought the languages. As the sentence says: copy what was changed since the last save, then reload the page. |
 | An editor's save is refused: "A language of this survey has just been deleted from the site." | An ADMIN deleted the language in the moment the survey was being saved in it. Add the language again (Languages), or remove that translation from the survey. |
 | An admin page turns into "You are signed out" in the middle of work | The session ended (idle at the IAM, or signed out on another anotoki site): sign in again with the card's Sign in (or the top bar's - on a phone, inside its menu). What was typed on the Translations and Languages pages is kept in the tab for the same person, and is in its boxes again. Unsaved changes to a survey are kept only while that page stays open (signing in is a page load): sign in again in another tab, and the open page saves them. |
-| A page where people take surveys says "You are not signed in" (the admin panel too, with its own English words) | The sign-in came back without one - the IAM turned the account away (the `survey` application's access in the IAM's admin panel), or the person went back from it - and the toast says which; or the session ended with the page open (in the admin panel that one is "You are signed out"). Or the sign-in could not start: the browser refuses the site's storage (blocked cookies and site data, some private modes), and the toast says to allow it. Its Sign in (and the top bar's) tries again and comes back to the same page. Every other page goes to the IAM by itself: nothing of a survey is shown to anybody not signed in. With "Sign-in required" off, only the editor's preview draws it for somebody not signed in - the pages people take surveys on are theirs as visitors, and a refused sign-in is said in its toast while they go on as visitors. |
+| A page where people take surveys says "You are not signed in" | The session ended with the page open (signed out in another tab or on another anotoki site, the IAM's idle limit; in the admin panel that one is "You are signed out"). Its Sign in (and the top bar's) goes to the IAM and comes back to the same page. Every other page goes to the IAM by itself: nothing of a survey is shown to anybody not signed in. A sign-in that came back without one, or could not start, is the screen "Signing in did not work" (above). |
 | An admin page says "This part is for the people who write the surveys" | Signed in, but the account has no EDITOR or ADMIN role for `survey`: the IAM's admin panel gives it. |
-| The browser asks "Leave site?" | Strings or languages are typed and not saved (the family's drafts ask whenever some wait, signed in or not - also on the way to the sign-in after a session ended, where answering "Leave" loses nothing: they are kept in the tab and are there after the sign-in). Closing the tab loses them. Unsaved changes to a survey always ask. |
+| The browser asks "Leave site?" | Strings or languages are typed and not saved, and somebody is signed in (the family's drafts; on the way to the sign-in after a session ended nothing is asked - they are kept in the tab and are there after the sign-in). Closing the tab loses them. Unsaved changes to a survey always ask. |
 | The Translations page says "Nothing was saved." in the bar beside Save | The reason follows it: the server's sentence, or that the site could not be reached. A language or key deleted meanwhile: the page has read the grid again, and Save sends the rest. |
-| "Sign-in required" is off in the IAM, and the site still asks everybody to sign in | The site keeps the IAM's answer a minute, and a page reads it once, when it loads: reload. The IAM out of reach and never read means "required" (the log says `[auth] the IAM did not say whether sign-in is required`); `storage/cache/` must be writable. `/api/auth/config` shows what the site took (`loginRequired`, and `visitorDays` - without it the pages welcome nobody: the backend is older than the frontend). The admin panel and the editor's preview always ask. |
+| "Sign-in required" is off in the IAM, and the site still asks everybody to sign in | The site keeps the IAM's answer a minute, and a page reads it once, when it loads: reload. The IAM out of reach and never read means "required" (the log says `[auth] the IAM did not say whether sign-in is required`); `storage/cache/` must be writable. `/api/auth/config` shows what the site took (`login_required`, and `visitor_days` - without it the pages welcome nobody: the backend is older than the frontend). The admin panel and the editor's preview always ask. |
 | A visitor's page says "Sign in to send your answers" | "Sign-in required" was switched on while the page was open: the page now draws "You are not signed in", the answers stay in the browser, and signing in sends them (and moves what that browser answered before). |
 | Answers without signing in are refused: 429 `too_many_visitors` | A limit on new visitors (*Visitors*): many people behind one address (a school), or a site behind a proxy whose ranges are not in `trusted_proxies`, so everybody counts as the proxy. Raise `new_per_hour_per_address`, or list the proxy. `visitor_counters` shows the counts. |
 | A visitor's browser is told its visit has ended (401 `visitor_unknown`) | It was unseen for `keep_days`, or its answers were moved into an account at sign-in (another tab). Its answers are kept; the browser forgets the key and starts afresh. |

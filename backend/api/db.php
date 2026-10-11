@@ -24,14 +24,7 @@ function dbName(): string
  */
 function dbConnect(array $settings, ?string $name = null, bool $persistent = false): PDO
 {
-    $dsn = sprintf(
-        'pgsql:host=%s;port=%d;dbname=%s;connect_timeout=5;application_name=anotoki-survey',
-        $settings['host'],
-        (int) $settings['port'],
-        $name ?? $settings['name']
-    );
-
-    $pdo = new PDO($dsn, (string) $settings['user'], (string) $settings['password'], [
+    $pdo = new PDO(dbDsn($settings, $name), (string) $settings['user'], (string) $settings['password'], [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
@@ -42,6 +35,17 @@ function dbConnect(array $settings, ?string $name = null, bool $persistent = fal
     $pdo->exec(($persistent ? 'ROLLBACK; ' : '') . "SET TIME ZONE 'UTC'");
 
     return $pdo;
+}
+
+/** The PDO address of one database of the configured server ($name, or the site's own). */
+function dbDsn(array $settings, ?string $name = null): string
+{
+    return sprintf(
+        'pgsql:host=%s;port=%d;dbname=%s;connect_timeout=5;application_name=anotoki-survey',
+        $settings['host'],
+        (int) $settings['port'],
+        $name ?? $settings['name']
+    );
 }
 
 /**

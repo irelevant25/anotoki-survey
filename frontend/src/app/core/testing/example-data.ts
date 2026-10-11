@@ -24,7 +24,7 @@ const MINUTE = 60_000;
 const DAY = 24 * 60 * MINUTE;
 
 /** A person who has taken no survey yet. */
-export const PROTOTYPE_YOU: Person = { id: 'person-you', name: 'You', email: 'you@example.com' };
+export const PROTOTYPE_YOU: Person = { id: 'person-you', name: 'You' };
 
 const HANDLES = [
   'aether.wanders',
@@ -172,7 +172,7 @@ function isoDay(time: number): string {
 }
 
 function personFor(handle: string): Person {
-  return { id: `person-${handle}`, name: handle, email: `${handle.replace(/[^a-z0-9]+/gi, '.').toLowerCase()}@example.com` };
+  return { id: `person-${handle}`, name: handle };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

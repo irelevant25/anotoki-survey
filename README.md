@@ -52,8 +52,13 @@ person by person.
   included - and the bar's theme and language save a choice to the account.
   **EDITOR**s write and translate surveys, open and close them, read the
   answers and reword the site's strings; **ADMIN**s also delete surveys,
-  answers and languages. The roles are given in the IAM's
-  admin panel; everybody else takes surveys.
+  answers and languages, and have the site's System pages: the people who
+  signed in (and deleting a person's answers), the error log, the audit log of
+  what was done in the admin panel, the backups of the database, and its
+  updates. The roles are given in the IAM's admin panel; everybody else takes
+  surveys. The site keeps a person's name and anotoki id - never their address
+  (the IAM keeps it) - and when the IAM deletes an account, its name here
+  becomes the IAM's placeholder.
 
 | Part | Folder | Stack |
 | --- | --- | --- |
@@ -87,7 +92,7 @@ wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (0.3.0: `anotoki/lib`
+migrations are the shared library's, **anotoki-lib** (now 0.4.1: `anotoki/lib`
 from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and
@@ -105,7 +110,7 @@ do the pages: a visitor reads a notice of how long this browser remembers
 what they answered, takes surveys, and signing in moves their answers and
 unfinished drafts into the account; the admin panel lists a visitor as
 "Visitor N", "Not signed in". And the anotoki account's preferences (the IAM's
-SDK 1.2.0): signed in, the site shows the account's theme, writes dates in its
+SDK 1.2.0 then, the library's sign-in now): signed in, the site shows the account's theme, writes dates in its
 order (and the admin panel's times on its clock) and reads in its language;
 the top bar's theme and language save a choice to the account, for every
 anotoki site - while an IAM that does not send them yet leaves everything as
@@ -120,12 +125,29 @@ family's, as on every anotoki site), the command line - in one wire format
 for every site; the kit's words are keys of their own (`anotoki.*`) among
 the site's, reworded on the Translations page like the rest, in formal
 Slovak; who may do what stays this site's (EDITOR and ADMIN; deleting a
-language an ADMIN's). On the hosting this version brings new migrations (up
-to `010_strings_through_the_library.sql`, and the library's own
-`anotoki_translations` after it - 010 moves the site's strings for the kit
-under the library's keys first, an owner's rewording with them): after the
-upload an ADMIN signs in from the family's page and applies them on the
-Migrations page (or the setup page does) -
+language an ADMIN's).
+
+And with anotoki-lib 0.4.1, the rest of what every anotoki site shares:
+**signing in** is the library's on both sides (the IAM's SDKs are gone from the
+site; a sign-in that came back without one, or could not start, is said on
+the family's screen - in the site's words, formal Slovak included - with Try
+again and Back); **people** are the library's people module over the site's
+`users` table (the site keeps no address any more - 011 drops the column, the
+IAM is the only holder - and an account the IAM deletes is scrubbed here: its
+name the IAM's placeholder, its answers kept), with the family's People page
+for the ADMIN (how many surveys each answered and wrote, the visitors, and
+deleting a person's answers); and the **admin tools** - the family's error
+log, audit log and backups (the whole database by COPY, the pictures too:
+daily, before every update, and by hand after a recent sign-in) - for the
+site's ADMIN alone, on the admin panel's System page. No feedback form and no
+file explorer here (the owner's decision).
+
+On the hosting this version brings new migrations (up to
+`012_sign_in_words.sql`, and the library's own sets around them -
+`anotoki_admin` first, `anotoki_translations` and `anotoki_people` after; 012
+moves the site's sign-in words under the library's keys first, an owner's
+rewording with them): after the upload an ADMIN signs in from the family's
+page and applies them on the Migrations page (or the setup page does) -
 [docs/operations.md](docs/operations.md).
 
 ## Trying it out

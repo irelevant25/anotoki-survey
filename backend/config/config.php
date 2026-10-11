@@ -267,12 +267,20 @@ function databaseSettingsProblem(array $values): ?string
     return null;
 }
 
-/** What an iam.local.php must hold, or null when it holds it. */
+/**
+ * What an iam.local.php must hold, or null when it holds it. The IAM's address
+ * is https - http only on this computer (localhost, 127.0.0.1, [::1]), as in
+ * development: the anotoki library takes no other (IamClient::secureAddress()),
+ * for the keys every token is checked with come from there.
+ */
 function iamSettingsProblem(array $values): ?string
 {
     $issuer = $values['issuer'] ?? null;
     if (!is_string($issuer) || !preg_match('~^https?://[^/\s]+~i', $issuer)) {
         return 'config/iam.local.php needs the IAM\'s address (issuer).';
+    }
+    if (!\Anotoki\Lib\Auth\IamClient::secureAddress(trim($issuer))) {
+        return 'config/iam.local.php needs the IAM\'s address as https:// (http:// only on this computer, for development).';
     }
     if (!is_string($values['client_id'] ?? null) || !preg_match('/^[A-Za-z0-9._-]{1,100}$/D', $values['client_id'])) {
         return 'config/iam.local.php needs this site\'s client id in the IAM.';

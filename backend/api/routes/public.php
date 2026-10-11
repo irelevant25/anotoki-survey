@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Anotoki\Lib\Auth\Http\AuthRoutes;
 use Anotoki\Lib\Migrations\Http\MigrationsRoutes;
 use Anotoki\Lib\Translations\Http\TranslationsRoutes;
 use Anotoki\Lib\Translations\Translations;
@@ -9,7 +10,9 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
- * What anybody may ask, signed in or not:
+ * What anybody may ask, signed in or not - with no check of who is asking in
+ * front of any of them (the library's Identify is on the other routes only):
+ * whatever a request carries, a token that has run out too, they answer.
  *
  *   GET /api/health               is the API up - and, asked from this computer,
  *                                 which database it uses and what it still needs
@@ -17,11 +20,12 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *                                 ready | not_set_up | update_pending | unavailable
  *                                 (the anotoki family's, api/migrations.php); answered
  *                                 in every state, and it says nothing else
- *   GET /api/auth/config          how the browser signs in: {issuer, clientId,
- *                                 loginRequired, visitorDays} - the IAM's "Sign-in
- *                                 required", true unless it said otherwise; visitorDays
- *                                 is keep_days, the days the visitor notice tells people
- *                                 their browser is remembered
+ *   GET /api/auth/config          how the browser signs in - the anotoki library's route
+ *                                 (AuthRoutes::config): {issuer, client_id, login_required,
+ *                                 sign_in_available, visitor_days} - the IAM's "Sign-in
+ *                                 required", true unless it said otherwise; whether the IAM
+ *                                 knows this site at all; visitor_days is keep_days, the days
+ *                                 the visitor notice tells people their browser is remembered
  *   GET /api/images/{id}.{ext}    a survey's picture (see api/images.php)
  *   GET /api/translations/{code}  the site's own words in a language, English under
  *                                 them, with the languages on offer: {language,
@@ -59,12 +63,10 @@ $app->get('/api/health', function (Request $request, Response $response): Respon
 MigrationsRoutes::status($app, $siteState);
 
 // Answered while a migration waits too (siteOpenWhileUpdating()): an
-// administrator must be able to sign in to apply it. `loginRequired` relays
-// the IAM's "Sign-in required" switch (authLoginRequired()), so the browser
-// never asks the IAM for it.
-$app->get('/api/auth/config', function (Request $request, Response $response): Response {
-    return respondJson($response, authPublicConfig());
-});
+// administrator must be able to sign in to apply it. `login_required` relays
+// the IAM's "Sign-in required" switch (the library's SignInRule, api/auth.php),
+// so the browser never asks the IAM for it.
+AuthRoutes::config($app, surveySignInRule(), surveyIam(), extra: authConfigExtra(...));
 
 $app->get('/api/images/{file}', function (Request $request, Response $response, array $args): Response {
     if (!preg_match('/^([0-9a-f-]{36})\.(webp|png|jpg|gif|avif)$/D', (string) $args['file'], $m) || ($image = imageFind($m[1])) === null) {

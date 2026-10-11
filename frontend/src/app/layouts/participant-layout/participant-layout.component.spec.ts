@@ -22,11 +22,14 @@ class PageComponent {}
 @Component({ selector: 'app-test-site', imports: [RouterOutlet], changeDetection: ChangeDetectionStrategy.OnPush, template: '<router-outlet />' })
 class SiteComponent {}
 
+/** Where the anotoki family's screen of a failed sign-in stands (the callback route). */
+@Component({ selector: 'app-test-failure', changeDetection: ChangeDetectionStrategy.OnPush, template: '<p class="failure-screen">Signing in did not work</p>' })
+class FailureScreenComponent {}
+
 const SLOVAK = {
   'common.skipToSurvey': 'Preskočiť na prieskum',
   'common.signIn': 'Prihlásiť sa',
   'signedOut.heading': 'Nie ste prihlásení',
-  'signIn.storageUnavailable': 'Tento prehliadač nedovolil stránke zapamätať si prebiehajúce prihlásenie.',
   'signedOut.text': 'Prieskumy sú pre prihlásených s anotoki účtom, ktorý zaručuje, že každý odpovie iba raz. Po prihlásení sa vrátite na túto stránku aj s rozpracovanými odpoveďami.',
   'visitor.moved.one': '1 prieskum, ktorý ste vyplnili bez prihlásenia, je teraz vo Vašom účte.',
   'visitor.moved.few': '{count} prieskumy, ktoré ste vyplnili bez prihlásenia, sú teraz vo Vašom účte.',
@@ -41,7 +44,7 @@ describe('ParticipantLayoutComponent', () => {
   const signedIn = signal(true);
   const welcome = signal(false);
   const failure = signal<SignInFailure | null>(null);
-  const auth = { signedIn: () => signedIn(), visitorsWelcome: () => welcome(), signInFailure: failure, signIn: vi.fn(async (_returnTo?: string, _uiLocales?: string) => true) };
+  const auth = { signedIn: () => signedIn(), visitorsWelcome: () => welcome(), signInFailure: failure, signIn: vi.fn(async (_returnTo?: string, _prompt?: 'login') => true) };
   const visitor = { moved: signal<VisitorMove | null>(null), lost: signal(false) };
 
   let fixture: ComponentFixture<SiteComponent>;
@@ -58,6 +61,7 @@ describe('ParticipantLayoutComponent', () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
+          { path: 'auth/callback', component: FailureScreenComponent },
           {
             path: '',
             component: ParticipantLayoutComponent,
@@ -98,32 +102,32 @@ describe('ParticipantLayoutComponent', () => {
     expect(text('.stub-page')).toBe('A survey');
   });
 
-  it('signs in from the card, back to this page, in the language the person reads', async () => {
+  it('signs in from the card, back to this page (the library opens the IAM in the language the person reads)', async () => {
     signedIn.set(false);
     await fixture.whenStable();
     const button = host.querySelector<HTMLButtonElement>('anotoki-empty-state button')!;
     expect(text('anotoki-empty-state button')).toBe('Prihlásiť sa');
     button.click();
-    expect(auth.signIn).toHaveBeenCalledWith(undefined, 'sk');
+    expect(auth.signIn).toHaveBeenCalledTimes(1);
+    expect(auth.signIn.mock.calls[0][0]).toBeUndefined();
     await fixture.whenStable();
     expect(TestBed.inject(ToastService).toasts()).toEqual([]);
   });
 
-  it('says why when the sign-in cannot even start - the browser refuses the site its storage', async () => {
+  it('opens the screen that says why when the sign-in cannot even start - the browser refuses the site its storage', async () => {
     auth.signIn.mockImplementation(async () => {
-      failure.set({ code: 'storage_unavailable', message: 'This browser will not let the site remember the sign-in in progress' });
+      failure.set({ code: 'storage_unavailable', returnTo: '/genshin-6-1' });
       return false;
     });
     signedIn.set(false);
     await fixture.whenStable();
     host.querySelector<HTMLButtonElement>('anotoki-empty-state button')!.click();
-    await fixture.whenStable();
-    expect(
-      TestBed.inject(ToastService)
-        .toasts()
-        .map((toast) => toast.message),
-    ).toEqual([SLOVAK['signIn.storageUnavailable']]);
-    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('Nie ste prihlásení');
+    for (let turn = 0; turn < 3; turn++) {
+      await fixture.whenStable();
+    }
+    expect(TestBed.inject(Router).url).toBe('/auth/callback');
+    expect(text('.failure-screen')).toBe('Signing in did not work');
+    expect(TestBed.inject(ToastService).toasts()).toEqual([]);
   });
 
   describe('while the site welcomes visitors', () => {

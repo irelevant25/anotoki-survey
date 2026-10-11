@@ -59,7 +59,7 @@ test('without the *.local.php files the site is not set up, and says which one i
     assert_same(null, with_config_dir($dir, 'settingsProblem'));
     write_settings($dir, null, ['application_file' => test_application_file(false)] + good_iam());
     assert_same(null, with_config_dir($dir, 'settingsProblem'), 'a file standing in for the IAM\'s answer is allowed');
-    assert_same(['issuer' => 'http://localhost:4300', 'clientId' => 'survey', 'loginRequired' => false, 'visitorDays' => 30], with_config_dir($dir, 'authPublicConfig'));
+    assert_same(['issuer' => 'http://localhost:4300', 'client_id' => 'survey', 'login_required' => false, 'sign_in_available' => true, 'visitor_days' => 30], with_config_dir($dir, 'authPublicConfig'));
 });
 
 test('a settings file that does not say what it must is no setting', function (): void {
@@ -72,6 +72,8 @@ test('a settings file that does not say what it must is no setting', function ()
         'no password key at all' => [array_diff_key(good_database(), ['password' => 1]), good_iam(), '/password/'],
         'no issuer' => [good_database(), ['issuer' => ''] + good_iam(), '/issuer/'],
         'an issuer that is no address' => [good_database(), ['issuer' => 'iam.anotoki.eu'] + good_iam(), '/issuer/'],
+        // The anotoki library takes the IAM's keys over https alone (http on this computer): no other issuer is set up.
+        'an issuer over plain http elsewhere' => [good_database(), ['issuer' => 'http://iam.anotoki.eu'] + good_iam(), '/https:\/\//'],
         'no client id' => [good_database(), ['client_id' => ''] + good_iam(), '/client id/'],
         'no cache folder' => [good_database(), ['cache_dir' => ''] + good_iam(), '/cache_dir/'],
         'a file that returns nothing' => [good_database(), null, '/issuer/'],

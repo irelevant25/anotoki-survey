@@ -187,7 +187,7 @@ export class SurveyResultsComponent {
   protected readonly search = signal('');
   protected readonly people = computed(() => {
     const query = this.search().trim().toLowerCase();
-    return query ? this.responses().filter((response) => `${response.person.name} ${response.person.email}`.toLowerCase().includes(query)) : this.responses();
+    return query ? this.responses().filter((response) => response.person.name.toLowerCase().includes(query)) : this.responses();
   });
 
   // ── The drawer ─────────────────────────────────────────────────────────────
@@ -272,8 +272,8 @@ export class SurveyResultsComponent {
       if (!view.response) {
         return null;
       }
-      // A visitor has no address: say what they are, as the lists do.
-      return view.response.person.visitor ? 'Not signed in' : view.response.person.email;
+      // A visitor: say what they are, as the lists do. Nobody has an address here (the IAM keeps them).
+      return view.response.person.visitor ? 'Not signed in' : null;
     }
     return this.listView()?.subtitle ?? null;
   });

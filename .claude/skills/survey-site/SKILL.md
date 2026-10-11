@@ -22,31 +22,45 @@ agent wrong changes them in the same piece of work.
 
 ```
 backend/
-  api/index.php            the front controller: buildSurveyApp(), middleware (security headers ->
-                           error handler -> the family's SiteGate (anotoki/lib) -> routing); run unless
-                           SURVEY_NO_RUN
+  api/index.php            the front controller: buildSurveyApp(), middleware (the family's error log,
+                           outermost -> security headers -> error handler -> the family's SiteGate ->
+                           PeopleUpkeep and the daily backup (after the answer) -> routing; each route
+                           group with the library's Identify in front of it - $identify, $identifyTaker
+                           - and RecordPerson where it touches the site's data); run unless SURVEY_NO_RUN
   api/bootstrap.php        what every entry point loads: settings, error handling (warnings throw,
                            display_errors off), the site's functions
   api/routes/              public.php (health, the site's status - the family's MigrationsRoutes::status -,
-                           auth config, pictures, the strings of a language), surveys.php (people -
-                           requireTaker), visitor.php (POST /api/visitor/move: token and key),
-                           admin.php (/api/admin/..., EDITOR/ADMIN: surveys, answers, pictures,
-                           languages, strings; ADMIN: the migrations - the family's
-                           MigrationsRoutes::admin, behind requireTokenRole)
-  api/meddleware/          security.php, auth.php (requireUser, requireRole, requireTokenRole - the
-                           token's roles alone, nothing asked of the database: the migrations'
-                           routes - requireTaker, currentUser): every
-                           route but the public ones takes one - a visitor's key makes somebody
-                           a visitor only in requireTaker (the three survey routes); the one
+                           auth config - the family's AuthRoutes -, pictures, the strings of a language),
+                           surveys.php (people - the library's RequireCaller), visitor.php (POST
+                           /api/visitor/move: token and key), admin.php (/api/admin/..., EDITOR/ADMIN:
+                           surveys, answers, pictures, languages, strings; ADMIN: the migrations, the
+                           people, the error log, the audit log, the backups - the family's routes,
+                           behind requireAdmin(), judged from the token)
+  api/meddleware/          security.php, auth.php (requireStaff / requireAdmin - the library's
+                           RequireRole in this site's words, the token's roles alone, nothing asked
+                           of the database -, requireFor - one method of a group -,
+                           sweepVisitorsSoon): every route but the public ones takes one - a
+                           visitor's key makes somebody a visitor only on the three survey routes
+                           (surveyIdentify(..., visitors: true) + RequireCaller); the one
                            other reader is POST /api/visitor/move, which needs a token as well
                            and only hands the key in; nothing of a survey
                            without a token while sign-in is required, but its pictures (an
                            <img> sends none; UUID addresses)
-  api/auth.php             the token -> SiteUser {id, name, email, roles, visitor}; users row upkeep;
-                           authSentCredentials() (only Bearer claims to be somebody);
+  api/auth.php             signing in through the family's library (anotoki-lib 0.4.1, Anotoki\Lib\Auth -
+                           the IAM's SDK is gone): surveyIam() (IamClient), surveySignInRule() /
                            authLoginRequired() (the IAM's "Sign-in required", relayed by
-                           /api/auth/config with visitorDays); isThisComputer() (setup.php and
-                           the health details)
+                           /api/auth/config with visitor_days), surveyIdentify() (only Bearer claims to
+                           be somebody; a visitor's key on the surveys' routes), currentUser() ->
+                           SiteUser {id, name, roles, visitor} - no address; isThisComputer()
+                           (setup.php and the health details)
+  api/people.php           the people module over users (Anotoki\Lib\People): surveyPeople(), the People
+                           page's columns (answered, written), the visitors' line, peopleDelete()
+                           (every answer of a person's), peopleNames() (the audit log's names)
+  api/admin_tools.php      the error log, the audit log, the backups (Anotoki\Lib\ErrorLog, Audit,
+                           Backups): surveyAdminContext() (the token's person, the proof - a sign-in
+                           of the last ten minutes -, the address bucket, this site's error body),
+                           surveyAudit() / surveyAudited(), surveyErrorLog(), surveyBackups()
+                           (storage/backups, the migrations' lock, the scrub again after a restore)
   api/visitors.php         visitors (the switch off): visitorFind / visitorMake (in the answers'
                            transaction, after the limits - counters that are rows) / visitorHold /
                            visitorSweep (+ visitorSweepSoon: after the answer, hourly) /
@@ -65,7 +79,7 @@ backend/
   api/images.php           store (checked by its bytes), find, meta, clean-up
   api/survey_rules.php     surveyFromBody() (shape + cleaning, the translations too), surveyProblems(),
                            surveyTranslationGaps(), surveyTranslationsJson(), answer rules
-  api/translations.php     the site's own words through the family's library (anotoki/lib 0.3.0's
+  api/translations.php     the site's own words through the family's library (anotoki/lib's
                            Anotoki\Lib\Translations - the bundle, the admin grid and languages, every
                            check of a string, the command line; never edited here): surveyTranslations()
                            (TRANSLATION_SEEDED_LANGUAGES, SurveyLanguageUsage - a language a survey
@@ -74,16 +88,17 @@ backend/
                            languagesForSurveys() / languagesOffered() (what survey_rules.php reads)
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.3.0's PHP half - never edited here; DEV.md: how it is updated):
-                           surveyMigrationSet(), surveyMigrationSets() (the site's `survey`, then the
-                           library's `anotoki_translations` - recorded as anotoki_translations/NNN.sql),
-                           surveyMigrator($pdo) (the site's own lock DATABASE_UPDATE_LOCK -
-                           setup.php, migration.php, the Apply and the tests' template all go
-                           through it), surveySiteState() (not_set_up / update_pending / unavailable /
-                           ready, and installed.lock), siteOpenWhileUpdating() (what answers while an
-                           update waits - the strings by the library's TranslationsRoutes::openPath())
-  api/anotoki_iam.php      the IAM's PHP SDK, vendored byte for byte (sdk/php, v1.1.0): the
-                           verifier and anotoki_iam_login_required() - never a fetch of our own
+                           anotoki-lib 0.4.1's PHP half - never edited here; DEV.md: how it is updated):
+                           surveyMigrationSet(), surveyMigrationSets() (the library's `anotoki_admin`,
+                           the site's `survey`, then the library's `anotoki_translations` and
+                           `anotoki_people` - recorded as <set>/NNN.sql), surveyMigrator($pdo,
+                           $backupFirst) (the site's own lock DATABASE_UPDATE_LOCK - setup.php,
+                           migration.php, the Apply, the backups and the tests' template all go
+                           through it; a backup first for the Apply and migration.php),
+                           surveySiteState() (not_set_up / update_pending / unavailable / ready, and
+                           installed.lock), siteOpenWhileUpdating() (what answers while an update
+                           waits - the sign-in's settings, the strings, the Migrations page's routes,
+                           the error log's and the backups': the library's openPath(s)())
   config/config.php        database.local.php + iam.local.php; visitors.local.php (optional, by hand:
                            VISITOR_DEFAULTS, visitorSettings(); visitorSettingsFile() - a file that
                            does not parse is logged, the defaults hold); SURVEY_TEST_CONFIG for the tests
@@ -94,7 +109,10 @@ backend/
                            "not set up yet" page's four strings deleted - the pattern for a key the
                            code stops using; 010 the site's strings for the kit moved under the
                            library's keys, anotoki.*, the library's words that speak to the reader in
-                           formal Slovak - before the library's own set runs)
+                           formal Slovak - before the library's own set runs; 011 users.anonymized_at
+                           and users.email dropped - the site keeps no address -, every other column
+                           of every row proven unchanged; 012 the site's sign-in strings moved under
+                           anotoki.signIn.*, formal Slovak for the two the library says informally)
   setup.php                the installer (this computer: nonce, re-runnable; a host: token, lock, self-delete)
   router.php               php -S behaving like the hosting's Apache (+ the built app)
   translations.php         command line only, never uploaded - the library's TranslationsCommand:
@@ -105,7 +123,8 @@ backend/
                            keys the frontend uses, and a fail for a key asked for the wrong way, one put
                            together from an undeclared prefix, innerHTML given a string; the library's
                            own keys (anotoki.*) are never looked for; for translations.php and the tests
-  tests/                   run.php, lib.php, unit/, api/, tools/ (testdb, testenv, fake-iam)
+  tests/                   run.php, lib.php, unit/, api/, tools/ (testdb, testenv); the IAM is the
+                           library's TestIam (and its stand-in, vendor/anotoki/lib/php/testing)
 frontend/src/app/
   app.component.*          the pages behind the family's gate: <anotoki-site-gate> around the router
                            outlet, given as its <ng-template anotokiSitePages> - made only while the
@@ -115,38 +134,48 @@ frontend/src/app/
                            the gate first); the load error card; the kit's toasts and confirm, the
                            lightbox over everything
   core/migrations.ts       the family's library (@anotoki/lib/migrations) wired to this site:
-                           provideSiteMigrations() (isAdmin / isSignedIn / signIn - signInOrSayWhy -
+                           provideSiteMigrations() (isAdmin / isSignedIn / signIn - signInOrShowWhy -
                            / language - effectiveLanguage, English in the admin panel / the words -
                            siteStatusWords(i18n): the library's anotoki.siteStatus.* from the
                            database / AdminDates' dates / reload the strings when up to date),
                            MIGRATIONS_PATH; siteStatusInterceptor in app.config.ts; SiteStatus
                            (state, blocked, check, checkForReload, markReady) is the library's
-  core/auth/               AuthService (IAM SDK in signals; status: loading/ready/not-set-up/error;
-                           loginRequired - its loginRequired, true
-                           unless false - visitorDays, visitorsWelcome (both needed), visiting,
-                           taker {id, visitor}, noteLoginRequired(); signIn()
-                           waits for SavesInFlight, answers false and sets signInFailure when it
-                           cannot start), authInterceptor (who a request is: ISSUED_AS - a
-                           person's with the token or never sent, a visitor's with the key to
-                           /api/surveys; the status, the auth config, pictures and strings are
-                           nobody's), visitor-key.ts (VisitorKey: the key in localStorage,
-                           the move after a sign-in, moves / moved / lost), saves-in-flight.ts,
-                           signInGuard (canActivate on /admin and the preview) and
-                           takeSurveysGuard (canActivateChild on the participant layout: anybody
-                           while visitors are welcome; everybody while SiteStatus.blocked() - the
-                           family's page stands instead, nobody goes to the IAM), sign-in-failure.ts (the toast that says
-                           why; signInOrSayWhy() for a Sign in button), the vendored SDK
-                           (anotoki-auth.mjs + .d.ts v1.2.0); preferences (the anotoki account's
-                           theme, date order and clock - null while nobody is signed in or the IAM
-                           sends none) and savePreferences() (the SDK's, for every anotoki site)
-  core/api/api.service.ts  one method a route, each marked ISSUED_AS person / visitor as it is made;
-                           ApiError {status, code, message, body, retryAfter}
+  core/auth/               signing in through the family's library (anotoki-lib 0.4.1, @anotoki/lib/auth -
+                           the vendored SDK is gone): auth.config.ts (provideSiteAuth() - the boot
+                           configuration AuthService read, the site's API (/api/, its status, auth
+                           config, strings and pictures skipped), the visitors (VisitorKey, the key
+                           only to /api/surveys), the language and the words (libraryWord, formal
+                           Slovak), hint: false, /auth/callback; signInOrShowWhy() for a Sign in
+                           button; signInFailureGuard), auth.service.ts (AuthService, the survey's
+                           face of AnotokiAuth: status loading/ready/not-set-up/error - it reads
+                           /api/auth/config itself and hands it over (bootConfig()) -, loginRequired
+                           - true unless false -, visitorDays, visitorsWelcome (both needed),
+                           visiting, taker {id, visitor}, person {id, name} - no address -,
+                           noteLoginRequired(), signIn(returnTo, prompt) - false and signInFailure
+                           when it cannot start -, preferences and savePreferences() - the account's
+                           theme, date order and clock, for every anotoki site), visitor-key.ts
+                           (VisitorKey, the library's VisitorKeyStore: the key in localStorage, the
+                           move after a sign-in, moves / moved / lost). The interceptor
+                           (anotokiAuthInterceptor: a person's with the token or never sent, a
+                           visitor's with the key), the guards (personGuard on /admin and the
+                           preview, personOrVisitorGuard on the participant layout's children - each
+                           lets everything through while SiteStatus.blocked()), SavesInFlight, the
+                           callback page and the screen of a failed sign-in are the library's
+  core/admin/admin-tools.ts   provideSiteAdmin(): the family's admin tools (provideAnotokiAdmin: ADMIN from
+                           the token, signInAgain - prompt=login - for a backup's proof, the
+                           Migrations page, the account's dates) and People page
+                           (provideAnotokiPeople: me, the lead, Delete their answers with its
+                           question - deleteQuestion() -, visitorsLine())
+  core/api/api.service.ts  one method a route; the surveys' marked issuedAs('caller') as they are made,
+                           the move issuedAs('person') + CARRIES_VISITOR_KEY (the library's);
+                           ApiError {status, code, message, body, retryAfter} - toApiError() reads
+                           {error, code} and the library's {code, message}
   core/boot.ts             boot(): the theme, where the site stands (SiteStatus.check() - never stops
                            the start), the sign-in (VisitorKey made before the first await;
                            a visitor's drafts adopted right after a sign-in), then the language and
                            its strings, then BOOTED - the app initializer, and the load error
                            page's "Try again"
-  core/translations.ts     the family's translations module (@anotoki/lib/translations, 0.3.0) wired to
+  core/translations.ts     the family's translations module (@anotoki/lib/translations) wired to
                            this site: provideSiteTranslations() / siteTranslationsConfig() - the
                            storage names the site always had (anotoki-survey:language, -cache,
                            :localization-drafts), the account (its language, whether it decides, the
@@ -161,7 +190,7 @@ frontend/src/app/
                            error-text.ts (a failed request's key), answer-words.ts (a rule or a
                            problem in the reader's language), dynamic-keys.ts (keys put together at
                            run time - the backend's scan reads it)
-  core/kit.ts              the family's UI kit (anotoki-lib 0.3.0, each piece from its own entry point)
+  core/kit.ts              the family's UI kit (anotoki-lib 0.4.1, each piece from its own entry point)
                            wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
                            the language on the page and the kit's words from the database - the
                            library's keys, anotoki.* - and SURVEY_ICONS) + provideSiteShell() (the
@@ -194,18 +223,21 @@ frontend/src/app/
                            site's kit wiring and formal Slovak), answersOf() (a person's answers, or a
                            visitor's)
   layouts/                 top-bar (the site's wrapper over the family's <anotoki-top-bar>: the brand,
-                           the links - SURVEY_LINKS / ADMIN_LINKS, Migrations alone while an update
-                           waits -, the person and their role, the menu's items, signIn / signOut -
+                           the links - SURVEY_LINKS / ADMIN_LINKS (System for an ADMIN, lit on each
+                           System page), UPDATE_LINKS (Migrations alone while an update waits) -, the
+                           person (name; the token's address, shown, never kept) and their role, the
+                           menu's items, signIn / signOut -
                            saved first, asked when something would be lost - the drafts of the
                            Translations and Languages pages through the library's
                            LocalizationDrafts, its entry point loaded only then and only for staff;
                            docs/architecture.md "The top bar"),
-                           participant ("You are not signed in" where the page would be - for a
-                           visitor only on the preview; the toasts of the move and of a lost
-                           visit), admin
-                           (English; "You are signed out" for a session that ended in place, "You
-                           are not signed in" for a sign-in that came back without one or could
-                           not start, the no-access card for somebody signed in without a role)
+                           participant ("You are not signed in" where the page would be - a session
+                           that ended in place; for a visitor only on the preview; the toasts of
+                           the move and of a lost visit), admin
+                           (English; "You are signed out" for a session that ended in place, the
+                           no-access card for somebody signed in without a role). A sign-in that
+                           came back without one, or could not start, is the library's screen on
+                           /auth/callback (AuthCallbackComponent, app.routes.ts), never a card
   boot/                    load-error (its "Try again" also opens the page that was asked for): drawn
                            instead of the site when the status answered and the sign-in's settings
                            did not (app.component.ts decides; everything else that keeps the site
@@ -216,12 +248,16 @@ frontend/src/app/
   pages/admin/             surveys-list, survey-editor (+ parts, SurveyEditing, the translation mode:
                            editor-languages, translated-text, translating.ts; ?language= opens a tab),
                            survey-results, response-view, response-page (a visitor everywhere
-                           there: "Visitor N", "Not signed in" where a person's address is -
-                           Person.visitor), survey-header; /admin/translations and /admin/languages
-                           are the family's pages (@anotoki/lib/translations/admin, a lazy entry
-                           point, canDeactivate anotokiUnsavedChangesGuard - admin.routes.ts);
-                           /admin/migrations is the family's <anotoki-migrations-page> (ADMIN -
-                           Pending by set, Applied with each file's SQL, Missing, Apply pending)
+                           there: "Visitor N", "Not signed in" under the name - Person.visitor; a
+                           person's name alone, no address), survey-header; /admin/translations and
+                           /admin/languages are the family's pages (@anotoki/lib/translations/admin,
+                           a lazy entry point, canDeactivate anotokiUnsavedChangesGuard -
+                           admin.routes.ts); system/ (ADMIN: the way to the System pages,
+                           SYSTEM_PAGES in system-pages.ts) and the family's pages it leads to, each a
+                           lazy entry point: /admin/people (@anotoki/lib/people/page), /admin/errors,
+                           /admin/audit, /admin/backups (@anotoki/lib/admin/*), /admin/migrations
+                           (<anotoki-migrations-page>: Pending in the order the files run, Applied
+                           with each file's SQL, Missing, Apply pending)
   ui/                      the survey's own pieces: rich-text-editor (TipTap), lightbox, survey-image,
                            image-strip - the rest is the family's kit (@anotoki/lib/ui/<piece>, /shell)
 frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles: root, fonts, base,
@@ -232,41 +268,53 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
 ## Rules
 
 - **Signed in, every page - or a visitor while the IAM says so**: somebody
-  not signed in goes to the IAM before anything of a page is drawn
-  (`signInGuard`; on the pages people take surveys on `takeSurveysGuard`,
-  which lets them through while `visitorsWelcome`) and comes back to it. The
-  admin panel and the editor's preview sign in whatever the switch (the
-  preview has `signInGuard` of its own, and the layout draws its card there
-  for anybody not signed in). Every route of the site is `requireUser()` or `requireRole()` but the
-  public ones and the three survey routes, which are `requireTaker()`: the
-  person of a token; else, while the IAM says sign-in is required, 401; else
-  the visitor of `X-Visitor-Key`; else nobody (who reads the open surveys, and
-  whose kept answers make a visitor). No route of a survey answers without a
-  token while sign-in is required, but the pictures' (`/api/images/...`: an
-  `<img>` sends no token, and their addresses are random UUIDs -
-  `docs/decisions.md`). Only the pages drawn while the site cannot run (the
-  family's page, the load error card) draw without a sign-in. A new page
-  goes under one of the two layouts (their guard), a new route under
-  `requireUser()` - `requireTaker()` only for what a visitor must reach, and
-  then it reads and writes `currentUser()`'s own rows and nobody else's.
+  not signed in goes to the IAM before anything of a page is drawn (the
+  library's `personGuard`; on the pages people take surveys on
+  `personOrVisitorGuard`, which lets them through while the site welcomes
+  visitors) and comes back to it; a sign-in that came back without one goes
+  to the library's screen instead (and `signInFailureGuard` for the pages its
+  guards let through). The admin panel and the editor's preview sign in
+  whatever the switch (the preview has `personGuard` of its own, and the
+  layout draws its card there for anybody not signed in). Every route of the
+  site takes the library's `Identify` and then `RequirePerson`,
+  `requireStaff()` or `requireAdmin()` - but the public ones and the three
+  survey routes, which are `RequireCaller` behind `surveyIdentify(...,
+  visitors: true)`: the person of a token; else, while the IAM says sign-in
+  is required, 401; else the visitor of `X-Visitor-Key`; else nobody (who
+  reads the open surveys, and whose kept answers make a visitor). No route of
+  a survey answers without a token while sign-in is required, but the
+  pictures' (`/api/images/...`: an `<img>` sends no token, and their addresses
+  are random UUIDs - `docs/decisions.md`). Only the pages drawn while the site
+  cannot run (the family's page, the load error card) draw without a sign-in.
+  A new page goes under one of the two layouts (their guard), a new route
+  behind `$identify` and `RequirePerson` (and `$recordPerson` where it touches
+  the site's data) - a visitor's only for what a visitor must reach, and then
+  it reads and writes `currentUser()`'s own rows and nobody else's.
 - **A visitor** (`api/visitors.php`): a `users` row with a negative id, no
   name, no roles; the key the server made, sent once in a response header,
   only its hash stored, never logged, in a body or an address. Made only in
   the transaction that keeps its first answers, after the limits; a write for
   any taker holds the taker's row first (`visitorHold()`); ended (key cleared)
   after `keep_days` unseen, answers kept as "Visitor N"; deleted only with no
-  answers left. `signedInUser()` treats a visitor as nobody.
+  answers left. `currentPerson()` and `RequirePerson` treat a visitor as nobody.
 - **Who**: only a verified IAM token says who a request is (a visitor's key
-  aside, above: `requireTaker()` only), and only an
+  aside, above: the survey routes only), and only an
   `Authorization: Bearer` header claims to be somebody: a bad or empty one is
   401 `invalid_token` (never "nobody", never a visitor), another scheme is ignored. Roles from the token
-  (`anotoki_iam_roles`): MEMBER - every account's - is an ordinary person and
+  (the library's `Person`): MEMBER - every account's - is an ordinary person and
   nothing asks for it; `ROLES_STAFF` = ADMIN, EDITOR for `/api/admin`;
   ADMIN alone for the three deletes (a survey, somebody's answers, a
-  language) and the migrations (the family's split: applying database
-  updates is ADMIN's). The frontend hides; the server refuses.
+  language), the migrations and the System pages - the people, the error log,
+  the audit log, the backups (the owner's decision: an EDITOR reads none of
+  them). The frontend hides; the server refuses. **No address is kept**: a
+  person is the IAM's id and name (`users`, recorded from the token by the
+  library's `RecordPerson`); a new column with a person's data needs a place
+  in the scrub of the IAM's deleted accounts (`api/people.php`).
+- **Every admin change is audited** (`surveyAudited()`, `api/admin_tools.php`):
+  a new admin route that changes something writes its entry, by the token's
+  person, inside the change's transaction where there is one.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib 0.3.0,
+  applies it - the anotoki family's way, the library's** (anotoki-lib 0.4.1,
   both halves; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
@@ -277,10 +325,11 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   every state: nothing in front of it may ask who is asking (a sign-in rule
   there would make the pages read "not available" when they cannot even sign
   in yet - `tests/api/migrations.test.php` holds it, sign-in required or not).
-  The Migrations routes judge ADMIN
-  from the token alone (`requireTokenRole()`): they must work on a database
-  with nothing in it. Whatever applies migrations goes through
-  `surveyMigrator()` on a connection of its own - one lock for all. In the
+  The Migrations routes, the error log's and the backups' judge ADMIN
+  from the token alone (`requireAdmin()`, no `RecordPerson`): they must work on
+  a database with nothing in it. Whatever applies migrations goes through
+  `surveyMigrator()` on a connection of its own - one lock for all, the
+  backups' too; the Apply and `migration.php` make a backup first. In the
   browser nobody but the site's ADMIN ever reads why the site is closed: the
   family's page ("being updated"; a quiet Sign in), the guards let pages
   through and send nobody to the IAM, and the outlet is the gate's
@@ -390,7 +439,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   pieces both areas share (top bar, UI kit, toasts) read through
   `effectiveLanguage`, which is `en` under `/admin` - the kit's own words too
   (`core/kit.ts`), and the family's page at an admin address.
-- **The UI kit is the family's** (anotoki-lib 0.3.0): a new piece of a page
+- **The UI kit is the family's** (anotoki-lib 0.4.1): a new piece of a page
   is the kit's (`anotoki-*`, `anotokiButton`) unless the kit has none,
   imported from its own entry point (`@anotoki/lib/ui/button`, ...) - never
   from the `@anotoki/lib/ui` barrel, which puts every piece into the first
@@ -401,7 +450,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   word but the library's own migration. An icon the kit does not have goes into
   `SURVEY_ICONS` (from `@anotoki/lib/ui/icons`). No global style may reach a
   kit component: a page's own look stays in its own styles.
-- **The account's preferences** (the IAM's migration 015, SDK 1.2.0): signed
+- **The account's preferences** (the IAM's migration 015, the library's `AnotokiAuth`): signed
   in, the theme, the date order, the clock and the language are the anotoki
   account's - read from `AuthService.preferences` and the token's `locale`,
   never kept as this site's own (the device keeps only what it shows, for the
@@ -417,9 +466,12 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   any query (the library's routes check their own); **who saved a string** is
   `currentUser($request)->id` (`translationWriter()`), nothing else. **Who may
   do what with the site's words is this site's**: the library's route groups
-  get the site's checks (`routes/admin.php`: `requireRole(...ROLES_STAFF)`, and
-  `requireRoleFor('DELETE', ROLE_ADMIN)` on the languages) and the pages
+  get the site's checks (`routes/admin.php`: `requireStaff()`, and
+  `requireFor('DELETE', requireAdmin())` on the languages) and the pages
   `admin.allows` (`core/translations.ts`) - never the library's to decide.
+  The System's routes (people, error log, audit log, backups) are ADMIN's:
+  the site's `requireAdmin()`, and the library's groups check the token's
+  ADMIN again themselves.
 - **Saving**: every editor change through `AdminStore.updateSurvey()` (or
   `SurveyEditing` by id); never keep a copy of a survey in a component to write
   back later. Never apply a save's answer to the content. What "mine" is in a
@@ -474,8 +526,13 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   comes back as a stream (`stream_get_contents`).
 - **A unique violation inside a transaction aborts it**: turn it into an
   ApiError and let `dbTx()` roll back; do not query after it.
-- **`requireRole` inside the admin group** reuses the group's person
-  (`signedInUser()`): the token is checked once per request.
+- **The token is checked once per request**: the library's `Identify` sits in
+  front of each route group (never globally - the status, the sign-in's
+  settings, the strings and the pictures must answer whatever a request
+  carries) and keeps its answer on the request; `RequireRole`, `currentUser()`
+  and the admin tools read it from there. The error log, outermost, names who
+  met a failure from the token itself (`surveyTokenPerson()`), since it sees
+  the request before any group's `Identify` did.
 - **DOMDocument reads Latin-1** unless told: `richTextClean()` prefixes
   `<?xml encoding="UTF-8">` and walks from its own wrapper; its serializer
   writes text the way `innerHTML` does, so the editor's own HTML round-trips.
@@ -495,9 +552,9 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   owner the account's id, a string). Its `clear()` writes the storage at once:
   an `effect()` runs too late for a sign-out, which leaves the page in the
   same turn, and what was given up would be there for whoever comes back. Its
-  `beforeunload` question is asked whenever boxes wait - signed out too, on
-  the way to the sign-in, where this site's own asked nothing (anotoki-lib
-  0.3.0, `docs/decisions.md`); the drafts survive the answer "Leave". The top
+  `beforeunload` question is asked whenever boxes wait and somebody is signed
+  in - since anotoki-lib 0.4.0 not on the way to the sign-in after a session
+  ended (0.3.0 asked there too): the drafts wait in the tab. The top
   bar reaches the drafts through a dynamic `import('@anotoki/lib/translations/admin')`,
   for staff only, so the first load never carries the admin pages.
 - **Control characters are dropped on both sides** (`withoutControls()` /
@@ -513,8 +570,12 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   null would mean.
 - **The sign-in guard is `canActivate`, not `canMatch`**: refused while
   matching, the next route (`:slug`) would match `admin` and flash "no survey".
-- **The SDK finishes the callback in the app initializer**, before the router's
-  first navigation; `/auth/callback` itself is only ever seen when opened by hand.
+- **The library finishes the callback in the app initializer** (`AuthService.init()`
+  -> `AnotokiAuth.init()`), before the router's first navigation;
+  `/auth/callback` is seen when opened by hand, and as the screen of a failed
+  sign-in. `AnotokiAuth.init()` runs once a page load: AuthService reads the
+  boot configuration itself and starts the library only once it came, so the
+  load error card's "Try again" can start it then.
 - **`ng serve`'s proxy keeps the Host header** (`changeOrigin: false`), so
   setup.php through :4700 is still "this computer".
 - **The hosting**: `display_errors` on (switched off in bootstrap), no `.avif`
@@ -694,9 +755,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   survey page offered a survey the visitor had answered, and answering it
   again as the person made the move "keep" the person's and drop the
   visitor's.
-- **A sign-in leaves only after the sends on their way** (`SavesInFlight`):
-  a visitor's first answers bring the key in their answer; left before it,
-  the browser never kept it and the move found nothing.
+- **A sign-in leaves only after the sends on their way** (the library's
+  `SavesInFlight`, which it took over from this site): a visitor's first
+  answers bring the key in their answer; left before it, the browser never
+  kept it and the move found nothing.
 - **A `before()` that throws** used to skip the test file's clean-up: its
   `php -S` kept running, and `tests/run.php` waited for it for ever. The lib
   now reports it as a failure and stops the servers; if a run still hangs,
@@ -823,22 +885,25 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   survey" in the tab (`core/title.strategy.ts`). The wordmark's spans are
   laid out by CSS `gap` (the kit puts a space between them for a screen
   reader and copied text): a test reads them one by one.
-- **A sign-in that came back without one is let through** for the rest of
-  that page load (`signInFailure` is never cleared): every page draws its
-  signed-out card. The IAM refused (`access_denied`) or the person went back,
-  and the guard sending the browser to the IAM again would go round for ever.
-  `signInGuard` lets every navigation through while `signInFailure()` is set,
-  and the layouts draw their signed-out card instead of the outlet - so
-  nothing of the page (a survey) is made or asked for. A sign-in that cannot
-  even start - the browser refuses the site's storage, where the SDK keeps
-  the sign-in in progress (`storage_unavailable`) - is a `signInFailure` too:
-  `AuthService.signIn()` answers false and sets it, and the guard (and the
-  Sign in buttons) say why in a toast (`signIn.storageUnavailable`) - it was a
-  blank page, the first navigation cancelled with nothing said. While the
-  site cannot run and the server said why (`SiteStatus.blocked()`) the guard
-  lets every page through and sends nobody anywhere: the family's page is
-  drawn instead of each. While it could not even ask (`status` not `ready`,
-  nothing blocked) it lets nothing through: the load error card is drawn.
+- **A sign-in that came back without one goes to the screen that says why**,
+  never to the IAM again (the IAM refused, `access_denied`, or the person
+  went back: sent straight back, the browser would go round for ever). The
+  library's guards send the browser to `/auth/callback`, where its screen
+  shows (`<anotoki-sign-in-failure>`: Try again, Back) - nothing of the page (a
+  survey) is made or asked for; `signInFailureGuard` does the same for the
+  pages the library's guards let through (a visitor's, and those of somebody
+  still signed in from before). A sign-in that cannot even start - the browser
+  refuses the site's storage, where the sign-in in progress is kept
+  (`storage_unavailable`) - is a `signInFailure` too: the library's
+  `signIn()` answers false and sets it, the guard goes to the screen, and a
+  Sign in button does through `signInOrShowWhy()` - it was a blank page, the
+  first navigation cancelled with nothing said. Its words are the site's
+  (`anotoki.signIn.*`, migration 012): an owner's rewording shows there. While
+  the site cannot run and the server said why (`SiteStatus.blocked()`) the
+  guards let every page through and send nobody anywhere: the family's page
+  is drawn instead of each. While it could not even ask (`status` not
+  `ready`, nothing blocked) nothing is let through: the load error card is
+  drawn.
 - **A long tag in a row that scrolls sideways is cut off on a phone**: the
   editor's language tabs wrap from 560 px down ("7 / 8 shown in English").
 - **A guard that reads text reads less than it seems**: the key scan took a
@@ -857,7 +922,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   red - one fix at a time: two taken out together can hide each other (a
   choice on the page left uncleared did not show while the page's choice was
   out of the ranking as well).
-- **The answer to an earlier save turned the page back**: the SDK puts each
+- **The answer to an earlier save turned the page back**: the IAM's client (the
+  SDK then, the library's now) puts each
   answer of `savePreferences()` in `user()` - and tells the listeners - before
   the promise resolves, and the theme's effect and the language's watcher
   adopt a change of the account's value. Two quick choices showed the first
@@ -882,8 +948,14 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   theme (the top bar, `boot()`), the `localDate` pipe and every admin page's
   dates (`AdminDates`) read it while drawing, and a fake without it throws in
   an effect or a template. `preferences: () => null` is the site as before.
+  The real AuthService needs the library's sign-in configured (it injects
+  `AnotokiAuth`): a spec that makes it gives `provideTestAnotokiAuth()`
+  (`@anotoki/lib/auth/testing`, its `config` pointed at `AuthService.bootConfig()`)
+  - else "No provider for ANOTOKI_AUTH_CONFIG"; a spec of a page that reaches
+  `AdminDates` stubs AuthService. The library's guards read `AnotokiAuth`
+  itself, and need `ANOTOKI_AUTH_CONFIG` too, when a spec stubs both.
 - **A pending migration closed the whole site, the sign-in with it**:
-  `/api/auth/config` was 503 too, so the SDK was never made and nobody -
+  `/api/auth/config` was 503 too, so the sign-in was never made and nobody -
   the ADMIN who had to apply it included - could sign in. While an update
   waits the auth config and the strings answer (`siteOpenWhileUpdating()`):
   without them the Migrations page's bar was keys. And the start never stops
@@ -996,7 +1068,9 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
    failed, a session that ended over unsaved boxes, a conflict, an open survey
    with a text not translated, the site not set up or out of reach).
 4. Review: the `survey-reviewer` agent, or this list -
-   - [ ] no route trusts anything but the token for who and what role;
+   - [ ] no route trusts anything but the token for who and what role (the
+         library's `Identify` in front of its group); the System's routes
+         ADMIN's alone; every admin change audited; no person's address kept;
    - [ ] the two sides of every rule still agree, sentences included;
    - [ ] new input is checked for type, length and count on the server;
    - [ ] HTML from users only through `richTextClean()`;

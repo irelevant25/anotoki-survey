@@ -19,8 +19,8 @@ function later<T>() {
   return { promise, resolve, reject };
 }
 
-const ANNA: Person = { id: '1', name: 'anna', email: 'anna@example.test' };
-const BEN: Person = { id: '2', name: 'ben', email: 'ben@example.test' };
+const ANNA: Person = { id: '1', name: 'anna' };
+const BEN: Person = { id: '2', name: 'ben' };
 
 function survey(revision: number, title = 'Genshin 1.0'): Survey {
   return { ...newSurvey([]), id: 'survey-1', title, revision };

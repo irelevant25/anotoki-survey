@@ -2,17 +2,27 @@
 
 declare(strict_types=1);
 
+use Anotoki\Lib\Auth\AccessTokens;
+use Anotoki\Lib\Auth\Http\AuthRoutes;
+use Anotoki\Lib\Auth\Http\Identify;
+use Anotoki\Lib\Auth\IamClient;
+use Anotoki\Lib\Auth\Person;
+use Anotoki\Lib\Auth\SignInRule;
+use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
- * Who a request comes from: the access token of the anotoki IAM, checked here
- * with the vendored SDK (api/anotoki_iam.php, v1.1.0) - RS256, typ at+jwt, the
- * IAM's published keys, iss, aud, exp. Its `sub` is the user id, its `roles`
- * this site's roles for them:
+ * Who a request comes from: the access token of the anotoki IAM, checked by
+ * the anotoki family's library (anotoki-lib 0.4.1's auth module,
+ * Anotoki\Lib\Auth - the IAM's SDK moved into the library: RS256 and typ
+ * at+jwt pinned, the IAM's published keys, iss, aud, exp). Its `sub` is the
+ * user id, its `roles` this site's roles for them:
  *
  *   MEMBER   every account holds it: an ordinary person, who takes surveys
  *   EDITOR   writes surveys, opens and closes them, reads the results
- *   ADMIN    all of that, deletes surveys and answers, applies migrations
+ *   ADMIN    all of that, deletes surveys and answers, applies migrations,
+ *            and the admin tools: the people, the error log, the audit log,
+ *            the backups
  *
  * Anybody signed in takes surveys; no check here asks for MEMBER (the IAM
  * decided who may sign in). Roles are granted in the IAM's admin panel; taking
@@ -20,14 +30,18 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  * makes the IAM refuse the person's next sign-in and refresh. There is no
  * login of this site's own: a person is only ever who a verified token says.
  *
- * The IAM also says whether this site requires sign-in at all
- * (authLoginRequired(): its "Sign-in required" switch, read through the SDK and
- * relayed to the browser by GET /api/auth/config). While it is off, somebody
- * who sends no token may take the open surveys as a visitor (api/visitors.php):
- * a SiteUser with a negative id, `visitor` true and no roles, known by a key the
- * server made - read only by requireTaker(), on the surveys' own routes. A
- * visitor never passes requireUser() / requireRole(): those are a verified
- * token's alone.
+ * The IAM also says whether this site requires sign-in at all (its "Sign-in
+ * required" switch, read by the library's SignInRule: kept a minute in
+ * cache_dir, and true whenever nothing better is known) - relayed to the
+ * browser by GET /api/auth/config (the library's AuthRoutes). While it is
+ * off, somebody who sends no token may take the open surveys as a visitor
+ * (api/visitors.php): a SiteUser with a negative id, `visitor` true and no
+ * roles, known by a key the server made - read only on the surveys' own
+ * routes (routes/surveys.php). A visitor never passes a person's or a role's
+ * check: those are a verified token's alone.
+ *
+ * What the settings say of the IAM (config/iam.local.php) are the SDK's keys,
+ * which the library reads as they are (IamClient::fromArray()).
  */
 
 const ROLE_ADMIN = 'ADMIN';
@@ -37,8 +51,9 @@ const ROLE_EDITOR = 'EDITOR';
 const ROLES_STAFF = [ROLE_ADMIN, ROLE_EDITOR];
 
 /**
- * Who a request comes from, once the token is checked - or, on the surveys'
- * own routes, a visitor (`visitor` true: a negative id, no name, no roles).
+ * Who a request comes from, as this site's code takes it: the token's person
+ * (Person, the library's) - or, on the surveys' own routes, a visitor
+ * (`visitor` true: a negative id, no name, no roles).
  */
 final class SiteUser
 {
@@ -46,10 +61,17 @@ final class SiteUser
     public function __construct(
         public readonly int $id,
         public readonly ?string $name,
-        public readonly ?string $email,
         public readonly array $roles,
         public readonly bool $visitor = false,
     ) {
+    }
+
+    /** The token's person: the IAM's id, the name its token carries (trimmed as the browser trims, at most 200 characters), the roles. */
+    public static function of(Person $person): self
+    {
+        $name = $person->name === null ? '' : textTrim($person->name);
+
+        return new self($person->sub, $name === '' ? null : textClip($name, 200), $person->roles);
     }
 
     public function has(string ...$roles): bool
@@ -64,7 +86,17 @@ function settingsPath(string $path): string
     return preg_match('~^([A-Za-z]:)?[\\\\/]~', $path) ? $path : SURVEY_BACKEND . '/' . $path;
 }
 
-/** The SDK's settings (the verifier's and the switch reader's), from ours. */
+/**
+ * The IAM's settings as the library takes them (the SDK's keys): the issuer,
+ * this site's client id and the folder the IAM's keys and answers are kept in
+ * - a private one of the site's own. And the tests' seams: their own key set
+ * (jwks_file) instead of downloading the IAM's, their own answer to "is
+ * sign-in required here" (application_file: a file whose content is the IAM's
+ * answer - missing: the IAM out of reach) and their own list of deleted
+ * accounts (anonymized_file), instead of asking it; and how long the answer
+ * about signing in is kept (60 s by default: a browser check that flips the
+ * switch sets 1).
+ */
 function authIamConfig(): array
 {
     $iam = iamSettings();
@@ -73,16 +105,11 @@ function authIamConfig(): array
         'client_id' => (string) $iam['client_id'],
         'cache_dir' => settingsPath((string) $iam['cache_dir']),
     ];
-    // The tests' own key set, instead of downloading the IAM's; and their own
-    // answer to "is sign-in required here" (a file whose content is the IAM's
-    // answer - missing: the IAM out of reach), instead of asking it.
-    foreach (['jwks_file', 'application_file'] as $key) {
+    foreach (['jwks_file', 'application_file', 'anonymized_file'] as $key) {
         if (is_string($iam[$key] ?? null) && $iam[$key] !== '') {
             $config[$key] = $iam[$key];
         }
     }
-    // How long the IAM's sign-in answer is kept (60 s by default): a browser
-    // check that flips the switch sets 1.
     if (is_int($iam['application_ttl'] ?? null) && $iam['application_ttl'] >= 1) {
         $config['application_ttl'] = $iam['application_ttl'];
     }
@@ -91,38 +118,117 @@ function authIamConfig(): array
 }
 
 /**
- * Does this site require sign-in? The IAM's "Sign-in required" switch for this
- * application, read by the SDK (anotoki_iam_login_required()): kept for a
- * minute in cache_dir - a folder only this site writes, since the kept answer
- * is what would open the site to visitors - and true whenever nothing better is
- * known: an application the IAM does not know (404), or an IAM never reached.
- * One answer for the whole request.
+ * The IAM, as the library reads and asks it. Made again whenever the settings
+ * say something else (setup.php writes them; a test switches them). While the
+ * site is not set up it names no IAM - every token refused, sign-in required -
+ * though the site gate answers every route but the status before anybody asks.
  */
-function authLoginRequired(): bool
+function surveyIam(): IamClient
 {
-    $required = anotoki_iam_login_required(authIamConfig(), $reason);
-    if ($reason === 'stale' || $reason === 'never_read') {
-        error_log('[auth] the IAM did not say whether sign-in is required (' . $reason . '): ' . ($required ? 'required' : 'not required, as it said last'));
-    }
+    static $made = [];
 
-    return $required;
+    $config = settingsProblem() === null ? authIamConfig() : ['cache_dir' => storageDir() . '/cache'];
+    $key = (string) json_encode($config);
+
+    return $made[$key] ??= IamClient::fromArray($config);
 }
 
 /**
- * What the browser needs to sign in: GET /api/auth/config - whether it must,
- * and how many days a visitor's browser is remembered after its last visit
- * (the visitor settings' keep_days: what the page tells a visitor).
+ * Whether this site requires sign-in: the IAM's "Sign-in required" switch for
+ * this application (the library's SignInRule) - kept for a minute in
+ * cache_dir, a folder only this site writes, since the kept answer is what
+ * would open the site to visitors; and true whenever nothing better is known:
+ * an application the IAM does not know (404), or an IAM never reached. One
+ * answer for a whole request (Identify asks it again for each; reset() for a
+ * test's next "request").
+ */
+function surveySignInRule(): SignInRule
+{
+    static $rules = [];
+
+    $iam = surveyIam();
+
+    return $rules[spl_object_id($iam)] ??= new SignInRule($iam);
+}
+
+/**
+ * Does this site require sign-in? surveySignInRule()'s answer (the library
+ * says in the log when the IAM did not say, and what it went by).
+ */
+function authLoginRequired(): bool
+{
+    return surveySignInRule()->required();
+}
+
+/**
+ * What the browser needs to sign in: GET /api/auth/config (the library's
+ * AuthRoutes, routes/public.php) - the IAM, this site's client id, whether it
+ * must sign in (login_required), whether the IAM knows the site at all
+ * (sign_in_available) - and how many days a visitor's browser is remembered
+ * after its last visit (visitor_days: the visitor settings' keep_days, what
+ * the page tells a visitor).
+ *
+ * @return array<string, mixed>
  */
 function authPublicConfig(): array
 {
-    $iam = iamSettings();
+    return AuthRoutes::configBody(surveySignInRule(), surveyIam(), authConfigExtra(...));
+}
 
-    return [
-        'issuer' => rtrim((string) $iam['issuer'], '/'),
-        'clientId' => (string) $iam['client_id'],
-        'loginRequired' => authLoginRequired(),
-        'visitorDays' => visitorSettings()['keep_days'],
-    ];
+/** This site's own field of the boot configuration. */
+function authConfigExtra(): array
+{
+    return ['visitor_days' => visitorSettings()['keep_days']];
+}
+
+/**
+ * Who a request is, once, for the routes it is put in front of (the
+ * library's Identify): a Bearer header is a person - a verified token - or 401
+ * invalid_token, never anybody else; otherwise, with $visitors and while the
+ * IAM says sign-in is not required, an X-Visitor-Key is that visitor
+ * (visitorFound(), api/visitors.php) or 401 visitor_unknown; otherwise nobody.
+ * Without $visitors a key is never read - the surveys' own routes alone take
+ * one (routes/surveys.php). Refusals in this site's error body
+ * ({error, code}), the realm the site's name.
+ *
+ * Never in front of what anybody may ask whatever they carry - the site's
+ * status, the sign-in's settings, the strings, a picture: a token that has run
+ * out would make them a 401.
+ */
+function surveyIdentify(ResponseFactoryInterface $responses, bool $visitors = false): Identify
+{
+    return new Identify(
+        new AccessTokens(surveyIam()),
+        surveySignInRule(),
+        $responses,
+        visitor: $visitors ? visitorFound(...) : null,
+        responder: respondRefusal(...),
+        realm: 'survey',
+    );
+}
+
+/**
+ * The request's person - the token's - or its visitor, as this site's code
+ * takes them (after Identify, on the routes it is in front of); null for
+ * nobody, and on a route without Identify.
+ */
+function currentUser(Request $request): ?SiteUser
+{
+    $person = Identify::person($request);
+    if ($person !== null) {
+        return SiteUser::of($person);
+    }
+    $visitor = Identify::visitor($request);
+
+    return $visitor instanceof SiteUser ? $visitor : null;
+}
+
+/** The request's person - never a visitor - or null (a route's check makes sure there is one). */
+function currentPerson(Request $request): ?SiteUser
+{
+    $person = Identify::person($request);
+
+    return $person === null ? null : SiteUser::of($person);
 }
 
 /** 127.0.0.1 and the like, ::1, and the IPv4-mapped form of 127.x. */
@@ -185,91 +291,4 @@ function isThisComputer(string $sapi, string $remoteAddr, string $host, bool $fo
 function askedFromThisComputer(Request $request): bool
 {
     return isThisComputer(PHP_SAPI, requestRemoteAddr($request), $request->getHeaderLine('Host'), wasForwarded($request->getServerParams()));
-}
-
-/** The request's Authorization header, however the server passed it ('' for none). */
-function authHeader(Request $request): string
-{
-    $header = $request->getHeaderLine('Authorization');
-
-    return $header !== '' ? $header : (string) anotoki_iam_authorization_header();
-}
-
-/**
- * Does the request claim to be somebody? Only the Bearer scheme counts, with or
- * without a token after it: `Basic ...` is what a host behind a password file
- * sends with every request, and says nothing about who is using the site.
- */
-function authSentCredentials(Request $request): bool
-{
-    return anotoki_iam_sent_bearer(authHeader($request));
-}
-
-/**
- * The person a request comes from, after recording the visit in users - or
- * null when it claims to be nobody (no Bearer header; another scheme is not
- * looked at). ApiError 401 for a Bearer header whose token does not check out,
- * an empty one included: a request that claims to be somebody is that person or
- * nothing, never somebody signed out. Why a token was refused goes to the
- * server log, never to the client: to somebody holding a token that did not
- * work, the answer is the same.
- *
- * With $recordVisit false the token alone answers and the database is not
- * touched (requireTokenRole(): the Migrations page's routes, on a database a
- * pending migration has yet to build).
- */
-function requestUser(Request $request, bool $recordVisit = true): ?SiteUser
-{
-    if (!authSentCredentials($request)) {
-        return null;
-    }
-    $token = anotoki_iam_bearer_token(authHeader($request));
-    if ($token === null) {
-        error_log('[auth] token refused: a Bearer header with no token');
-        throw authTokenRefused();
-    }
-
-    if (!function_exists('openssl_verify')) {
-        throw new RuntimeException('Signing in needs PHP\'s openssl extension, and this PHP has none.');
-    }
-
-    $claims = anotoki_iam_verify_access_token($token, authIamConfig(), $reason);
-    if ($claims === null) {
-        error_log('[auth] token refused: ' . $reason);
-        throw authTokenRefused();
-    }
-
-    $id = (int) anotoki_iam_user_id($claims);
-    $name = is_string($claims['preferred_username'] ?? null) && textTrim($claims['preferred_username']) !== '' ? textClip(textTrim($claims['preferred_username']), 200) : null;
-    $email = is_string($claims['email'] ?? null) && textTrim($claims['email']) !== '' ? textClip(textTrim($claims['email']), 320) : null;
-    if ($recordVisit) {
-        usersSeen($id, $name, $email);
-    }
-
-    return new SiteUser($id, $name, $email, anotoki_iam_roles($claims));
-}
-
-/** The one answer to a Bearer header that names nobody: the same whatever the reason. */
-function authTokenRefused(): ApiError
-{
-    return new ApiError(401, 'invalid_token', 'Your sign-in has run out. Please sign in again.', [
-        'WWW-Authenticate' => 'Bearer realm="survey", error="invalid_token"',
-    ]);
-}
-
-/**
- * Keeps the users row of a request's person: made on the first visit, the
- * name and address refreshed from the token when they change, last_seen_at at
- * most every five minutes.
- */
-function usersSeen(int $id, ?string $name, ?string $email): void
-{
-    dbExec(
-        "INSERT INTO users (id, preferred_username, email) VALUES (?, ?, ?)
-         ON CONFLICT (id) DO UPDATE SET preferred_username = EXCLUDED.preferred_username, email = EXCLUDED.email, last_seen_at = now()
-         WHERE users.preferred_username IS DISTINCT FROM EXCLUDED.preferred_username
-            OR users.email IS DISTINCT FROM EXCLUDED.email
-            OR users.last_seen_at < now() - interval '5 minutes'",
-        [$id, $name, $email]
-    );
 }

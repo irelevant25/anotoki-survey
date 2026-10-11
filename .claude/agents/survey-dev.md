@@ -51,28 +51,38 @@ Working conventions:
 - A check followed by a write holds a lock between them, inside the
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
-- Who a request is comes only from the verified token; roles through
-  `requireRole()`. The one exception is a visitor's key, read only by
-  `requireTaker()` on the surveys' own routes while the IAM says sign-in is not
-  required (`api/visitors.php`): a visitor never passes `requireUser()` /
-  `requireRole()`, and its key is never logged, in a body or an address. In
-  the browser a request says whom it is for as it is made (`ISSUED_AS`,
-  `ApiService`): a person's never leaves without its token, a visitor's
-  never with one; the admin panel and the preview always sign in.
+- Signing in, the people and the admin tools are the anotoki family's library's
+  (anotoki-lib 0.4.1: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
+  module, the error log, the audit log, the backups) - wired in
+  `api/auth.php`, `api/people.php`, `api/admin_tools.php`,
+  `core/auth/auth.config.ts`, `core/admin/admin-tools.ts`; never copied or
+  edited here. Who a request is comes only from the verified token (the
+  library's `Identify` in front of each route group); roles through
+  `RequirePerson`, `requireStaff()`, `requireAdmin()` (deletes, the
+  migrations, the System pages - ADMIN alone). The one exception is a
+  visitor's key, read only on the surveys' own routes (`surveyIdentify(...,
+  visitors: true)` + `RequireCaller`) while the IAM says sign-in is not
+  required (`api/visitors.php`): a visitor never passes a person's or a
+  role's check, and its key is never logged, in a body or an address. The
+  site keeps no person's address. Every admin change is audited
+  (`surveyAudited()`). In the browser a request says whom it is for as it is
+  made (the library's `issuedAs`): a person's never leaves without its token,
+  a visitor's never with one; the admin panel and the preview always sign in;
+  a failed sign-in is the library's screen, never a card or a toast.
   Queries use `?` parameters; identifiers come from literals.
 - User HTML only through `richTextClean()`. Pictures are checked by their
   bytes; never SVG.
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
   (light and dark); every page works at 390 px. The UI kit and the top bar are
-  the anotoki family's (`@anotoki/lib` 0.3.0, wired in `core/kit.ts`) - use
+  the anotoki family's (`@anotoki/lib` 0.4.1, wired in `core/kit.ts`) - use
   them, each piece from its own entry point (`@anotoki/lib/ui/button`, ...,
   never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come
   from the database there (`forKit()`), and its class names are its own
   (`.anotoki-<piece>__<part>`) - in a spec too.
 - Tests and experiments use throwaway `survey_test_` databases
   (`backend/tests/tools/`), never `anotoki_survey`; the browser check
-  (`check-in-browser` skill) signs in through the stand-in IAM, never the real one.
+  (`check-in-browser` skill) signs in through the library's stand-in IAM, never the real one.
 - Stop every server you start and check the ports afterwards; the owner may
   run their own `ng serve` on 4700 or `composer start` on 8500 - look at the
   command line before stopping anything.

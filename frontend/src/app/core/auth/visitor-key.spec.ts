@@ -8,7 +8,7 @@ import { MOVE_RETRY_MS, VISITOR_STORAGE_KEY, VisitorKey } from './visitor-key';
 
 const KEY = 'k'.repeat(43);
 const OTHER_KEY = 'o'.repeat(43);
-const ZUZKA: Person = { id: '12', name: 'Zuzka', email: 'zuzka@example.com' };
+const ZUZKA: Person = { id: '12', name: 'Zuzka' };
 
 describe('VisitorKey', () => {
   const person = signal<Person | null>(null);

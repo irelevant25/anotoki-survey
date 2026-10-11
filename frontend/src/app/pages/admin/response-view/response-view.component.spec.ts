@@ -29,7 +29,7 @@ function response(language: string | null): SurveyResponse {
   return {
     id: 'r1',
     surveyId: 's1',
-    person: { id: 'p1', name: 'Zuzka', email: 'zuzka@example.com' },
+    person: { id: 'p1', name: 'Zuzka' },
     aboutYou: null,
     answers: { q1: { optionIds: ['o1'], other: '', text: '' } },
     language,

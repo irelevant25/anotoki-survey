@@ -191,7 +191,7 @@ const SLOVAK: Record<string, string> = {
   'question.clear': 'Vymazať odpoveď',
 };
 
-const ZUZKA: Person = { id: 'p1', name: 'Zuzka', email: 'zuzka@example.com' };
+const ZUZKA: Person = { id: 'p1', name: 'Zuzka' };
 
 /** Open, asks about you, two steps: a choice (question 1) and an optional text (question 2). Written in Slovak, in no other language. */
 function exampleSurvey(): Survey {

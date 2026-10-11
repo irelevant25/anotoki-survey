@@ -1,4 +1,5 @@
 import { DestroyRef, Injectable, computed, effect, inject, signal, untracked } from '@angular/core';
+import { type VisitorKeyStore } from '@anotoki/lib/auth';
 import { ApiService, VisitorMove, toApiError } from '../api/api.service';
 import { adoptVisitorDrafts } from '../survey/drafts';
 import { readStorage, writeStorage } from '../util/storage';
@@ -22,8 +23,11 @@ export const MOVE_RETRY_MS: readonly number[] = [2_000, 10_000, 30_000];
  * one visitor, and see which ones they have answered. The server makes it
  * with the first answers sent by somebody with neither a token nor a key, and
  * sends it once, in the `X-Visitor-Key` header of that answer; it keeps only
- * its hash. This browser keeps it in localStorage, and authInterceptor sends
- * it on the requests to /api/surveys issued as a visitor's (ISSUED_AS).
+ * its hash. This browser keeps it in localStorage, and the anotoki family's
+ * interceptor (@anotoki/lib/auth, which reads this store - provideAnotokiAuth's
+ * `visitors`, core/auth/auth.config.ts) sends it on the requests to
+ * /api/surveys issued as a visitor's (ISSUED_AS), keeps the key a first
+ * answer brings, and forgets one the server no longer knows.
  *
  * - **Kept, not sent, while the site requires a sign-in**
  *   (AuthService.loginRequired: the IAM's switch). The server would refuse it,
@@ -58,7 +62,7 @@ export const MOVE_RETRY_MS: readonly number[] = [2_000, 10_000, 30_000];
  * first page, so the effect is there for the first sign-in.
  */
 @Injectable({ providedIn: 'root' })
-export class VisitorKey {
+export class VisitorKey implements VisitorKeyStore {
   private readonly _auth = inject(AuthService);
   private readonly _api = inject(ApiService);
 

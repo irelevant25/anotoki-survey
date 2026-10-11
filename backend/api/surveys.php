@@ -445,19 +445,30 @@ function surveySetStatus(SiteUser $user, string $id, mixed $body): array
     return surveyJson($row);
 }
 
-/** Deletes the survey and every answer it was given. */
-function surveyDelete(string $id): void
+/**
+ * Deletes the survey and every answer it was given. Answers what it was - its
+ * title, its address and how many answers went with it - for the audit log.
+ *
+ * @return array{title: string, slug: string, responses: int}
+ */
+function surveyDelete(string $id): array
 {
     if (!isUuid($id)) {
         throw surveyNotFound();
     }
-    dbTx(static function () use ($id): void {
+    $deleted = dbTx(static function () use ($id): array {
         // Its answers go with it; an ended visitor left with none goes too.
         $visitors = array_map('intval', array_column(dbAll('SELECT DISTINCT user_id FROM responses WHERE survey_id = ? AND user_id < 0', [$id]), 'user_id'));
-        if (dbExec('DELETE FROM surveys WHERE id = ?', [$id]) === 0) {
+        $responses = (int) dbValue('SELECT count(*) FROM responses WHERE survey_id = ?', [$id]);
+        $row = dbOne('DELETE FROM surveys WHERE id = ? RETURNING title, slug', [$id]);
+        if ($row === null) {
             throw surveyNotFound();
         }
         visitorsForgetEmpty($visitors);
+
+        return ['title' => (string) $row['title'], 'slug' => (string) $row['slug'], 'responses' => $responses];
     });
     imagesCleanup();
+
+    return $deleted;
 }

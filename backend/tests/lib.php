@@ -52,7 +52,13 @@ function machineDatabaseSettings(): array
     return is_array($values) ? $values : [];
 }
 
-/** A settings folder, as setup.php would write one: the database settings and the IAM's. */
+/**
+ * A settings folder, as setup.php would write one: the database settings and
+ * the IAM's - and, in its storage, the day's backup said to be made already:
+ * a server of the tests would otherwise make one after its first answer of
+ * the day (the library's daily backup), every one of them, into its own
+ * storage. The tests of the backups take the stamp away (test_daily_backup_due()).
+ */
 function test_write_config(string $dir, array $database, array $iam): string
 {
     if (!is_dir($dir)) {
@@ -60,8 +66,19 @@ function test_write_config(string $dir, array $database, array $iam): string
     }
     file_put_contents("$dir/database.local.php", '<?php return ' . var_export($database, true) . ";\n");
     file_put_contents("$dir/iam.local.php", '<?php return ' . var_export($iam, true) . ";\n");
+    if (!is_dir("$dir/storage/cache")) {
+        mkdir("$dir/storage/cache", 0777, true);
+    }
+    // The library's stamp of the day's backup (README: cache/anotoki-backup-daily.json), as it writes one.
+    file_put_contents("$dir/storage/cache/anotoki-backup-daily.json", json_encode(['date' => gmdate('Y-m-d'), 'status' => 'done', 'at' => time()]));
 
     return $dir;
+}
+
+/** The day's backup not made yet for the server of $config (a settings folder): its next answer lets it run. */
+function test_daily_backup_due(string $config): void
+{
+    @unlink("$config/storage/cache/anotoki-backup-daily.json");
 }
 
 (static function (): void {
@@ -71,8 +88,12 @@ function test_write_config(string $dir, array $database, array $iam): string
     }
     $dir = test_temp_dir('config');
     // The app in this process checks no tokens: an IAM address that goes nowhere,
-    // and an answer about sign-in that is not there (required, nobody asked).
-    test_write_config($dir, ['name' => $name] + machineDatabaseSettings(), ['issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => 'storage/cache', 'application_file' => test_application_file()]);
+    // an answer about sign-in that is not there (required, nobody asked), and no
+    // list of deleted accounts (the IAM out of reach: nothing scrubbed).
+    test_write_config($dir, ['name' => $name] + machineDatabaseSettings(), [
+        'issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => 'storage/cache',
+        'application_file' => test_application_file(), 'anonymized_file' => test_anonymized_file(),
+    ]);
     putenv("SURVEY_TEST_CONFIG=$dir");
     $GLOBALS['TEST_CONFIG_DIR'] = $dir;
 })();
@@ -704,35 +725,49 @@ function call_form(string $base, string $url, array $fields, array $files = [], 
 /* ------------------------------------------------ tokens signed by the tests */
 
 /**
- * The tests' own signing key, with its public half written as a JWKS file:
- * ['kid', 'private_pem', 'jwks', 'jwks_file']. One per test file.
+ * The tests' own IAM - the anotoki library's TestIam: a signing key of its
+ * own, its public half written as a key set (jwks_file), and the tokens it
+ * signs. One per test file; never the real IAM.
  */
+function test_identity(): \Anotoki\Lib\Auth\Testing\TestIam
+{
+    static $iam = null;
+
+    return $iam ??= \Anotoki\Lib\Auth\Testing\TestIam::create(test_temp_dir('iam'), TEST_ISSUER, TEST_CLIENT, 'survey-test-key');
+}
+
+/** Another IAM's key under the tests' own key id, for a forged token: the same kid, another key. */
+function test_forger(string $kid = 'survey-test-key'): \Anotoki\Lib\Auth\Testing\TestIam
+{
+    return \Anotoki\Lib\Auth\Testing\TestIam::create(test_temp_dir('forger'), TEST_ISSUER, TEST_CLIENT, $kid);
+}
+
+/** The tests' key set as a file, and its key's id: ['kid', 'jwks_file']. */
 function test_keys(): array
 {
-    static $keys = null;
-    if ($keys === null) {
-        $keys = anotoki_iam_test_keypair('survey-test-key');
-        $keys['jwks_file'] = test_temp_dir('jwks') . '/jwks.json';
-        file_put_contents($keys['jwks_file'], json_encode($keys['jwks']));
-    }
+    $iam = test_identity();
 
-    return $keys;
+    return ['kid' => $iam->kid, 'jwks_file' => $iam->dir . '/' . \Anotoki\Lib\Auth\Testing\TestIam::JWKS_FILE];
 }
 
 /**
- * The IAM settings with the tests' key set, and the tests' answer about sign-in
- * (test_application_file(): by default none - required, the IAM never asked).
+ * The IAM settings with the tests' key set, the tests' answer about sign-in
+ * (test_application_file(): by default none - required, the IAM never asked)
+ * and their list of the accounts the IAM deleted (test_anonymized_file(): by
+ * default none - the IAM out of reach, nothing scrubbed): no test ever asks an
+ * IAM over the network but the stand-in.
  */
 function test_iam(array $extra = []): array
 {
     return $extra + [
         'issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => test_temp_dir('cache'),
         'jwks_file' => test_keys()['jwks_file'], 'application_file' => test_application_file(),
+        'anonymized_file' => test_anonymized_file(),
     ];
 }
 
 /**
- * The IAM's answer about this application as a file (the SDK's
+ * The IAM's answer about this application as a file (the library's
  * application_file: its content is the answer, read on every request): one
  * that says login_required $required, $answer changing or adding fields - or,
  * with null, a path where there is no file, which reads as an IAM out of reach:
@@ -749,16 +784,41 @@ function test_application_file(?bool $required = null, array $answer = []): stri
 }
 
 /**
+ * The accounts the IAM deleted, as a file (the library's anonymized_file, the
+ * scrub's list): [sub => anonymized_at (ISO 8601, whole seconds, UTC)] - or,
+ * with null, a path where there is no file: the IAM out of reach.
+ */
+function test_anonymized_file(?array $accounts = null): string
+{
+    $file = test_temp_dir('anonymized') . '/anonymized.json';
+    if ($accounts !== null) {
+        test_write_anonymized($file, $accounts);
+    }
+
+    return $file;
+}
+
+/** The deleted accounts written into an anonymized_file, as the IAM lists them. */
+function test_write_anonymized(string $file, array $accounts): void
+{
+    $list = [];
+    foreach ($accounts as $sub => $at) {
+        $list[] = ['sub' => (string) $sub, 'anonymized_at' => $at];
+    }
+    file_put_contents($file, json_encode(['accounts' => $list]));
+}
+
+/**
  * An access token for $userId with this site's $roles, as the IAM would sign
- * it; $extra overrides claims (an expired one, another audience…). The
- * header's typ / kid / alg, and the key, can be changed through $sign.
+ * it (a sign-in of now: auth_time); $extra overrides claims (an expired one,
+ * another audience…; null takes one out). The header's typ / kid / alg, and the
+ * key ($sign['iam']: another TestIam), can be changed through $sign.
  */
 function test_token(int $userId, array $roles = [], array $extra = [], array $sign = []): string
 {
-    $keys = $sign['keys'] ?? test_keys();
-    $claims = anotoki_iam_test_claims(['issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT], $userId, $roles, $extra);
+    $iam = $sign['iam'] ?? test_identity();
 
-    return anotoki_iam_test_sign($claims, $keys['private_pem'], $sign['kid'] ?? $keys['kid'], $sign['typ'] ?? 'at+jwt', $sign['alg'] ?? 'RS256');
+    return $iam->sign($iam->claims($userId, $roles, $extra), $sign['typ'] ?? 'at+jwt', $sign['alg'] ?? 'RS256', isset($sign['kid']) ? ['kid' => $sign['kid']] : []);
 }
 
 /** The Authorization header for a token. */

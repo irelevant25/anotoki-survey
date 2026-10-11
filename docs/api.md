@@ -26,7 +26,7 @@ the library's shape (`{code, message, ...}`, not this API's `error`):
 | State | When | Every address answers |
 | --- | --- | --- |
 | `not_set_up` | `config/database.local.php` or `iam.local.php` missing or incomplete | 503 `{code: "not_set_up", installed, message}` - with `setup: "/setup.php"` only while the site was never installed (`storage/installed.lock`, which `setup.php` writes when it finishes on a real host) |
-| `update_pending` | a migration file waits to be applied | 503 `{code: "update_pending", message: "The site is being updated. Try again in a few minutes."}` and `Retry-After: 60` - but `GET /api/auth/config`, `GET /api/translations/{code}` (one segment after it: the library's `TranslationsRoutes::openPath()`), `GET /api/health` and the Migrations page's three routes (`/api/admin/migrations`, `/file` and `/apply`, ADMIN, below) answer as ever (`siteOpenWhileUpdating()`). Those addresses exactly, read as the routes read them (unescaped, dot segments as written): any other under them is closed too |
+| `update_pending` | a migration file waits to be applied | 503 `{code: "update_pending", message: "The site is being updated. Try again in a few minutes."}` and `Retry-After: 60` - but `GET /api/auth/config`, `GET /api/translations/{code}` (one segment after it: the library's `TranslationsRoutes::openPath()`), `GET /api/health` and the Migrations page's three routes (`/api/admin/migrations`, `/file` and `/apply`, ADMIN, below) answer as ever, and so do the error log's and the backups' (`/api/admin/errors`, `/errors/{12 hex}`; `/api/admin/backups`, `/proof`, `/{id}`, `/{id}/ticket`, `/file`, `/preview` - the library's `openPaths()`; ADMIN, below; a restore stays closed) (`siteOpenWhileUpdating()`). Those addresses exactly, read as the routes read them (unescaped, dot segments as written): any other under them is closed too |
 | `unavailable` | the settings are there, the database cannot be reached | the route's own answer (503 `database_unavailable` where it needs the database) |
 | `ready` | otherwise | the route's own answer |
 
@@ -41,7 +41,7 @@ the library's shape (`{code, message, ...}`, not this API's `error`):
 | --- | --- |
 | `GET /api/health` | `{ok}` - and, asked from this computer, `problem`, `database`, `pending` (the migration files not applied). While the settings are missing the gate answers it (503 `not_set_up`, above), so `ok` is true and `problem` null whenever this route itself answers |
 | `GET /api/site-status` | `{state, installed}`: where the site stands - `ready`, `not_set_up`, `update_pending` or `unavailable` - and whether its installer finished on a real host. Answered in every state and to anybody - nothing it carries is read (a token, good or not, a visitor's key), whatever the IAM says of signing in: the pages ask it before anybody can sign in. It says nothing else |
-| `GET /api/auth/config` | `{issuer, clientId, loginRequired, visitorDays}`: how the browser signs in, and whether it must - `loginRequired` is the IAM's "Sign-in required" switch for this site (below); `visitorDays`, how many days a visitor's browser is remembered after its last visit (`keep_days`, `config/visitors.local.php`). Answered while a migration is pending too: the site's ADMIN signs in to apply it |
+| `GET /api/auth/config` | `{issuer, client_id, login_required, sign_in_available, visitor_days}` - the anotoki library's `AuthRoutes` (its wire format, snake_case; the camelCase this site answered before, `clientId`, `loginRequired`, `visitorDays`, the library's browser half reads too): how the browser signs in, and whether it must - `login_required` is the IAM's "Sign-in required" switch for this site (below); `sign_in_available`, whether the IAM knows the site; `visitor_days`, this site's own: how many days a visitor's browser is remembered after its last visit (`keep_days`, `config/visitors.local.php`). No token is read. Answered while a migration is pending too: the site's ADMIN signs in to apply it |
 | `GET /api/images/{id}.{ext}` | a picture: its bytes, cached for a year; `If-None-Match` → 304; 404 when there is none |
 | `GET /api/translations/{code}` | the site's own words in a language: `{language, languages, values, english?}`; `If-None-Match` → 304; 404 `not_found` for a code that is not one; 503 `translations_unavailable` (`Retry-After: 60`) while the tables are not there or the database cannot be asked - the pages then read what they have |
 
@@ -49,11 +49,11 @@ the library's shape (`{code, message, ...}`, not this API's `error`):
 
 The IAM says, per site, whether signing in is required (its admin panel:
 Applications -> survey -> "Sign-in required"). The backend asks it -
-`GET {issuer}/api/public/applications/survey`, through the vendored SDK's
-`anotoki_iam_login_required()` (`authLoginRequired()` in `api/auth.php`) - and
-`/api/auth/config` relays the answer as `loginRequired`, so the browser never
+`GET {issuer}/api/public/applications/survey`, through the anotoki library's
+`SignInRule` (`surveySignInRule()`, `authLoginRequired()` in `api/auth.php`) - and
+`/api/auth/config` relays the answer as `login_required`, so the browser never
 asks the IAM. The answer is kept a minute in `cache_dir`; it **fails closed**:
-`loginRequired` is `true` unless the IAM said `false` - an application the IAM
+`login_required` is `true` unless the IAM said `false` - an application the IAM
 does not know (404), an IAM never reached, or an answer that is not about this
 site all read as `true`; an IAM out of reach after it has answered keeps its
 last answer (asked again a minute later).
@@ -67,7 +67,7 @@ The admin panel and the editor's preview sign in first whatever it says.
 
 What every page starts with (the library's `TranslationService`), the same for
 everybody - no token is looked at, not even a bad one. The route, and every
-route of the site's words below, is the anotoki family's (anotoki-lib 0.3.0,
+route of the site's words below, is the anotoki family's (since anotoki-lib 0.3.0,
 `Anotoki\Lib\Translations\Http\TranslationsRoutes`, wired in
 `routes/public.php` and `routes/admin.php`): one wire format for every anotoki
 site, the IAM's - snake_case, the bundle the IAM's byte for byte - in this
@@ -101,12 +101,13 @@ be answered behind such a server.
 
 ## The people taking surveys
 
-Who is asking is `requireTaker()`'s (`api/meddleware/auth.php`), in this
-order:
+Who is asking is the anotoki library's to say - its `Identify` with this
+site's visitors (`surveyIdentify(..., visitors: true)`, `api/auth.php`), then
+its `RequireCaller` - in this order:
 
 1. **a Bearer header**: that person, or 401 `invalid_token` - a bad token
    never falls back to a visitor key, which is not even read;
-2. else, **while the IAM says sign-in is required** (`loginRequired`, above):
+2. else, **while the IAM says sign-in is required** (`login_required`, above):
    401 `sign_in_required` - for nobody and for a visitor key alike; the key is
    never looked up, and its visitor is not "seen";
 3. else **`X-Visitor-Key`**: that visitor (a key that is nobody's, or not a
@@ -170,8 +171,8 @@ Migrations page and the move answer it 401 `sign_in_required`.
   `visitor_move_retry` with `Retry-After: 2`, nothing moved.
 - **What the browser does** ([architecture](architecture.md#visitors-in-the-browser)):
   it keeps the key in `localStorage` (`anotoki-survey:visitor`; the first key
-  a browser got stays) and sends it only on `/api/surveys`, only while
-  `loginRequired` is false - never with a token. A 401 `visitor_unknown`
+  a browser got stays) and the library's interceptor sends it only on
+  `/api/surveys`, only while sign-in is not required - never with a token. A 401 `visitor_unknown`
   forgets it and the request goes once more without it (nothing was kept for
   it, so answers are never sent twice); a 401 `sign_in_required` keeps it (the
   switch went on: the page stops welcoming visitors until the next load) - so
@@ -211,9 +212,16 @@ code (and `questionId`).
 
 ## The admin panel
 
-EDITOR or ADMIN for all of it (`requireRole`): 401 without a token, 403
-`forbidden` without the role. ADMIN alone for the three deletes (a survey,
-somebody's answers, a language) and the migrations.
+EDITOR or ADMIN for all of it (`requireStaff()`: the library's `RequireRole`,
+judged from the token): 401 without a token, 403 `forbidden` without the role.
+ADMIN alone (`requireAdmin()`) for the three deletes (a survey, somebody's
+answers, a language), the migrations, and the System's routes - the people,
+the error log, the audit log, the backups (below). Every change is written to
+the audit log (`survey.created`, `survey.opened`, `survey.closed`,
+`survey.deleted`, `response.deleted`, `translations.saved`,
+`translations.imported`, `language.created` / `updated` / `deleted`,
+`migrations.applied` - and the library's own for its routes), by the token's
+person.
 
 | Route | Answers |
 | --- | --- |
@@ -223,7 +231,7 @@ somebody's answers, a language) and the migrations.
 | `PUT /api/admin/surveys/{id}` | `{revision, survey}` → `{survey}` with the next revision |
 | `POST /api/admin/surveys/{id}/status` | `{status: "open" \| "closed", closesOn?}` → `{survey}` with the next revision (the closing day is part of what editors save) |
 | `DELETE /api/admin/surveys/{id}` | ADMIN → 204; its answers go with it |
-| `GET /api/admin/surveys/{id}/responses` | `{responses: [SurveyResponse]}` - newest first, each with `person: {id, name, email, visitor}` and `language` (the code the survey was read in, or null). A visitor's `person` is `{id: "-12", name: "Visitor 12", email: "", visitor: true}` - from its own id; a person's says `visitor: false` |
+| `GET /api/admin/surveys/{id}/responses` | `{responses: [SurveyResponse]}` - newest first, each with `person: {id, name, visitor}` and `language` (the code the survey was read in, or null). No address: the site keeps none (migration 011; the IAM is the only holder). A person's name is the IAM's - its placeholder `deleted-{id}` once the IAM deleted the account. A visitor's `person` is `{id: "-12", name: "Visitor 12", visitor: true}` - from its own id; a person's says `visitor: false` |
 | `DELETE /api/admin/responses/{id}` | ADMIN → 204: that person may take the survey again (a visitor too, while its key lives; an ended visitor left with no answers is deleted) |
 | `POST /api/admin/images` | the picture's bytes, `Content-Type: image/*` → 201 `{image: {id, alt, width, height, src}}` |
 
@@ -381,20 +389,58 @@ routes (`Anotoki\Lib\Migrations\Http\MigrationsRoutes::admin`,
 database a pending migration has yet to build - from nothing at all. They
 answer while a migration is pending, when the rest of the site is 503; not
 while the settings are missing (there is no database to update then:
-`setup.php`). The sets are the site's own, `survey`, and after it the
-library's, `anotoki_translations` (its files recorded as
-`anotoki_translations/NNN_….sql` in the `migrations` table). Bodies in the
-library's shape.
+`setup.php`). The sets, in the order they run: the library's `anotoki_admin`
+(the audit log's table), the site's own `survey`, then the library's
+`anotoki_translations` and `anotoki_people` (the library's files recorded as
+`<set>/NNN_….sql` in the `migrations` table). Bodies in the library's shape.
 
 | Route | Answers |
 | --- | --- |
-| `GET /api/admin/migrations` | `{sets: ["survey", "anotoki_translations"], applied: [{set, name, applied_at}], pending: [{set, name, ready, blocked}], missing: [{set, name, applied_at}]}` - applied in the order they ran (`applied_at` ISO 8601, UTC), pending in the order they will run, missing: recorded as applied with no file here. Writes nothing |
-| `GET /api/admin/migrations/file?set=survey&name=NNN_x.sql` | `{set, name, sql}`: the file's text, for the page's View (`set=anotoki_translations` for the library's); 404 `{code: "not_found", message}` for anything that is not a file of a set (a path, another folder) |
-| `POST /api/admin/migrations/apply` | `{applied: [{set, name}], failed: {set, name} \| null, error: string \| null, note: null}` - every pending file in order, each in its own transaction, stopping at the first that fails: that one is rolled back whole and named, and `error` is the database's whole error (`statement n of m: SQLSTATE[...]: ...` and the statement's first lines) - it is logged too (`[db] the migration ... failed`). A failure is a 200 with `failed` set; `{applied: [], failed: null, ...}`: nothing was pending |
+| `GET /api/admin/migrations` | `{sets: ["anotoki_admin", "survey", "anotoki_translations", "anotoki_people"], applied: [{set, name, applied_at}], pending: [{set, name, ready, blocked}], missing: [{set, name, applied_at}]}` - applied in the order they ran (`applied_at` ISO 8601, UTC), pending in the order they will run, missing: recorded as applied with no file here. Writes nothing |
+| `GET /api/admin/migrations/file?set=survey&name=NNN_x.sql` | `{set, name, sql}`: the file's text, for the page's View (`set=anotoki_translations` and the others for the library's); 404 `{code: "not_found", message}` for anything that is not a file of a set (a path, another folder) |
+| `POST /api/admin/migrations/apply` | `{applied: [{set, name}], failed: {set, name} \| null, error: string \| null, note: string \| null}` - first a backup of the database as it is (the library's backups, `before-migration`; `note` names it - one that cannot be made stops the Apply, nothing run), then every pending file in order, each in its own transaction, stopping at the first that fails: that one is rolled back whole and named, and `error` is the database's whole error (`statement n of m: SQLSTATE[...]: ...` and the statement's first lines) - it is logged too (`[db] the migration ... failed`). A failure is a 200 with `failed` set; `{applied: [], failed: null, ...}`: nothing was pending. Audited (`migrations.applied`); the audit entries kept in a file while the audit log's table waited go in after it |
 
 | Status, code | When |
 | --- | --- |
-| 409 `busy` | `{code: "busy", message}`: another update is running - another Apply, `setup.php`'s Save or `php migration.php`: all take one PostgreSQL advisory lock, and the second applies nothing |
+| 409 `busy` | `{code: "busy", message}`: another update is running - another Apply, `setup.php`'s Save, `php migration.php` or a backup: all take one PostgreSQL advisory lock, and the second applies nothing |
+
+### The System: the people, the error log, the audit log, the backups
+
+The anotoki family's routes (anotoki-lib 0.4.1: `PeopleRoutes`,
+`ErrorLogRoutes`, `AuditRoutes`, `BackupsRoutes` - wired in `routes/admin.php`,
+`api/people.php` and `api/admin_tools.php`), behind this site's
+`requireAdmin()` and guarding themselves as well (the library asks the token's
+ADMIN itself): ADMIN alone - nobody 401 `sign_in_required`, a token that does
+not check out 401 `invalid_token`, a MEMBER and an EDITOR 403 `forbidden` (in
+this site's error body). Who acts is the token's person, never a body. Their
+pages are the library's (admin panel: System).
+
+| Route | Answers |
+| --- | --- |
+| `GET /api/admin/people?q=&page=` | `{people: [{sub, name, first_seen_at, last_seen_at, anonymized_at, iam_url, answered, written}], columns, total, page, page_size, visitors: {count, active}, sync, ready, problems}` - everybody who signed in, 50 a page, the most recently seen first; `q` a name (any case, anywhere in it) or an IAM id (422 `invalid_query` for one that cannot be a name); `answered` / `written`: how many surveys each answered and wrote here; `visitors`: those listed as "Visitor N", and how many of them still have their key; `sync`: where the scrub of the IAM's deleted accounts stands; 503 while the tables wait for an update |
+| `DELETE /api/admin/people/{sub}` | `{deleted: {"Answers": n}}` - every answer of the person's (their row and the surveys they wrote stay; asked first on the page, no proof of a recent sign-in - the owner's decision); 404 `not_found` for nobody there; audited `person.data_deleted` |
+| `POST /api/admin/people/sync` | `{run: {state, handled, scrubbed, error, problems}, sync}` - the scrub now: the IAM's deleted accounts since the last one, each named by the IAM's placeholder `deleted-{id}` here, `anonymized_at` set, everything else kept; audited `people.synced` |
+| `GET /api/admin/errors?days=&level=&status=&search=` | `{total, errors, warnings, notices, distinct, truncated, days, daily, statuses, groups, dropped}` - the error log's report: the newest lines (`storage/logs`, 30 UTC days), grouped by fingerprint. Open while a migration waits |
+| `GET /api/admin/errors/{fingerprint}` | every occurrence of one group |
+| `DELETE /api/admin/errors[?before=YYYY-MM-DD]` | `{deleted}` - everything, or the UTC days before that one; audited `errors.cleared` |
+| `GET /api/admin/audit?actor=&action=&target_type=&target_id=&from=&to=&page=` | `{total, page, pageSize: 50, items}` - the IAM's shape: each entry when, who (the token's `sub`, named from `users`), the action, what it is about, the details - newest first; `actor` an id or a name (the people of that name here); `action` one, or a family (`backup.*`); 503 while its table waits for an update |
+| `GET /api/admin/audit/facets` | the actions, the people and the kinds of target there are, for the page's choices |
+| `GET /api/admin/backups` | `{backups: [{id, kind, created_at, created_by, description, size, table_count, rows, restorable, stale, encrypted}], status: {count, total_bytes, last_daily, free_bytes, database_bytes, encrypted, restore_enabled, restorable, directory_writable, copy_available, problems}}` - open while a migration waits |
+| `GET /api/admin/backups/proof` | `{kind: "recent_sign_in"}` - what making, downloading, deleting and restoring ask: a sign-in of the last ten minutes (the token's `auth_time`) |
+| `POST /api/admin/backups` | `{description?}` → 201 `{backup}`: every table by COPY in one snapshot (the pictures too), `kind: manual`; 403 `reauth_required` after an older sign-in (the page offers "Sign in again"); 409 `busy` during an update or another backup; audited `backup.created` |
+| `GET` / `DELETE /api/admin/backups/{id}` | one backup's facts and its tables / deletes it (the proof; audited `backup.deleted`) |
+| `POST /api/admin/backups/{id}/ticket` | `{url, expires_in: 60}` - a single-use link for the download (the proof; audited `backup.downloaded`) |
+| `GET /api/admin/backups/{id}/file?ticket=` | the file, an attachment (`no-store`, `nosniff`, `no-referrer`) - **deliberately outside every check**: a browser's navigation sends no token, the ticket is the check - good once, for one backup, for its minute |
+| `GET /api/admin/backups/{id}/preview` | the rows a restore would take away, table by table |
+| `POST /api/admin/backups/{id}/restore` | `{confirm: the id's last 6}` → the restore in place, all or nothing, after a `before-restore` backup - only where the database's migrations and columns equal the backup's (409 `schema_differs`); the scrub of the IAM's deleted accounts runs again after it - `{restored, before_restore, tables, rows, duration_ms, after_restore_error}`, `after_restore_error` null, or why that scrub did not finish (the IAM out of reach…: the restore stands, and the next request runs the scrub again); closed while a migration waits; audited `backup.restored` |
+
+The backups are files under `storage/backups/` (`<id>.anotoki-backup`, a
+gzip'd tar after a two-line header - not encrypted, the owner's decision of
+2026-10-11: only the IAM's are); kept: daily 14, before an update 5, before a restore 5, by hand until
+deleted - no maximum age (the owner's decision of 2026-10-11: nothing deletes a
+backup for being old). The daily one is made after the answer of the first
+request of a UTC day. The browser's errors have no route here yet
+(`ErrorLogRoutes::client` comes with the library's 0.4.2).
 
 ## Limits
 

@@ -1,6 +1,7 @@
-// The survey site end to end in headless Chrome, signing in through the
-// stand-in IAM (backend/tests/tools/fake-iam.php) - never the real one. It
-// expects an empty site: run.mjs makes one and starts everything; on its own:
+// The survey site end to end in headless Chrome (or Edge), signing in through
+// the anotoki library's stand-in IAM
+// (backend/vendor/anotoki/lib/php/testing/stand-in-iam.php) - never the real
+// one. It expects an empty site: run.mjs makes one and starts everything; on its own:
 //
 //   node flow.mjs <debugging port> <site origin> <fake IAM origin> <png file> <shots folder>
 //
@@ -18,9 +19,12 @@
 // family's top bar - brand, links, language, theme, the person's menu - at
 // 360, 390 and 1280 px, light and dark; on a phone the links and the person's
 // menu are inside one menu button (focus in, arrow keys, Escape back, a click
-// outside, Tab and Shift+Tab back to the button from any item). "Signed out"
-// is a sign-in the IAM turned down (the stand-in's `deny`): the page then
-// draws a card with Sign in instead of itself.
+// outside, Tab and Shift+Tab back to the button from any item). A sign-in the
+// IAM turns down (the stand-in's `deny`) ends on the anotoki family's screen of
+// a failed sign-in (anotoki-lib 0.4.1, on /auth/callback: why, in the site's
+// words - formal Slovak too -, Try again and Back); "signed out" is a session
+// that ended with the page open: the page then draws a card with Sign in
+// instead of itself.
 //
 // Then in Slovak (/?lang=sk): the top bar on a phone, signed out and signed
 // in; the home page and a survey, step by step; no key of the bundle on any of
@@ -57,9 +61,10 @@
 // from the editor's main tab shows the survey as it is written, whatever the
 // page's language; answers sent to an address the survey has left are said to
 // be kept, and offered again at its new address; a database behind the code
-// (four files' rows taken out of its record - the site's 004 and 010, the
-// library's two - and a kit's word put back as it was before 010, reworded by
-// its owner: the one stage that changes the database itself, through sql()):
+// (six files' rows taken out of its record - the site's 004, 011 and 012, the
+// library's three of this release - and a sign-in word put back as it was
+// before 012, reworded by its owner: the one stage that changes the database
+// itself, through sql()):
 // the anotoki family's page - "being
 // updated", with no error and nothing to press but a quiet Sign in, for
 // somebody taking surveys and an EDITOR; no page made behind it, for a
@@ -75,6 +80,10 @@
 // signed in", the admin panel and the preview still sign in, a sign-in moves
 // the visitor's answers and draft into the account (the person's own answers
 // win), and switched on again a visitor is sent to sign in and keeps the key;
+// the ADMIN's System pages (People - the scrub of an account the IAM deleted,
+// a person's answers deleted after its question -, the error log, the audit
+// log, the backups - made after a new sign-in, downloaded by their link,
+// deleted) and an EDITOR kept out of them;
 // and the pages drawn instead of the site - not set up (the setup page offered
 // only to a site never installed), out of reach (the family's page, and the
 // site's own card when only the sign-in cannot be had) - name the tab by the
@@ -84,7 +93,7 @@
 // problem too - "[i18n] no string for ..." is how a missing string shows.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { openPage, openPageInNewContext, sleep, waitFor } from './cdp.mjs';
 
@@ -284,9 +293,32 @@ function sql(statement) {
 
 // ── The language ────────────────────────────────────────────────────────────
 
-/** The words the check clicks and reads in each language - the strings of migration 003. */
-const EN = { code: 'en', signIn: 'Sign in', signOut: 'Sign out', home: 'Have your say' };
-const SK = { code: 'sk', signIn: 'Prihlásiť sa', signOut: 'Odhlásiť sa', home: 'Povedzte nám svoj názor' };
+/**
+ * The words the check clicks and reads in each language - the strings of migration 003; and the screen of a failed
+ * sign-in's (the anotoki library's `anotoki.signIn.*`: its heading and buttons the library's own, why it failed the
+ * site's sentences, which migration 012 moved under the library's keys).
+ */
+const EN = {
+  code: 'en',
+  signIn: 'Sign in',
+  signOut: 'Sign out',
+  home: 'Have your say',
+  failedTitle: 'Signing in did not work',
+  retry: 'Try again',
+  back: 'Back',
+  notCompleted: 'Signing in was not completed. If you did not go back yourself, this account may not be allowed to use the surveys.',
+  storageUnavailable: 'This browser would not let the site remember the sign-in in progress. Allow this site to store data (cookies and site data), then sign in again.',
+};
+const SK = {
+  code: 'sk',
+  signIn: 'Prihlásiť sa',
+  signOut: 'Odhlásiť sa',
+  home: 'Povedzte nám svoj názor',
+  failedTitle: 'Prihlásenie sa nepodarilo',
+  retry: 'Skúsiť znova',
+  back: 'Späť',
+  notCompleted: 'Prihlásenie sa nedokončilo. Ak ste ho nezrušili Vy, tento účet možno nemá k prieskumom prístup.',
+};
 
 const LANGUAGE_KEY = 'anotoki-survey:language';
 const pageLanguage = () => js('document.documentElement.lang');
@@ -445,7 +477,7 @@ const forgetSession = () => js("Object.keys(localStorage).filter((name) => name.
 /**
  * Out through the person's menu. The stand-in IAM's logout comes back to /, which is for somebody signed in: the
  * sign-in follows at once - whoever the stand-in signs in now (`setIam({ user })`), or, with `deny`, nobody (the
- * page then draws its signed-out card). Nothing to do when nobody is signed in.
+ * screen of a failed sign-in then). Nothing to do when nobody is signed in.
  */
 async function signOut(words) {
   await go('/');
@@ -464,8 +496,12 @@ async function signInAs(user, words = EN) {
   await setIam({ user, deny: false });
   await signOut(words);
   if (!(await js(SIGNED_IN))) {
-    // A page drawn without a sign-in (the IAM turned the last one down): its card's Sign in.
-    await clickText('anotoki-empty-state button', words.signIn);
+    // A page drawn without a sign-in: the screen of a sign-in the IAM turned down (its Try again), or a layout's card.
+    if (await js(FAILURE_SCREEN)) {
+      await js("document.querySelector('anotoki-sign-in-failure button[data-retry]').click(); true");
+    } else {
+      await clickText('anotoki-empty-state button', words.signIn);
+    }
     await sleep(1500);
     await settle();
   }
@@ -474,19 +510,50 @@ async function signInAs(user, words = EN) {
   expect(`signed in as ${user.username}`, who === user.username, who);
 }
 
+/** The anotoki family's screen of a sign-in that came back without one, or could not start (<anotoki-sign-in-failure>, on /auth/callback). */
+const FAILURE_SCREEN = "!!document.querySelector('anotoki-sign-in-failure section')";
+/** What that screen says: its heading, why, its buttons, the language it says it is in. */
+const failureScreen = async () => ({
+  heading: await text('anotoki-sign-in-failure h1'),
+  message: await text('anotoki-sign-in-failure [role=alert]'),
+  buttons: await texts('anotoki-sign-in-failure button'),
+  lang: await js("document.querySelector('anotoki-sign-in-failure section')?.getAttribute('lang') ?? null"),
+});
+/** Its Try again: the sign-in once more, back to where it started. */
+async function tryAgain() {
+  await js("document.querySelector('anotoki-sign-in-failure button[data-retry]').click(); true");
+  await sleep(1500);
+  await settle();
+}
+
 /**
- * Nobody signed in, on `path`: the session forgotten and the IAM turning the sign-in down (`deny`), so the page comes
- * back from the IAM without one and draws its card instead of itself. The toast that says so is dismissed.
- * `setIam({ deny: false })` and the card's (or the bar's) Sign in sign in again.
+ * A sign-in the IAM turns down, on `path`: the session forgotten and the stand-in told to `deny`, so the page comes
+ * back from the IAM without one - and instead of the page the anotoki family's screen says why (on /auth/callback),
+ * with Try again and Back. `setIam({ deny: false })` and its Try again sign in again.
  */
-async function signedOutOn(path) {
+async function refusedOn(path) {
   await setIam({ deny: true });
   await forgetSession();
   await go(path);
+  await waitFor(page, FAILURE_SCREEN, 15000);
+  await sleep(500);
+}
+
+/**
+ * Nobody signed in any more, on `path`: signed in there first (whoever the stand-in signs in now), then the session
+ * ends the way another tab ends it - the stored tokens gone, with the storage event the library listens for - so the
+ * page is taken away where it is, with no navigation, and the layout's card stands in its place; the bar offers Sign
+ * in. A page load from here goes to the IAM again (and back at once, unless the stand-in is told to deny).
+ */
+async function sessionEndsOn(path) {
+  await setIam({ deny: false });
+  await go(path);
+  await waitFor(page, SIGNED_IN, 15000);
+  await js(
+    "(() => { for (const key of Object.keys(localStorage).filter((name) => name.startsWith('anotoki-auth:') && !name.includes(':login:'))) { localStorage.removeItem(key); window.dispatchEvent(new StorageEvent('storage', { key })); } return true; })()",
+  );
   await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state, app-admin-layout anotoki-empty-state')", 15000);
   await sleep(500);
-  await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
-  await sleep(300);
 }
 
 // Every account holds MEMBER (the IAM gives it to everyone): an ordinary person is ['MEMBER'].
@@ -545,52 +612,76 @@ expect(
   `${await js('location.pathname')}: ${trip.join(', ')}`,
 );
 
-// The admin area, the sign-in turned down: nobody had a session to end - "You are not signed in", never "Your session has ended".
-await signedOutOn('/admin');
-const refusedCard = await text('app-admin-layout anotoki-empty-state');
+// The admin area, the sign-in turned down: the anotoki family's screen of a failed sign-in (anotoki-lib 0.4.1), on
+// the callback's address - why, in the site's words for the code (never the IAM's sentence), Try again and Back -
+// and nothing of the admin area.
+await refusedOn('/admin');
+let screenSays = await failureScreen();
 expect(
-  'the admin area, the sign-in turned down: "You are not signed in" with its Sign in - not a session that ended',
-  (await text('app-admin-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'You are not signed in' && !refusedCard?.includes('session has ended') && (await text('app-admin-layout anotoki-empty-state button')) === 'Sign in',
-  refusedCard,
+  'the admin area, the sign-in turned down: the screen of a failed sign-in - "Signing in did not work", why, Try again and Back - nothing of the admin area',
+  screenSays.heading === EN.failedTitle &&
+    screenSays.message === EN.notCompleted &&
+    same(screenSays.buttons, [EN.retry, EN.back]) &&
+    screenSays.lang === 'en' &&
+    (await js('location.pathname')) === '/auth/callback' &&
+    !(await js("!!document.querySelector('app-admin-layout, app-surveys-list')")),
+  `${JSON.stringify(screenSays)} at ${await js('location.pathname')}`,
 );
-await screenshots('en-1280-admin-refused', false);
+expect(
+  '... named in the tab, and kept from search engines while it shows',
+  (await js('document.title')) === 'Signing in · anotoki survey' && (await js("document.querySelector('meta[name=robots]')?.content ?? null")) === 'noindex',
+  `${await js('document.title')} / ${await js("document.querySelector('meta[name=robots]')?.content ?? null")}`,
+);
+await expectNoKeys('the screen of a failed sign-in, English');
+await expectNoSideways('the screen of a failed sign-in, 1280 px');
+await screenshots('en-1280-sign-in-failed', false);
+// Back: to where the sign-in started, without signing in - which, for the admin area, is to the IAM again (turned down
+// again here: the same screen); Try again: the sign-in once more - let through now - and back at /admin.
+await js("document.querySelector('anotoki-sign-in-failure button[data-back]').click(); true");
+await sleep(1500);
+await settle();
+await waitFor(page, FAILURE_SCREEN, 15000).catch(() => null);
+expect('its Back: back to /admin, which asks the IAM again - turned down again, the same screen', (await js(FAILURE_SCREEN)) && (await js('location.pathname')) === '/auth/callback', await js('location.pathname'));
+await setIam({ deny: false });
+await tryAgain();
+await waitFor(page, SIGNED_IN + " && location.pathname === '/admin' && !!document.querySelector('app-surveys-list')", 15000).catch(() => null);
+expect('its Try again: the sign-in once more, and back at /admin, signed in', (await js('location.pathname')) === '/admin' && (await whoIsIn()) === 'owner', `${await js('location.pathname')} / ${await whoIsIn()}`);
 
-// Signed out - the IAM turned the sign-in down: the page draws a card with Sign in, and the bar offers it too.
-await signedOutOn('/');
+// Signed out with the page open - the session ended in another tab: the page draws a card with Sign in, and the bar
+// offers it too.
+await sessionEndsOn('/');
 expect('signed out: the card instead of the page - no list of surveys', (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'You are not signed in' && !(await js("!!document.querySelector('app-survey-home')")), await text('app-participant-layout anotoki-empty-state'));
 expect('signed out: a Sign in button in the top bar', (await text('app-top-bar button.anotoki-top-bar__sign-in'))?.includes('Sign in'));
 await expectBar('English, 1280 px, signed out');
 await screenshots('en-1280-signed-out', false);
-await setIam({ deny: false });
 await clickText('app-top-bar button.anotoki-top-bar__sign-in', 'Sign in');
 await sleep(1500);
 await settle();
 await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
 expect('Sign in from the bar: back on the page, signed in', (await whoIsIn()) === 'owner' && (await js('location.pathname')) === '/', await whoIsIn());
 
-// The browser refuses the site its storage, where the SDK keeps the sign-in in progress: the sign-in cannot start.
-// The page goes through to its card, and a toast says why - it was a blank page, nothing said.
+// The browser refuses the site its storage, where the sign-in in progress is kept: the sign-in cannot start. The
+// screen of a failed sign-in says why - it was a blank page, nothing said.
 await forgetSession();
-// AuthService says so in the console (with the SDK's English); that is expected here, and nothing else.
-expected = [/The sign-in could not start\./];
+// The library says so in the console (with the browser's English); that is expected here, and nothing else.
+expected = [/\[anotoki auth\] the sign-in could not start/];
 const { identifier: refuseStorage } = await page.send('Page.addScriptToEvaluateOnNewDocument', {
   source:
     "(() => { const set = Storage.prototype.setItem; Storage.prototype.setItem = function (key, value) { if (String(key).startsWith('anotoki-auth:') && String(key).includes(':login:')) throw new DOMException('Refused', 'SecurityError'); return set.call(this, key, value); }; })()",
 });
 await go('/');
-await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000).catch(() => null);
+await waitFor(page, FAILURE_SCREEN, 15000).catch(() => null);
+screenSays = await failureScreen();
 expect(
-  'storage refused: the card, and a toast that says why - not a blank page',
-  (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'You are not signed in' &&
-    (await texts('.anotoki-toast-host__message')).some((message) => message.startsWith('This browser would not let the site remember the sign-in in progress.')),
-  `${await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')} | ${(await texts('.anotoki-toast-host__message')).join(' | ')}`,
+  'storage refused: the screen of a failed sign-in, saying why in the site\'s words - not a blank page',
+  screenSays.heading === EN.failedTitle && screenSays.message === EN.storageUnavailable && same(screenSays.buttons, [EN.retry, EN.back]),
+  JSON.stringify(screenSays),
 );
 await screenshot('en-1280-storage-refused', false);
 await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: refuseStorage });
-expect('storage refused: the console said only that the sign-in could not start', heard.length > 0 && heard.every((message) => message.includes('The sign-in could not start.')), heard.join(' | ').slice(0, 300));
+expect('storage refused: the console said only that the sign-in could not start', heard.length > 0 && heard.every((message) => message.includes('the sign-in could not start')), heard.join(' | ').slice(0, 300));
 expected = [];
 heard.length = 0;
-await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
 
 // /admin, nobody signed in: through the IAM and back at /admin.
 await forgetSession();
@@ -601,7 +692,7 @@ expect('/admin while signed out: signed in through the IAM and back at /admin', 
 expect('the owner is signed in', (await whoIsIn()) === 'owner');
 expect('the admin area shows the surveys (no survey yet)', (await text('app-surveys-list'))?.includes('No surveys yet'), (await text('app-surveys-list'))?.slice(0, 120));
 expect('no language chooser in the admin area', !(await js("!!document.querySelector('anotoki-language-switcher')")));
-expect('the admin area\'s bar: its sections as links - Migrations too, for an ADMIN - Surveys the page', same(await barRow(), ['anotoki-brand', 'links: Surveys (page) Translations Languages Migrations', 'anotoki-theme-toggle', 'person']), JSON.stringify(await barRow()));
+expect('the admin area\'s bar: its sections as links - System too, for an ADMIN - Surveys the page', same(await barRow(), ['anotoki-brand', 'links: Surveys (page) Translations Languages System', 'anotoki-theme-toggle', 'person']), JSON.stringify(await barRow()));
 expect(
   'the admin panel\'s brand: "anotoki survey · admin panel", linking to /admin and named after what it shows',
   same(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span'), ['anotoki', 'survey', '·', 'admin panel']) && (await js("document.querySelector('app-top-bar anotoki-brand a').getAttribute('href')")) === '/admin' && (await js("document.querySelector('app-top-bar anotoki-brand a').getAttribute('aria-label')")) === 'anotoki survey admin panel: all surveys',
@@ -779,7 +870,7 @@ await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list .survey')", 15000);
 expect('an editor sees the surveys', (await text('app-surveys-list .title')) === 'Genshin 6.1 - what next?');
 expect('but no Delete button', !(await js("!![...document.querySelectorAll('app-surveys-list button')].find(b => b.getAttribute('aria-label') === 'Delete')")));
-expect('nor Migrations in the bar: applying the database\'s updates is an ADMIN\'s', (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' ') === 'Surveys Translations Languages', (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' '));
+expect('nor System in the bar: the people, the logs, the backups and the database\'s updates are an ADMIN\'s', (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' ') === 'Surveys Translations Languages', (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' '));
 await go('/admin/migrations');
 await waitFor(page, "!!document.querySelector('anotoki-migrations-page')", 15000);
 await sleep(500);
@@ -866,7 +957,7 @@ expect('a link of the phone menu goes there and closes the menu', (await js('loc
 
 // Signed out on a phone: the card, and Sign in inside the menu.
 await viewport(360);
-await signedOutOn('/');
+await sessionEndsOn('/');
 expect('English, 360 px, signed out: the card with its Sign in', (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'You are not signed in' && (await text('app-participant-layout anotoki-empty-state button')) === 'Sign in', await text('app-participant-layout anotoki-empty-state'));
 await expectBar('English, 360 px, signed out');
 await expectNoKeys('English, signed out');
@@ -875,38 +966,62 @@ await openUserMenu();
 expect('360 px, signed out: the phone menu holds the links and Sign in', same(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]'), ['Surveys', 'Sign in']), JSON.stringify(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]')));
 await screenshots('en-360-phone-menu-signed-out', false);
 await escape();
+
+// A sign-in turned down, on a phone: the same screen, in the window's width.
+await viewport(390);
+await refusedOn('/');
+screenSays = await failureScreen();
+expect('English, 390 px, a sign-in turned down: the screen of a failed sign-in, whole in the window', screenSays.heading === EN.failedTitle && same(screenSays.buttons, [EN.retry, EN.back]), JSON.stringify(screenSays));
+await expectNoSideways('the screen of a failed sign-in, 390 px');
+await screenshots('en-390-sign-in-failed', false);
 await setIam({ deny: false });
+await tryAgain();
+await waitFor(page, SIGNED_IN, 15000);
+await viewport(360);
 
 // ═══ In Slovak ═════════════════════════════════════════════════════════════
 // A browser set to Slovak, on its first visit: nobody signed in (the IAM turns the sign-in down), nothing stored,
 // no ?lang= - the language is the browser's, which says "sk-SK". The server answers a code with a region by its
 // base language, so each page load (the one before the IAM, the one after) asks once, for that - never English
 // first and then Slovak.
-await signedOutOn('/');
+await setIam({ deny: true });
+await forgetSession();
 await js('localStorage.clear(); sessionStorage.clear(); true');
 const browsersOwn = await js("navigator.languages.join(',')");
 await browserLanguage('sk-SK');
 const firstVisit = requested.length;
 await go('/');
-await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
+await waitFor(page, FAILURE_SCREEN, 15000);
 await sleep(1200);
 const asked = requested.slice(firstVisit).filter((request) => request.includes('/api/translations/'));
+screenSays = await failureScreen();
 expect(
-  'a browser set to Slovak, first visit: the site is Slovak, from the browser alone - nothing chosen, nothing in the address',
-  (await js("navigator.languages.join(',')")) === 'sk-SK' && (await pageLanguage()) === 'sk' && (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'Nie ste prihlásení' && (await storedLanguage()) === ' / ',
-  `${await js("navigator.languages.join(',')")}: ${await pageLanguage()}, ${await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')}, ${await storedLanguage()}`,
+  'a browser set to Slovak, first visit, the sign-in turned down: the screen of a failed sign-in in Slovak, from the browser alone - nothing chosen, nothing in the address - in this site\'s formal words',
+  (await js("navigator.languages.join(',')")) === 'sk-SK' &&
+    (await pageLanguage()) === 'sk' &&
+    screenSays.lang === 'sk' &&
+    screenSays.heading === SK.failedTitle &&
+    screenSays.message === SK.notCompleted &&
+    same(screenSays.buttons, [SK.retry, SK.back]) &&
+    (await storedLanguage()) === ' / ',
+  `${await js("navigator.languages.join(',')")}: ${await pageLanguage()}, ${JSON.stringify(screenSays)}, ${await storedLanguage()}`,
 );
 expect('... and its strings were asked for in Slovak alone, once a page load (after the IAM, the cached Slovak again)', asked[0] === 'GET /api/translations/sk-sk' && asked.length <= 2 && asked.every((request) => ['GET /api/translations/sk-sk', 'GET /api/translations/sk'].includes(request)), asked.join(', '));
-await expectNoKeys('Slovak by the browser, signed out');
+expect('... and the tab is named in Slovak', (await js('document.title')) === 'Prihlasovanie · anotoki prieskum', await js('document.title'));
+await expectNoKeys('Slovak by the browser, the sign-in turned down');
+await screenshots('sk-360-sign-in-failed', false);
 await browserLanguage(browsersOwn);
 
-// Nobody signed in, nothing stored: a link with ?lang=sk, on the narrowest phone.
+// Nobody signed in, nothing stored: a link with ?lang=sk, on the narrowest phone - turned down again.
 await js('localStorage.clear(); sessionStorage.clear(); true');
 await go('/?lang=sk');
-await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
-await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
+await waitFor(page, FAILURE_SCREEN, 15000);
 await sleep(300);
+screenSays = await failureScreen();
 expect('?lang=sk: <html lang="sk">, kept for this tab only - through the IAM and back - and taken out of the address', (await pageLanguage()) === 'sk' && (await storedLanguage()) === ' / sk' && (await js('location.search')) === '', `${await pageLanguage()}, ${await storedLanguage()}, ${await js('location.search')}`);
+expect('Slovak, turned down: the screen of a failed sign-in, its buttons Skúsiť znova and Späť', screenSays.heading === SK.failedTitle && same(screenSays.buttons, [SK.retry, SK.back]), JSON.stringify(screenSays));
+// Signed in, and the session ended over the page: the card, and the bar with Sign in - in Slovak, for the tab.
+await sessionEndsOn('/');
 expect('Slovak, signed out: the card, its button says Prihlásiť sa', (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'Nie ste prihlásení' && (await text('app-participant-layout anotoki-empty-state button')) === SK.signIn, await text('app-participant-layout anotoki-empty-state'));
 expect('Slovak: the chooser says SK and is named in Slovak with the code it shows', (await text('anotoki-language-switcher .anotoki-language-switcher__switcher')) === 'SK' && (await js("document.querySelector('anotoki-language-switcher .anotoki-language-switcher__switcher').getAttribute('aria-label')")) === 'Jazyk: Slovenčina (SK)', await js("document.querySelector('anotoki-language-switcher .anotoki-language-switcher__switcher')?.getAttribute('aria-label')"));
 expect('Slovak: the tab', (await js('document.title')) === 'Prieskumy · anotoki prieskum', await js('document.title'));
@@ -916,10 +1031,7 @@ await expectNoKeys('Slovak, signed out');
 // The detector itself: a key put on the page is found (so "none" above means none).
 await js("document.querySelector('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading').append(document.createTextNode(' home.title')); true");
 expect('a key on the page would have been seen', (await keysShown()).includes('home.title'));
-await go('/');
-await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
-await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
-await sleep(300);
+await sessionEndsOn('/');
 await screenshots('sk-360-home-signed-out');
 await openUserMenu();
 expect('Slovak, 360 px, signed out: the phone menu - Prieskumy, Prihlásiť sa', same(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]'), ['Prieskumy', SK.signIn]), JSON.stringify(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]')));
@@ -940,9 +1052,7 @@ expect('Escape closes the chooser', !(await js("!!document.querySelector('anotok
 // The bar on a phone up to 760 px, a desktop's from 761: the links and Sign in in the row again.
 for (const width of [390, 760, 761]) {
   await viewport(width);
-  await go('/');
-  await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
-  await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
+  await sessionEndsOn('/');
   await expectBar(`Slovak, ${width} px, signed out`);
   const row = await barRow();
   const phone = width <= 760;
@@ -958,29 +1068,25 @@ for (const width of [390, 760, 761]) {
   }
 }
 
-// A survey, signed out: the card where the survey would be - nothing of it drawn, nor asked for.
+// A survey, nobody signed in, the sign-in turned down: the screen of a failed sign-in - nothing of the survey drawn,
+// nor asked for.
 await viewport(360);
 since = requested.length;
-await go(`/${slug}`);
-await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
-await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
-await sleep(300);
+await refusedOn(`/${slug}`);
 expect(
-  'Slovak, a survey signed out: the card, nothing of the survey on the page or asked of the API',
-  (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'Nie ste prihlásení' && !(await js("!!document.querySelector('app-take-survey')")) && !(await js('document.body.textContent')).includes('Genshin') && !requested.slice(since).some((request) => request.startsWith('GET /api/surveys')),
+  'Slovak, a survey, the sign-in turned down: the screen of a failed sign-in, nothing of the survey on the page or asked of the API',
+  (await text('anotoki-sign-in-failure h1')) === SK.failedTitle && !(await js("!!document.querySelector('app-take-survey')")) && !(await js('document.body.textContent')).includes('Genshin') && !requested.slice(since).some((request) => request.startsWith('GET /api/surveys')),
   requested.slice(since).join(', '),
 );
-await expectNoKeys('Slovak, a survey signed out');
-await screenshots('sk-360-survey-signed-out');
+await expectNoKeys('Slovak, a survey, the sign-in turned down');
+await screenshots('sk-360-survey-sign-in-failed', false);
 
 // Signed in - the account is English, the link followed was Slovak: the tab stays Slovak through the IAM and back,
-// and the card's Sign in comes back to the survey.
+// and the screen's Try again comes back to the survey.
 await setIam({ user: NINA, deny: false });
-await clickText('app-participant-layout anotoki-empty-state button', SK.signIn);
-await sleep(1500);
-await settle();
+await tryAgain();
 await waitFor(page, SIGNED_IN + " && !!document.querySelector('.start button')", 15000);
-expect('signed in from the card: back on the survey\'s page, its welcome drawn', (await js('location.pathname')) === `/${slug}` && (await whoIsIn()) === NINA.username, `${await js('location.pathname')} / ${await whoIsIn()}`);
+expect('signed in from its Try again: back on the survey\'s page, its welcome drawn', (await js('location.pathname')) === `/${slug}` && (await whoIsIn()) === NINA.username, `${await js('location.pathname')} / ${await whoIsIn()}`);
 await go('/');
 expect('Slovak still, back from the IAM', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === SK.home, `${await pageLanguage()}, ${await text('app-survey-home h1')}`);
 expect('Slovak: the open survey with its size in Slovak', /^\d+ otáz(ka|ky|ok) · približne \d+ minút/.test((await text('app-survey-home .survey-meta')) ?? ''), await text('app-survey-home .survey-meta'));
@@ -1107,17 +1213,15 @@ await screenshots('sk-390-admin');
 
 // ── The language of the account, when nothing is stored here ────────────────
 await viewport(360);
-await setIam({ user: ZUZANA });
-await signedOutOn('/');
+await setIam({ user: ZUZANA, deny: true });
+await forgetSession();
 await js('localStorage.clear(); sessionStorage.clear(); true');
 await go('/');
-await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
-await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
-expect('nothing stored, nobody signed in: the browser\'s language, English', (await pageLanguage()) === 'en' && (await text('app-participant-layout anotoki-empty-state button')) === 'Sign in', `${await pageLanguage()}, ${await text('app-participant-layout anotoki-empty-state button')}, ${await js('navigator.languages.join()')}`);
+await waitFor(page, FAILURE_SCREEN, 15000);
+screenSays = await failureScreen();
+expect('nothing stored, nobody signed in (turned down): the browser\'s language, English', (await pageLanguage()) === 'en' && screenSays.lang === 'en' && same(screenSays.buttons, [EN.retry, EN.back]), `${await pageLanguage()}, ${JSON.stringify(screenSays)}, ${await js('navigator.languages.join()')}`);
 await setIam({ deny: false });
-await clickText('app-participant-layout anotoki-empty-state button', 'Sign in');
-await sleep(1500);
-await settle();
+await tryAgain();
 await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
 expect('a token that says locale sk: Slovak', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === SK.home, `${await pageLanguage()}, ${await text('app-survey-home h1')}`);
 expect('used, not stored', (await storedLanguage()) === ' / ', await storedLanguage());
@@ -1221,7 +1325,7 @@ expect('Translations: a changed box is marked, and the bar counts it', (await ch
 await clickText('anotoki-translations-page [data-save]', 'Save');
 await waitFor(page, `!!document.querySelector(${JSON.stringify(`${row('home.title')} .anotoki-translations-admin__field-error`)})`, 15000);
 const refusal = await refusalBeside('home.title');
-expect('Translations: a placeholder the English string does not have is refused, beside its key', refusal === 'Nothing was saved. The Slovak string of "home.title" uses {nope}, which its English string does not have', refusal);
+expect('Translations: a placeholder the English string does not have is refused, beside its key', refusal === 'Nothing was saved. The Slovak string of "home.title" uses {nope}, which its English string does not have.', refusal);
 expect('... its box is marked wrong, and the bar says where to look', (await js(`document.querySelector(${JSON.stringify(box('home.title', 'sk'))}).getAttribute('aria-invalid')`)) === 'true' && (await saveState()) === 'Nothing was saved: see home.title', await saveState());
 await sleep(400);
 await screenshots('admin-translations-1280-refused', false);
@@ -1351,9 +1455,9 @@ await waitFor(page, "location.pathname === '/admin/translations'", 10000).catch(
 await sleep(400);
 expect('... and Back comes back to the Translations page, the card still there', (await js('location.pathname')) === '/admin/translations' && (await signedOutCard())?.includes('You are signed out'), `${await js('location.pathname')} / ${await signedOutCard()}`);
 await setIam({ refuse: false });
-// Signed in again: to the IAM and back is a page load, to the address the page was on. The browser asks "Leave
-// site?" on the way: the family's drafts ask whenever boxes wait, signed in or not (anotoki-lib 0.3.0 - the site's
-// own drafts asked nothing while nobody was signed in). Answered "Leave", they are kept all the same.
+// Signed in again: to the IAM and back is a page load, to the address the page was on. The browser asks nothing
+// on the way: nobody is signed in, and the family's drafts wait in the tab for the same person (anotoki-lib 0.4.0 -
+// 0.3.0 asked "Leave site?" here, whenever boxes waited).
 const askedBeforeSignIn = leaving.length;
 await clickText('app-top-bar button', 'Sign in');
 await sleep(1500);
@@ -1361,8 +1465,8 @@ await settle();
 await waitFor(page, `location.pathname === '/admin/translations' && ${GRID_DRAWN}`, 15000);
 await sleep(400);
 expect(
-  'on the way to the sign-in the browser asked "Leave site?" once - the family\'s drafts ask whenever boxes wait',
-  leaving.length === askedBeforeSignIn + 1,
+  'on the way to the sign-in the browser asked nothing - nobody is signed in, the drafts wait in the tab for the same person',
+  leaving.length === askedBeforeSignIn,
   `asked ${leaving.length - askedBeforeSignIn} time(s)`,
 );
 expect(
@@ -2236,35 +2340,37 @@ await expectBar('the editor, an open survey past its last day, 390 px');
 await screenshots('editor-past-last-day-390');
 
 // ═══ A database behind the code: the family's page, and the Migrations page ═══
-// A release that brings migrations nobody has applied yet - this one's: the database's record says the site's 004
-// and 010 have not run, nor the anotoki library's own set (anotoki_translations, which runs after the site's), their
-// rows taken out of `migrations`. 004 cannot run again - its column is there - so the first Apply stops on it. And
-// one of the kit's words is as it was before 010: under the site's own key (topbar.roleAdmin), and reworded by the
-// site's owner - which 010 moves under the library's key (anotoki.topbar.roleAdmin). While the update waits the bar
-// says the library's own word; the Apply brings the owner's back, and the strings are read again.
+// A release that brings migrations nobody has applied yet - this one's (anotoki-lib 0.4.1): the database's record
+// says the site's 011 and 012 have not run, nor the anotoki library's files of it (anotoki_translations' 003 and 004,
+// anotoki_people's 001, which run after the site's), and neither has the site's old 004 - their rows taken out of
+// `migrations`. 004 cannot run again - its column is there - so the first Apply stops on it (each of the others can
+// run again, as on an installed site where it never ran). And one of the sign-in's words is as it was before 012:
+// under the site's own key (signIn.notCompleted), reworded by the site's owner - which 012 moves under the library's
+// key (anotoki.signIn.notCompleted). The Apply brings it there, and the screen of a failed sign-in says it.
 // The backend's gate (the anotoki family's, @anotoki/lib) answers 503 update_pending to everything but signing in,
-// the strings, the health check and the Migrations page's routes. What people see is the family's page: nobody
-// signed in and signed-in people "The site is being updated" in their language - no error, no code, nothing to
-// press but a quiet Sign in while nobody is signed in, and nobody sent to the IAM; that Sign in goes through the
-// IAM and back to the same address; an EDITOR gets the same; the site's ADMIN "A database update is waiting" and
-// the way to the Migrations page, which works - signed out at its address, Sign in comes back to it - an Apply that
-// stops at a failing file with the database's whole error, then one that brings the site back where it stands,
-// its strings read again.
+// the strings, the health check, the Migrations page's routes and the error log's and backups' (an ADMIN's). What
+// people see is the family's page: nobody signed in and signed-in people "The site is being updated" in their
+// language - no error, no code, nothing to press but a quiet Sign in while nobody is signed in, and nobody sent to
+// the IAM; that Sign in goes through the IAM and back to the same address; an EDITOR gets the same; the site's ADMIN
+// "A database update is waiting" and the way to the Migrations page, which works - signed out at its address, Sign in
+// comes back to it - an Apply that stops at a failing file with the database's whole error (a backup of the database
+// made first), then one that brings the site back where it stands, its strings read again.
 const FILE_004 = '004_response_language.sql';
-const FILE_010 = '010_strings_through_the_library.sql';
-/** The library's set, as the record names its files (the set, then the file). */
-const LIBRARY_FILES = ['anotoki_translations/001_languages_and_strings.sql', 'anotoki_translations/002_library_words.sql'];
-/** How the owner had reworded the role an ADMIN has, before 010. */
-const OWNERS_ROLE = 'Administrator of the surveys';
-sql(`DELETE FROM migrations WHERE filename IN ('${[FILE_004, FILE_010, ...LIBRARY_FILES].join("', '")}')`);
-sql("DELETE FROM translation_keys WHERE name = 'anotoki.topbar.roleAdmin'");
-sql("INSERT INTO translation_keys (name, description) VALUES ('topbar.roleAdmin', 'The role of an ADMIN, in the person''s menu.')");
-sql(`INSERT INTO translations (key_name, language_code, value) VALUES ('topbar.roleAdmin', 'en', '${OWNERS_ROLE}'), ('topbar.roleAdmin', 'sk', 'Rola: administrátor')`);
+const FILE_011 = '011_people.sql';
+const FILE_012 = '012_sign_in_words.sql';
+/** The library's files of this release, as the record names them (the set, then the file). */
+const LIBRARY_FILES = ['anotoki_translations/003_sign_in_words.sql', 'anotoki_translations/004_feedback_words.sql', 'anotoki_people/001_people.sql'];
+/** How the owner had reworded a sign-in that was not completed, before 012. */
+const OWNERS_NOT_COMPLETED = 'Signing in did not finish. Try once more - or ask whoever sent you the survey.';
+sql(`DELETE FROM migrations WHERE filename IN ('${[FILE_004, FILE_011, FILE_012, ...LIBRARY_FILES].join("', '")}')`);
+sql("DELETE FROM translation_keys WHERE name = 'anotoki.signIn.notCompleted'");
+sql("INSERT INTO translation_keys (name, description) VALUES ('signIn.notCompleted', 'Toast after a sign-in that came back as access_denied.')");
+sql(`INSERT INTO translations (key_name, language_code, value) VALUES ('signIn.notCompleted', 'en', '${OWNERS_NOT_COMPLETED}'), ('signIn.notCompleted', 'sk', '${SK.notCompleted}')`);
 const behindStrings = await (await fetch(`${origin}/api/translations/en`)).json();
 expect(
-  "an update waiting: the strings answer all the same - the role under the site's old key, as its owner worded it, and not yet under the library's",
-  behindStrings.values?.['topbar.roleAdmin'] === OWNERS_ROLE && !('anotoki.topbar.roleAdmin' in (behindStrings.values ?? {})),
-  JSON.stringify(behindStrings.values?.['topbar.roleAdmin'] ?? null),
+  "an update waiting: the strings answer all the same - the sign-in's word under the site's old key, as its owner worded it, and not yet under the library's",
+  behindStrings.values?.['signIn.notCompleted'] === OWNERS_NOT_COMPLETED && !('anotoki.signIn.notCompleted' in (behindStrings.values ?? {})),
+  JSON.stringify(behindStrings.values?.['signIn.notCompleted'] ?? null),
 );
 const behindResponse = await fetch(`${origin}/api/surveys`);
 const behindAnswer = await behindResponse.json();
@@ -2398,39 +2504,26 @@ await screenshot('en-1280-behind-editor');
 const ownerFrom = requested.length;
 const ownerTrips = await signedOutBehind('/admin/migrations');
 const ownerPressed = await signInThere(OWNER, 'Sign in');
-/** The Migrations page lists the four files pending. */
-const FOUR_PENDING = "location.pathname === '/admin/migrations' && document.querySelectorAll('anotoki-migrations-page [data-pending] li').length === 4";
-await waitFor(page, FOUR_PENDING, 15000);
+/** How many files wait: the site's three, the library's three. */
+const PENDING_COUNT = 3 + LIBRARY_FILES.length;
+/** The Migrations page lists the files pending. */
+const ALL_PENDING = `location.pathname === '/admin/migrations' && document.querySelectorAll('anotoki-migrations-page [data-pending] li').length === ${PENDING_COUNT}`;
+await waitFor(page, ALL_PENDING, 15000);
 await sleep(600);
 /** The Pending card's rows, each as its children's words with a space between ("004_….sql pending"). */
 const pendingRows = async () =>
   (await js("[...document.querySelectorAll('anotoki-migrations-page [data-pending] li')].map((row) => [...row.children].map((child) => child.textContent.trim()).join(' '))")).join(' | ');
-const PENDING = `${FILE_004} pending | ${FILE_010} pending | ${LIBRARY_FILES.map((file) => `${file.split('/')[1]} pending`).join(' | ')}`;
-/** The sets the Pending card names: the site's own, then the library's. */
-const pendingSets = async () => (await texts('anotoki-migrations-page [data-pending] .anotoki-migrations-page__set')).join(' | ');
+// One list in the order the files run (anotoki-lib 0.4.0): the site's own by their names alone, the library's with their set.
+const PENDING = [FILE_004, FILE_011, FILE_012, ...LIBRARY_FILES].map((file) => `${file} pending`).join(' | ');
 const barLinks = async () => (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' ');
-/** The role the person's menu says - on a desktop, the person's own button. */
-const roleInMenu = async () => {
-  await openUserMenu();
-  const role = await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu .anotoki-top-bar__menu-role');
-  await escape();
-  return role;
-};
 expect(
-  'a signed-out ADMIN: Sign in on the family\'s page, and back at the address - the Migrations page, the four files pending in the order they will run, the site\'s set before the library\'s, and in the bar the one page that works',
+  'a signed-out ADMIN: Sign in on the family\'s page, and back at the address - the Migrations page, the files pending in the order they will run, the site\'s before the library\'s, and in the bar the one page that works',
   ownerTrips === 0 &&
     ownerPressed === true &&
     (await pendingRows()) === PENDING &&
-    (await pendingSets()) === 'migrations/survey/ | migrations/anotoki_translations/' &&
     (await barLinks()) === 'Migrations' &&
     (await js('document.title')).startsWith('Migrations · '),
-  `${ownerTrips} / ${await pendingRows()} / ${await pendingSets()} / bar: ${await barLinks()} / ${await js('document.title')}`,
-);
-const roleWhileBehind = await roleInMenu();
-expect(
-  "... and while 010 waits the bar says the library's own word for the role: the owner's is under the site's old key, which nothing reads now",
-  roleWhileBehind === 'Administrator',
-  roleWhileBehind,
+  `${ownerTrips} / ${await pendingRows()} / bar: ${await barLinks()} / ${await js('document.title')}`,
 );
 await screenshot('admin-migrations-behind-1280', true);
 
@@ -2463,7 +2556,7 @@ expect(
   askedBehind(ownerFrom, ['GET /api/admin/migrations']).join(', '),
 );
 expect('"Open Migrations"', (await clickText('anotoki-site-status a', 'Open Migrations')) === true);
-await waitFor(page, FOUR_PENDING, 15000);
+await waitFor(page, ALL_PENDING, 15000);
 await sleep(600);
 
 /** "Apply pending", and Apply in the question it asks: what the question said. Then the answer, `heading` in it. */
@@ -2480,15 +2573,17 @@ async function applyPending(heading) {
 const applyAsked = await applyPending('Stopped at');
 const failedWords = await text('anotoki-migrations-page [data-result]');
 const failedError = await js("document.querySelector('anotoki-migrations-page [data-result] pre')?.textContent ?? ''");
+const backupNote = () => text('anotoki-migrations-page [data-result] .anotoki-migrations-page__result-note');
 expect(
   "a failed Apply: where it stopped, nothing applied first, the file rolled back whole - and the database's whole error",
-  applyAsked === 'Apply 4 pending migrations?' &&
-    (await text('anotoki-migrations-page [data-result] .anotoki-alert__heading')) === `Stopped at survey/${FILE_004}` &&
+  applyAsked === `Apply ${PENDING_COUNT} pending migrations?` &&
+    (await text('anotoki-migrations-page [data-result] .anotoki-alert__heading')) === `Stopped at ${FILE_004}` &&
     failedWords.includes('Nothing was applied. The failed file was rolled back as a whole.') &&
     /^statement 1 of 1: SQLSTATE\[42701\]: .*column "language" of relation "responses" already exists\n\n {2}ALTER TABLE responses/s.test(failedError),
   `${applyAsked} / ${failedWords.slice(0, 120)} / ${failedError.slice(0, 160)}`,
 );
-expect('... and the database is still behind: all four still pending, the bar the same', (await pendingRows()) === PENDING && (await barLinks()) === 'Migrations', `${await pendingRows()} / ${await barLinks()}`);
+expect('... with a backup of the database made before anything ran (the library\'s backups, before every update)', /backup/i.test((await backupNote()) ?? ''), await backupNote());
+expect('... and the database is still behind: everything still pending, the bar the same', (await pendingRows()) === PENDING && (await barLinks()) === 'Migrations', `${await pendingRows()} / ${await barLinks()}`);
 await screenshot('admin-migrations-failed-1280', true);
 await viewport(390);
 await sleep(400);
@@ -2502,19 +2597,18 @@ await applyPending('Up to date');
 await waitFor(page, "document.querySelectorAll('app-top-bar .anotoki-top-bar__nav a').length === 4", 15000);
 await sleep(500);
 expect(
-  'a good Apply: "Up to date", what was applied - the site\'s file, then the library\'s - nothing pending, and the site runs where it stands, every section in the bar',
+  'a good Apply: "Up to date", what was applied - the site\'s files, then the library\'s - nothing pending, and the site runs where it stands, every section in the bar',
   (await text('anotoki-migrations-page [data-result] .anotoki-alert__heading')) === 'Up to date' &&
-    (await text('anotoki-migrations-page [data-result] .anotoki-migrations-page__result-text')) === `Applied: survey/${FILE_010}, ${LIBRARY_FILES.join(', ')}.` &&
+    (await text('anotoki-migrations-page [data-result] .anotoki-migrations-page__result-text')) === `Applied: ${FILE_011}, ${FILE_012}, ${LIBRARY_FILES.join(', ')}.` &&
     (await text('anotoki-migrations-page [data-pending]')).includes('Nothing pending') &&
-    (await barLinks()) === 'Surveys Translations Languages Migrations',
+    (await barLinks()) === 'Surveys Translations Languages System',
   `${await text('anotoki-migrations-page [data-result]')} / ${await barLinks()}`,
 );
-const roleAfterApply = await roleInMenu();
 const afterStrings = await (await fetch(`${origin}/api/translations/en`)).json();
 expect(
-  "... and its strings read again: the owner's rewording of the kit's word survived the release - under the library's key now, and the bar says it",
-  roleAfterApply === OWNERS_ROLE && afterStrings.values?.['anotoki.topbar.roleAdmin'] === OWNERS_ROLE && !('topbar.roleAdmin' in (afterStrings.values ?? {})),
-  `${roleAfterApply} / ${JSON.stringify(afterStrings.values?.['anotoki.topbar.roleAdmin'] ?? null)}`,
+  "... and the owner's rewording of the sign-in's word survived the release - under the library's key now, the site's key gone",
+  afterStrings.values?.['anotoki.signIn.notCompleted'] === OWNERS_NOT_COMPLETED && !('signIn.notCompleted' in (afterStrings.values ?? {})),
+  JSON.stringify(afterStrings.values?.['anotoki.signIn.notCompleted'] ?? null),
 );
 await expectNoKeys('the Migrations page, up to date');
 await screenshot('admin-migrations-up-to-date-1280', true);
@@ -2527,6 +2621,14 @@ await clickText('app-top-bar .anotoki-top-bar__nav a', 'Surveys');
 await waitFor(page, "location.pathname === '/admin' && !!document.querySelector('app-surveys-list')", 15000);
 await sleep(500);
 expect('the rest of the admin panel works again, with no reload', !(await js("!!document.querySelector('anotoki-site-status')")), await js('location.pathname'));
+// And a sign-in turned down now says the owner's words: 012 moved them under the library's key, which the screen of a
+// failed sign-in reads.
+await refusedOn('/admin');
+screenSays = await failureScreen();
+expect("a sign-in turned down, after the update: the screen says the owner's words, which 012 moved", screenSays.heading === EN.failedTitle && screenSays.message === OWNERS_NOT_COMPLETED, JSON.stringify(screenSays));
+await setIam({ user: OWNER, deny: false });
+await tryAgain();
+await waitFor(page, SIGNED_IN + " && location.pathname === '/admin'", 15000);
 
 // ═══ Visitors: the IAM's "Sign-in required" switched off ══════════════════
 // The IAM says sign-in is not required for the site (the stand-in's `login_required`), and the site's backend is
@@ -2599,7 +2701,7 @@ const visitAnswer = { aboutYou: null, answers: { vq: { optionIds: ['g'], other: 
 expect('the owner answers "Visit two" as themselves', (await asOwner('POST', '/api/surveys/visit-two/responses', visitAnswer)).status === 201);
 expect('switched off in the IAM', await signInRequired(false));
 const relayed = await (await fetch(`${origin}/api/auth/config`)).json();
-expect('the site relays it: sign-in not required, a visitor kept 30 days', relayed.loginRequired === false && relayed.visitorDays === 30, JSON.stringify(relayed));
+expect('the site relays it: sign-in not required, a visitor kept 30 days', relayed.login_required === false && relayed.visitor_days === 30, JSON.stringify(relayed));
 
 // A second browser, nothing stored: no trip to the IAM, the open surveys, all new; its answers make a visitor.
 const other = await openPageInNewContext(Number(port));
@@ -2640,12 +2742,14 @@ expect('the second browser\'s answers are kept, and made it a visitor: its key i
 const visitOneAnswers = async () => (await (await asOwner('GET', `/api/admin/surveys/${visitIds['visit-one']}/responses`)).json()).responses ?? [];
 const theVisitor = (await visitOneAnswers()).find((response) => response.person.visitor);
 const visitorName = theVisitor ? `Visitor ${-Number(theVisitor.person.id)}` : '(none)';
-expect('the results: the visitor\'s person is a negative id, "Visitor N", no address', !!theVisitor && Number(theVisitor.person.id) < 0 && theVisitor.person.name === visitorName && theVisitor.person.email === '', JSON.stringify(theVisitor?.person));
+expect('the results: the visitor\'s person is a negative id, "Visitor N" - and nobody has an address here', !!theVisitor && Number(theVisitor.person.id) < 0 && theVisitor.person.name === visitorName && !('email' in theVisitor.person), JSON.stringify(theVisitor?.person));
 await viewport(1280);
 await go(`/admin/surveys/${visitIds['visit-one']}/results?tab=people`);
 await waitFor(page, "!!document.querySelector('#results-panel-people tbody .who-name')", 15000);
-const peopleRows = () => js("[...document.querySelectorAll('#results-panel-people tbody tr')].map((row) => row.querySelector('.who-name')?.textContent.trim() + ' / ' + row.querySelector('.who-email')?.textContent.trim())");
-expect('the results\' people: the visitor by name, "Not signed in" where an address would be', same(await peopleRows(), [`${visitorName} / Not signed in`]), JSON.stringify(await peopleRows()));
+/** The results' people: a name, and what is said under it (a visitor's "Not signed in"; nothing for a person). */
+const peopleRows = () =>
+  js("[...document.querySelectorAll('#results-panel-people tbody tr')].map((row) => row.querySelector('.who-name')?.textContent.trim() + (row.querySelector('.who-email') ? ' / ' + row.querySelector('.who-email').textContent.trim() : ''))");
+expect('the results\' people: the visitor by name, "Not signed in" under it', same(await peopleRows(), [`${visitorName} / Not signed in`]), JSON.stringify(await peopleRows()));
 await screenshot('admin-results-visitor-1280', true);
 await clickText('#results-panel-people .person', visitorName);
 await waitFor(page, "!!document.querySelector('anotoki-drawer .anotoki-drawer__subtitle')", 15000);
@@ -2690,17 +2794,21 @@ await go('/');
 await waitFor(page, "!!document.querySelector('app-survey-home a.survey[href=\"/visit-three\"]')", 15000);
 expect('home, after a page load: taken, taken, started - the visitor\'s, kept in this browser', (await visitStates()) === 'Taken, Taken, Started', await visitStates());
 
-// The admin panel and the preview still sign in: the IAM turns the sign-in down here, and their cards are drawn.
+// The admin panel and the preview still sign in: the IAM turns the sign-in down here, and the screen of a failed
+// sign-in says so - nothing of either drawn. (The visitor's key stays where it is.)
 await setIam({ deny: true });
 await go('/admin');
-await waitFor(page, "location.origin === " + JSON.stringify(origin) + " && !!document.querySelector('app-admin-layout anotoki-empty-state')", 20000);
-expect('switched off all the same, /admin goes to the IAM: refused, its card - nothing of the admin panel', /not signed in/i.test(await text('app-admin-layout anotoki-empty-state')) && !(await js("!!document.querySelector('app-surveys-list')")), await text('app-admin-layout anotoki-empty-state'));
-expect('... and the refusal is said', (await toasts()).some((toast) => /not completed/i.test(toast)), JSON.stringify(await toasts()));
-await dismissToasts();
+await waitFor(page, "location.origin === " + JSON.stringify(origin) + ' && ' + FAILURE_SCREEN, 20000);
+screenSays = await failureScreen();
+expect(
+  'switched off all the same, /admin goes to the IAM: turned down, the screen of a failed sign-in, why in the owner\'s words - nothing of the admin panel',
+  screenSays.heading === EN.failedTitle && screenSays.message === OWNERS_NOT_COMPLETED && !(await js("!!document.querySelector('app-surveys-list, app-admin-layout')")),
+  JSON.stringify(screenSays),
+);
 await go(`/preview/${visitIds['visit-one']}`);
-await waitFor(page, "location.origin === " + JSON.stringify(origin) + " && !!document.querySelector('app-participant-layout anotoki-empty-state')", 20000);
-expect('... and so does the preview: the card, nothing of the survey', !(await js("!!document.querySelector('app-take-survey')")), await text('app-participant-layout anotoki-empty-state'));
-await dismissToasts();
+await waitFor(page, "location.origin === " + JSON.stringify(origin) + ' && ' + FAILURE_SCREEN, 20000);
+expect('... and so does the preview: the same screen, nothing of the survey', !(await js("!!document.querySelector('app-take-survey')")), JSON.stringify(await failureScreen()));
+expect('... and the visitor keeps their key', (await js(`localStorage.getItem(${JSON.stringify(VISITOR_KEY)})`)) === visitorKey);
 await setIam({ deny: false });
 
 // In Slovak: the notice, the visitor's line, the draft offered - no key on the page.
@@ -2747,7 +2855,7 @@ expect(
 await go(`/admin/surveys/${visitIds['visit-one']}/results?tab=people`);
 await waitFor(page, "document.querySelectorAll('#results-panel-people tbody .who-name').length === 2", 15000);
 const bothRows = await peopleRows();
-expect('the results: the owner with their address, the visitor "Not signed in"', bothRows.includes(`${visitorName} / Not signed in`) && bothRows.some((row) => row.startsWith(`${OWNER.username} / `) && !row.endsWith('Not signed in')), JSON.stringify(bothRows));
+expect('the results: the owner by name alone (no address kept here), the visitor "Not signed in"', bothRows.includes(`${visitorName} / Not signed in`) && bothRows.includes(OWNER.username), JSON.stringify(bothRows));
 await expectBar('the results with a person and a visitor, 390 px');
 await screenshots('admin-results-visitor-390');
 
@@ -2756,9 +2864,9 @@ expect('switched on in the IAM', await signInRequired(true));
 await setIam({ deny: true });
 otherRequested.splice(0);
 await other.send('Page.navigate', { url: `${origin}/` });
-await waitFor(other, "location.origin === " + JSON.stringify(origin) + " && !!document.querySelector('app-participant-layout anotoki-empty-state')", 20000);
+await waitFor(other, "location.origin === " + JSON.stringify(origin) + ' && ' + FAILURE_SCREEN, 20000);
 expect(
-  'switched on: the visitor\'s page went to the IAM first, and draws its card - nothing of the surveys asked for',
+  'switched on: the visitor\'s page went to the IAM first - turned down here, the screen of a failed sign-in - nothing of the surveys asked for',
   otherRequested.includes('GET /api/oidc/authorize') && !otherRequested.includes('GET /api/surveys') && !(await other.evaluate("!!document.querySelector('app-survey-home a.survey')")),
   otherRequested.filter((line) => line.includes('/api/')).join(', ').slice(0, 300),
 );
@@ -2766,6 +2874,218 @@ expect('... and the key is kept for when the switch goes off again, or they sign
 await setIam({ deny: false });
 await other.close();
 await viewport(1280);
+
+// ═══ The ADMIN's system pages: the people, the error log, the audit log, the backups ═══
+// The anotoki family's pages (anotoki-lib 0.4.1: @anotoki/lib/people/page, @anotoki/lib/admin/errors, /audit,
+// /backups), each on a lazy route of the admin panel; the top bar's System link the way to them (the System page,
+// lit on each). The site's ADMIN's alone: an EDITOR is told whose they are, and the API refuses. The People page
+// lists everybody who signed in here, with how many surveys each answered and wrote, the visitors in one line, and
+// deletes a person's answers after its question; an account the IAM deleted (the stand-in's `anonymized`) is
+// scrubbed here on "Check now" - its name the IAM's placeholder, the row marked. The error log has what failed (a 404
+// asked for here); the audit log what was done in the admin panel; the backups the two the Applies made before the
+// update, and one made here - after a sign-in of the last ten minutes, asked for again ("Sign in again") when the
+// sign-in is older - downloaded by its single-use link and deleted. Each at 1280 and 390 px, light and dark.
+const DOWNLOADS = join(out, '..', 'downloads');
+mkdirSync(DOWNLOADS, { recursive: true });
+await page.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: DOWNLOADS }).catch((error) => problems.push('downloads cannot be kept: ' + error.message));
+/** The System page's links, as "label href". */
+const systemLinks = () => js("[...document.querySelectorAll('app-system a.item')].map((a) => a.querySelector('.label').textContent.trim() + ' ' + a.getAttribute('href'))");
+
+// An EDITOR: no System in the bar (checked above), and at the pages' addresses only whose they are; the API refuses.
+// The tab in English first (the visitors' stage left it Slovak): the menu is read by its English words.
+await go('/?lang=en');
+await signInAs(EDITH);
+await go('/admin/system');
+await waitFor(page, "!!document.querySelector('app-system')", 15000);
+expect('an EDITOR at /admin/system: whose the pages are, no link to any of them', (await text('app-system anotoki-empty-state .anotoki-empty-state__heading')) === "These pages are for the site's administrators" && (await systemLinks()).length === 0, await text('app-system'));
+await go('/admin/people');
+await waitFor(page, "!!document.querySelector('anotoki-people-page')", 15000);
+await sleep(500);
+expect('... and at the People page\'s: "People are for administrators.", nothing asked of the server', (await text('anotoki-people-page')) === 'People are for administrators.' && !requested.slice(-8).some((request) => request.includes('/api/admin/people')), await text('anotoki-people-page'));
+const editorToken = await heldToken();
+const editorAnswers = await Promise.all(['/api/admin/people', '/api/admin/errors', '/api/admin/audit', '/api/admin/backups'].map(async (path) => `${path} ${(await fetch(origin + path, { headers: { Authorization: `Bearer ${editorToken}` } })).status}`));
+expect('... and the API refuses an EDITOR every one of them', same(editorAnswers, ['/api/admin/people 403', '/api/admin/errors 403', '/api/admin/audit 403', '/api/admin/backups 403']), editorAnswers.join(', '));
+
+// The owner: the System page, from the bar.
+await signInAs(OWNER);
+await go('/admin');
+await waitFor(page, "!!document.querySelector('app-surveys-list')", 15000);
+expect('the System link in the bar', (await clickText('app-top-bar .anotoki-top-bar__nav a', 'System')) === true);
+await waitFor(page, "location.pathname === '/admin/system' && !!document.querySelector('app-system a.item')", 15000);
+expect(
+  'the System page: the way to the people, the error log, the audit log, the backups and the migrations - System lit in the bar',
+  same(await systemLinks(), ['People /admin/people', 'Error log /admin/errors', 'Audit log /admin/audit', 'Backups /admin/backups', 'Migrations /admin/migrations']) &&
+    same(await barRow(), ['anotoki-brand', 'links: Surveys Translations Languages System (page)', 'anotoki-theme-toggle', 'person']) &&
+    (await js('document.title')) === 'System · Admin panel · anotoki survey',
+  `${JSON.stringify(await systemLinks())} / ${JSON.stringify(await barRow())} / ${await js('document.title')}`,
+);
+await expectNoKeys('the System page');
+await screenshots('admin-system-1280', false);
+await viewport(390);
+await expectBar('the System page, 390 px');
+await screenshots('admin-system-390');
+await viewport(1280);
+
+// The People page: everybody who signed in, the most recently seen first, with the site's columns.
+const ANONYMIZED_AT = new Date().toISOString();
+await setIam({ anonymized: [{ sub: String(PAT.id), anonymized_at: ANONYMIZED_AT }] });
+expect('the People link', (await clickText('app-system a.item', 'People')) === true);
+await waitFor(page, "location.pathname === '/admin/people' && !!document.querySelector('anotoki-people-page [data-people] tbody tr')", 15000);
+await sleep(500);
+/** A person's row on the People page: the name, "you", the count of surveys answered and written, the IAM's mark. */
+const personRow = (sub) =>
+  js(`(() => { const row = document.querySelector('anotoki-people-page tr[data-person="${sub}"]'); if (!row) return null; const cell = (key) => row.querySelector('[data-column="' + key + '"]')?.textContent.replace(/\\s+/g, ' ').trim() ?? null; return { name: row.querySelector('.anotoki-people-page__name')?.textContent.trim(), you: !!row.querySelector('[data-you]'), answered: cell('answered'), written: cell('written'), deleted: !!row.querySelector('[data-deleted]'), deletable: !row.querySelector('[data-delete]')?.disabled }; })()`);
+const columnsShown = await texts('anotoki-people-page [data-people] thead th');
+const patBefore = await personRow(String(PAT.id));
+expect(
+  'People: a row a person - the name, the IAM id, first and last seen, the surveys each answered and wrote',
+  same(columnsShown, ['Name', 'IAM id', 'First seen', 'Last seen', 'Surveys answered', 'Surveys written']) &&
+    (await personRow(String(OWNER.id)))?.you === true &&
+    (await personRow(String(EDITH.id)))?.name === EDITH.username &&
+    patBefore?.name === PAT.username &&
+    Number(patBefore?.answered) >= 1 &&
+    (await personRow(String(NINA.id))) !== null,
+  `${JSON.stringify(columnsShown)} / owner ${JSON.stringify(await personRow(String(OWNER.id)))} / pat ${JSON.stringify(patBefore)}`,
+);
+expect('People: the owner wrote surveys here, and the count says so', Number((await personRow(String(OWNER.id)))?.written) >= 2, JSON.stringify(await personRow(String(OWNER.id))));
+expect('People: the visitors in one line, in the site\'s words', /^\d+ visitors? answered without signing in, \d+ of them still active: signing in from the same browser moves a visitor’s answers into their account\.$/.test((await text('anotoki-people-page [data-visitors]')) ?? ''), await text('anotoki-people-page [data-visitors]'));
+expect('People: an account with nothing to delete has no Delete to press (Edith answered nothing)', (await personRow(String(EDITH.id)))?.deletable === false, JSON.stringify(await personRow(String(EDITH.id))));
+await expectNoKeys('the People page');
+await screenshots('admin-people-1280', false);
+
+// The IAM deleted Pat's account: "Check now" scrubs it here - the IAM's placeholder for the name, the rest kept.
+await clickText('anotoki-people-page [data-sync-now]', 'Check now');
+await waitFor(page, `!!document.querySelector('anotoki-people-page tr[data-person="${PAT.id}"] [data-deleted]')`, 20000).catch(() => null);
+await sleep(400);
+const scrubbed = await personRow(String(PAT.id));
+expect(
+  'People, Check now: the account the IAM deleted is scrubbed - its name the IAM\'s placeholder, marked "Deleted at the IAM", its answers kept',
+  scrubbed?.name === `deleted-${PAT.id}` && scrubbed?.deleted === true && scrubbed?.answered === patBefore?.answered && /scrubbed here so far/.test((await text('anotoki-people-page [data-sync]')) ?? ''),
+  `${JSON.stringify(scrubbed)} / ${await text('anotoki-people-page [data-sync]')}`,
+);
+const surveyOneAnswers = (await (await asOwner('GET', `/api/admin/surveys/${surveyId}/responses`)).json()).responses ?? [];
+expect('... and the results name the placeholder where Pat was', surveyOneAnswers.some((response) => response.person.name === `deleted-${PAT.id}`) && !surveyOneAnswers.some((response) => response.person.name === PAT.username), JSON.stringify(surveyOneAnswers.map((response) => response.person.name)));
+await screenshots('admin-people-scrubbed-1280', false);
+
+// Delete a person's answers: asked first, in the site's words; done, said in the page - and audited.
+const ninaBefore = await personRow(String(NINA.id));
+await js(`document.querySelector('anotoki-people-page tr[data-person="${NINA.id}"] [data-delete]').click(); true`);
+await waitFor(page, "!!document.querySelector('anotoki-people-page [data-confirm] dialog[open]')", 15000);
+await sleep(300);
+const personDeleteAsked = { title: await text('anotoki-people-page [data-confirm] .anotoki-dialog__title'), text: await text('anotoki-people-page [data-confirm] .anotoki-dialog__description'), yes: await text('anotoki-people-page [data-confirm] [data-confirm-delete]') };
+expect(
+  'People, Delete: the question names whose answers go, how many, and what stays - nothing else asked (no password, no new sign-in)',
+  personDeleteAsked.title === `Delete ${NINA.username}’s answers?` &&
+    personDeleteAsked.text?.startsWith(`Every answer they sent here goes - ${ninaBefore?.answered} surveys - and cannot be brought back`) &&
+    personDeleteAsked.text?.includes('The surveys they wrote stay, and so does their anotoki account.') &&
+    personDeleteAsked.yes === 'Delete their answers' &&
+    !(await js("!!document.querySelector('anotoki-people-page [data-confirm] input[type=password]')")),
+  JSON.stringify(personDeleteAsked),
+);
+await screenshot('admin-people-delete-asked-1280');
+await js("document.querySelector('anotoki-people-page [data-confirm] [data-confirm-delete]').click(); true");
+await waitFor(page, "!!document.querySelector('anotoki-people-page [data-outcome]')", 15000);
+await sleep(500);
+expect(
+  '... done: said in the page, and the row says Nina has answered nothing here now',
+  (await text('anotoki-people-page [data-outcome]'))?.startsWith(`Deleted what the site kept of ${NINA.username} - Answers: ${ninaBefore?.answered}`) && !/[1-9]/.test((await personRow(String(NINA.id)))?.answered ?? '') && (await personRow(String(NINA.id)))?.deletable === false,
+  `${await text('anotoki-people-page [data-outcome]')} / ${JSON.stringify(await personRow(String(NINA.id)))}`,
+);
+await viewport(390);
+await sleep(400);
+await expectNoSideways('the People page, 390 px');
+await screenshots('admin-people-390');
+await viewport(1280);
+
+// The error log: a 404 asked for here, as anybody could - written down without its query string, and shown grouped.
+const missing = await fetch(`${origin}/api/no-such-route-for-the-check?secret=dont-keep-me`);
+expect('a route that is not there: 404', missing.status === 404, String(missing.status));
+await go('/admin/errors');
+await waitFor(page, "!!document.querySelector('anotoki-error-log-page [data-groups] tbody tr')", 15000);
+await sleep(500);
+const errorsShown = await text('anotoki-error-log-page [data-groups]');
+expect('the error log: the 404 among what failed, its path without the query string', errorsShown?.includes('/api/no-such-route-for-the-check') && !errorsShown.includes('dont-keep-me'), errorsShown?.slice(0, 300));
+await expectNoKeys('the error log');
+await screenshots('admin-errors-1280', false);
+await viewport(390);
+await sleep(400);
+await expectNoSideways('the error log, 390 px');
+await screenshots('admin-errors-390');
+await viewport(1280);
+
+// The backups: the two the Applies made before the update; one made here needs a sign-in of the last ten minutes.
+// An older one first (the stand-in's session began an hour ago): the page asks for a new sign-in - "Sign in again" -
+// and comes back here.
+await setIam({ auth_time: Math.floor(Date.now() / 1000) - 3600 });
+await forgetSession();
+await go('/admin/backups');
+await waitFor(page, SIGNED_IN + " && !!document.querySelector('anotoki-backups-page [data-backups] tbody tr')", 20000);
+await sleep(500);
+const kinds = await js("[...document.querySelectorAll('anotoki-backups-page [data-backups] [data-kind]')].map((badge) => badge.getAttribute('data-kind'))");
+expect('the backups: the two made before the update (the failed Apply and the good one), not encrypted, nothing else said wrong', kinds.filter((kind) => kind === 'before-migration').length === 2 && !(await js("!!document.querySelector('anotoki-backups-page [data-not-writable], anotoki-backups-page [data-no-copy]')")), JSON.stringify(kinds));
+await screenshots('admin-backups-1280', false);
+await clickText('anotoki-backups-page [data-create]', 'Back up now');
+await waitFor(page, "!!document.querySelector('anotoki-backups-page [data-guarded] dialog[open]')", 15000);
+await sleep(400);
+await js("document.querySelector('anotoki-backups-page [data-guarded] [data-guarded-confirm]').click(); true");
+await waitFor(page, "!!document.querySelector('anotoki-backups-page [data-sign-in-needed]')", 20000).catch(() => null);
+expect('a sign-in an hour old: "Sign in again first" in the dialog, with its button - nothing made', !!(await text('anotoki-backups-page [data-sign-in-needed] [data-sign-in]')) && (await js("document.querySelectorAll('anotoki-backups-page [data-backups] tbody tr[data-backup]').length")) === kinds.length, await text('anotoki-backups-page [data-guarded]'));
+await screenshot('admin-backups-sign-in-again-1280');
+await js("document.querySelector('anotoki-backups-page [data-sign-in-needed] [data-sign-in]').click(); true");
+await sleep(1500);
+await settle();
+await waitFor(page, SIGNED_IN + " && location.pathname === '/admin/backups' && !!document.querySelector('anotoki-backups-page [data-create]')", 20000).catch(() => null);
+expect('"Sign in again": through the IAM, asked for the password there (prompt=login), and back on the Backups page', (await js('location.pathname')) === '/admin/backups' && (await iamTrips()).some((line) => line.startsWith('GET /api/oidc/authorize')), await js('location.pathname'));
+await sleep(500);
+await clickText('anotoki-backups-page [data-create]', 'Back up now');
+await waitFor(page, "!!document.querySelector('anotoki-backups-page [data-guarded] dialog[open]')", 15000);
+await sleep(400);
+await fill('anotoki-backups-page [data-guarded] [data-description] input', 'Before the browser check deletes it');
+await js("document.querySelector('anotoki-backups-page [data-guarded] [data-guarded-confirm]').click(); true");
+await waitFor(page, "[...document.querySelectorAll('anotoki-backups-page [data-backups] [data-kind]')].some((badge) => badge.getAttribute('data-kind') === 'manual')", 30000).catch(() => null);
+await sleep(600);
+const manualId = await js("document.querySelector('anotoki-backups-page [data-backups] [data-kind=\"manual\"]')?.closest('tr')?.getAttribute('data-backup') ?? null");
+expect('signed in a moment ago: Back up now makes one - "manual", with its description', !!manualId && (await text(`anotoki-backups-page tr[data-backup="${manualId}"]`))?.includes('Before the browser check deletes it'), String(manualId));
+// Downloaded by its single-use link: the file arrives, an anotoki backup.
+const downloadsBefore = new Set(readdirSync(DOWNLOADS));
+await js(`document.querySelector('anotoki-backups-page tr[data-backup="${manualId}"] [data-download]').click(); true`);
+let downloaded = null;
+for (let i = 0; i < 60 && downloaded === null; i++) {
+  await sleep(250);
+  downloaded = readdirSync(DOWNLOADS).find((name) => !downloadsBefore.has(name) && name.endsWith('.anotoki-backup')) ?? null;
+}
+const head = downloaded ? readFileSync(join(DOWNLOADS, downloaded)).subarray(0, 16).toString('latin1') : '';
+expect('Download: the backup arrives through its single-use link - an anotoki backup, named by the site and its id', downloaded === `survey-${manualId}.anotoki-backup` && head.startsWith('ANOTOKI-BACKUP 1'), `${downloaded} / ${JSON.stringify(head)}`);
+await screenshot('admin-backups-downloaded-1280');
+// Deleted, after its question.
+await js(`document.querySelector('anotoki-backups-page tr[data-backup="${manualId}"] [data-delete]').click(); true`);
+await waitFor(page, "!!document.querySelector('anotoki-backups-page [data-guarded][data-action=\"delete\"] dialog[open]')", 15000);
+await sleep(300);
+await js("document.querySelector('anotoki-backups-page [data-guarded] [data-guarded-confirm]').click(); true");
+await waitFor(page, `!document.querySelector('anotoki-backups-page tr[data-backup="${manualId}"]')`, 20000).catch(() => null);
+expect('Delete: asked, then gone from the list', !(await js(`!!document.querySelector('anotoki-backups-page tr[data-backup="${manualId}"]')`)), String(manualId));
+await viewport(390);
+await sleep(400);
+await expectNoSideways('the backups, 390 px');
+await screenshots('admin-backups-390');
+await viewport(1280);
+
+// The audit log: what was done in the admin panel - by whom, named - the update, the backups, the people.
+await go('/admin/audit');
+await waitFor(page, "!!document.querySelector('anotoki-audit-log-page [data-entries] tbody tr')", 15000);
+await sleep(500);
+const actionsShown = new Set(await texts('anotoki-audit-log-page [data-entries] .anotoki-audit-log-page__action'));
+const wanted = ['backup.deleted', 'backup.downloaded', 'backup.created', 'person.data_deleted', 'people.synced', 'migrations.applied'];
+expect('the audit log: the backups made, downloaded and deleted, the answers deleted, the scrub, the update - newest first', wanted.every((action) => actionsShown.has(action)), JSON.stringify([...actionsShown]));
+expect('... each by its person, named', (await texts('anotoki-audit-log-page [data-entries] tbody tr td[data-label="Who"]')).slice(0, 3).every((who) => who === OWNER.username), JSON.stringify((await texts('anotoki-audit-log-page [data-entries] tbody tr td[data-label="Who"]')).slice(0, 3)));
+// (No expectNoKeys here: an entry's details name the keys of the strings saved - home.title - as they must.)
+await screenshots('admin-audit-1280', false);
+await viewport(390);
+await sleep(400);
+await expectNoSideways('the audit log, 390 px');
+await screenshots('admin-audit-390');
+await viewport(1280);
+await setIam({ anonymized: [] });
 
 // ═══ The pages drawn instead of the site ═══════════════════════════════════
 // A browser that has never been here - nothing stored, so no strings kept from an earlier visit - and a site that

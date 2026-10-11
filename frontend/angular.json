@@ -72,7 +72,8 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
+                  // 550 kB, not 500: anotoki-lib 0.4.1's auth module (~33 kB raw) in the first load; trimming it is the library's 0.4.2 work.
+                  "maximumWarning": "550kB",
                   "maximumError": "1MB"
                 },
                 {

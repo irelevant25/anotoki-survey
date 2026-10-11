@@ -40,8 +40,6 @@
                         <h1 id="page-title" tabindex="-1">{{ response.person.name }}</h1>
                         @if (response.person.visitor) {
                             <p class="muted not-signed-in">Not signed in</p>
-                        } @else {
-                            <p class="muted">{{ response.person.email }}</p>
                         }
                     </div>
                     <div class="sheet-actions">

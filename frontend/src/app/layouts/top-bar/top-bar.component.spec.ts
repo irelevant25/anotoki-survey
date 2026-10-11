@@ -6,7 +6,7 @@ import { TranslationService } from '@anotoki/lib/translations';
 import { LocalizationDrafts } from '@anotoki/lib/translations/admin';
 import { ConfirmService } from '@anotoki/lib/ui/dialog';
 import { AdminStore } from '../../core/admin/admin-store.service';
-import { type AnotokiPreferences } from '../../core/auth/anotoki-auth';
+import { type AnotokiPreferences } from '@anotoki/lib/auth';
 import { AuthService } from '../../core/auth/auth.service';
 import { provideSiteShell } from '../../core/kit';
 import { Person } from '../../core/survey/survey.model';
@@ -98,7 +98,8 @@ describe('TopBarComponent', () => {
   const preferences = signal<AnotokiPreferences | null>(null);
   const auth = {
     status: signal('ready'),
-    user: signal(null),
+    // The token's claims: the address the menu shows is the IAM's, never kept by the site.
+    user: computed(() => (person() ? { email: 'owner@example.test' } : null)),
     person,
     signedIn: () => person() !== null,
     isAdmin: () => roles().includes('ADMIN'),
@@ -107,7 +108,7 @@ describe('TopBarComponent', () => {
     preferences,
     savePreferences: vi.fn(async (_changes: object) => ({})),
     onAuthChange: () => () => undefined,
-    signIn: vi.fn(async (_returnTo?: string, _uiLocales?: string) => true),
+    signIn: vi.fn(async (_returnTo?: string, _prompt?: 'login') => true),
     signOut: vi.fn(),
   };
   const store = { flushAll: vi.fn(async () => true) };
@@ -177,7 +178,7 @@ describe('TopBarComponent', () => {
 
   beforeEach(() => {
     sessionStorage.clear();
-    person.set({ id: '7', name: 'owner', email: 'owner@example.test' });
+    person.set({ id: '7', name: 'owner' });
     roles.set(['ADMIN']);
     behind.set(false);
     preferences.set(null);
@@ -226,20 +227,24 @@ describe('TopBarComponent', () => {
     expect(links().map(described)).toEqual(['Prieskumy /']);
   });
 
-  it('in the admin area: Surveys, Translations, Languages, Migrations - a survey’s editor is in Surveys, without being its page', async () => {
+  it('in the admin area: Surveys, Translations, Languages, System - a survey’s editor is in Surveys, each System page in System, without being its page', async () => {
     TestBed.inject(TranslationService).noteAddress('/admin');
     await draw('admin');
     await at('/admin');
-    expect(links().map(described)).toEqual(['Surveys /admin [page] [here]', 'Translations /admin/translations', 'Languages /admin/languages', 'Migrations /admin/migrations']);
+    expect(links().map(described)).toEqual(['Surveys /admin [page] [here]', 'Translations /admin/translations', 'Languages /admin/languages', 'System /admin/system']);
     await at('/admin/surveys/abc/edit?language=sk');
-    expect(links().map(described)).toEqual(['Surveys /admin [here]', 'Translations /admin/translations', 'Languages /admin/languages', 'Migrations /admin/migrations']);
+    expect(links().map(described)).toEqual(['Surveys /admin [here]', 'Translations /admin/translations', 'Languages /admin/languages', 'System /admin/system']);
     await at('/admin/languages');
-    expect(links().map(described)).toEqual(['Surveys /admin', 'Translations /admin/translations', 'Languages /admin/languages [page] [here]', 'Migrations /admin/migrations']);
-    await at('/admin/migrations');
-    expect(links().map(described)).toEqual(['Surveys /admin', 'Translations /admin/translations', 'Languages /admin/languages', 'Migrations /admin/migrations [page] [here]']);
+    expect(links().map(described)).toEqual(['Surveys /admin', 'Translations /admin/translations', 'Languages /admin/languages [page] [here]', 'System /admin/system']);
+    await at('/admin/system');
+    expect(links().map(described)).toEqual(['Surveys /admin', 'Translations /admin/translations', 'Languages /admin/languages', 'System /admin/system [page] [here]']);
+    for (const page of ['/admin/people', '/admin/errors', '/admin/audit?action=backup.*', '/admin/backups', '/admin/migrations']) {
+      await at(page);
+      expect(links().map(described)).toEqual(['Surveys /admin', 'Translations /admin/translations', 'Languages /admin/languages', 'System /admin/system [here]']);
+    }
   });
 
-  it('Migrations is an ADMIN’s alone: an EDITOR’s bar has the other three', async () => {
+  it('System is an ADMIN’s alone: an EDITOR’s bar has the other three', async () => {
     roles.set(['EDITOR']);
     TestBed.inject(TranslationService).noteAddress('/admin');
     await draw('admin');
@@ -257,7 +262,7 @@ describe('TopBarComponent', () => {
     // Applied (the Migrations page marks the site ready): every section again, without being drawn anew.
     behind.set(false);
     await fixture.whenStable();
-    expect(links().map(words)).toEqual(['Surveys', 'Translations', 'Languages', 'Migrations']);
+    expect(links().map(words)).toEqual(['Surveys', 'Translations', 'Languages', 'System']);
   });
 
   it('the person’s menu: the focus into it as it opens, the arrow keys, Escape back to its button', async () => {
@@ -338,7 +343,7 @@ describe('TopBarComponent', () => {
     expect(parts('anotoki-brand .anotoki-brand__wordmark > span')).toEqual(['anotoki', 'survey', '·', 'admin panel']);
     expect(host.querySelector('anotoki-brand a')?.getAttribute('aria-label')).toBe('anotoki survey admin panel: all surveys');
     expect(personButton().getAttribute('aria-label')).toBe('Your menu: owner');
-    expect(links().map(words)).toEqual(['Surveys', 'Translations', 'Languages', 'Migrations']);
+    expect(links().map(words)).toEqual(['Surveys', 'Translations', 'Languages', 'System']);
     // No chooser there: the admin area is English.
     expect(host.querySelector('anotoki-language-switcher')).toBeNull();
 
@@ -417,7 +422,7 @@ describe('TopBarComponent', () => {
     localStorage.removeItem('anotoki-survey:theme');
   });
 
-  it('signed out: the button to sign in, which opens the IAM in the person’s language', async () => {
+  it('signed out: the button to sign in, to the IAM and back to this page (the library opens the IAM in the person’s language)', async () => {
     person.set(null);
     roles.set([]);
     await draw();
@@ -425,7 +430,8 @@ describe('TopBarComponent', () => {
     expect(words(button)).toBe('Prihlásiť sa');
     button.click();
     await fixture.whenStable();
-    expect(auth.signIn).toHaveBeenCalledWith(undefined, 'sk');
+    expect(auth.signIn).toHaveBeenCalledTimes(1);
+    expect(auth.signIn.mock.calls[0][0]).toBeUndefined();
   });
 
   describe('on a phone', () => {
@@ -474,7 +480,7 @@ describe('TopBarComponent', () => {
       windowOf(390);
       await draw('admin');
       await openMenu();
-      expect(items().map(words)).toEqual(['Surveys', 'Translations', 'Languages', 'Migrations', 'Your anotoki account', 'Back to the surveys', 'Sign out']);
+      expect(items().map(words)).toEqual(['Surveys', 'Translations', 'Languages', 'System', 'Your anotoki account', 'Back to the surveys', 'Sign out']);
       items()[1].click();
       await fixture.whenStable();
       expect(items()).toEqual([]);
@@ -496,7 +502,8 @@ describe('TopBarComponent', () => {
       expect(items().map(words)).toEqual(['Prieskumy', 'Prihlásiť sa']);
       items()[1].click();
       await fixture.whenStable();
-      expect(auth.signIn).toHaveBeenCalledWith(undefined, 'sk');
+      expect(auth.signIn).toHaveBeenCalledTimes(1);
+      expect(auth.signIn.mock.calls[0][0]).toBeUndefined();
     });
 
     it('is a desktop’s bar from 761 px: the links and the person in the row again', async () => {

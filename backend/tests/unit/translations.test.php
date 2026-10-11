@@ -24,12 +24,15 @@ use Anotoki\Lib\Translations\Placeholders;
 /**
  * The library's words whose Slovak speaks to the reader - informally (ty), as
  * the other anotoki sites do. This site speaks formally (Vy), so it takes each
- * of them over in its own words (migration 010), and the pages keep the same
- * words for the time they have no strings (FORMAL_SLOVAK, core/translations.ts).
+ * of them over in its own words (migrations 010 and 012), and the pages keep
+ * the same words for the time they have no strings (FORMAL_SLOVAK,
+ * core/translations.ts). (The feedback form's words speak to the reader too,
+ * but this site has no feedback form: they are the library's, unread.)
  */
 const ADDRESSING_THE_READER = [
     'anotoki.ui.copyFailed', 'anotoki.topbar.menuButton', 'anotoki.topbar.menu', 'anotoki.topbar.account',
     'anotoki.language.notLoaded', 'anotoki.language.notSaved', 'anotoki.theme.notSaved', 'anotoki.siteStatus.unavailableText',
+    'anotoki.signIn.signingIn', 'anotoki.signIn.expired', 'anotoki.signIn.storageUnavailable', 'anotoki.signIn.unavailable',
 ];
 
 /** Where the pages keep the formal Slovak of the library's words, for the time they have no strings. */
@@ -291,7 +294,7 @@ test('the library\'s words are all here, each in both languages - and its Slovak
     foreach (ADDRESSING_THE_READER as $key) {
         assert_true(isset($slovak[$key]), "$key has its Slovak");
         assert_true($slovak[$key] !== (LibraryWords::all()[$key]['sk'] ?? null), "$key is not the library's informal Slovak: " . $slovak[$key]);
-        assert_match('/Vaša|Váš|Skúste|Označte/u', $slovak[$key], "$key speaks formally: " . $slovak[$key]);
+        assert_match('/Vaša|Váš|Vás|Skúste|Označte|Povoľte/u', $slovak[$key], "$key speaks formally: " . $slovak[$key]);
     }
     // Where the library's Slovak does not speak to anybody, the site's own words stand - or the library's.
     assert_same('Ponuka', strings_of('sk', ['anotoki.topbar.phoneMenu'])['anotoki.topbar.phoneMenu'] ?? null);
@@ -334,7 +337,7 @@ test('a string migration\'s gate checks exactly the keys the migration writes, a
         assert_same([], array_values(array_diff($library, LibraryWords::keys())), "$file: keys under anotoki. that the library does not ship");
         $taking[] = $file;
     }
-    assert_same(['010_strings_through_the_library.sql'], $taking, 'the one migration that takes the library\'s words over');
+    assert_same(['010_strings_through_the_library.sql', '012_sign_in_words.sql'], $taking, 'the migrations that take the library\'s words over: the kit\'s, then signing in\'s');
 });
 
 test('010 knows the library\'s own words as its 002 writes them - what it replaces where the library\'s files ran first', function (): void {
@@ -349,23 +352,38 @@ test('010 knows the library\'s own words as its 002 writes them - what it replac
     assert_same(in_order(migration_keys('010_strings_through_the_library.sql')['keys']), in_order($keys), 'every key 010 writes, and no other');
 });
 
+test('012 knows the library\'s own words of signing in as its 003 writes them - and writes formal Slovak where they speak to the reader', function (): void {
+    $sql = str_replace("\r\n", "\n", migration_sql('012_sign_in_words.sql'));
+    assert_true((bool) preg_match('/CREATE TEMPORARY TABLE library_words\b.*?\(VALUES\n(.*?)\n\) AS w/s', $sql, $m), 'the library\'s words could not be read from 012');
+    preg_match_all("/\\('([^']+)', '([a-z]{2})', '((?:[^']|'')*)'\\)/", $m[1], $rows, PREG_SET_ORDER);
+    assert_same(12, count($rows), 'its rows were read: six keys, two languages');
+    foreach ($rows as [, $key, $code, $value]) {
+        assert_same(LibraryWords::all()[$key][$code] ?? null, str_replace("''", "'", $value), "$key ($code)");
+    }
+    $keys = array_values(array_unique(array_column($rows, 1)));
+    assert_same(in_order(migration_keys('012_sign_in_words.sql')['keys']), in_order($keys), 'every key 012 writes, and no other');
+    // What 012 moves there: the site's four keys of signing in, gone (nothing asks for them any more).
+    assert_same([], array_values(array_intersect(database_keys(), ['signIn.inProgress', 'signIn.notCompleted', 'signIn.failed', 'signIn.storageUnavailable'])));
+    $signingIn = ['anotoki.signIn.signingIn'];
+    assert_same(['Prihlasujeme Vás…', 'Signing in…'], [strings_of('sk', $signingIn)[$signingIn[0]] ?? null, strings_of('en', $signingIn)[$signingIn[0]] ?? null], 'the callback page says what this site said');
+});
+
 /* -------------------------------------------------------------------- the scan */
 
-test('the scan as this site has it: the specs, the specs\' helpers and the vendored sign-in SDK are not read; keys put together at run time are declared', function (): void {
+test('the scan as this site has it: the specs and the specs\' helpers are not read; keys put together at run time are declared', function (): void {
     $root = sources([
         'pages/home/home.component.html' => "<h1>{{ 'home.title' | translate }}</h1>\n<p>{{ 'home.questions' | translatePlural: n }}</p>\n<p [innerHTML]=\"'home.title' | translate\"></p>\n",
         'pages/home/home.component.ts' => "const refused = this.i18n.t('take.refused.' + kind);\nconst gender = this.i18n.t(`aboutYou.gender.\${key}`);\n",
         'pages/home/home.component.spec.ts' => "expect(text).toBe('home.onlyInASpec');\n",
         'core/testing/example.ts' => "export const example = 'home.onlyInTesting';\n",
-        'core/auth/anotoki-auth.d.ts' => "export const sdk = 'home.inTheSdk';\n",
         'core/i18n/dynamic-keys.ts' => "export const DYNAMIC_KEYS = {\n  'aboutYou.gender.': ['male', 'female'],\n};\n",
     ]);
-    $database = ['home.title', 'home.questions.one', 'home.questions.few', 'home.questions.other', 'home.onlyInASpec', 'home.onlyInTesting', 'home.inTheSdk',
+    $database = ['home.title', 'home.questions.one', 'home.questions.few', 'home.questions.other', 'home.onlyInASpec', 'home.onlyInTesting',
         'take.start', 'aboutYou.gender.male', 'aboutYou.gender.female', 'anotoki.ui.close'];
     $scan = surveyKeyScanner($root)->scan($database);
 
     assert_same(['core/i18n/dynamic-keys.ts', 'pages/home/home.component.html', 'pages/home/home.component.ts'], surveyKeyScanner($root)->sourceFiles());
-    assert_same(['home.inTheSdk', 'home.onlyInASpec', 'home.onlyInTesting', 'take.start'], $scan['unused'], 'the specs, core/testing/ and the SDK do not count; the library\'s keys are never unused');
+    assert_same(['home.onlyInASpec', 'home.onlyInTesting', 'take.start'], $scan['unused'], 'the specs and core/testing/ do not count; the library\'s keys are never unused');
     assert_same(['aboutYou.gender.female', 'aboutYou.gender.male', 'home.questions.few', 'home.questions.one', 'home.questions.other', 'home.title'], array_keys($scan['used']), 'a plural by its family\'s name; the declared keys');
     assert_same(2, count($scan['problems']), test_show($scan['problems']));
     assert_match("/^pages\\/home\\/home\\.component\\.html:3: innerHTML is given a translated string/", $scan['problems'][0]);
@@ -377,6 +395,6 @@ test('the scan reads the real frontend: only the files it should, and their comm
     assert_true(in_array('app.routes.ts', $files, true) && in_array('layouts/top-bar/top-bar.component.html', $files, true), 'the sources are where the scan looks');
     foreach ($files as $file) {
         assert_match('/\.(ts|html)$/', $file);
-        assert_no_match('~\.spec\.ts$|^core/testing/|^core/auth/anotoki-auth\.~', $file);
+        assert_no_match('~\.spec\.ts$|^core/testing/~', $file);
     }
 });

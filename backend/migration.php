@@ -14,11 +14,14 @@ declare(strict_types=1);
  *   php migration.php --dry-run    say what would be applied, and apply nothing
  *
  * The migrations are the schema (migrations/survey/NNN_name.sql): a database
- * is what you get by applying 001 and everything after it in order - and then
- * the anotoki library's own set, anotoki_translations (the words' tables, the
- * library's words), shown with its set's name. A file recorded as applied is
- * never run again, so editing one that has been applied changes nothing where
- * it ran - write another instead.
+ * is what you get by applying 001 and everything after it in order - with the
+ * anotoki library's own sets around them (anotoki_admin first, then the site's,
+ * then anotoki_translations and anotoki_people: api/migrations.php), each shown
+ * with its set's name. A file recorded as applied is never run again, so
+ * editing one that has been applied changes nothing where it ran - write
+ * another instead. Before it applies anything to a database that has tables
+ * already, a backup of it is made (storage/backups, the library's - the
+ * admin panel's Backups page lists it); one that cannot be made stops it.
  *
  * The connection is config/database.local.php, which setup.php writes. The
  * engine is the anotoki family's (anotoki/lib, through api/migrations.php).
@@ -68,8 +71,8 @@ try {
     if (!$statusOnly && !$dryRun && ensureDatabase($settings, $name)) {
         say('green', '  Database created.');
     }
-    // A connection of its own: the update below holds its lock on it.
-    $migrator = surveyMigrator(dbConnect($settings));
+    // A connection of its own: the update below holds its lock on it. A backup first, before anything is applied.
+    $migrator = surveyMigrator(dbConnect($settings), true);
     $status = $migrator->status();
 } catch (Throwable $e) {
     say('red', '  Cannot reach it: ' . $e->getMessage());
@@ -122,6 +125,14 @@ $result = $migrator->apply();
 
 if ($result['busy']) {
     say('red', '  Another database update is running (setup.php, or an administrator\'s Apply on the Migrations page). Nothing was applied: try again in a moment.');
+    exit(1);
+}
+if ($result['note'] !== null) {
+    echo '  ' . $result['note'] . "\n";
+}
+if ($result['failed'] === null && $result['applied'] === [] && $result['error'] !== null) {
+    // The backup before the update could not be made: nothing ran.
+    say('red', '  ' . $result['error']);
     exit(1);
 }
 

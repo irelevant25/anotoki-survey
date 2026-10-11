@@ -4,8 +4,9 @@ import { ApiError } from '../api/api.service';
 /**
  * What the site says when a whole request fails, in the reader's language.
  *
- * A participant is never shown the server's English sentence - nor the IAM's,
- * nor the SDK's. The codes whose meaning does not depend on the page are
+ * A participant is never shown the server's English sentence - nor the IAM's
+ * (a sign-in that came back without one is the anotoki family's screen's to
+ * word, from its code). The codes whose meaning does not depend on the page are
  * worded here; a page words its own refusals (a survey that closed, an answer
  * that is not allowed) before it falls back to this. The admin area, which is
  * English, goes on showing the server's sentences.
@@ -42,30 +43,4 @@ export function errorKey(error: ApiError): string {
 /** What errorKey()'s strings are filled with: `i18n.t(errorKey(error), errorParams(error))`. */
 export function errorParams(error: ApiError): TranslationParams {
   return { status: error.status };
-}
-
-/** An OAuth error code, or one of the SDK's own: a short word, nothing a sentence could hide in. */
-const FAILURE_CODE = /^[A-Za-z0-9_.-]{1,40}$/;
-
-/** The sign-in failures that have a sentence of their own. */
-const SIGN_IN_FAILURE_KEYS = new Map<string, string>([
-  // The IAM turning the account away, or the person going back from its page - one sentence true either way.
-  ['access_denied', 'signIn.notCompleted'],
-  // The SDK's own: the browser refused the site's storage, where the sign-in in progress is kept - it never started.
-  ['storage_unavailable', 'signIn.storageUnavailable'],
-]);
-
-/**
- * The key for a sign-in that came back without one, or could not start.
- * Anything without a sentence of its own is `signIn.failed`, which has a
- * `{code}`: the code (signInFailureParams()), never the IAM's or the SDK's own
- * English sentence.
- */
-export function signInFailureKey(code: string): string {
-  return SIGN_IN_FAILURE_KEYS.get(code) ?? 'signIn.failed';
-}
-
-/** The `{code}` of `signIn.failed`: the code when it looks like one, `unknown` otherwise - it came through the address. */
-export function signInFailureParams(code: string): TranslationParams {
-  return { code: FAILURE_CODE.test(code) ? code : 'unknown' };
 }
