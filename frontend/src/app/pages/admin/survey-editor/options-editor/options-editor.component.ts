@@ -1,6 +1,7 @@
 import { CdkDrag, CdkDragDrop, CdkDragHandle, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, computed, inject, input, viewChildren } from '@angular/core';
-import { ButtonComponent, IconComponent } from '@anotoki/lib/ui';
+import { ButtonComponent } from '@anotoki/lib/ui/button';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { ConfirmService } from '@anotoki/lib/ui/dialog';
 import { MAX_OPTION_IMAGES, pastedPictures } from '../../../../core/images/prepare-image';
 import { newOption } from '../../../../core/survey/survey-factory';

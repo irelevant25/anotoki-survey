@@ -14,9 +14,11 @@ declare(strict_types=1);
  *   php migration.php --dry-run    say what would be applied, and apply nothing
  *
  * The migrations are the schema (migrations/survey/NNN_name.sql): a database
- * is what you get by applying 001 and everything after it in order. A file
- * recorded as applied is never run again, so editing one that has been
- * applied changes nothing where it ran - write another instead.
+ * is what you get by applying 001 and everything after it in order - and then
+ * the anotoki library's own set, anotoki_translations (the words' tables, the
+ * library's words), shown with its set's name. A file recorded as applied is
+ * never run again, so editing one that has been applied changes nothing where
+ * it ran - write another instead.
  *
  * The connection is config/database.local.php, which setup.php writes. The
  * engine is the anotoki family's (anotoki/lib, through api/migrations.php).
@@ -74,16 +76,28 @@ try {
     exit(1);
 }
 
-$files = $migrator->files(surveyMigrationSet());
-$pending = array_column($status['pending'], 'name');
+/** A file as this command names it: the site's own by its name, the library's with its set ("anotoki_translations/001_..."). */
+function shownFile(array $file): string
+{
+    return $file['set'] === surveyMigrationSet()->name ? $file['name'] : $file['set'] . '/' . $file['name'];
+}
+
+// Every set's files, in the order they run.
+$files = [];
+foreach (surveyMigrationSets() as $set) {
+    foreach ($migrator->files($set) as $file) {
+        $files[] = ['set' => $set->name, 'name' => $file];
+    }
+}
+$pending = array_map('shownFile', $status['pending']);
 
 if ($statusOnly) {
-    foreach ($files as $file) {
+    foreach (array_map('shownFile', $files) as $file) {
         $done = !in_array($file, $pending, true);
         echo '  ' . ($done ? colour('green', 'v') : colour('yellow', '.')) . ' ' . $file . ($done ? '' : colour('yellow', '   pending')) . "\n";
     }
     foreach ($status['missing'] as $missing) {
-        echo '  ' . colour('red', '?') . ' ' . $missing['name'] . colour('red', '   recorded as applied, but the file is not here') . "\n";
+        echo '  ' . colour('red', '?') . ' ' . shownFile($missing) . colour('red', '   recorded as applied, but the file is not here') . "\n";
     }
     printf("  %d applied, %d pending\n", count($files) - count($pending), count($pending));
     exit(0);
@@ -96,7 +110,7 @@ if (!$pending) {
 
 if ($dryRun) {
     foreach ($migrator->applicable() as $file) {
-        say('yellow', '  would apply ' . $file['name']);
+        say('yellow', '  would apply ' . shownFile($file));
     }
     exit(0);
 }
@@ -112,11 +126,11 @@ if ($result['busy']) {
 }
 
 foreach ($result['applied'] as $file) {
-    echo '  ' . $file['name'] . ' ... ' . colour('green', 'done') . "\n";
+    echo '  ' . shownFile($file) . ' ... ' . colour('green', 'done') . "\n";
 }
 
 if ($result['failed'] !== null) {
-    echo '  ' . $result['failed']['name'] . ' ... ' . colour('red', 'FAILED') . "\n";
+    echo '  ' . shownFile($result['failed']) . ' ... ' . colour('red', 'FAILED') . "\n";
     say('red', '    ' . str_replace("\n", "\n    ", (string) $result['error']));
     say('yellow', '    Nothing from this file was applied. The migrations before it stand.');
     exit(1);

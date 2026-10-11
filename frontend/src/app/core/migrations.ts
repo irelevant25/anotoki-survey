@@ -1,42 +1,13 @@
-import { EnvironmentProviders, InjectionToken, WritableSignal, inject, signal } from '@angular/core';
-import { type SiteStatusWords, provideAnotokiMigrations } from '@anotoki/lib/migrations';
+import { EnvironmentProviders, inject } from '@angular/core';
+import { provideAnotokiMigrations } from '@anotoki/lib/migrations';
+import { TranslationService, siteStatusWords } from '@anotoki/lib/translations';
 import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminDates } from './admin/admin-dates.service';
 import { AuthService } from './auth/auth.service';
 import { signInOrSayWhy } from './auth/sign-in-failure';
-import { TranslationService } from './i18n/translation.service';
 
 /** The admin panel's Migrations page: the anotoki family's (<anotoki-migrations-page>), in the admin layout. */
 export const MIGRATIONS_PATH = '/admin/migrations';
-
-/**
- * Whether the site's pages stay away once it runs again: true from the moment
- * the site could not run in this page load (AppComponent sets it) until an
- * update applied in this tab opens them again (onUpToDate, below). While the
- * site cannot run, the family's gate keeps them away itself - it makes the
- * pages' template only while it shows them. The site turning ready any other
- * way - the family's page asking again by itself, or its "Try again" - opens
- * the gate and is followed at once by a reload of the page, and a page made in
- * the moment between would run for nothing (ask the API, raise a toast) and
- * flash before the reload (AppComponent.held).
- */
-export const PAGES_CLOSED = new InjectionToken<WritableSignal<boolean>>('the site’s pages stay away until it runs again here', {
-  providedIn: 'root',
-  factory: () => signal(false),
-});
-
-/**
- * The words of the page drawn while the site cannot run are the library's
- * own, built in for English and Slovak - written for the sites that speak to
- * their readers informally (ty). This site's Slovak speaks formally (Vy, with
- * its capital; docs/decisions.md), so the one sentence of that page that
- * addresses the reader is said this site's way. The rest has no form of
- * address. Library words, not the site's: they must read while the site's
- * strings cannot be had - the database is what is not ready.
- */
-const FORMAL_SLOVAK: Partial<SiteStatusWords> = {
-  unavailableText: 'Skúste to, prosím, znova o pár minút. Táto stránka sa obnoví sama.',
-};
 
 /**
  * The anotoki family's migrations module (@anotoki/lib/migrations, the owner's
@@ -52,14 +23,21 @@ const FORMAL_SLOVAK: Partial<SiteStatusWords> = {
  *   a calm "the site is being updated" in their language, with a quiet Sign
  *   in while nobody is signed in; to the site's ADMIN "A database update is
  *   waiting" and the way to the Migrations page, which works - nothing else
- *   does; the setup page only while the site was never installed;
+ *   does; the setup page only while the site was never installed. Once the
+ *   site runs again, that page reloads itself - without telling the gate
+ *   first (anotoki-lib 0.2.0), so no page of the site is made in between;
  * - the admin panel's Migrations page is the family's (admin.routes.ts).
  *
  * Who is ADMIN is the token's say (AuthService, the IAM's roles for this
- * site); a Sign in comes back to the page it was pressed on; the Migrations
- * page's dates are in the anotoki account's order (AdminDates), and once it
- * has applied everything the pages open again where they stand (PAGES_CLOSED)
- * and the site's strings are read again - a migration may have brought new ones.
+ * site); a Sign in comes back to the page it was pressed on; the family's
+ * page reads the language on the page and its words from the site's database
+ * - the library's `anotoki.siteStatus.*`, reworded on the Translations page
+ * like any other string, and in this site's formal Slovak (migration 010;
+ * core/translations.ts while the database cannot be read, which is mostly
+ * when this page shows). The Migrations page's dates are in the anotoki
+ * account's order (AdminDates), and once it has applied everything the site's
+ * strings are read again - a migration may have brought new ones - and the
+ * pages open where they stand.
  */
 export function provideSiteMigrations(): EnvironmentProviders {
   return provideAnotokiMigrations(() => {
@@ -67,7 +45,6 @@ export function provideSiteMigrations(): EnvironmentProviders {
     const i18n = inject(TranslationService);
     const toast = inject(ToastService);
     const dates = inject(AdminDates);
-    const closed = inject(PAGES_CLOSED);
     return {
       statusUrl: '/api/site-status',
       apiBase: '/api/admin/migrations',
@@ -75,15 +52,15 @@ export function provideSiteMigrations(): EnvironmentProviders {
       isAdmin: () => auth.isAdmin(),
       isSignedIn: () => auth.signedIn(),
       signIn: () => signInOrSayWhy(auth, i18n, toast),
-      // The reader's language, wherever the page is: the visitor's words are theirs (the admin's part is English).
-      language: () => i18n.language(),
-      words: { sk: FORMAL_SLOVAK },
+      // The language on the page: the reader's, English in the admin panel - the words below are in it.
+      language: () => i18n.effectiveLanguage(),
+      // Read whenever the page draws: it follows a change of language or of the strings.
+      get words() {
+        return siteStatusWords(i18n);
+      },
       formatDate: (iso: string) => dates.formatDateTime(iso),
       // Called just before the module marks the site ready: the one way back to it in this tab without a reload.
-      onUpToDate: () => {
-        closed.set(false);
-        return i18n.reload();
-      },
+      onUpToDate: () => i18n.reload(),
     };
   });
 }

@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
+import { type AdminLanguage } from '@anotoki/lib/translations';
 import { ApiError, ApiService, toApiError } from '../api/api.service';
 import { AuthService } from '../auth/auth.service';
-import { AdminLanguage } from '../i18n/translation.model';
 import { changedTranslations, mergeTranslations, pruneTranslations, translationCodes, translationOf } from '../survey/localize';
 import { copySurvey, newSurvey } from '../survey/survey-factory';
 import { currentStatus, questionCount } from '../survey/survey-outline';

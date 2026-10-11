@@ -1,37 +1,41 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ThemeService } from '@anotoki/lib/shell';
-import { AnotokiIcons, AnotokiWords } from '@anotoki/lib/ui';
+import { TranslationService } from '@anotoki/lib/translations';
+import { AnotokiWords } from '@anotoki/lib/ui/config';
+import { AnotokiIcons } from '@anotoki/lib/ui/icon';
 import { type AnotokiPreferences, type AnotokiTheme } from './auth/anotoki-auth';
 import { AuthService } from './auth/auth.service';
-import { TranslationService } from './i18n/translation.service';
 import { SURVEY_ICONS, THEME_KEY, provideSiteShell, shellConfig } from './kit';
 import { provideTestTranslations } from './testing/test-translations';
 
-/** The site's own strings for some of the kit's words, as an administrator may have reworded them. */
+/**
+ * The kit's words in the site's database - the library's keys, anotoki.<word> - as an administrator may have
+ * reworded them on the Translations page.
+ */
 const SLOVAK = {
-  'common.signIn': 'Prihláste sa',
-  'common.signOut': 'Odhlásiť sa',
-  'common.close': 'Zavrieť',
-  'toast.region': 'Oznámenia stránky',
-  'topbar.menuButton': 'Vaša ponuka: {name}',
-  'language.button': 'Jazyk: {name} ({code})',
-  'theme.notSaved': 'Vzhľad sa nepodarilo uložiť do Vášho anotoki účtu. Skúste to, prosím, znova.',
+  'anotoki.topbar.signIn': 'Prihláste sa',
+  'anotoki.topbar.signOut': 'Odhlásiť sa',
+  'anotoki.ui.close': 'Zavrieť',
+  'anotoki.ui.notifications': 'Oznámenia stránky',
+  'anotoki.topbar.menuButton': 'Vaša ponuka: {name}',
+  'anotoki.language.button': 'Jazyk: {name} ({code})',
+  'anotoki.theme.notSaved': 'Vzhľad sa nepodarilo uložiť do Vášho anotoki účtu. Skúste to, prosím, znova.',
 };
 const ENGLISH = {
-  'common.signIn': 'Sign in',
-  'common.signOut': 'Sign out',
-  'common.close': 'Close',
-  'toast.region': 'Notifications',
-  'topbar.menuButton': 'Your menu: {name}',
-  'language.button': 'Language: {name} ({code})',
-  'theme.notSaved': 'The theme could not be saved to your anotoki account. Please try again.',
+  'anotoki.topbar.signIn': 'Sign in',
+  'anotoki.topbar.signOut': 'Sign out',
+  'anotoki.ui.close': 'Close',
+  'anotoki.ui.notifications': 'Notifications',
+  'anotoki.topbar.menuButton': 'Your menu: {name}',
+  'anotoki.language.button': 'Language: {name} ({code})',
+  'anotoki.theme.notSaved': 'The theme could not be saved to your anotoki account. Please try again.',
 };
 
-describe('The kit’s words: the site’s own strings, and formal Slovak', () => {
+describe('The kit’s words: the library’s keys in the site’s database, and formal Slovak', () => {
   beforeEach(() => TestBed.configureTestingModule({ providers: [provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH })] }));
 
-  it('a kit word the site has a string for reads the site’s string - reworded in the admin panel too - in the language on the page', () => {
+  it('a kit word reads the database’s string of the library’s key - reworded on the Translations page too - in the language on the page', () => {
     const words = TestBed.inject(AnotokiWords);
     expect(words.t('topbar.signIn')).toBe('Prihláste sa');
     expect(words.t('ui.close')).toBe('Zavrieť');
@@ -49,9 +53,9 @@ describe('The kit’s words: the site’s own strings, and formal Slovak', () =>
     expect(words.lang()).toBe('en');
   });
 
-  it('a kit word the site has no string for addresses a Slovak reader formally - never the kit’s informal ty', () => {
+  it('a kit word with no string to read addresses a Slovak reader formally - never the kit’s informal ty', () => {
     const words = TestBed.inject(AnotokiWords);
-    // No strings for these here: the site's formal Slovak stands in.
+    // No strings for these here (the database could not be read): the site's formal Slovak stands in - core/translations.ts.
     expect(words.t('topbar.menu')).toBe('Vaša ponuka');
     expect(words.t('topbar.account')).toBe('Váš anotoki účet');
     expect(words.t('language.notLoaded')).toBe('Jazyk sa nepodarilo načítať. Skúste to, prosím, znova.');

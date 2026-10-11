@@ -150,7 +150,7 @@ family's*, below; the PHP half stays 0.1.0):
   which the setup writes on a real host and never on this computer); an update
   waiting, every address answers 503 `update_pending` (`Retry-After: 60`) but
   the sign-in's settings, a language's strings, the health check and the
-  Migrations page's routes (`SITE_OPEN_WHILE_UPDATING`). The site's own "not
+  Migrations page's routes (`siteOpenWhileUpdating()`). The site's own "not
   set up" gate and its `update: true` went; so did `/api/health`'s "what is
   missing" while not set up - the gate answers that address too, and the setup
   page and `php migration.php` say what is missing on the computer that runs
@@ -165,10 +165,12 @@ family's*, below; the PHP half stays 0.1.0):
   available right now", asking again by itself. Its words are the library's
   (English, and Slovak written for the sites that say "ty"): the one sentence
   of it that addresses the reader is said this site's way, formally ("Skúste to,
-  prosím, znova o pár minút.", `core/migrations.ts`) - library words, not the
-  site's strings, because they must read while the database that holds the
-  strings is what is not ready. The site's "not set up yet" card and its four
-  strings went (migration 009).
+  prosím, znova o pár minút.") - library words, not the site's strings,
+  because they must read while the database that holds the strings is what is
+  not ready. (Since 0.3.0 they are the library's keys in the database too,
+  `anotoki.siteStatus.*`, that sentence formal there by migration 010, and
+  `FORMAL_SLOVAK` in `core/translations.ts` while the database cannot be read.)
+  The site's "not set up yet" card and its four strings went (migration 009).
 - **Nobody is sent to the IAM while the site cannot run**: the guards let every
   page through, the family's page stands instead of each, and its quiet Sign in
   is the way in - for the ADMIN who applies an update above all. So the address
@@ -185,14 +187,15 @@ family's*, below; the PHP half stays 0.1.0):
   template, this site took the gate's decision again around a bare outlet
   (`AppComponent.pagesOpen`, gone with 0.1.1). And once the site could not run
   in a page load, its pages stay away until an update applied in that tab
-  opens them (`PAGES_CLOSED`, `core/migrations.ts`; `AppComponent.held`): any
-  other way back to ready, the family's page reloads the page at once - the
-  gate opens in that moment, and a page made then would only flash. Answers
+  opens them: any other way back to ready, the family's page reloads the page
+  at once, and a page made in that moment would only flash (the site's own
+  hold for it, `PAGES_CLOSED` and `AppComponent.held`, went with 0.3.0: the
+  library's `SiteStatus.checkForReload()` never opens the gate first). Answers
   to a survey sent just as an update closes the site raise no toast either
   (`siteClosed`, `send-failure.ts`): the family's page has taken the survey's
   place, and the answers wait in the draft.
 - **Only what an update needs answers while it waits, each address exactly**:
-  `SITE_OPEN_WHILE_UPDATING` names the Migrations page's three routes, not
+  `siteOpenWhileUpdating()` names the Migrations page's three routes, not
   everything under `/api/admin/migrations` - an address dressed up as one of
   them (`/api/admin/migrations/../../surveys`, escaped or not) is closed by the
   gate itself, never left to the routes not matching it.
@@ -439,7 +442,9 @@ ring, a waiting Sign in or Sign out saying "Saving…", a refused theme and a
 language that cannot be had said under their control instead of in a toast,
 and the 0.2.0 Migrations page. A decorative edge that was drawn with the old
 strong border - a dashed frame, a quote's bar - keeps its colour
-(`--rule-strong`).
+(`--rule-strong`). (Since 0.3.0 the kit reads its words from the library's own
+keys in the site's database instead of a mapping onto the site's - *The site's
+words are the family's library's*, under *Languages*.)
 
 ## Languages
 
@@ -613,7 +618,7 @@ what it did before the field existed.
 **An empty string is one with nothing in it to see.** For the site's own
 strings and the languages' names: a zero-width space, a word joiner or a soft
 hyphen alone is kept by `trim()` and drawn as an empty place - so it counts as
-empty (`textBlank()`): English refuses it, another language's row is deleted,
+empty (`textBlank()` then, the library's `Text::blank()` since 0.3.0): English refuses it, another language's row is deleted,
 an import passes it over. The Translations page asks the same of a box
 (`blankText()`, its twin) only to tell whether the box is a change: nothing
 to see over no string is no change - no "1 string changed", no "The string is
@@ -711,3 +716,66 @@ given a translated string over several lines: each was a way to show a key -
 or draw a string as HTML - with every test green. A guard that says "clean" is
 believed, so it is held to what it promises; what it still cannot read - a
 key that reaches the pipe through a variable or a table - its header says.
+
+**The site's words are the family's library's - anotoki-lib 0.3.0
+(2026-10-11).** Every anotoki site kept its words in the same three tables,
+each with its own copy of the code around them; the owner had them made one
+implementation, in the library, and every site moved onto it. His decisions
+for it:
+
+- **One wire format, the IAM's** (snake_case: `native_name`, `sort_order`; the
+  bundle the IAM's byte for byte). The survey's camelCase went - the backend
+  and the frontend in one change: an admin page left open across the upload
+  no longer reads or saves a language's two renamed fields (the server passes
+  over `nativeName` and `sortOrder`, and a new language without `native_name`
+  is refused) - it is reloaded first; a bundle cached in the old shape is no
+  bundle (read again from the server), and a tab's drafts that hold a
+  Languages row typed in the old shape are no drafts - the strings typed
+  beside it go with them (typed again: save before the upload).
+- **Who may do what stays each site's**: the library checks nobody. Here, as
+  before: EDITOR and ADMIN reword the strings and keep the languages, and
+  deleting a language is an ADMIN's (`requireRoleFor('DELETE', ROLE_ADMIN)`).
+  The library's Languages page has no separate permission for deleting, so it
+  offers Delete to an EDITOR as well, and shows the server's refusal.
+- **Every rewording an owner made survives the move.** The kit used to read
+  its words from the site's own keys (`lookup`, `core/kit.ts`); now it reads
+  the library's, `anotoki.<word>`, from the same tables
+  (`TranslationService.forKit()`). Migration 010 moves the site's strings for
+  them under the library's keys before the library's set first runs - every
+  language, with who saved each and when - and its gate fails when a string
+  did not arrive, when a library word stands where the site had its own, or
+  when the library's informal Slovak is left. Twenty-two keys only the kit
+  asked for go; three the site's own pages ask for too (`common.close`,
+  `common.tryAgain`, `common.signIn`) are copied and stay, each reworded on its
+  own from now on. Moved rather than kept as a mapping: one word is one key on
+  every anotoki site, the Translations page shows it once, under the name the
+  library's own pages (the status page) read it by - a mapping would have left
+  two rows for one word, one of them saying nothing.
+- **This site's Slovak stays formal.** The library's Slovak says "ty"; the
+  eight of its words that speak to the reader are this site's formal ones: the
+  six the site had move with 010, the two it had not ("copying did not work",
+  "try again in a few minutes") 010 writes - and where the library's set ran
+  first, it replaces the library's words only while they are still exactly
+  the library's. While the database cannot be read, `FORMAL_SLOVAK`
+  (`core/translations.ts`) says them; a test holds the two to each other.
+- **The site's own hold before a reload went** (`PAGES_CLOSED`,
+  `AppComponent.held`): since 0.2.0 the family's page asks with
+  `SiteStatus.checkForReload()`, whose answer the gate is never told, so no
+  page is made in the moment before the reload; `app.component.spec.ts` proves
+  the gate stays shut.
+- **What the library does differently, and the site follows**: a save that
+  failed is said in the library's words; the Languages page says what it did
+  on the page, not in a toast; a refusal to save a language to the account is
+  a note under the switcher; a number in a plural is written the language's
+  way ("1 000"); the bundle that cannot be read is 503
+  `translations_unavailable`; the family's page at an admin address speaks
+  English, as the admin panel does (`effectiveLanguage` - its words come from
+  the strings of the language on the page now; it spoke the reader's
+  language there before). And the library's drafts ask before the tab is
+  left whenever boxes wait - also signed out, on the way to the IAM's sign-in
+  after a session ended, where the site's own asked nothing; the drafts
+  survive the answer all the same. The site still asks before a sign-out and
+  then gives the drafts up (*What is typed on the Translations and Languages
+  pages survives the session ending*, above), while the library's
+  Translations page says "Signing out does not ask about it" - which of the
+  two stays is the owner's to say.

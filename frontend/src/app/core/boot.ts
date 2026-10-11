@@ -1,11 +1,11 @@
 import { InjectionToken, WritableSignal, inject, signal } from '@angular/core';
 import { SiteStatus } from '@anotoki/lib/migrations';
 import { ThemeService } from '@anotoki/lib/shell';
+import { TranslationService } from '@anotoki/lib/translations';
 import { ToastService } from '@anotoki/lib/ui/toast';
 import { AuthService } from './auth/auth.service';
 import { sayWhySignInFailed } from './auth/sign-in-failure';
 import { VisitorKey } from './auth/visitor-key';
-import { TranslationService } from './i18n/translation.service';
 import { adoptVisitorDrafts } from './survey/drafts';
 
 /**

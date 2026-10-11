@@ -1,8 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { type AdminLanguage } from '@anotoki/lib/translations';
 import { ApiError, ApiService } from '../api/api.service';
 import { AuthService } from '../auth/auth.service';
-import { AdminLanguage } from '../i18n/translation.model';
 import { addTranslation, removeTranslation, setTranslatedText } from '../survey/localize';
 import { newOption, newQuestion, newSurvey } from '../survey/survey-factory';
 import { Person, Survey, SurveyTranslation } from '../survey/survey.model';
@@ -27,8 +27,8 @@ function survey(revision: number, title = 'Genshin 1.0'): Survey {
 }
 
 const LANGUAGES: AdminLanguage[] = [
-  { code: 'en', name: 'English', nativeName: 'English', enabled: true, sortOrder: 1, seeded: true },
-  { code: 'sk', name: 'Slovak', nativeName: 'Slovenčina', enabled: true, sortOrder: 2, seeded: true },
+  { code: 'en', name: 'English', native_name: 'English', enabled: true, sort_order: 1, seeded: true, strings: 0 },
+  { code: 'sk', name: 'Slovak', native_name: 'Slovenčina', enabled: true, sort_order: 2, seeded: true, strings: 0 },
 ];
 
 describe('AdminStore: saving what the editor changes', () => {
@@ -485,7 +485,7 @@ describe('AdminStore: saving what the editor changes', () => {
     expect(api.languages).toHaveBeenCalledTimes(1);
 
     // Asked for afresh - the editor or the results entered again - with a translation into a language added elsewhere since.
-    const german: AdminLanguage = { code: 'de', name: 'German', nativeName: 'Deutsch', enabled: false, sortOrder: 3, seeded: false };
+    const german: AdminLanguage = { code: 'de', name: 'German', native_name: 'Deutsch', enabled: false, sort_order: 3, seeded: false, strings: 0 };
     api.languages.mockResolvedValueOnce([...LANGUAGES, german]);
     api.survey.mockResolvedValueOnce({ ...survey(4), translations: { de: { title: 'Umfrage', intro: '', thanks: '', steps: {}, questions: {} } } });
     await store.load('survey-1', true);
@@ -524,7 +524,7 @@ describe('AdminStore: saving what the editor changes', () => {
     store.takeTheirs('survey-1');
 
     // Translated into German, which the site gained after the list came.
-    const german: AdminLanguage = { code: 'de', name: 'German', nativeName: 'Deutsch', enabled: true, sortOrder: 3, seeded: false };
+    const german: AdminLanguage = { code: 'de', name: 'German', native_name: 'Deutsch', enabled: true, sort_order: 3, seeded: false, strings: 0 };
     api.languages.mockResolvedValueOnce([...LANGUAGES, german]);
     api.saveSurvey.mockRejectedValueOnce(conflict({ ...survey(9, 'Theirs, later'), translations: { sk: translation, de: translation } }));
     store.updateSurvey('survey-1', (s) => ({ ...s, title: 'Mine again' }));

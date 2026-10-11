@@ -244,21 +244,6 @@ function textTrim(string $text): string
 }
 
 /**
- * Is there nothing in the text to see? True when it has no character but
- * white space, separators and format characters: a zero-width space, a word
- * joiner or a soft hyphen alone shows as nothing at all, though trim() leaves
- * each of them. Bytes that are not UTF-8 are nothing to read either.
- *
- * For the site's own strings and names, where a text nobody can see would be
- * kept as a string and drawn as an empty place. A survey's texts and the
- * answers keep the browser's rule (textTrim), so both sides agree on them.
- */
-function textBlank(string $text): bool
-{
-    return preg_match('/[^\s\p{Z}\p{Cf}]/u', $text) !== 1;
-}
-
-/**
  * A text field's value as it is kept: valid UTF-8 without control characters
  * but tabs and line breaks - or null for what is not text at all. The controls
  * are dropped rather than refused: a soft line break pasted from a word

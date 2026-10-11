@@ -1,6 +1,7 @@
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, inject, input, output } from '@angular/core';
-import { IconComponent, uniqueId } from '@anotoki/lib/ui';
+import { uniqueId } from '@anotoki/lib/ui/dom';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { SwitchComponent } from '@anotoki/lib/ui/forms';
 import { type SurveyIconName } from '../../../../core/kit';
 import { MAX_QUESTION_IMAGES } from '../../../../core/images/prepare-image';

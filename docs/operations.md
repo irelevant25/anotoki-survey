@@ -124,6 +124,26 @@ half only) has no migration and changes nothing on the server: the upload's
 build copies it to the same place, still answered with `no-cache`), and
 Manrope's files come with the build (`media/`).
 
+The version whose words are the family's library's (anotoki-lib 0.3.0, both
+halves: the strings' routes, the admin Translations and Languages pages and
+the command line are the library's, in the IAM's wire format) brings
+migration `010_strings_through_the_library.sql` and, after it, the library's
+own set - `anotoki_translations/001_languages_and_strings.sql` (it proves the
+tables' shape and changes nothing) and `002_library_words.sql` (the library's
+words, `anotoki.*`, only where a key has none) - four files on the Migrations
+page under two headings, `migrations/survey/` and
+`migrations/anotoki_translations/`. 010 moves the site's strings for the kit
+(the top bar's, the switches', a dialog's X) under the library's keys - an
+owner's rewording with them - and deletes the old keys; its gate stops it,
+rolled back whole, if anything would be lost. **Before the upload: export each
+language** from the Translations page (*The site's words and languages*,
+below), save whatever is typed and not saved on the two admin pages (a tab's
+drafts holding a Languages row typed before the upload are not read again,
+nor the strings typed with them), and after it reload every admin page that
+was open. The upload carries `vendor/anotoki/lib/php/migrations/`
+(the library's set) - `tools/build.php` puts it there, under the deny-all
+`.htaccess` of `vendor/`.
+
 ## The site's words and languages
 
 The words the site says to people taking surveys are in the database and are
@@ -344,7 +364,7 @@ connection and the IAM's address; setup.php writes them again - all but
 | An admin page turns into "You are signed out" in the middle of work | The session ended (idle at the IAM, or signed out on another anotoki site): sign in again with the card's Sign in (or the top bar's - on a phone, inside its menu). What was typed on the Translations and Languages pages is kept in the tab for the same person, and is in its boxes again. Unsaved changes to a survey are kept only while that page stays open (signing in is a page load): sign in again in another tab, and the open page saves them. |
 | A page where people take surveys says "You are not signed in" (the admin panel too, with its own English words) | The sign-in came back without one - the IAM turned the account away (the `survey` application's access in the IAM's admin panel), or the person went back from it - and the toast says which; or the session ended with the page open (in the admin panel that one is "You are signed out"). Or the sign-in could not start: the browser refuses the site's storage (blocked cookies and site data, some private modes), and the toast says to allow it. Its Sign in (and the top bar's) tries again and comes back to the same page. Every other page goes to the IAM by itself: nothing of a survey is shown to anybody not signed in. With "Sign-in required" off, only the editor's preview draws it for somebody not signed in - the pages people take surveys on are theirs as visitors, and a refused sign-in is said in its toast while they go on as visitors. |
 | An admin page says "This part is for the people who write the surveys" | Signed in, but the account has no EDITOR or ADMIN role for `survey`: the IAM's admin panel gives it. |
-| The browser asks "Leave site?" | Strings or languages are typed and not saved, and somebody is signed in - or the tab's storage would not keep them. Signed out, with the drafts kept in the tab, it does not ask (the way on is the sign-in, and they are there after it); so closing such a tab while signed out is not asked about, and loses them. Unsaved changes to a survey always ask. |
+| The browser asks "Leave site?" | Strings or languages are typed and not saved (the family's drafts ask whenever some wait, signed in or not - also on the way to the sign-in after a session ended, where answering "Leave" loses nothing: they are kept in the tab and are there after the sign-in). Closing the tab loses them. Unsaved changes to a survey always ask. |
 | The Translations page says "Nothing was saved." in the bar beside Save | The reason follows it: the server's sentence, or that the site could not be reached. A language or key deleted meanwhile: the page has read the grid again, and Save sends the rest. |
 | "Sign-in required" is off in the IAM, and the site still asks everybody to sign in | The site keeps the IAM's answer a minute, and a page reads it once, when it loads: reload. The IAM out of reach and never read means "required" (the log says `[auth] the IAM did not say whether sign-in is required`); `storage/cache/` must be writable. `/api/auth/config` shows what the site took (`loginRequired`, and `visitorDays` - without it the pages welcome nobody: the backend is older than the frontend). The admin panel and the editor's preview always ask. |
 | A visitor's page says "Sign in to send your answers" | "Sign-in required" was switched on while the page was open: the page now draws "You are not signed in", the answers stay in the browser, and signing in sends them (and moves what that browser answered before). |

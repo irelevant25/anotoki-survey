@@ -26,7 +26,7 @@ the library's shape (`{code, message, ...}`, not this API's `error`):
 | State | When | Every address answers |
 | --- | --- | --- |
 | `not_set_up` | `config/database.local.php` or `iam.local.php` missing or incomplete | 503 `{code: "not_set_up", installed, message}` - with `setup: "/setup.php"` only while the site was never installed (`storage/installed.lock`, which `setup.php` writes when it finishes on a real host) |
-| `update_pending` | a migration file waits to be applied | 503 `{code: "update_pending", message: "The site is being updated. Try again in a few minutes."}` and `Retry-After: 60` - but `GET /api/auth/config`, `GET /api/translations/{code}`, `GET /api/health` and the Migrations page's three routes (`/api/admin/migrations`, `/file` and `/apply`, ADMIN, below) answer as ever (`SITE_OPEN_WHILE_UPDATING`). Those addresses exactly, read as the routes read them (unescaped, dot segments as written): any other under them is closed too |
+| `update_pending` | a migration file waits to be applied | 503 `{code: "update_pending", message: "The site is being updated. Try again in a few minutes."}` and `Retry-After: 60` - but `GET /api/auth/config`, `GET /api/translations/{code}` (one segment after it: the library's `TranslationsRoutes::openPath()`), `GET /api/health` and the Migrations page's three routes (`/api/admin/migrations`, `/file` and `/apply`, ADMIN, below) answer as ever (`siteOpenWhileUpdating()`). Those addresses exactly, read as the routes read them (unescaped, dot segments as written): any other under them is closed too |
 | `unavailable` | the settings are there, the database cannot be reached | the route's own answer (503 `database_unavailable` where it needs the database) |
 | `ready` | otherwise | the route's own answer |
 
@@ -43,7 +43,7 @@ the library's shape (`{code, message, ...}`, not this API's `error`):
 | `GET /api/site-status` | `{state, installed}`: where the site stands - `ready`, `not_set_up`, `update_pending` or `unavailable` - and whether its installer finished on a real host. Answered in every state and to anybody - nothing it carries is read (a token, good or not, a visitor's key), whatever the IAM says of signing in: the pages ask it before anybody can sign in. It says nothing else |
 | `GET /api/auth/config` | `{issuer, clientId, loginRequired, visitorDays}`: how the browser signs in, and whether it must - `loginRequired` is the IAM's "Sign-in required" switch for this site (below); `visitorDays`, how many days a visitor's browser is remembered after its last visit (`keep_days`, `config/visitors.local.php`). Answered while a migration is pending too: the site's ADMIN signs in to apply it |
 | `GET /api/images/{id}.{ext}` | a picture: its bytes, cached for a year; `If-None-Match` → 304; 404 when there is none |
-| `GET /api/translations/{code}` | the site's own words in a language: `{language, languages, values, english?}`; `If-None-Match` → 304; 404 `not_found` for a code that is not one |
+| `GET /api/translations/{code}` | the site's own words in a language: `{language, languages, values, english?}`; `If-None-Match` → 304; 404 `not_found` for a code that is not one; 503 `translations_unavailable` (`Retry-After: 60`) while the tables are not there or the database cannot be asked - the pages then read what they have |
 
 ### Sign-in required: the IAM's switch, relayed
 
@@ -65,12 +65,19 @@ The admin panel and the editor's preview sign in first whatever it says.
 
 ### The site's words: the bundle
 
-What every page starts with (`TranslationService`), the same for everybody - no
-token is looked at, not even a bad one:
+What every page starts with (the library's `TranslationService`), the same for
+everybody - no token is looked at, not even a bad one. The route, and every
+route of the site's words below, is the anotoki family's (anotoki-lib 0.3.0,
+`Anotoki\Lib\Translations\Http\TranslationsRoutes`, wired in
+`routes/public.php` and `routes/admin.php`): one wire format for every anotoki
+site, the IAM's - snake_case, the bundle the IAM's byte for byte - in this
+site's error body (`{error, code, ...}`, `respondRefusal()`):
 
 - `values`: the flat `{key: text}` map of the language asked for, **with
-  English merged underneath** - a key that has no string in it comes in English;
-- `languages`: the ones on offer, `[{code, name, nativeName}]`, in their order
+  English merged underneath** - a key that has no string in it comes in
+  English. The library's own words are among them, under `anotoki.` (the
+  kit's, the status page's);
+- `languages`: the ones on offer, `[{code, name, native_name}]`, in their order
   (`sort_order`, then name). There is no other public list of languages;
 - `english`: English's own map, **left out when `language` is `en`** - the
   admin panel reads English whatever the person reads, without a second request;
@@ -301,32 +308,40 @@ other languages, by code, each text found by the id of what it belongs to:
 
 ### The languages and the site's strings
 
-A `{code}` that is not a language's is 404 `not_found`.
+The anotoki family's routes (above), behind this site's roles: EDITOR or
+ADMIN for all of them, deleting a language ADMIN alone (`requireRoleFor()`).
+They answer in this order, after the roles (401, 403): a `{code}` that is not
+a language code 404 `not_found`, before any query; a body that is too large
+413 `too_large`, not JSON 415 `unsupported_media_type`, empty 422
+`empty_body`, broken 400 `invalid_json` - read from the request itself; the
+tables not there yet 503 `translations_unavailable` (`Retry-After: 60`); then
+the work. A `{code}` the site does not have is 404 `not_found`.
 
 | Route | Answers |
 | --- | --- |
-| `GET /api/admin/languages` | `{languages: [{code, name, nativeName, enabled, sortOrder, seeded}]}` - every language, the hidden ones too; `seeded`: the migrations write strings for it |
-| `POST /api/admin/languages` | `{code, name, nativeName, enabled?}` → 201 `{language}`: after the ones there are; offered at once unless `enabled` is `false` (the Languages page always sends it, and adds a language hidden unless told otherwise) |
-| `PUT /api/admin/languages/{code}` | `{name?, nativeName?, enabled?, sortOrder?}` → `{language}`; what is not sent stays |
-| `DELETE /api/admin/languages/{code}` | ADMIN → 204; its strings go with it. It waits for a survey's save that is on its way in that language, and then counts it |
-| `GET /api/admin/translations` | `{languages: [all], keys: [{name, description, values: {code: text}}]}` - the keys by name |
+| `GET /api/admin/languages` | `{languages: [{code, name, native_name, enabled, sort_order, seeded, strings}]}` - every language, the hidden ones too; `seeded`: the migrations write strings for it; `strings`: how many it has of its own |
+| `POST /api/admin/languages` | `{code, name, native_name, enabled?}` → 201 `{language}`: after the ones there are; offered at once unless `enabled` is `false` (the Languages page always sends it, and adds a language hidden unless told otherwise) |
+| `PUT /api/admin/languages/{code}` | `{name?, native_name?, enabled?, sort_order?}` → `{language}`; what is not sent stays |
+| `DELETE /api/admin/languages/{code}` | ADMIN → 200 `{strings}`: its strings go with it, and this says how many. It waits for a survey's save that is on its way in that language, and then counts it |
+| `GET /api/admin/translations` | `{languages: [all], keys: [{name, description, values: {code: text}}]}` - the keys by name, the library's (`anotoki.*`) among them |
 | `PUT /api/admin/translations` | `{values: {key: {code: text}}}`, **only the cells that changed** → the grid as it is now |
-| `GET /api/admin/translations/{code}/export` | that language's own strings as a flat `{key: text}` - not merged with English, `{}` when it has none |
+| `GET /api/admin/translations/{code}/export` | that language's own strings as a flat `{key: text}` file (`Content-Disposition: attachment; filename="translations-{code}.json"`) - not merged with English, `{}` when it has none |
 | `PUT /api/admin/translations/{code}/import` | a flat `{key: text}` → the grid as it is now; an empty string - nothing in it to see - is passed over (an import deletes nothing) |
 
-A save of strings is checked whole before anything is written
-(`translationsCheck()` - the import and the command line go through it too),
-and written in one transaction, by key and then by language whatever order the
+A save of strings is checked whole before anything is written (the library's
+`StringCheck` - the import and the command line go through it too), and
+written in one transaction, by key and then by language whatever order the
 cells were sent in - so two saves of the same strings wait for each other
 rather than deadlock. An empty string for another language than English
 deletes that string (the language then reads the key in English). **Empty is a
 string with nothing in it to see**: no character but white space, separators
 and format characters - spaces, or a zero-width space, a word joiner or a soft
-hyphen alone (`textBlank()`; a language's name of that kind is no name). A string
-sent as it is stays as it was, with who wrote it and when; otherwise
-`updated_by` is the request's person. Two people changing the same string: the
-last save is kept. The keys themselves are the code's - migrations write them,
-no route does.
+hyphen alone (the library's `Text::blank()`; a language's name of that kind is
+no name). A string sent as it is stays as it was, with who wrote it and when;
+otherwise `updated_by` is the request's person (`translationWriter()`: the
+token's, never a body's). Two people changing the same string: the last save
+is kept. The keys themselves are the code's - migrations write them, no route
+does.
 
 The first thing wrong is what is refused. A key is looked at first (the
 shape of its cells, then whether the site has it); then, string by string: the
@@ -335,7 +350,7 @@ placeholders.
 
 | Status, code | When |
 | --- | --- |
-| 422 `invalid_language` | a code that is not two small letters (or two and two with a dash); a name that is not 1 to 50 characters, or has nothing in it to see; `enabled` not `true` or `false` (adding or changing: a text, a number, `null`); `sortOrder` not a whole number 0-1000 |
+| 422 `invalid_language` | a code that is not two small letters (or two and two with a dash); a name that is not 1 to 50 characters, or has nothing in it to see; `enabled` not `true` or `false` (adding or changing: a text, a number, `null`); `sort_order` not a whole number 0-1000 |
 | 409 `language_exists` | adding a code the site has |
 | 422 `too_many_languages` | adding a twenty-first - two people adding the twentieth at the same moment wait for each other, and the second is refused |
 | 409 `fallback_language` | switching English off, or deleting it |
@@ -345,7 +360,7 @@ placeholders.
 | 422 `unknown_key` + `key`, `keys` | a key the site does not have; `keys` lists every such key sent |
 | 422 `unknown_language` | a language the site does not have |
 | 422 `fallback_required` | an empty English string (nothing in it to see): every other language falls back to it |
-| 422 `invalid_placeholder` | a `{` or `}` that is not part of a `{placeholder}`, in any language: `{ count }`, `{počet}`, `{count`, `{{count}}`. The page fills in only what is written exactly as `{name}` (a letter, then letters, digits, `_`) and would show the rest as it stands; the sentence names one of the key's own placeholders as the example - or, for a key that has none, ends "This key has no placeholder, so its strings can hold no { or }." |
+| 422 `invalid_placeholder` | a `{` or `}` that is not part of a `{placeholder}`, in any language: `{ count }`, `{počet}`, `{count`, `{{count}}`. The page fills in only what is written exactly as `{name}` (a letter, then letters, digits, `_`) and would show the rest as it stands; the sentence names one of the key's own placeholders as the example - `{count}` for a key that has none (the library's words) |
 | 422 `placeholder_changed` + `placeholder` | an English string whose `{placeholders}` are not exactly the stored English string's |
 | 422 `unknown_placeholder` + `placeholder` | another language's string with a `{placeholder}` the English one does not have (leaving one out is fine) |
 
@@ -366,13 +381,15 @@ routes (`Anotoki\Lib\Migrations\Http\MigrationsRoutes::admin`,
 database a pending migration has yet to build - from nothing at all. They
 answer while a migration is pending, when the rest of the site is 503; not
 while the settings are missing (there is no database to update then:
-`setup.php`). The set is the site's one, `survey`. Bodies in the library's
-shape.
+`setup.php`). The sets are the site's own, `survey`, and after it the
+library's, `anotoki_translations` (its files recorded as
+`anotoki_translations/NNN_….sql` in the `migrations` table). Bodies in the
+library's shape.
 
 | Route | Answers |
 | --- | --- |
-| `GET /api/admin/migrations` | `{sets: ["survey"], applied: [{set, name, applied_at}], pending: [{set, name, ready, blocked}], missing: [{set, name, applied_at}]}` - applied in the order they ran (`applied_at` ISO 8601, UTC), pending in the order they will run, missing: recorded as applied with no file here. Writes nothing |
-| `GET /api/admin/migrations/file?set=survey&name=NNN_x.sql` | `{set, name, sql}`: the file's text, for the page's View; 404 `{code: "not_found", message}` for anything that is not a file of the set (a path, another folder) |
+| `GET /api/admin/migrations` | `{sets: ["survey", "anotoki_translations"], applied: [{set, name, applied_at}], pending: [{set, name, ready, blocked}], missing: [{set, name, applied_at}]}` - applied in the order they ran (`applied_at` ISO 8601, UTC), pending in the order they will run, missing: recorded as applied with no file here. Writes nothing |
+| `GET /api/admin/migrations/file?set=survey&name=NNN_x.sql` | `{set, name, sql}`: the file's text, for the page's View (`set=anotoki_translations` for the library's); 404 `{code: "not_found", message}` for anything that is not a file of a set (a path, another folder) |
 | `POST /api/admin/migrations/apply` | `{applied: [{set, name}], failed: {set, name} \| null, error: string \| null, note: null}` - every pending file in order, each in its own transaction, stopping at the first that fails: that one is rolled back whole and named, and `error` is the database's whole error (`statement n of m: SQLSTATE[...]: ...` and the statement's first lines) - it is logged too (`[db] the migration ... failed`). A failure is a 200 with `failed` set; `{applied: [], failed: null, ...}`: nothing was pending |
 
 | Status, code | When |

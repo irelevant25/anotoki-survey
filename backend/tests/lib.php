@@ -310,12 +310,39 @@ function test_empty_db(string $suffix): string
     return $name;
 }
 
-/** The migration files, in the order they run: the engine's own list (api/migrations.php). */
+/** The site's own migration files, in the order they run: the engine's own list (api/migrations.php). */
 function migration_files(): array
 {
     test_db();
 
     return surveyMigrator(db())->files(surveyMigrationSet());
+}
+
+/**
+ * Every file the engine applies, in the order it runs them, as it names them:
+ * [set, name] - the site's own (`survey`), then the anotoki library's
+ * (`anotoki_translations`).
+ *
+ * @return list<array{set: string, name: string}>
+ */
+function migration_entries(): array
+{
+    test_db();
+    $migrator = surveyMigrator(db());
+    $entries = [];
+    foreach (surveyMigrationSets() as $set) {
+        foreach ($migrator->files($set) as $name) {
+            $entries[] = ['set' => $set->name, 'name' => $name];
+        }
+    }
+
+    return $entries;
+}
+
+/** A file as the `migrations` table records it: the site's own by its name, the library's as set/name. */
+function migration_record(array $entry): string
+{
+    return $entry['set'] === surveyMigrationSet()->name ? $entry['name'] : $entry['set'] . '/' . $entry['name'];
 }
 
 /** A migration file's SQL, as it is in migrations/survey/. */

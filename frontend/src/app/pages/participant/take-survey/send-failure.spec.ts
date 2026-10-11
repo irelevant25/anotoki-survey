@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
+import { TranslationService } from '@anotoki/lib/translations';
 import { ApiError, toApiError } from '../../../core/api/api.service';
-import { TranslationService } from '../../../core/i18n/translation.service';
 import { provideTestTranslations } from '../../../core/testing/test-translations';
 import { sendFailure, sendFailureText } from './send-failure';
 

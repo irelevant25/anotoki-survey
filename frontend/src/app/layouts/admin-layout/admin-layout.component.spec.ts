@@ -72,8 +72,10 @@ describe('AdminLayoutComponent', () => {
     await layout({ signedIn: true, roles: [] });
 
     expect(host.querySelector('router-outlet')).toBeNull();
-    expect(text('anotoki-empty-state .heading')).toBe('The admin panel is for the people who write the surveys');
-    expect(text('anotoki-empty-state .text')).toBe("Your anotoki account has no editor role here. The site's administrator can give it to you in the anotoki account's admin panel.");
+    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('The admin panel is for the people who write the surveys');
+    expect(text('anotoki-empty-state .anotoki-empty-state__text')).toBe(
+      "Your anotoki account has no editor role here. The site's administrator can give it to you in the anotoki account's admin panel.",
+    );
     const link = host.querySelector<HTMLAnchorElement>('anotoki-empty-state a')!;
     expect(clean(link.textContent)).toBe('See the open surveys');
     expect(link.getAttribute('href')).toBe('/');
@@ -84,8 +86,8 @@ describe('AdminLayoutComponent', () => {
     await layout({ signedIn: false, roles: [] });
 
     expect(host.querySelector('router-outlet')).toBeNull();
-    expect(text('anotoki-empty-state .heading')).toBe('You are signed out');
-    expect(text('anotoki-empty-state .text')).toBe(
+    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('You are signed out');
+    expect(text('anotoki-empty-state .anotoki-empty-state__text')).toBe(
       'Your session has ended. Sign in again: what you typed on the Translations and Languages pages is kept in this tab, and will be in its boxes again. ' +
         'Changes to a survey that were not saved yet stay only while this page is open - sign in again in another tab to save them.',
     );
@@ -107,8 +109,8 @@ describe('AdminLayoutComponent', () => {
     await fixture.whenStable();
 
     expect(host.querySelector('router-outlet')).toBeNull();
-    expect(text('anotoki-empty-state .heading')).toBe('You are not signed in');
-    expect(text('anotoki-empty-state .text')).toBe(
+    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('You are not signed in');
+    expect(text('anotoki-empty-state .anotoki-empty-state__text')).toBe(
       'The admin panel is for the people who write the surveys, signed in with their anotoki account. The sign-in did not complete - sign in to try again.',
     );
     expect(host.textContent).not.toContain('Your session has ended');
@@ -126,7 +128,7 @@ describe('AdminLayoutComponent', () => {
     await fixture.whenStable();
 
     expect(host.querySelector('router-outlet')).toBeNull();
-    expect(text('anotoki-empty-state .heading')).toBe('You are signed out');
+    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('You are signed out');
 
     signedIn.set(true);
     await fixture.whenStable();
@@ -150,7 +152,7 @@ describe('AdminLayoutComponent', () => {
     await site.whenStable();
 
     expect(host.querySelector('.page')).toBeNull();
-    expect(text('app-admin-layout anotoki-empty-state .heading')).toBe('You are signed out');
+    expect(text('app-admin-layout anotoki-empty-state .anotoki-empty-state__heading')).toBe('You are signed out');
     expect(router.url).toBe('/admin/translations');
   });
 });

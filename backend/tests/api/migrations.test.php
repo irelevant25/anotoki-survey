@@ -11,9 +11,10 @@
 // lacks, a file's SQL, and applying what it lacks - one update at a time,
 // whoever starts it.
 //
-// The files are the repository's own (migrations/survey/): a database is made
-// "behind" by taking a file's row out of its migrations table, never by
-// writing a file there - the owner's running site reads that folder too.
+// The files are the repository's own (migrations/survey/, and the anotoki
+// library's set in vendor/): a database is made "behind" by taking a file's row
+// out of its migrations table, never by writing a file there - the owner's
+// running site reads that folder too.
 
 declare(strict_types=1);
 
@@ -24,8 +25,17 @@ const EDITH = 2;    // EDITOR
 const PAT = 101;    // takes surveys
 
 const FILE_004 = '004_response_language.sql';
-const FILE_005 = '005_top_bar_and_sign_in.sql';
+/**
+ * The file the tests make the database wait for, and apply again: it writes strings, and runs again over what it
+ * wrote (its inserts step aside). Not 005: its gate holds language.button, which 010 moved under the library's key.
+ */
+const FILE_007 = '007_visitor_strings.sql';
+/** A key 007 writes, and its English: gone before it is applied again, and back after. */
+const KEY_007 = 'visitor.notice.one';
+const ENGLISH_007 = 'You are taking surveys without signing in. This browser remembers which ones you have answered for {count} day after your last visit - sign in, and your answers move into your anotoki account.';
 const FILE_006 = '006_visitors.sql';
+/** The anotoki library's words: the last file of its set, recorded with the set's name. */
+const LIBRARY_002 = ['set' => 'anotoki_translations', 'name' => '002_library_words.sql'];
 
 /** What every closed address answers while a migration waits - the library's words, nothing of the site's. */
 const UPDATING = ['code' => 'update_pending', 'message' => 'The site is being updated. Try again in a few minutes.'];
@@ -128,7 +138,7 @@ function undo_006(): void
 /** Back to current, however a test left it. */
 function current_again(): void
 {
-    dbExec('DROP TRIGGER IF EXISTS survey_test_refuse ON translation_keys');
+    dbExec('DROP TRIGGER IF EXISTS survey_test_refuse ON translations');
     if ((int) dbValue("SELECT count(*) FROM information_schema.columns WHERE table_name = 'responses' AND column_name = 'language'") === 0) {
         dbExec('ALTER TABLE responses ADD COLUMN language VARCHAR(10) REFERENCES languages (code) ON DELETE SET NULL');
     }
@@ -138,8 +148,8 @@ function current_again(): void
             dbExec($statement);
         }
     }
-    foreach (migration_files() as $file) {
-        dbExec('INSERT INTO migrations (filename) VALUES (?) ON CONFLICT DO NOTHING', [$file]);
+    foreach (migration_entries() as $entry) {
+        dbExec('INSERT INTO migrations (filename) VALUES (?) ON CONFLICT DO NOTHING', [migration_record($entry)]);
     }
 }
 
@@ -165,8 +175,8 @@ test('up to date: every file applied, in the order it ran, with when - nothing p
     $status = as_user(ADA, 'GET', '/api/admin/migrations');
     assert_same(200, $status['status']);
     assert_same(['sets', 'applied', 'pending', 'missing'], array_keys($status['body']));
-    assert_same(['survey'], $status['body']['sets']);
-    assert_same(array_map('file_entry', migration_files()), array_map(static fn(array $row): array => ['set' => $row['set'], 'name' => $row['name']], $status['body']['applied']), 'every file, in the order it ran');
+    assert_same(['survey', 'anotoki_translations'], $status['body']['sets'], 'the site\'s own, then the anotoki library\'s words');
+    assert_same(migration_entries(), array_map(static fn(array $row): array => ['set' => $row['set'], 'name' => $row['name']], $status['body']['applied']), 'every file, in the order it ran');
     foreach ($status['body']['applied'] as $row) {
         assert_match('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/D', (string) $row['applied_at'], 'when, in UTC');
     }
@@ -194,7 +204,7 @@ test('the status answers anybody, whatever the request carries and whatever the 
         $surveys = call($required['base'], 'GET', '/api/surveys');
         assert_same([401, 'sign_in_required'], [$surveys['status'], $surveys['body']['code'] ?? null], 'the surveys, nobody, sign-in required');
         // ...but never on the status, which the pages must be able to read before anybody can sign in.
-        foreach (['ready' => null, 'update_pending' => FILE_005] as $state => $file) {
+        foreach (['ready' => null, 'update_pending' => FILE_007] as $state => $file) {
             if ($file !== null) {
                 behind($file);
             }
@@ -224,9 +234,9 @@ test('a file\'s SQL, for the page\'s View - and nothing that is not a file of th
 test('ADMIN alone, from the token: nobody is asked to sign in, a participant and an EDITOR are refused - the list, a file and the Apply, behind or not', function (): void {
     foreach ([false, true] as $isBehind) {
         if ($isBehind) {
-            behind(FILE_005);
+            behind(FILE_007);
         }
-        foreach (['GET /api/admin/migrations', 'GET /api/admin/migrations/file?set=survey&name=' . FILE_005, 'POST /api/admin/migrations/apply'] as $route) {
+        foreach (['GET /api/admin/migrations', 'GET /api/admin/migrations/file?set=survey&name=' . FILE_007, 'POST /api/admin/migrations/apply'] as $route) {
             [$method, $url] = explode(' ', $route);
             $nobody = anonymous($method, $url);
             assert_same([401, 'sign_in_required'], [$nobody['status'], $nobody['body']['code'] ?? null], "$route, nobody");
@@ -238,12 +248,12 @@ test('ADMIN alone, from the token: nobody is asked to sign in, a participant and
             assert_same([401, 'invalid_token'], [$bad['status'], $bad['body']['code'] ?? null], "$route: an ADMIN's token that has run out");
         }
     }
-    assert_same([FILE_005], pending_now(), 'nothing a refused Apply would have applied was applied');
+    assert_same([FILE_007], pending_now(), 'nothing a refused Apply would have applied was applied');
     current_again();
 });
 
 test('a migration waiting: 503 update_pending with Retry-After everywhere - but signing in, the strings, the health and the Migrations page', function (): void {
-    behind(FILE_005);
+    behind(FILE_007);
 
     $status = anonymous('GET', '/api/site-status');
     assert_same([200, ['state' => 'update_pending', 'installed' => false]], [$status['status'], $status['body']], 'the status always answers');
@@ -263,13 +273,13 @@ test('a migration waiting: 503 update_pending with Retry-After everywhere - but 
     $strings = anonymous('GET', '/api/translations/sk');
     assert_same([200, 'sk'], [$strings['status'], $strings['body']['language'] ?? null], 'the strings: the pages are worded with them');
     $health = anonymous('GET', '/api/health');
-    assert_same([200, [FILE_005]], [$health['status'], $health['body']['pending'] ?? null], 'the health check, and - asked from this computer - what waits');
+    assert_same([200, [FILE_007]], [$health['status'], $health['body']['pending'] ?? null], 'the health check, and - asked from this computer - what waits');
 
     $list = as_user(ADA, 'GET', '/api/admin/migrations');
     assert_same(200, $list['status']);
-    assert_same([['set' => 'survey', 'name' => FILE_005, 'ready' => true, 'blocked' => false]], $list['body']['pending']);
-    assert_false(in_array(FILE_005, array_column($list['body']['applied'], 'name'), true));
-    assert_same(200, as_user(ADA, 'GET', '/api/admin/migrations/file?set=survey&name=' . FILE_005)['status']);
+    assert_same([['set' => 'survey', 'name' => FILE_007, 'ready' => true, 'blocked' => false]], $list['body']['pending']);
+    assert_false(in_array(FILE_007, array_column($list['body']['applied'], 'name'), true));
+    assert_same(200, as_user(ADA, 'GET', '/api/admin/migrations/file?set=survey&name=' . FILE_007)['status']);
 
     current_again();
     assert_same(['state' => 'ready', 'installed' => false], anonymous('GET', '/api/site-status')['body']);
@@ -277,7 +287,7 @@ test('a migration waiting: 503 update_pending with Retry-After everywhere - but 
 });
 
 test('a migration waiting: an address dressed up as an open one stays closed - dot segments, escaped slashes, anything under the Migrations page that is not its route', function (): void {
-    behind(FILE_005);
+    behind(FILE_007);
 
     foreach ([
         '/api/admin/migrations/../../surveys',
@@ -303,64 +313,87 @@ test('a migration waiting: an address dressed up as an open one stays closed - d
 
     // The routes themselves are open as they are - to an ADMIN, as ever.
     assert_same(200, as_written(ADA, 'GET', '/api/admin/migrations')['status']);
-    assert_same(200, as_written(ADA, 'GET', '/api/admin/migrations/file?set=survey&name=' . FILE_005)['status']);
+    assert_same(200, as_written(ADA, 'GET', '/api/admin/migrations/file?set=survey&name=' . FILE_007)['status']);
     current_again();
 });
 
 test('several pending, in the order they will run; Apply runs them all and the site runs again', function (): void {
     undo_004();
-    behind(FILE_005);
-    // What 005 writes, gone: it comes back with the Apply.
-    dbExec("DELETE FROM translation_keys WHERE name = 'signedOut.heading'");
-    assert_same([FILE_004, FILE_005], pending_now());
+    behind(FILE_007);
+    // What 007 writes, gone: it comes back with the Apply.
+    dbExec('DELETE FROM translation_keys WHERE name = ?', [KEY_007]);
+    assert_same([FILE_004, FILE_007], pending_now());
 
     $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-    assert_same([200, ['applied' => [file_entry(FILE_004), file_entry(FILE_005)], 'failed' => null, 'error' => null, 'note' => null]], [$apply['status'], $apply['body']]);
+    assert_same([200, ['applied' => [file_entry(FILE_004), file_entry(FILE_007)], 'failed' => null, 'error' => null, 'note' => null]], [$apply['status'], $apply['body']]);
     assert_same([], pending_now());
-    assert_same('You are not signed in', dbValue("SELECT value FROM translations WHERE key_name = 'signedOut.heading' AND language_code = 'en'"));
+    assert_same(ENGLISH_007, dbValue("SELECT value FROM translations WHERE key_name = ? AND language_code = 'en'", [KEY_007]));
     assert_same('ready', anonymous('GET', '/api/site-status')['body']['state']);
     assert_same(200, as_user(PAT, 'GET', '/api/surveys')['status']);
     $last = array_slice(as_user(ADA, 'GET', '/api/admin/migrations')['body']['applied'], -2);
-    assert_same([FILE_004, FILE_005], array_column($last, 'name'), 'applied, last in the order they ran');
+    assert_same([FILE_004, FILE_007], array_column($last, 'name'), 'applied, last in the order they ran');
 });
 
 test('a file that fails: what ran before it stands, it is rolled back whole and named, with the database\'s whole error - and logged', function (): void {
     undo_004();
-    behind(FILE_005);
-    dbExec("DELETE FROM translation_keys WHERE name = 'signedOut.heading'");
-    // 005 fails part way: its keys are written first, then the update of language.button's description is refused.
-    dbExec("CREATE OR REPLACE FUNCTION survey_test_refuse() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'the test refuses to change %', OLD.name; END \$\$");
-    dbExec("CREATE TRIGGER survey_test_refuse BEFORE UPDATE ON translation_keys FOR EACH ROW WHEN (OLD.name = 'language.button') EXECUTE FUNCTION survey_test_refuse()");
+    behind(FILE_007);
+    dbExec('DELETE FROM translation_keys WHERE name = ?', [KEY_007]);
+    // 007 fails part way: its keys and their English are written first, then its Slovak string of that key is refused.
+    dbExec("CREATE OR REPLACE FUNCTION survey_test_refuse() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'the test refuses to write %', NEW.key_name; END \$\$");
+    dbExec("CREATE TRIGGER survey_test_refuse BEFORE INSERT ON translations FOR EACH ROW WHEN (NEW.key_name = 'visitor.notice.one' AND NEW.language_code = 'sk') EXECUTE FUNCTION survey_test_refuse()");
 
     $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
     assert_same(200, $apply['status'], 'a failed file is still an answer: the page shows it');
-    assert_same([[file_entry(FILE_004)], file_entry(FILE_005), null], [$apply['body']['applied'], $apply['body']['failed'], $apply['body']['note']], 'what ran first, and the file that failed');
+    assert_same([[file_entry(FILE_004)], file_entry(FILE_007), null], [$apply['body']['applied'], $apply['body']['failed'], $apply['body']['note']], 'what ran first, and the file that failed');
     $error = (string) $apply['body']['error'];
-    assert_match('/^statement \d+ of \d+: SQLSTATE\[P0001\]: Raise exception: 7 ERROR:  the test refuses to change language\.button/', $error, 'PostgreSQL\'s own words, with the statement\'s number');
-    assert_match('/\n\n  UPDATE translation_keys/', $error, 'and the statement\'s first lines');
+    assert_match('/^statement 3 of 4: SQLSTATE\[P0001\]: Raise exception: 7 ERROR:  the test refuses to write visitor\.notice\.one/', $error, 'PostgreSQL\'s own words, with the statement\'s number');
+    assert_match('/\n\n  INSERT INTO translations/', $error, 'and the statement\'s first lines');
 
-    assert_same([FILE_005], pending_now(), '004 stands, 005 waits');
-    assert_same(null, dbValue("SELECT name FROM translation_keys WHERE name = 'signedOut.heading'"), 'the keys 005 wrote before it failed were rolled back with it');
+    assert_same([FILE_007], pending_now(), '004 stands, 007 waits');
+    assert_same(null, dbValue('SELECT name FROM translation_keys WHERE name = ?', [KEY_007]), 'the keys 007 wrote before it failed were rolled back with it');
     $log = implode("\n", server_problems($GLOBALS['app']));
-    assert_match('/\[db\] the migration ' . preg_quote(FILE_005, '/') . ' failed: statement \d+ of \d+: SQLSTATE\[P0001\]/', $log, 'the server\'s log has it too');
+    assert_match('/\[db\] the migration ' . preg_quote(FILE_007, '/') . ' failed: statement \d+ of \d+: SQLSTATE\[P0001\]/', $log, 'the server\'s log has it too');
     assert_same([503, UPDATING], [as_user(PAT, 'GET', '/api/surveys')['status'], as_user(PAT, 'GET', '/api/surveys')['body']], 'still waiting');
 
     // Whatever was in the way is gone: the next Apply goes through.
-    dbExec('DROP TRIGGER survey_test_refuse ON translation_keys');
+    dbExec('DROP TRIGGER survey_test_refuse ON translations');
     $again = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-    assert_same(['applied' => [file_entry(FILE_005)], 'failed' => null, 'error' => null, 'note' => null], $again['body']);
-    assert_same('You are not signed in', dbValue("SELECT value FROM translations WHERE key_name = 'signedOut.heading' AND language_code = 'en'"));
+    assert_same(['applied' => [file_entry(FILE_007)], 'failed' => null, 'error' => null, 'note' => null], $again['body']);
+    assert_same(ENGLISH_007, dbValue("SELECT value FROM translations WHERE key_name = ? AND language_code = 'en'", [KEY_007]));
     assert_same(200, as_user(PAT, 'GET', '/api/surveys')['status']);
 });
 
+test('the anotoki library\'s files wait as the site\'s own do: the site closed, the Migrations page naming them with their set, the Apply running them', function (): void {
+    behind(migration_record(LIBRARY_002));
+    $status = anonymous('GET', '/api/site-status');
+    assert_same(['state' => 'update_pending', 'installed' => false], $status['body']);
+    assert_same([503, UPDATING], [as_user(PAT, 'GET', '/api/surveys')['status'], as_user(PAT, 'GET', '/api/surveys')['body']]);
+
+    $list = as_user(ADA, 'GET', '/api/admin/migrations');
+    assert_same([LIBRARY_002 + ['ready' => true, 'blocked' => false]], $list['body']['pending']);
+    $file = as_user(ADA, 'GET', '/api/admin/migrations/file?set=anotoki_translations&name=002_library_words.sql');
+    assert_same(200, $file['status']);
+    assert_match('/^-- anotoki_translations 002/', (string) $file['body']['sql'], 'its SQL, from the library\'s folder');
+    $health = anonymous('GET', '/api/health');
+    assert_same(['002_library_words.sql'], $health['body']['pending'] ?? null, 'the health check says what waits');
+
+    // Run again over what it wrote: it writes descriptions, and no string over one that is there.
+    $before = dbAll("SELECT key_name, language_code, value, updated_at, updated_by FROM translations WHERE key_name LIKE 'anotoki.%' ORDER BY 1, 2");
+    $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
+    assert_same([200, ['applied' => [LIBRARY_002], 'failed' => null, 'error' => null, 'note' => null]], [$apply['status'], $apply['body']]);
+    assert_same($before, dbAll("SELECT key_name, language_code, value, updated_at, updated_by FROM translations WHERE key_name LIKE 'anotoki.%' ORDER BY 1, 2"), 'the words as they were');
+    assert_same(['state' => 'ready', 'installed' => false], anonymous('GET', '/api/site-status')['body']);
+    assert_same(1, (int) dbValue('SELECT count(*) FROM migrations WHERE filename = ?', ['anotoki_translations/002_library_words.sql']), 'recorded once, with its set');
+});
+
 test('one update at a time: while another holds the lock, Apply and php migration.php apply nothing and say so', function (): void {
-    behind(FILE_005);
+    behind(FILE_007);
     // Another update running: this test's own connection holds the lock setup.php, migration.php and Apply take.
     dbValue('SELECT pg_advisory_lock(?::bigint)', [DATABASE_UPDATE_LOCK]);
     try {
         $busy = as_user(ADA, 'POST', '/api/admin/migrations/apply');
         assert_same([409, ['code' => 'busy', 'message' => 'Another database update is running. Nothing was applied. Wait a moment, then look again.']], [$busy['status'], $busy['body']]);
-        assert_same([FILE_005], pending_now(), 'nothing was applied');
+        assert_same([FILE_007], pending_now(), 'nothing was applied');
         assert_same(200, as_user(ADA, 'GET', '/api/admin/migrations')['status'], 'the list is read all the same');
 
         $command = [PHP_BINARY, TEST_BACKEND . '/migration.php'];
@@ -369,13 +402,13 @@ test('one update at a time: while another holds the lock, Apply and php migratio
         $code = proc_close($process);
         assert_same(1, $code, 'php migration.php: ' . $out);
         assert_match('/Another database update is running/', $out);
-        assert_same([FILE_005], pending_now(), 'nor by the command line');
+        assert_same([FILE_007], pending_now(), 'nor by the command line');
     } finally {
         dbValue('SELECT pg_advisory_unlock(?::bigint)', [DATABASE_UPDATE_LOCK]);
     }
 
     $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-    assert_same(['applied' => [file_entry(FILE_005)], 'failed' => null, 'error' => null, 'note' => null], $apply['body'], 'the lock let go: the Apply goes through');
+    assert_same(['applied' => [file_entry(FILE_007)], 'failed' => null, 'error' => null, 'note' => null], $apply['body'], 'the lock let go: the Apply goes through');
 });
 
 test('006 on a database with people and their answers: the Apply runs it, its gate passes, and nothing of theirs changes', function (): void {
@@ -426,12 +459,15 @@ test('a database with nothing in it: an ADMIN builds it on the Migrations page -
     try {
         assert_same(['state' => 'update_pending', 'installed' => false], call($site['base'], 'GET', '/api/site-status')['body']);
         $list = call($site['base'], 'GET', '/api/admin/migrations', null, $admin);
-        assert_same([200, migration_files(), [], []], [$list['status'], array_column($list['body']['pending'], 'name'), $list['body']['applied'], $list['body']['missing']]);
+        $pending = array_map(static fn(array $row): array => ['set' => $row['set'], 'name' => $row['name']], $list['body']['pending']);
+        assert_same([200, migration_entries(), [], []], [$list['status'], $pending, $list['body']['applied'], $list['body']['missing']]);
         $editor = call($site['base'], 'POST', '/api/admin/migrations/apply', null, bearer(test_token(EDITH, ['EDITOR'])));
         assert_same([403, 'forbidden'], [$editor['status'], $editor['body']['code'] ?? null]);
 
         $apply = call($site['base'], 'POST', '/api/admin/migrations/apply', null, $admin);
-        assert_same([200, array_map('file_entry', migration_files()), null], [$apply['status'], $apply['body']['applied'], $apply['body']['failed']]);
+        assert_same([200, migration_entries(), null], [$apply['status'], $apply['body']['applied'], $apply['body']['failed']]);
+        $bundle = call($site['base'], 'GET', '/api/translations/sk');
+        assert_same([200, 'Vaša ponuka'], [$bundle['status'], $bundle['body']['values']['anotoki.topbar.menu'] ?? null], 'the words from nothing too: the library\'s keys, in the site\'s formal Slovak');
         assert_same(['state' => 'ready', 'installed' => false], call($site['base'], 'GET', '/api/site-status')['body']);
         assert_same(200, call($site['base'], 'GET', '/api/surveys', null, bearer(test_token(PAT, ['MEMBER'])))['status'], 'and the site runs');
     } finally {

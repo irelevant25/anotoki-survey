@@ -1,5 +1,5 @@
+import { TranslationParams } from '@anotoki/lib/translations';
 import { ApiError } from '../api/api.service';
-import { TranslationParams } from './translation.service';
 
 /**
  * What the site says when a whole request fails, in the reader's language.

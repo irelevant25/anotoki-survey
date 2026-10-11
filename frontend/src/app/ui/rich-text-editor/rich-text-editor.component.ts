@@ -15,7 +15,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import { IconComponent } from '@anotoki/lib/ui';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { Editor } from '@tiptap/core';
 import Highlight from '@tiptap/extension-highlight';
 import { EditorProps } from '@tiptap/pm/view';

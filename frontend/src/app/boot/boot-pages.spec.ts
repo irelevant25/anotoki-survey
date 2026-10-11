@@ -2,10 +2,10 @@ import { Component, EnvironmentProviders, Provider, signal } from '@angular/core
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { SiteStatus } from '@anotoki/lib/migrations';
+import { TranslationService } from '@anotoki/lib/translations';
 import { AuthService, BootStatus } from '../core/auth/auth.service';
 import { VisitorKey } from '../core/auth/visitor-key';
 import { BOOTED } from '../core/boot';
-import { TranslationService } from '../core/i18n/translation.service';
 import { provideTestTranslations } from '../core/testing/test-translations';
 import { keptWord } from './kept-word';
 import { LoadErrorComponent } from './load-error/load-error.component';
@@ -81,7 +81,7 @@ describe('The pages drawn instead of the site', () => {
       await fixture.whenStable();
       const host: HTMLElement = fixture.nativeElement;
 
-      expect(words(host.querySelector('anotoki-brand .area'))).toBe('survey');
+      expect(words(host.querySelector('anotoki-brand .anotoki-brand__area'))).toBe('survey');
       expect(words(host.querySelector('h1'))).toBe('The survey site cannot be reached');
       expect(words(host.querySelector('p'))).toBe('The server did not answer. It may be down for a moment, or the connection may be. Try again in a little while.');
       expect(words(host.querySelector('button'))).toBe('Try again');

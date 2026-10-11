@@ -54,8 +54,9 @@ backend/
   api/client_address.php   the address the limits count: REMOTE_ADDR unless a trusted proxy's
                            header says otherwise; IPv6 by its /64
   api/helpers.php          JSON in and out, and the text helpers: TEXT_SPACE (what the browser's trim()
-                           takes for a space), textTrim(), textBlank() (nothing in it to see), textClean();
-                           afterAnswerAdd() / afterAnswerRun() (work after the answer: the clean-up)
+                           takes for a space), textTrim(), textClean(); afterAnswerAdd() /
+                           afterAnswerRun() (work after the answer: the clean-up). (A site's string
+                           with nothing in it to see is the library's Text::blank() now.)
   api/surveys.php          survey rows <-> the frontend's Survey; summaries; create/save (revision)/
                            status/delete; surveyLanguagesLock() (a save holds its languages);
                            SURVEY_TAKING_ANSWERS_SQL
@@ -64,19 +65,23 @@ backend/
   api/images.php           store (checked by its bytes), find, meta, clean-up
   api/survey_rules.php     surveyFromBody() (shape + cleaning, the translations too), surveyProblems(),
                            surveyTranslationGaps(), surveyTranslationsJson(), answer rules
-  api/translations.php     the site's own words: the languages (languageCreate / languageDelete take
-                           their locks), the bundle a page starts with (translationBundle), the admin
-                           grid, translationsCheck() - every save, import and the command line go
-                           through it
+  api/translations.php     the site's own words through the family's library (anotoki/lib 0.3.0's
+                           Anotoki\Lib\Translations - the bundle, the admin grid and languages, every
+                           check of a string, the command line; never edited here): surveyTranslations()
+                           (TRANSLATION_SEEDED_LANGUAGES, SurveyLanguageUsage - a language a survey
+                           uses is not deleted, under the language row's lock), respondRefusal() (this
+                           site's error body), translationWriter() (the token's person),
+                           languagesForSurveys() / languagesOffered() (what survey_rules.php reads)
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.1.0's PHP half, unchanged in 0.1.1 - never edited here;
-                           DEV.md: how it is updated):
-                           surveyMigrationSet(), surveyMigrator($pdo) (one set `survey`, the site's
-                           own lock DATABASE_UPDATE_LOCK - setup.php, migration.php, the Apply and the
-                           tests' template all go through it), surveySiteState() (not_set_up /
-                           update_pending / unavailable / ready, and installed.lock),
-                           SITE_OPEN_WHILE_UPDATING (what answers while an update waits)
+                           anotoki-lib 0.3.0's PHP half - never edited here; DEV.md: how it is updated):
+                           surveyMigrationSet(), surveyMigrationSets() (the site's `survey`, then the
+                           library's `anotoki_translations` - recorded as anotoki_translations/NNN.sql),
+                           surveyMigrator($pdo) (the site's own lock DATABASE_UPDATE_LOCK -
+                           setup.php, migration.php, the Apply and the tests' template all go
+                           through it), surveySiteState() (not_set_up / update_pending / unavailable /
+                           ready, and installed.lock), siteOpenWhileUpdating() (what answers while an
+                           update waits - the strings by the library's TranslationsRoutes::openPath())
   api/anotoki_iam.php      the IAM's PHP SDK, vendored byte for byte (sdk/php, v1.1.0): the
                            verifier and anotoki_iam_login_required() - never a fetch of our own
   config/config.php        database.local.php + iam.local.php; visitors.local.php (optional, by hand:
@@ -87,30 +92,35 @@ backend/
                            006 the visitors: visitor_ids, users.visitor_key_hash, visitor_counters;
                            008 the toasts of a choice the anotoki account did not take; 009 the
                            "not set up yet" page's four strings deleted - the pattern for a key the
-                           code stops using)
+                           code stops using; 010 the site's strings for the kit moved under the
+                           library's keys, anotoki.*, the library's words that speak to the reader in
+                           formal Slovak - before the library's own set runs)
   setup.php                the installer (this computer: nonce, re-runnable; a host: token, lock, self-delete)
   router.php               php -S behaving like the hosting's Apache (+ the built app)
-  translations.php         command line only, never uploaded: --status (the frontend's keys against the
-                           database), --export / --import a language as flat JSON
+  translations.php         command line only, never uploaded - the library's TranslationsCommand:
+                           --status (the frontend's keys against the database), --export / --import a
+                           language as flat JSON
   tools/build.php          the upload -> ../dist/ (an allow-list: a new file beside setup.php is left out)
-  tools/translation_keys.php   the scan that finds the keys the frontend uses - and fails a key asked for
-                           the wrong way, one put together from an undeclared prefix, innerHTML given a
-                           string - and a language as a file; for translations.php and the tests
+  tools/translation_keys.php   surveyKeyScanner(): the library's KeyScanner set up for this site - the
+                           keys the frontend uses, and a fail for a key asked for the wrong way, one put
+                           together from an undeclared prefix, innerHTML given a string; the library's
+                           own keys (anotoki.*) are never looked for; for translations.php and the tests
   tests/                   run.php, lib.php, unit/, api/, tools/ (testdb, testenv, fake-iam)
 frontend/src/app/
   app.component.*          the pages behind the family's gate: <anotoki-site-gate> around the router
                            outlet, given as its <ng-template anotokiSitePages> - made only while the
                            gate shows the pages (anotoki-lib 0.2.0; content given as it is is made
-                           shown or not, an unmarked template is not the pages) - and held for the
-                           reload once the site runs again (held, PAGES_CLOSED); the load error
-                           card; the kit's toasts and confirm, the lightbox over everything
+                           shown or not, an unmarked template is not the pages); the reload once the
+                           site runs again is the library's (SiteStatus.checkForReload() never opens
+                           the gate first); the load error card; the kit's toasts and confirm, the
+                           lightbox over everything
   core/migrations.ts       the family's library (@anotoki/lib/migrations) wired to this site:
                            provideSiteMigrations() (isAdmin / isSignedIn / signIn - signInOrSayWhy -
-                           / language / AdminDates' dates / reload the strings when up to date; the
-                           one formal Slovak sentence), MIGRATIONS_PATH, PAGES_CLOSED (the pages
-                           stay away from the moment the site could not run until an Apply in
-                           this tab opens them - otherwise the reload does); siteStatusInterceptor in
-                           app.config.ts; SiteStatus (state, blocked, check, markReady) is the library's
+                           / language - effectiveLanguage, English in the admin panel / the words -
+                           siteStatusWords(i18n): the library's anotoki.siteStatus.* from the
+                           database / AdminDates' dates / reload the strings when up to date),
+                           MIGRATIONS_PATH; siteStatusInterceptor in app.config.ts; SiteStatus
+                           (state, blocked, check, checkForReload, markReady) is the library's
   core/auth/               AuthService (IAM SDK in signals; status: loading/ready/not-set-up/error;
                            loginRequired - its loginRequired, true
                            unless false - visitorDays, visitorsWelcome (both needed), visiting,
@@ -136,20 +146,29 @@ frontend/src/app/
                            a visitor's drafts adopted right after a sign-in), then the language and
                            its strings, then BOOTED - the app initializer, and the load error
                            page's "Try again"
-  core/i18n/               TranslationService (language, effectiveLanguage, t / plural / around / has,
-                           setLanguage - the chooser's, saved to the account too -, init, reload,
-                           noteAddress; the account's language over the device's choice), the
-                           translate / translatePlural / localDate (the account's date order) pipes,
-                           error-text.ts (a failed request's key), answer-words.ts (a
-                           rule or a problem in the reader's language), dynamic-keys.ts (keys put
-                           together at run time - the backend's scan reads it)
-  core/kit.ts              the family's UI kit (anotoki-lib 0.2.0) wired to this site:
-                           provideSiteKit() = provideSiteUi() (the language on the page, the kit's
-                           words from the site's strings - SITE_KEYS, lookup - and formal Slovak for
-                           the rest, SURVEY_ICONS) + provideSiteShell() (the library's ThemeService:
-                           the account's theme signed in, saved from the bar's switch, the device's
-                           signed out, THEME_KEY for the kit's theme-boot.js; the chooser's
-                           languages and setLanguage())
+  core/translations.ts     the family's translations module (@anotoki/lib/translations, 0.3.0) wired to
+                           this site: provideSiteTranslations() / siteTranslationsConfig() - the
+                           storage names the site always had (anotoki-survey:language, -cache,
+                           :localization-drafts), the account (its language, whether it decides, the
+                           save, the person's id for the drafts), canAsk (nothing asked while the
+                           site cannot start), the admin pages for EDITOR / ADMIN and their routes;
+                           FORMAL_SLOVAK / SURVEY_LIBRARY_WORDS (the library's words that speak to the
+                           reader, formally, while the database cannot be read). The service itself
+                           (language, effectiveLanguage, t / plural / around / has, setLanguage,
+                           init, reload, noteAddress, forKit, forShell) and the translate /
+                           translatePlural pipes are the library's
+  core/i18n/               the site's own beside it: the localDate pipe (the account's date order),
+                           error-text.ts (a failed request's key), answer-words.ts (a rule or a
+                           problem in the reader's language), dynamic-keys.ts (keys put together at
+                           run time - the backend's scan reads it)
+  core/kit.ts              the family's UI kit (anotoki-lib 0.3.0, each piece from its own entry point)
+                           wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
+                           the language on the page and the kit's words from the database - the
+                           library's keys, anotoki.* - and SURVEY_ICONS) + provideSiteShell() (the
+                           library's ThemeService: the account's theme signed in, saved from the
+                           bar's switch, the device's signed out, THEME_KEY for the kit's
+                           theme-boot.js; the chooser: forShell(), a choice of the language already
+                           on the page changing nothing)
   core/util/               dates.ts (the admin panel's English dates, with the account's choices when
                            passed), date-patterns.ts (the four date orders, the two clocks), storage.ts
   core/title.strategy.ts   the tab's title in the language on the page (the site's name alone while
@@ -162,9 +181,6 @@ frontend/src/app/
                            mineWouldBeRefused(), removedHereLanguages() / removedThereLanguages() for
                            what the notice says); the site's languages (languages, loadLanguages -
                            again with each fresh load, and for a code a conflict brings)
-  core/admin/localization-drafts.service.ts   LocalizationDrafts: what is typed on the Translations and
-                           Languages pages and not saved - outside the pages, mirrored to the tab's
-                           sessionStorage, let go only when another person signs in
   core/admin/admin-dates.service.ts   AdminDates: core/util/dates.ts bound to the account's date order
                            and clock - what every admin page writes its dates with
                            (`formatDateTime = inject(AdminDates).formatDateTime`)
@@ -173,13 +189,17 @@ frontend/src/app/
                            writers, mergeTranslations for a conflict); drafts.ts (by survey and
                            taker - VISITOR_SLOT for a visitor; adoptVisitorDraft(s) at a sign-in)
   core/images/             prepareImage (browser-side), ImageUploader
-  core/testing/            for the unit tests only: example data, provideTestTranslations(),
-                           answersOf() (a person's answers, or a visitor's)
+  core/testing/            for the unit tests only: example data, provideTestTranslations() (the
+                           library's test translations - @anotoki/lib/translations/testing - with the
+                           site's kit wiring and formal Slovak), answersOf() (a person's answers, or a
+                           visitor's)
   layouts/                 top-bar (the site's wrapper over the family's <anotoki-top-bar>: the brand,
                            the links - SURVEY_LINKS / ADMIN_LINKS, Migrations alone while an update
                            waits -, the person and their role, the menu's items, signIn / signOut -
-                           saved first, asked when something would be lost; docs/architecture.md
-                           "The top bar"),
+                           saved first, asked when something would be lost - the drafts of the
+                           Translations and Languages pages through the library's
+                           LocalizationDrafts, its entry point loaded only then and only for staff;
+                           docs/architecture.md "The top bar"),
                            participant ("You are not signed in" where the page would be - for a
                            visitor only on the preview; the toasts of the move and of a lost
                            visit), admin
@@ -197,13 +217,13 @@ frontend/src/app/
                            editor-languages, translated-text, translating.ts; ?language= opens a tab),
                            survey-results, response-view, response-page (a visitor everywhere
                            there: "Visitor N", "Not signed in" where a person's address is -
-                           Person.visitor), survey-header, localization/
-                           (translations: the strings' grid, translation-grid.ts its pure half -
-                           blankText(), textBlank()'s twin; languages; unsaved-changes.guard.ts);
+                           Person.visitor), survey-header; /admin/translations and /admin/languages
+                           are the family's pages (@anotoki/lib/translations/admin, a lazy entry
+                           point, canDeactivate anotokiUnsavedChangesGuard - admin.routes.ts);
                            /admin/migrations is the family's <anotoki-migrations-page> (ADMIN -
-                           Pending, Applied with each file's SQL, Missing, Apply pending)
+                           Pending by set, Applied with each file's SQL, Missing, Apply pending)
   ui/                      the survey's own pieces: rich-text-editor (TipTap), lightbox, survey-image,
-                           image-strip - the rest is the family's kit (@anotoki/lib/ui, /shell)
+                           image-strip - the rest is the family's kit (@anotoki/lib/ui/<piece>, /shell)
 frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles: root, fonts, base,
                            utilities, tables) and the survey's own tokens; styles/_fields.scss: the
                            look of the fields a page draws itself, @use'd into that page's styles
@@ -246,10 +266,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   language) and the migrations (the family's split: applying database
   updates is ADMIN's). The frontend hides; the server refuses.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib: the PHP
-  half 0.1.0, the Angular half 0.2.0; the owner's decision of 2026-10-07): the
+  applies it - the anotoki family's way, the library's** (anotoki-lib 0.3.0,
+  both halves; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
-  `update_pending` to everything but exactly `SITE_OPEN_WHILE_UPDATING` (and
+  `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
   `/api/site-status`, always); a new route that must work then goes there, and
   nothing that writes the site's data does. Not set up, everything but the
   status is 503 `not_set_up`, the setup page offered only while
@@ -274,14 +294,15 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   / `surveyTranslationFromBody()`; `RESERVED_SLUGS` ↔ `SURVEY_RESERVED_SLUGS`;
   `about-you.ts` ↔ `SURVEY_GENDERS` / `SURVEY_AGES`, the CHECKs in migration 001
   and the tails of `aboutYou.gender.*` / `aboutYou.age.*`; `MAX_UPLOAD_BYTES` ↔
-  `IMAGE_MAX_BYTES`; a language code (`languageCode()` ↔ `languageCodeOk()`), a
-  `{placeholder}` (`PLACEHOLDER` ↔ `TRANSLATION_PLACEHOLDER`) and **what a
-  space is**: the browser's `trim()` / `\s` ↔ `TEXT_SPACE` in `api/helpers.php`
-  (`textTrim()`, `richTextPlain()`), character for character - never `\s` or
-  `\p{Z}` in PHP for a survey's text or an answer, they take U+0085 and U+180E
-  as well; and, for the site's strings only, **nothing to see**: `textBlank()`
-  ↔ `blankText()` in `translation-grid.ts` (the page uses it only to tell
-  whether a box is a change). Same sentences, too: in the frontend a rule or a problem of an
+  `IMAGE_MAX_BYTES`; and **what a space is**: the browser's `trim()` / `\s` ↔
+  `TEXT_SPACE` in `api/helpers.php` (`textTrim()`, `richTextPlain()`),
+  character for character - never `\s` or `\p{Z}` in PHP for a survey's text
+  or an answer, they take U+0085 and U+180E as well. (A language code, a
+  `{placeholder}` and a site string with nothing in it to see are the
+  library's on both sides now - `languageCode()` ↔ `LanguageCode::ok()`, which
+  `languageCodeOk()` wraps; `fillPlaceholders()` ↔ `Placeholders`;
+  `blankText()` ↔ `Text::blank()` - kept the same by the library's tests.)
+  Same sentences, too: in the frontend a rule or a problem of an
   answer is a kind and its
   numbers, and `answerProblemText()` / `choiceRuleText()` must say in English
   exactly what PHP says. The admin panel shows the server's sentences; somebody
@@ -339,16 +360,22 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   round the page shows the key, and the scan fails.
   `tests/unit/translations.test.php` holds the two sides together;
   `php translations.php --status` says the same for the configured database
-  (exit 1 when not clean).
+  (exit 1 when not clean). A word of the library's (`anotoki.*`: the kit's,
+  the status page's) is never a new key of the site's: the site asks for it by
+  its whole key (`i18n.t('anotoki.topbar.roleAdmin')`), rewords it on the
+  Translations page, and - when it speaks to the reader - keeps its Slovak
+  formal in a migration and in `FORMAL_SLOVAK` alike.
 - **Never a worded sentence in state.** A signal, a field initialiser or a
   module constant holds a key, a kind or an `ApiError`; the wording happens in
   a template (the pipes are impure on purpose) or in a `computed()` /
   `effect()` that calls the service - they run again when the language
   changes. Toasts and confirm dialogs are finished sentences when raised.
-  One sentence is a constant on purpose: `FORMAL_SLOVAK` in
-  `core/migrations.ts`, the family's page's one sentence that addresses the
-  reader, said formally - the library's words, given to the library, never a
-  key: that page shows when the database holding the keys is what is not ready.
+  Sentences are constants on purpose in one place: `FORMAL_SLOVAK` in
+  `core/translations.ts`, the library's words that speak to the reader, said
+  formally - given to the library (`libraryWords`) for the moments the
+  database cannot be read (the family's page shows when the database holding
+  the keys is what is not ready); the database has the same words (010), and a
+  test holds the two together.
 - **A site string is only ever text**: never into `[innerHTML]` (the scan fails
   an `innerHTML` whose value - on one line or several - has `translate` in it
   or calls `.t(` / `.plural(` / `.around(`); on its way into something drawn
@@ -357,18 +384,21 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   `[before, after, found]`: the marked-up value is drawn only inside
   `@if (x()[2])`, for a translation may leave the placeholder out. On the server a string has no
   brace that is not a `{placeholder}` (422 `invalid_placeholder`), and one
-  with nothing in it to see is an empty one (`textBlank()`).
+  with nothing in it to see is an empty one (the library's `Text::blank()`).
 - **The admin panel is English**: literal words in the templates under
   `pages/admin` and `layouts/admin-layout`, no `translate` pipe there. The
   pieces both areas share (top bar, UI kit, toasts) read through
   `effectiveLanguage`, which is `en` under `/admin` - the kit's own words too
-  (`core/kit.ts`).
-- **The UI kit is the family's** (anotoki-lib 0.2.0): a new piece of a page
-  is the kit's (`anotoki-*`, `anotokiButton`) unless the kit has none; never a
-  copy of one in `src/app/ui/`, never a change to the library here. A kit
-  word the site has a string for is read from it (`SITE_KEYS` in `core/kit.ts`
-  - a new one goes there), a kit word it has none for is said formally in
-  Slovak (`FORMAL_SLOVAK`). An icon the kit does not have goes into
+  (`core/kit.ts`), and the family's page at an admin address.
+- **The UI kit is the family's** (anotoki-lib 0.3.0): a new piece of a page
+  is the kit's (`anotoki-*`, `anotokiButton`) unless the kit has none,
+  imported from its own entry point (`@anotoki/lib/ui/button`, ...) - never
+  from the `@anotoki/lib/ui` barrel, which puts every piece into the first
+  load; never a copy of one in `src/app/ui/`, never a change to the library
+  here. Its markup's classes are its own (`.anotoki-<piece>__<part>`): a spec
+  or the browser check that reads them uses those. Its words are the
+  library's keys in the database (`forKit()`): nothing to add for a new kit
+  word but the library's own migration. An icon the kit does not have goes into
   `SURVEY_ICONS` (from `@anotoki/lib/ui/icons`). No global style may reach a
   kit component: a page's own look stays in its own styles.
 - **The account's preferences** (the IAM's migration 015, SDK 1.2.0): signed
@@ -384,7 +414,12 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   `AdminDates` in the admin panel - never `core/util/dates.ts`'s functions bare
   in a page. Data stays ISO (the CSV, a file's name, an `<input type="date">`).
 - **A language code from an address** is checked with `languageCodeOk()` before
-  any query; **who saved a string** is `currentUser($request)->id`, nothing else.
+  any query (the library's routes check their own); **who saved a string** is
+  `currentUser($request)->id` (`translationWriter()`), nothing else. **Who may
+  do what with the site's words is this site's**: the library's route groups
+  get the site's checks (`routes/admin.php`: `requireRole(...ROLES_STAFF)`, and
+  `requireRoleFor('DELETE', ROLE_ADMIN)` on the languages) and the pages
+  `admin.allows` (`core/translations.ts`) - never the library's to decide.
 - **Saving**: every editor change through `AdminStore.updateSurvey()` (or
   `SurveyEditing` by id); never keep a copy of a survey in a component to write
   back later. Never apply a save's answer to the content. What "mine" is in a
@@ -395,7 +430,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   takes the page away with no navigation - no guard runs, and a component's
   state and its `beforeunload` listener go with it (the layout then says "You
   are signed out"). Surveys are in
-  `AdminStore`, the strings' cells and the languages' rows in
+  `AdminStore`, the strings' cells and the languages' rows in the library's
   `LocalizationDrafts`; both keep them across a sign-out and let go only when
   somebody else signs in, and the top bar's "Sign out" asks about both.
 - **A failure is said where the person is looking**: on a page longer than
@@ -422,7 +457,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   row a line beginning `('key',`, the gate's list as `(VALUES …) AS k(name)` -
   because a test reads the file's text: the gate must list exactly the keys
   the file writes, each in every language, and every string written must pass
-  `translationsCheck()` as it is.
+  the library's checks as it is (`surveyTranslations()->storedRefusals()`).
+  The library's keys (`anotoki.*`) are its own migration set's to write; a
+  migration of this site touches one only to keep this site's words in it
+  (as 010 does), and never writes over an owner's rewording.
 - **Angular**: three files per component, OnPush, signals, `inject()`,
   inputs for route and query parameters, colours from the family's
   `--anotoki-*` tokens and the survey's own in `styles.scss`, 390 px.
@@ -449,15 +487,19 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   and takes its revision, or the next save is a conflict with itself.
 - **The store keeps changes across a sign-out**, and lets go only when
   somebody else signs in (bumping `_generation`, so late answers are dropped);
-  a fresh load older than what is here is ignored. `LocalizationDrafts` copies
-  the rule - and, because signing in again is a page load, mirrors the drafts
-  to sessionStorage. Its `clear()` writes the storage at once: an `effect()`
-  runs too late for a sign-out, which leaves the page in the same turn, and
-  what was given up would be there for whoever comes back. Its `beforeunload`
-  question is not asked while nobody is signed in and the tab's storage holds
-  the drafts: the way on is the sign-in, which they survive - asked there, the
-  browser's "Leave site?" met the person on the one trip the drafts are kept
-  for. (The cost: closing that tab while signed out loses them unasked.)
+  a fresh load older than what is here is ignored. The library's
+  `LocalizationDrafts` (it took this site's over) copies the rule - and,
+  because signing in again is a page load, mirrors the drafts to
+  sessionStorage, under the name and in the shape this site always had
+  (`anotoki-survey:localization-drafts`, `{owner, strings, languages}`; the
+  owner the account's id, a string). Its `clear()` writes the storage at once:
+  an `effect()` runs too late for a sign-out, which leaves the page in the
+  same turn, and what was given up would be there for whoever comes back. Its
+  `beforeunload` question is asked whenever boxes wait - signed out too, on
+  the way to the sign-in, where this site's own asked nothing (anotoki-lib
+  0.3.0, `docs/decisions.md`); the drafts survive the answer "Leave". The top
+  bar reaches the drafts through a dynamic `import('@anotoki/lib/translations/admin')`,
+  for staff only, so the first load never carries the admin pages.
 - **Control characters are dropped on both sides** (`withoutControls()` /
   `textClean()`), never refused: a pasted soft line break must not make an
   answer or a survey impossible to save. They are the C0 controls only:
@@ -479,6 +521,13 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   MIME type (pictures go through PHP), mod_dir's 301 for a URL naming a folder
   (no route named like a folder under `api/` - so never a folder `translations`
   or `languages` there), Cloudflare caching by extension.
+- **The translation service is the library's now** (`@anotoki/lib/translations`):
+  the next gotchas are what this site paid for and the library took over -
+  read them as the reasons its code is the way it is, and change it in the
+  library, never here. The factory of its configuration
+  (`siteTranslationsConfig()`) runs the first time the service needs it, in
+  an injection context - never while the service is being made: the
+  `AuthService` it reads would close a circle.
 - **The translation service never injects the Router** (NG0200 at start-up):
   the Router builds the title strategy, the strategy needs the service, and the
   service asking for the Router closes the circle. The strategy tells the
@@ -495,15 +544,17 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   title was its key ("title.surveys") on a site not set up yet. With no
   strings it writes the site's name alone; an admin route's title is English
   and stays.
-- **Every load of strings takes a turn, and the last turn wins** (`_turn`):
+- **Every load of strings takes a turn, and the last turn wins** (`turn`):
   the start, a choice, `reload()`, asking again. A choice takes its turn even
   when it needs no request (back to the language on the page), or the slower
   choice it was meant to cancel lands after it. The chooser counts its own
-  choices for the same reason - an overtaken one answers false, which is no
-  failure to toast. A spec of a race needs two loads really in flight; with
-  one pending request the guards can be deleted and everything stays green.
+  choices for the same reason (`shellConfig()` in `core/kit.ts`: a choice of
+  the language on the page with none on its way changes nothing) - an
+  overtaken one answers false, which is no failure to say. A spec of a race
+  needs two loads really in flight; with one pending request the guards can
+  be deleted and everything stays green.
 - **The languages on offer come with every bundle, so every answer is settled
-  against the list that came** (`_load()`), not only one in another language
+  against the list that came** (`load()`), not only one in another language
   than was asked for: a cached bundle carries a stale list, and a language
   offered again reached a returning reader one visit late.
 - **While the site cannot run, the cache is used as it is**: nobody is signed
@@ -513,7 +564,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   can ask the server.
 - **Storage can refuse to be written**: `?lang=` is taken out of the address
   either way, and a choice must hold for the page - both are kept in memory
-  first (`_tab`, `_chosen`) and read from there before storage.
+  first (`tab`, `chosen`) and read from there before storage.
 - **"Try again" after an outage must open a page**: a first navigation the
   sign-in guard refused (nobody is signed in while the server is out of
   reach) leaves the router nowhere and the address bar on `/`. The load error
@@ -548,9 +599,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   `{count`, `{{count}}` - passed them and was shown to everybody: with every
   placeholder taken out no `{` or `}` may be left (422 `invalid_placeholder`,
   checked before the other two, in every language). Its sentence gives one of
-  the key's own placeholders as the example - and, for a key with none, says
-  its strings can hold no brace: an example it does not have ("like
-  {count}") only led to the next refusal.
+  the key's own placeholders as the example. (This site's said, for a key with
+  none, that its strings can hold no brace - an example it does not have,
+  "like {count}", only led to the next refusal; the library's sentence says
+  "like {count}" there again - an open point for the library.)
 - **A translation may leave a placeholder out, so `around()` may find no place
   to cut**: the page then drew the marked-up value after a sentence that does
   not name it (or after a key). Its third answer says whether the cut was
@@ -560,29 +612,33 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   (`TRANSLATION_SEEDED_LANGUAGES`, 409 `seeded_language`): the next migration
   with strings would fail on the missing language, and a failed migration
   closes the whole site on a host with no shell. They can be switched off.
-- **`tests/api/translations.test.php` deletes the seeded keys first** and works
-  on keys of its own (`test.hello`...), so it does not change with every string
-  the site gains; what the migrations leave is `tests/unit/translations.test.php`'s.
+- **`tests/api/translations.test.php` deletes every key first** - the site's
+  and the library's - and works on keys of its own (`test.hello`...), so it
+  does not change with every string the site gains; what the migrations leave
+  is `tests/unit/translations.test.php`'s, and 010 on a database shaped as an
+  installed site's is `tests/unit/strings_through_the_library.test.php`'s.
 - **The bundle's 304 carries `ETag` and `Cache-Control: no-cache`** - both are
   set before the 304 branch, or it would go out as the default `no-store`. The
   tag comes back as whatever compressed the answer made of it: `W/"…"` (a
   proxy, Cloudflare) or `"…-gzip"` / `-br` / `-zstd` (Apache's mod_deflate and
-  mod_brotli, which an `.htaccess` cannot tell otherwise).
-  `translationsNotModified()` takes both off before it compares, or the 304 is
+  mod_brotli, which an `.htaccess` cannot tell otherwise). The library's
+  `ETag::notModified()` takes both off before it compares, or the 304 is
   never answered behind such a server.
 - **A check and a write with nothing held between them** is passed by two
   requests at once (READ COMMITTED): the twenty-language cap was a count and
   an insert; a language's delete was one `DELETE … WHERE NOT EXISTS (a survey
   uses it)` while a survey's save read the languages before its transaction.
-  Now `languageCreate()` takes `LOCK TABLE languages IN SHARE ROW EXCLUSIVE
-  MODE` first, a save holds its languages' rows `FOR SHARE`
-  (`surveyLanguagesLock()`), and `languageDelete()` is three statements -
-  `FOR UPDATE` on the row, the count, the delete. **Three, on purpose**: a
-  single statement that had to wait goes on with what it saw before the wait.
+  Now the library's `createLanguage()` takes `LOCK TABLE languages IN SHARE
+  ROW EXCLUSIVE MODE` first, a survey's save holds its languages' rows
+  `FOR SHARE` (`surveyLanguagesLock()`), and the library's `deleteLanguage()`
+  is statements of their own - `FOR UPDATE` on the row, then this site's count
+  (`SurveyLanguageUsage::refuseDelete()`), then the delete. **Separate, on
+  purpose**: a single statement that had to wait goes on with what it saw
+  before the wait.
 - **Writes in the order they were sent deadlock**: two saves of the same two
   strings, typed in opposite order, each held a row the other needed, and the
   loser was told the database is unreachable (every `PDOException` is a 503).
-  `translationsCheck()` sorts its changes by key, then language (`strcmp` -
+  The library's save sorts its changes by key, then language (`strcmp` -
   `<=>` compares `"10"` and `"9"` as numbers).
 - **A test of a lock must fail without the lock.** Holding a row from a second
   connection and expecting a lock timeout also passed with the old
@@ -696,7 +752,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   once the layout has taken its page away (session ended), or never drew it
   (no role), the route is still the active one and the next navigation runs
   the guard with no component. `page.canLeave()` threw, and every link of that
-  state was dead - `page?.canLeave() ?? true`.
+  state was dead - `page?.canLeave() ?? true` (the library's
+  `anotokiUnsavedChangesGuard` keeps it).
 - **The preview with no `?language=` followed the page's language**: an editor
   who reads the site in Slovak previewed the main tab and got the Slovak
   translation text by text - and "Back to the editor" opened the Slovak tab.
@@ -715,7 +772,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   comes only from an editor page left open across the release, where "Try
   again" gets the same answer. The sentence ends with what that person can
   do (copy what you changed, reload).
-- **On the Translations page**:
+- **On the Translations page** (the library's now - what this site paid for,
+  and the library kept):
   - a cell typed *while a save or an import is out* is held whatever it says
     (`withEdit(..., keep)`): "typed back to what is stored" cannot be told
     until the answer brings what is stored, and the answer would wipe it;
@@ -728,7 +786,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   - a form a language never takes (`formUsed()`) is neither missing nor
     counted, or German could never be complete;
   - a box holding nothing to see (a zero-width space, spaces) over no string
-    is no change (`blankText()`, the twin of `textBlank()`) - it was "1 string
+    is no change (`blankText()`, the twin of `Text::blank()`) - it was "1 string
     changed" and "The string is saved." for a save with nothing to write. Over
     a string it is a change: the server deletes the row, or refuses it in
     English, and the fresh grid says so;
@@ -760,7 +818,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   `--_fg`. A style the page gives a kit piece is checked on the page, not
   assumed.
 - **Every anotoki site calls its admin area the admin panel**: "Admin panel"
-  ("Administrátorský panel") in the person's menu (`topbar.admin`),
+  ("Administrátorský panel") in the person's menu (`anotoki.topbar.admin`),
   `brand.adminPanel` after the wordmark, "<page> · Admin panel · anotoki
   survey" in the tab (`core/title.strategy.ts`). The wordmark's spans are
   laid out by CSS `gap` (the kit puts a space between them for a screen
@@ -803,9 +861,23 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   answer of `savePreferences()` in `user()` - and tells the listeners - before
   the promise resolves, and the theme's effect and the language's watcher
   adopt a change of the account's value. Two quick choices showed the first
-  one again when its answer came. While a save made here is out (`_saving`,
-  `_savingLanguage`) neither adopts; the next choice waits for it, and only the
-  latest is saved.
+  one again when its answer came. While a save made here is out (the
+  library's ThemeService and TranslationService keep that rule now) neither
+  adopts; the next choice waits for it, and only the latest is saved.
+- **A kit word asked for by its short name is a key of the site's to the
+  scan**: the kit's own words are `topbar.roleAdmin` to `AnotokiWords`, and a
+  literal like that in the site's code reads to the key scan as a site key no
+  migration writes. The site asks for a kit word by the library's whole key,
+  `i18n.t('anotoki.topbar.roleAdmin')` - one string either way, the
+  database's.
+- **The library writes a plural's number the language's way**: `{count}` is
+  `Intl.NumberFormat`'s - "1 000" in Slovak, with a no-break space (U+00A0) -
+  so a spec that compares a worded number writes `'1 000'`.
+- **The kit's class names are its own since 0.3.0** (`.anotoki-<piece>__<part>`,
+  `anotoki-<piece>--<state>`): a spec or the browser check that read `.row`,
+  `.heading`, `.toast .message` read nothing and passed or failed for the
+  wrong reason - read the library's templates
+  (`frontend/node_modules/@anotoki/lib/fesm2022`) before writing a selector.
 - **A spec's stand-in for AuthService must answer `preferences()`**: the
   theme (the top bar, `boot()`), the `localDate` pipe and every admin page's
   dates (`AdminDates`) read it while drawing, and a fake without it throws in
@@ -813,7 +885,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
 - **A pending migration closed the whole site, the sign-in with it**:
   `/api/auth/config` was 503 too, so the SDK was never made and nobody -
   the ADMIN who had to apply it included - could sign in. While an update
-  waits the auth config and the strings answer (`SITE_OPEN_WHILE_UPDATING`):
+  waits the auth config and the strings answer (`siteOpenWhileUpdating()`):
   without them the Migrations page's bar was keys. And the start never stops
   on it (`boot()` asks the status, then signs in as ever).
 - **A projected `<router-outlet>` runs out of sight**: the family's gate
@@ -828,22 +900,25 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   counts the pages made while the site is closed - an outlet given without
   the template turns it red.
 - **The site found ready again ran a page for nothing**: the family's page
-  marks the site ready and reloads the page in the next breath, and the pages
+  marked the site ready and reloaded the page in the next breath, and the pages
   opened in between - for a visitor, past a guard that let them through only
-  because the site was closed - asked the API and flashed. The gate's template
-  does not help there: ready, the gate is open. Once the site could not run in
-  a page load the outlet waits inside the template (`AppComponent.held`:
-  `PAGES_CLOSED`, `core/migrations.ts`, and the site not blocked) until an
-  Apply in that tab opens the pages (`onUpToDate`) - or the reload comes.
+  because the site was closed - asked the API and flashed. The site held its
+  outlet then (`AppComponent.held`, `PAGES_CLOSED`); since anotoki-lib 0.2.0
+  the family's page asks with `SiteStatus.checkForReload()`, whose answer the
+  gate is never told - it stays shut until the reload - so the hold went with
+  0.3.0. `app.component.spec.ts` proves it: the page asking again, and its
+  Try again, find the site ready, and no page is made, the gate shut.
 - **Answers sent as an update closed the site raised a toast over the
   family's page**: the 503 `update_pending` (or `not_set_up`) of a send is
   `siteClosed` (`send-failure.ts`) and says nothing - the family's page stands
   instead, the answers stay in the draft.
-- **An open path opened everything under it**: `SITE_OPEN_WHILE_UPDATING` had
+- **An open path opened everything under it**: the open paths had
   `/api/admin/migrations(/.*)?`, so `/api/admin/migrations/../../surveys` (or
   its escaped form) passed the gate and only the routes' not matching it kept
-  it shut. Each entry is now exactly a route there is; a route a later release
-  of the library adds goes in by name (`api/migrations.php`;
+  it shut. Each entry is now exactly a route there is - the strings' by the
+  library's `TranslationsRoutes::openPath()`, one segment and nothing after
+  it; a route a later release of the library adds goes in by name
+  (`siteOpenWhileUpdating()`, `api/migrations.php`;
   `tests/api/migrations.test.php` sends such addresses as written, with
   `CURLOPT_PATH_AS_IS` - curl tidies dot segments away otherwise).
 - **While the site cannot run, a guard that sends somebody to the IAM loses
@@ -860,7 +935,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
 - **The strings read while behind lack what the pending migration brings**:
   once an Apply leaves nothing to apply the Migrations page calls
   `onUpToDate` - `TranslationService.reload()` - or the new keys show as
-  themselves until the next page load.
+  themselves until the next page load (a library key, `anotoki.*`, shows the
+  library's own word meanwhile, never itself). The library's set runs after
+  the site's: a release that brings both lists them under two headings, and
+  names each file `set/name` once there are two sets.
 - **The Apply's lock is never on `db()`**: under `php -S` that connection is
   pooled, and an advisory lock left by a request that died would outlive it.
   Whatever applies gives `surveyMigrator()` a connection of its own
@@ -945,5 +1023,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
    - [ ] the theme, a date or a time, the language: the anotoki account's while
          somebody is signed in (`preferences`, `AdminDates`, `localDate`), saved
          to it only while it sends preferences, one save at a time;
+   - [ ] the family's library is used, never copied or edited: the kit a piece
+         at a time from its own entry point, the site's words through
+         `core/translations.ts` and the library's routes, who may do what
+         this site's own checks; a library word that speaks to the reader is
+         formal Slovak in the database and in `FORMAL_SLOVAK`;
    - [ ] every new test fails with its fix taken out;
    - [ ] `docs/`, this skill, `CLAUDE.md`, `README.md`, `DEV.md` in step.

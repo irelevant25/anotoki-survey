@@ -17,20 +17,27 @@ api/
                        and the migrations routes still answer), the routes
   bootstrap.php        what every entry point loads: settings, error handling, the site's functions
   routes/              public.php (health, the site's status, sign-in settings, pictures, a
-                       language's strings), surveys.php (the people taking surveys - signed in,
-                       or a visitor while the IAM says sign-in is not required: requireTaker),
-                       visitor.php (POST /api/visitor/move: at sign-in, a visitor's answers
-                       into the account), admin.php (/api/admin/..., EDITOR / ADMIN; the
-                       migrations - the family's routes - ADMIN from the token alone)
-  meddleware/          security.php, auth.php (requireUser, requireRole, requireTokenRole -
-                       the migrations', which asks the database nothing - requireTaker, where
+                       language's strings - the library's bundle route), surveys.php (the people
+                       taking surveys - signed in, or a visitor while the IAM says sign-in is not
+                       required: requireTaker), visitor.php (POST /api/visitor/move: at sign-in,
+                       a visitor's answers into the account), admin.php (/api/admin/..., EDITOR /
+                       ADMIN; the strings and the languages - the family's routes, EDITOR / ADMIN,
+                       deleting a language ADMIN's; the migrations - the family's routes - ADMIN
+                       from the token alone)
+  meddleware/          security.php, auth.php (requireUser, requireRole, requireRoleFor - one
+                       method of a group: the languages' DELETE - requireTokenRole - the
+                       migrations', which asks the database nothing - requireTaker, where
                        a visitor's key makes a visitor; the move (routes/visitor.php) only
                        hands one in, with a token - signedInUser, currentUser)
   auth.php             the IAM token -> the person and their roles; the IAM's
                        "Sign-in required" switch (authLoginRequired())
   anotoki_iam.php      the IAM's PHP SDK (v1.1.0): the token verifier and the switch's
                        reader, vendored byte for byte (never edited here)
-  surveys.php, responses.php, images.php, translations.php   the data, by area
+  surveys.php, responses.php, images.php   the data, by area
+  translations.php     the site's words through the family's library (anotoki/lib's
+                       Anotoki\Lib\Translations): surveyTranslations() - the languages the site is
+                       released in, what deleting a language would leave behind (a survey written
+                       in it: SurveyLanguageUsage) - and the site's error body for a refusal
   visitors.php         visitors: find, make (within the limits), hold, the clean-up, the move
   client_address.php   the address a request comes from, for the limits (trusted proxies only)
   survey_rules.php     what a survey and an answer must be - the twin of
@@ -40,10 +47,11 @@ api/
                        the visitors' clean-up)
   db.php               the connection (dbConnect(), db()), queries, ensureDatabase()
   migrations.php       the database's migrations through the family's library (vendor/anotoki/lib):
-                       surveyMigrator() - the engine on the site's one set, under the one lock
+                       surveyMigrator() - the engine on the site's set, then the library's
+                       (anotoki_translations; surveyMigrationSets()), under the one lock
                        setup.php, migration.php, the Migrations page's Apply and the tests' template
                        take; surveySiteState() - where the site stands, for the gate and
-                       /api/site-status; SITE_OPEN_WHILE_UPDATING
+                       /api/site-status; siteOpenWhileUpdating()
 config/
   config.php           reads database.local.php and iam.local.php - both written by setup.php,
                        gitignored, never committed - and visitors.local.php when it is there
@@ -52,9 +60,11 @@ migrations/survey/     the schema and the site's strings, NNN_name.sql (never ed
 storage/               cache (the IAM's keys, its "Sign-in required" answer), visitors-swept (when
                        the visitors' clean-up last ran); gitignored
 tests/                 run.php, lib.php; unit/, api/; tools/ (testdb.php, testenv.php, fake-iam.php)
-tools/                 build.php (the upload -> ../dist/), translation_keys.php (the frontend's keys)
-vendor/                Slim and its pieces, and anotoki/lib (the family's library, from GitHub -
-                       ../DEV.md says how it is updated) - committed: the hosting cannot run Composer
+tools/                 build.php (the upload -> ../dist/), translation_keys.php (the frontend's keys:
+                       the library's KeyScanner, set up for this site)
+vendor/                Slim and its pieces, and anotoki/lib 0.3.0 (the family's library, from GitHub -
+                       ../DEV.md says how it is updated; its migration set in php/migrations/) -
+                       committed: the hosting cannot run Composer
 ```
 
 ## Entry points
@@ -64,7 +74,7 @@ vendor/                Slim and its pieces, and anotoki/lib (the family's librar
 | `router.php` | `php -S` behaving like the hosting's Apache: `/api/*` to `api/index.php`, `/setup.php`, and the built frontend |
 | `setup.php` | the setup page: the database (host, port 5432, name `anotoki_survey`, user, password) and the IAM (address, client id); on this computer re-runnable, on a host with a token, locked after |
 | `migration.php` | `php migration.php [--status \| --dry-run]`: the migrations for the configured database |
-| `translations.php` | command line only: `--status` (the frontend's keys against the database), `--export sk [file]`, `--import sk file` |
+| `translations.php` | command line only - anotoki-lib's `TranslationsCommand` on this site's words: `--status` (the frontend's keys against the database), `--export sk [file]`, `--import sk file` |
 
 ## Commands
 
@@ -88,7 +98,10 @@ Each run works on throwaway `survey_test_*` databases copied from
 `config/database.local.php`) - never on `anotoki_survey`. Signing in is the
 stand-in IAM's (`tests/tools/fake-iam.php`), never the real one. `unit/` holds
 the rules, the rich text, the migrations (the engine and `php migration.php`,
-each from nothing), the key scan, the switch's reader and
+each from nothing), the key scan and the site's words against it, migration
+010 on a database shaped as an installed site's (`strings_through_the_library`:
+an owner's rewording moved under the library's key, the formal Slovak), the
+switch's reader and
 a request's address (`client_address`); `api/` the routes
 end to end through a real `php -S` (`surveys`, `translations`, `auth`, `visitors`
 (who a request is, the limits, the clean-up, the move - and what happens when

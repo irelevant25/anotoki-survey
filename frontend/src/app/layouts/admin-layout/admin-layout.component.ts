@@ -1,11 +1,13 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
-import { ButtonComponent, EmptyStateComponent, IconComponent } from '@anotoki/lib/ui';
+import { TranslationService } from '@anotoki/lib/translations';
+import { ButtonComponent } from '@anotoki/lib/ui/button';
+import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { ToastService } from '@anotoki/lib/ui/toast';
 import { AuthService } from '../../core/auth/auth.service';
 import { signInOrSayWhy } from '../../core/auth/sign-in-failure';
-import { TranslationService } from '../../core/i18n/translation.service';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 
 /**

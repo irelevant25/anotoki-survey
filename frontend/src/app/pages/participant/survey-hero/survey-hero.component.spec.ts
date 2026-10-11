@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslationService } from '../../../core/i18n/translation.service';
+import { TranslationService } from '@anotoki/lib/translations';
 import { provideTestTranslations } from '../../../core/testing/test-translations';
 import { SurveyHeroComponent } from './survey-hero.component';
 
@@ -78,7 +78,7 @@ describe('SurveyHeroComponent', () => {
     await fixture.whenStable();
     expect(line()).toBe('Krok 3 / 5');
 
-    expect(await TestBed.inject(TranslationService).setLanguage('en', false)).toBe(true);
+    expect(await TestBed.inject(TranslationService).setLanguage('en', { remember: false })).toBe(true);
     await fixture.whenStable();
     expect(line()).toBe('Step 3 of 5');
     expect(bar().getAttribute('aria-label')).toBe('Your progress');

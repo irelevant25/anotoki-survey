@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslationService } from '../../core/i18n/translation.service';
+import { TranslationService } from '@anotoki/lib/translations';
 import { SurveyImage } from '../../core/survey/survey.model';
 import { provideTestTranslations } from '../../core/testing/test-translations';
 import { LightboxComponent } from './lightbox.component';
@@ -114,7 +114,7 @@ describe('LightboxComponent: its own words', () => {
     await show({ images: [picture('a', '{m} {caption}'), picture('b', '')], index: 0, caption: null });
     expect(spoken()).toBe('Obrázok 1, spolu obrázkov: 2. {m} {caption}');
 
-    await TestBed.inject(TranslationService).setLanguage('en', false);
+    await TestBed.inject(TranslationService).setLanguage('en', { remember: false });
     await fixture.whenStable();
     expect(spoken()).toBe('Picture 1 of 2: {m} {caption}');
     expect(names()).toEqual(['Close', 'The picture before', 'The next picture']);

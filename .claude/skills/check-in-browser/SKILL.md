@@ -62,7 +62,8 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   where the name goes beside the initial; `sk-*-admin-*`: the admin panel
   opened from a Slovak tab;
 - `admin-translations-*`, `admin-languages-*`: the two pages of the site's own
-  words, at `1280` and `390` px, `-light` and `-dark` - the top of the
+  words - the anotoki family's, `@anotoki/lib/translations/admin` - at `1280`
+  and `390` px, `-light` and `-dark` - the top of the
   Translations page, a plural family (`-plural`), a refused save beside its key
   (`-refused`), Slovak switched off (`-slovak-hidden`, and what readers get
   then: `en-1280-home-one-language`), a language just added, hidden, above the
@@ -106,13 +107,13 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   `en-1280-behind-admin` ("A database update is waiting" and "Open
   Migrations", in English on a Slovak page too);
   `admin-migrations-behind-1280` (the family's Migrations page in the admin
-  layout: two files pending, only Migrations in the bar, `brand.adminPanel`
-  shown as a key - expected there),
+  layout: four files pending under two sets - `migrations/survey/` and
+  `migrations/anotoki_translations/` - only Migrations in the bar),
   `admin-migrations-failed-1280` / `-390-*` ("Stopped at
-  004_response_language.sql" and the database's error in its box - look at the
+  survey/004_response_language.sql" and the database's error in its box - look at the
   box on a phone: the error wraps, nothing wider than the window),
-  `admin-migrations-up-to-date-1280` / `-390-*` ("Up to date", the four links,
-  "admin panel" in the brand);
+  `admin-migrations-up-to-date-1280` / `-390-*` ("Up to date", the three
+  files applied, the four links);
 - visitors ("Sign-in required" off): `admin-results-visitor-1280` (the
   results' people: "Visitor N", "Not signed in"), `-drawer-1280` (the drawer
   of their answers), `admin-response-visitor-390-*` (the page of their
@@ -265,12 +266,17 @@ In Slovak:
 The translating itself - from a clean start again (signed out, storage
 cleared, `/?lang=en`), the owner in the admin panel:
 
-10. The Translations page, from the link in the surveys list: a row for every
-    key, a column for each language, both languages whole; a plural family as
-    one block (one, few, other, the numbers each form is for, the family said
-    for 1, 3 and 12). A Slovak string reworded with a placeholder its English
-    string does not have is refused beside its key; reworded properly it is
-    saved, and a Slovak reader has it after a reload. Then what goes wrong
+10. The Translations page - the anotoki family's (`<anotoki-translations-page>`,
+    anotoki-lib 0.3.0) - from the link in the surveys list: a row for every
+    key, a column for each language, both languages whole; the library's own
+    words (`anotoki.*`) among the site's, in the site's formal Slovak
+    ("Vaša ponuka", the copy button's and the status page's sentences) and
+    the site's own words where it had them ("Rola: administrátor"); a plural
+    family as one block (one, few, other, the numbers each form is for, the
+    family said for 1, 3 and 12). A Slovak string reworded with a placeholder
+    its English string does not have is refused beside its key (the server's
+    sentence); reworded properly it is saved - the bar says "The string is
+    saved." - and a Slovak reader has it after a reload. Then what goes wrong
     there, with a box far down the grid: a save the server fails on (the one
     `PUT` answered 500 by the check) and one that reaches nobody are said in
     the bar Save is in, in view, at 1280 and 390 px - nothing at the top of
@@ -279,19 +285,23 @@ cleared, `/?lang=en`), the owner in the admin panel:
     signed out" (not "no editor role") with its own Sign in, the bar fits at
     390 px (brand, theme, the menu button - its menu the sections and Sign in), the
     brand link and Back still navigate (the guard is asked with no page);
-    the browser does not ask "Leave site?" on the way to the sign-in; signed
-    in again, both boxes
+    the browser asks "Leave site?" once on the way to the sign-in (the
+    family's drafts ask whenever boxes wait - the site's own asked nothing
+    while nobody was signed in); signed in again, both boxes
     hold what was typed, marked as changed. Signing out over them asks first
     ("Stay" keeps everything) - in Slovak too, from the home page at 360 px,
     where "sign out anyway" gives them up: out at the IAM and - every page
     asks for a sign-in first - in again at once, no box is marked.
-11. The Languages page: English the fallback and not switchable, nothing to
+11. The Languages page - the family's too (`<anotoki-languages-page>`), each
+    thing it did said in its own line (`[data-happened]`), not a toast:
+    English the fallback and not switchable, nothing to
     delete; Slovak hidden - the site answers in English, a tab that asked for
     Slovak reads English and the chooser is gone, through the menu with no
     page load and after one - and offered again, the same two ways. A new
     language (Czech) is added with the form as it stands: hidden, in the
     list, offered to nobody (the site answers `cs` in English); then deleted
-    again, so the rest goes on with two languages. Both pages at 390 px.
+    again (asked first: "Delete Czech (cs)?", no strings go with it), so the
+    rest goes on with two languages. Both pages at 390 px.
 12. A second survey in the editor ("Tea or coffee?", a titled step, one
     question, two options). Slovak is added: the structure locked, every text
     a pair (the original `lang="en"`, the field `lang="sk"`), all marked as
@@ -359,9 +369,14 @@ A database behind the code - the one stage that changes the database itself
 (`sql()`, on `survey_test_browser` through the settings run.mjs wrote:
 `SURVEY_CHECK_PHP`, `SURVEY_CHECK_BACKEND`, `SURVEY_CHECK_CONFIG`):
 
-22. The rows of `004_response_language.sql` and `005_top_bar_and_sign_in.sql`
-    taken out of `migrations`, and the key `brand.adminPanel` (which 005
-    writes) deleted. The API is 503 `update_pending` with `Retry-After: 60`,
+22. This release's update, as an installed site meets it: the rows of
+    `004_response_language.sql`, `010_strings_through_the_library.sql` and
+    the anotoki library's set (`anotoki_translations/001_…`, `/002_…`) taken
+    out of `migrations`; and one of the kit's words put back as it was before
+    010 - the site's own key `topbar.roleAdmin`, reworded by its owner
+    ("Administrator of the surveys"), and no `anotoki.topbar.roleAdmin`. The
+    strings answer all the same (the library's open path), with the owner's
+    words under the old key. The API is 503 `update_pending` with `Retry-After: 60`,
     the sign-in's settings answer (no `update` field), `/api/site-status` says
     `update_pending`. Nobody signed in, `?lang=sk`, 390 px: the anotoki
     family's page, "Stránku práve aktualizujeme", in Slovak - no trip to the
@@ -377,17 +392,21 @@ A database behind the code - the one stage that changes the database itself
     the strings (the owner, the Migrations page's list too: `askedBehind()`),
     and no toast came. The owner, signed
     out at `/admin/migrations`, signs in from it: back there, on the family's
-    Migrations page - 004 and 005 pending, only "Migrations" in the bar, the
-    tab "Migrations · …", and the brand showing `brand.adminPanel` (the strings
-    read while behind lack it; the warning is expected). On a Slovak page the
+    Migrations page - the four files pending, under `migrations/survey/` and
+    then `migrations/anotoki_translations/`, only "Migrations" in the bar, the
+    tab "Migrations · …", and the person's menu saying the library's own word
+    for the role ("Administrator": the owner's is under a key nothing reads
+    now). On a Slovak page the
     owner reads "A database update is waiting" (English, `lang="en"`) with
     "Open Migrations", which opens the page at 1280. "Apply pending", asked
-    "Apply 2 pending migrations?": "Stopped at 004_response_language.sql",
+    "Apply 4 pending migrations?": "Stopped at survey/004_response_language.sql",
     nothing applied, rolled back, and PostgreSQL's error ("column "language"
     of relation "responses" already exists", with the statement) in its box -
     at 1280 and 390. 004's row put back; Apply again: "Up to date - Applied:
-    005_top_bar_and_sign_in.sql.", nothing pending, the bar's four links back
-    and "admin panel" in the brand (the strings read again), no key on the
+    survey/010_strings_through_the_library.sql, anotoki_translations/001_…,
+    anotoki_translations/002_….", nothing pending, the bar's four links back,
+    the strings read again - the menu says the owner's "Administrator of the
+    surveys", under the library's key now (010 moved it) - no key on the
     page; at 1280 and 390; Surveys opens the list, no reload.
 
 Visitors - the IAM's "Sign-in required" switched off (the stand-in's
@@ -472,7 +491,8 @@ For the stages where something fails: `intercept(pattern, say)` /
 stage counts from `requested.length` as it begins), `setIam(changes)` (the
 stand-in IAM's state: `{user}`, `{refuse: true}` - refreshing is refused),
 `browserLanguage('sk-SK')` (what the browser itself says its language is),
-`question()` (the site's own question: its heading, text and buttons),
+`question()` (a question of the site's or of the family's pages - a dialog
+of the page, not the browser's: its heading, text and buttons),
 `expected` (expressions for the console messages a stage that takes the
 server away is meant to cause; they go to `heard`, not to the problems) and
 `leaving` (while a list, the browser's own "Leave site?" goes there).
@@ -515,19 +535,31 @@ Things that cost time to find out:
   nobody signed in). Count trips to the IAM from the page's own `requested`
   (`GET /api/oidc/authorize`), never from the stand-in's log: that holds the
   check's own questions too (`GET /_test/state` - `iamTrips()` itself asks one).
-- The family's pages are the library's markup (0.2.0): `anotoki-site-status`
-  (`h1`, `p`, its kit buttons and links) and `anotoki-migrations-page`
-  (`[data-apply]`, the question `[data-confirm] dialog` with its `h2` and
-  `[data-confirm-apply]`, `[data-result]` - a kit alert - with its `.heading`,
-  `.result-text` and `pre`, `[data-pending] li`, `[data-applied]`). So are the
-  top bar's insides (`app-top-bar` wraps `anotoki-top-bar`: `.row`,
-  `anotoki-brand`, `.nav`, `.actions` - `anotoki-language-switcher`,
-  `anotoki-theme-toggle`, `.person-button` / `.person-name`, the phone's
-  `.menu-button`, `button.sign-in` -, the menus
-  `.actions > anotoki-menu [role=menu]` with `[role=menuitem]` items, the
-  chooser's own menu inside the switcher) and the kit's pieces on the pages
-  (`anotoki-empty-state .heading`, `anotoki-alert`, `.toast .message` /
-  `.dismiss`, `anotoki-switch .words`). A new release of
+- The family's pages are the library's markup (0.3.0), and its class names
+  are its own: a part `.x` of `<anotoki-y>` is `.anotoki-y__x`, a state of it
+  `anotoki-y--x` (the library's README, "Upgrading from 0.2.x").
+  `anotoki-site-status` (`h1`, `p`, its kit buttons and links) and
+  `anotoki-migrations-page` (`[data-apply]`, the question
+  `[data-confirm] dialog` with its `h2` and `[data-confirm-apply]`,
+  `[data-result]` - a kit alert - with its `.anotoki-alert__heading`,
+  `.anotoki-migrations-page__result-text` and `pre`, `[data-pending] li` under
+  a `.anotoki-migrations-page__set` heading per set, `[data-applied]`; with two
+  sets it names a file `set/name`). So are the
+  top bar's insides (`app-top-bar` wraps `anotoki-top-bar`:
+  `.anotoki-top-bar__row`, `anotoki-brand` (`.anotoki-brand__wordmark`),
+  `.anotoki-top-bar__nav`, `.anotoki-top-bar__actions` -
+  `anotoki-language-switcher` (`.anotoki-language-switcher__switcher`),
+  `anotoki-theme-toggle`, `.anotoki-top-bar__person-button` /
+  `__person-name`, the phone's `.anotoki-top-bar__menu-button`,
+  `button.anotoki-top-bar__sign-in` -, the menus
+  `.anotoki-top-bar__actions > anotoki-menu [role=menu]` with
+  `[role=menuitem]` items and `__menu-name` / `__menu-role`, the chooser's own
+  menu inside the switcher) and the kit's pieces on the pages
+  (`anotoki-empty-state .anotoki-empty-state__heading`, `anotoki-alert`,
+  `.anotoki-toast-host__message` / `__dismiss`, `anotoki-switch
+  .anotoki-switch__words`, a dialog's `.anotoki-dialog__title` /
+  `__description` / `__footer` / `__panel` and the confirm's
+  `.anotoki-confirm-host__message`). A new release of
   the library may move them: read its templates
   (`frontend/node_modules/@anotoki/lib`) before blaming the site.
 - A page made behind the family's page is not in the document: what a
@@ -539,17 +571,23 @@ Things that cost time to find out:
   Slovak whoever is signed in (`SK`), after the chooser it is what was chosen,
   and with nothing stored it is the account's language while signed in and
   English (the browser's) once signed out.
-- The Translations page lists every key, so `expectNoKeys` is not for it - nor
-  a whole-page screenshot (it is some 180 rows long: `screenshots(name,
-  false)` takes what the window shows). A box is
-  `[id="key-<name>"] textarea[lang="<code>"]`; a refusal stands in
-  `[id="key-<name>"] .field-error`.
+- The Translations page lists every key - the library's `anotoki.*` too - so
+  `expectNoKeys` is not for it - nor a whole-page screenshot (it is some 200
+  rows long: `screenshots(name, false)` takes what the window shows). A row's
+  id ends with its key (`anotoki-translations-<n>-key-<name>`, the number the
+  page's own): a box is `row(key)` + ` textarea[lang="<code>"]` (`box()`), a
+  refusal stands in its `.anotoki-translations-admin__field-error`; the bar
+  is `[data-save-state]` and `[data-save]`, and says "The string is saved."
+  after a save - no toast. The Languages page says what it did in
+  `[data-happened]`, its rows are `[data-language="<code>"]`, the switch
+  `anotoki-switch[data-offered]`, its questions `dialog[open]` with
+  `[data-question-yes]`.
 - What is typed on the Translations and Languages pages and not saved is kept
-  outside the pages (`LocalizationDrafts`, and `sessionStorage` for the tab),
-  and the browser asks before such a tab is left (`beforeunload`) - on every
-  page, while somebody is signed in (or the tab's storage refused them); not
-  while nobody is signed in and the tab holds them, so not on the way to the
-  IAM's sign-in after a session ended (stage 10 checks that). The flow saves before it goes
+  outside the pages (the family's `LocalizationDrafts`, and `sessionStorage`
+  for the tab), and the browser asks before such a tab is left
+  (`beforeunload`) - on every page, whenever boxes wait, signed in or not: on
+  the way to the IAM's sign-in after a session ended too (stage 10 counts
+  that one question). The flow saves before it goes
   anywhere, answers the browser's question if it ever comes, and counts it as
   a problem - except between `leaving = []` and `leaving = null`, the stage
   that leaves with boxes unsaved on purpose. A stage that types and does not
@@ -581,9 +619,10 @@ Things that cost time to find out:
 - A visitor answered by the flow and the same survey answered by the person
   who then signs in is the "kept" half of the move's toast; a survey only the
   visitor answered is the "moved" half - the stage has one of each.
-- A save that failed says so where `.save-state` is; the boxes marked as
-  changed are listed by `marks()` in the grid's order - by key - not in the
-  order they were typed.
+- A save that failed says so where `[data-save-state]` is, in the library's
+  words ("Something went wrong on the server. …", "The server could not be
+  reached. …"); the boxes marked as changed are listed by `marks()` in the
+  grid's order - by key - not in the order they were typed.
 - A translation's option is `{label}` and a picture `{alt}`, not a bare text:
   a survey saved through the API (stage 16) must send them so, or it is 422.
 - Toasts stay for seconds over the bottom corner: `dismissToasts()` before a

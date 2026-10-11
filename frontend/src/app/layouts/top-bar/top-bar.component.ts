@@ -1,13 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, Injector, computed, inject, input, viewChild } from '@angular/core';
 import { SiteStatus } from '@anotoki/lib/migrations';
 import { TopBarComponent as AnotokiTopBarComponent, type TopBarBrand, type TopBarLink, type TopBarMenuItem, type TopBarPerson } from '@anotoki/lib/shell';
+import { TranslationService } from '@anotoki/lib/translations';
+import type { LocalizationDrafts } from '@anotoki/lib/translations/admin';
 import { ConfirmService } from '@anotoki/lib/ui/dialog';
 import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminStore } from '../../core/admin/admin-store.service';
-import { LocalizationDrafts } from '../../core/admin/localization-drafts.service';
 import { AuthService } from '../../core/auth/auth.service';
 import { signInOrSayWhy } from '../../core/auth/sign-in-failure';
-import { TranslationService } from '../../core/i18n/translation.service';
 import { MIGRATIONS_PATH } from '../../core/migrations';
 
 /**
@@ -65,8 +65,11 @@ export const NARROW_BAR_MAX = 960;
  *
  * Every word is a key: where people take surveys it reads in their language,
  * in the admin area in English - with no special case here, because the
- * translation service answers in English there (`effectiveLanguage`), and the
- * kit's own words come from the site's strings too (core/kit.ts). One
+ * translation service answers in English there (`effectiveLanguage`). The
+ * words the family has for a bar - the person's role, "Your anotoki account",
+ * "Admin panel" - are the anotoki library's keys (`anotoki.topbar.*`), read
+ * from the site's database as the kit reads its own (core/kit.ts): one string
+ * for each, whichever bar says it. One
  * exception: the admin panel's Migrations link (an ADMIN's alone) is its
  * English word, as the admin panel's pages are - it came after the bar's keys,
  * and no reader ever sees it in another language. While a database update
@@ -91,7 +94,7 @@ export class TopBarComponent {
   private readonly _i18n = inject(TranslationService);
   private readonly _status = inject(SiteStatus);
   private readonly _store = inject(AdminStore);
-  private readonly _drafts = inject(LocalizationDrafts);
+  private readonly _injector = inject(Injector);
   private readonly _confirm = inject(ConfirmService);
   private readonly _toast = inject(ToastService);
   private readonly _bar = viewChild.required(AnotokiTopBarComponent);
@@ -127,7 +130,7 @@ export class TopBarComponent {
     if (!me) {
       return null;
     }
-    const role = this._auth.isAdmin() ? this._i18n.t('topbar.roleAdmin') : this._auth.isStaff() ? this._i18n.t('topbar.roleEditor') : null;
+    const role = this._auth.isAdmin() ? this._i18n.t('anotoki.topbar.roleAdmin') : this._auth.isStaff() ? this._i18n.t('anotoki.topbar.roleEditor') : null;
     return { name: me.name, email: me.email || null, role };
   });
 
@@ -136,13 +139,13 @@ export class TopBarComponent {
     const items: TopBarMenuItem[] = [];
     const account = this._auth.signedIn() ? this._auth.accountUrl() : null;
     if (account) {
-      items.push({ id: 'account', label: this._i18n.t('topbar.account'), icon: 'user', href: account, newTab: true });
+      items.push({ id: 'account', label: this._i18n.t('anotoki.topbar.account'), icon: 'user', href: account, newTab: true });
     }
     if (this._auth.isStaff()) {
       items.push(
         this.area() === 'admin'
           ? { id: 'surveys', label: this._i18n.t('topbar.backToSurveys'), icon: 'arrowLeft', path: '/' }
-          : { id: 'admin', label: this._i18n.t('topbar.admin'), icon: 'shield', path: '/admin' },
+          : { id: 'admin', label: this._i18n.t('anotoki.topbar.admin'), icon: 'shield', path: '/admin' },
       );
     }
     return items;
@@ -166,7 +169,8 @@ export class TopBarComponent {
    */
   private async _signOutAfterSaves(): Promise<void> {
     const surveysSaved = await this._store.flushAll();
-    const draftsWaiting = this._drafts.count() > 0;
+    const drafts = await this._localizationDrafts();
+    const draftsWaiting = (drafts?.count() ?? 0) > 0;
     if (!surveysSaved || draftsWaiting) {
       this._bar().closeMenu(false);
       // Finished sentences when asked, in the language on the page; a question is not worded again.
@@ -182,8 +186,31 @@ export class TopBarComponent {
       if (!sure) {
         return;
       }
-      this._drafts.clear();
+      drafts?.clear();
     }
     this._auth.signOut();
+  }
+
+  /**
+   * What is typed on the admin panel's Translations and Languages pages and not
+   * saved: the anotoki library's drafts (LocalizationDrafts, kept in this tab
+   * as `anotoki-survey:localization-drafts`). They come with the pages'
+   * entry point (@anotoki/lib/translations/admin), which the first load never
+   * carries - so they are asked for here, and only of somebody who may have
+   * typed some (EDITOR, ADMIN): in memory already when those pages were open in
+   * this page load, read from the tab otherwise. When the entry point cannot be
+   * had (offline), nothing is asked: the drafts stay in the tab, as a session
+   * that ends keeps them, and the sign-out goes on.
+   */
+  private async _localizationDrafts(): Promise<LocalizationDrafts | null> {
+    if (!this._auth.isStaff()) {
+      return null;
+    }
+    try {
+      const pages = await import('@anotoki/lib/translations/admin');
+      return this._injector.get(pages.LocalizationDrafts);
+    } catch {
+      return null;
+    }
   }
 }

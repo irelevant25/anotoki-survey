@@ -3,7 +3,7 @@ import { PageLanguage, otherLanguage } from './shown-language';
 
 /** A page in a language, offering English and Slovak. */
 function pageIn(language: string): PageLanguage {
-  return { effectiveLanguage: () => language, languages: () => TEST_LANGUAGES } as PageLanguage;
+  return { effectiveLanguage: () => language, languages: () => TEST_LANGUAGES } as unknown as PageLanguage;
 }
 
 describe('otherLanguage', () => {

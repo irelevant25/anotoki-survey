@@ -89,8 +89,8 @@ describe('ParticipantLayoutComponent', () => {
     await fixture.whenStable();
 
     expect(host.querySelector('.stub-page')).toBeNull();
-    expect(text('anotoki-empty-state .heading')).toBe('Nie ste prihlásení');
-    expect(text('anotoki-empty-state .text')).toBe(SLOVAK['signedOut.text']);
+    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('Nie ste prihlásení');
+    expect(text('anotoki-empty-state .anotoki-empty-state__text')).toBe(SLOVAK['signedOut.text']);
     expect(TestBed.inject(Router).url).toBe('/genshin-6-1');
 
     signedIn.set(true);
@@ -123,7 +123,7 @@ describe('ParticipantLayoutComponent', () => {
         .toasts()
         .map((toast) => toast.message),
     ).toEqual([SLOVAK['signIn.storageUnavailable']]);
-    expect(text('anotoki-empty-state .heading')).toBe('Nie ste prihlásení');
+    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('Nie ste prihlásení');
   });
 
   describe('while the site welcomes visitors', () => {
@@ -142,14 +142,14 @@ describe('ParticipantLayoutComponent', () => {
       welcome.set(false);
       await fixture.whenStable();
       expect(host.querySelector('.stub-page')).toBeNull();
-      expect(text('anotoki-empty-state .heading')).toBe('Nie ste prihlásení');
+      expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('Nie ste prihlásení');
     });
 
     it('draws the editor’s preview for nobody but somebody signed in - the card stands there for a visitor', async () => {
       await TestBed.inject(Router).navigateByUrl('/preview/survey-1');
       await fixture.whenStable();
       expect(host.querySelector('.stub-page')).toBeNull();
-      expect(text('anotoki-empty-state .heading')).toBe('Nie ste prihlásení');
+      expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('Nie ste prihlásení');
 
       signedIn.set(true);
       await fixture.whenStable();

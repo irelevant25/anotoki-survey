@@ -50,12 +50,12 @@ describe('SurveyResultsComponent: a visitor among everybody', () => {
   it('says it under the name in the drawer of a visitor’s answers', async () => {
     const host = await show('r2');
 
-    expect(host.querySelector('anotoki-drawer .subtitle')?.textContent).toBe('Not signed in');
+    expect(host.querySelector('anotoki-drawer .anotoki-drawer__subtitle')?.textContent).toBe('Not signed in');
   });
 
   it('and a person’s address in theirs', async () => {
     const host = await show('r1');
 
-    expect(host.querySelector('anotoki-drawer .subtitle')?.textContent).toBe('zuzka@example.com');
+    expect(host.querySelector('anotoki-drawer .anotoki-drawer__subtitle')?.textContent).toBe('zuzka@example.com');
   });
 });

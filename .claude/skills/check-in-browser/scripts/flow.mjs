@@ -27,7 +27,9 @@
 // those pages; the admin area in English all the same; the language of the
 // IAM account when nothing is stored here; and the chooser.
 //
-// Then the translating itself: the owner rewords a string of the site on the
+// Then the translating itself, on the anotoki family's pages
+// (@anotoki/lib/translations/admin): the owner finds the library's words among
+// the site's, in the site's formal Slovak; rewords a string of the site on the
 // Translations page (and is refused a placeholder the English string does not
 // have), hides Slovak on the Languages page and offers it again; writes a
 // second survey, adds Slovak to it in the editor, translates every text and
@@ -42,8 +44,10 @@
 // strings that fails with no key to blame is said where Save is; what is
 // typed and not saved on the Translations page is there again after the
 // session ended and the person signed in again (the admin area says "You are
-// signed out", its links and Back work, the browser does not ask on the way to
-// the sign-in), and signing out asks first; a new language starts hidden; the
+// signed out", its links and Back work; the browser asks "Leave site?" on the
+// way to the sign-in - the family's drafts ask whenever boxes wait - and they
+// are kept all the same), and signing out asks first; a new language starts
+// hidden; the
 // editor says what readers of a language get while an open survey lacks a
 // text in it - and nothing of the kind once its last day is over - and its
 // list of problems is worded for a draft, an open and a closed survey; the
@@ -53,8 +57,10 @@
 // from the editor's main tab shows the survey as it is written, whatever the
 // page's language; answers sent to an address the survey has left are said to
 // be kept, and offered again at its new address; a database behind the code
-// (two files' rows taken out of its record - the one stage that changes the
-// database itself, through sql()): the anotoki family's page - "being
+// (four files' rows taken out of its record - the site's 004 and 010, the
+// library's two - and a kit's word put back as it was before 010, reworded by
+// its owner: the one stage that changes the database itself, through sql()):
+// the anotoki family's page - "being
 // updated", with no error and nothing to press but a quiet Sign in, for
 // somebody taking surveys and an EDITOR; no page made behind it, for a
 // visitor, somebody signed in or the ADMIN (the site's API asked nothing but
@@ -62,7 +68,8 @@
 // the way to the
 // Migrations page, which a Sign in at its address comes back to, an Apply that
 // stops at a failing file with the database's error, and one that brings the
-// site back where it stands, its strings read again; visitors -
+// site back where it stands, its strings read again - the owner's word kept;
+// visitors -
 // the IAM's "Sign-in required" switched off: nobody signed in takes surveys
 // (a second browser too), the admin panel lists them as "Visitor N", "Not
 // signed in", the admin panel and the preview still sign in, a sign-in moves
@@ -334,16 +341,16 @@ async function expectNoKeys(where) {
  */
 const barFits = () =>
   js(`(() => {
-    const inner = document.querySelector('app-top-bar .row');
+    const inner = document.querySelector('app-top-bar .anotoki-top-bar__row');
     if (!inner) return { ok: false, detail: 'no top bar' };
-    const names = ['anotoki-brand', '.nav', 'anotoki-language-switcher', 'anotoki-theme-toggle', '.person-button', '.menu-button', 'button.sign-in'];
+    const names = ['anotoki-brand', '.anotoki-top-bar__nav', 'anotoki-language-switcher', 'anotoki-theme-toggle', '.anotoki-top-bar__person-button', '.anotoki-top-bar__menu-button', 'button.anotoki-top-bar__sign-in'];
     const parts = names.map((name) => [name, inner.querySelector(name)]).filter(([, el]) => el);
     const rects = parts.map(([, el]) => el.getBoundingClientRect());
     const width = window.innerWidth;
     const inside = rects.every((r) => r.left >= 0 && r.right <= width + 0.5);
     const apart = rects.every((r, i) => i === 0 || r.left >= rects[i - 1].right - 0.5);
     const padding = (el, side) => parseFloat(getComputedStyle(el)['padding' + side]);
-    const button = inner.querySelector('button.sign-in');
+    const button = inner.querySelector('button.anotoki-top-bar__sign-in');
     let oneLine = true;
     let roomy = true;
     if (button) {
@@ -358,7 +365,7 @@ const barFits = () =>
     const held = inner.scrollWidth <= inner.clientWidth + 1 && rects.every((r) => r.left >= bar.left + padding(inner, 'Left') - 1 && r.right <= bar.right - padding(inner, 'Right') + 1);
     return {
       ok: inside && apart && oneLine && roomy && held,
-      detail: (roomy ? '' : 'the button is squeezed; ') + (held ? '' : 'more than the bar holds; ') + parts.map(([name], i) => name.replace('anotoki-', '').replace('button.sign-in', 'sign-in') + ' ' + Math.round(rects[i].left) + '-' + Math.round(rects[i].right)).join(', ') + ' of ' + width,
+      detail: (roomy ? '' : 'the button is squeezed; ') + (held ? '' : 'more than the bar holds; ') + parts.map(([name], i) => name.replace(/^.*anotoki-(top-bar__)?/, '') + ' ' + Math.round(rects[i].left) + '-' + Math.round(rects[i].right)).join(', ') + ' of ' + width,
     };
   })()`);
 async function expectBar(where) {
@@ -388,7 +395,7 @@ const listed = async () =>
 
 /** The chooser in the top bar: a language by the name its speakers give it. */
 async function chooseLanguage(nativeName, code) {
-  await js("document.querySelector('anotoki-language-switcher .switcher').click(); true");
+  await js("document.querySelector('anotoki-language-switcher .anotoki-language-switcher__switcher').click(); true");
   await sleep(300);
   const chosen = await clickText('anotoki-language-switcher [role=menuitemradio]', nativeName);
   if (chosen !== true) problems.push(`the chooser has no ${nativeName}: ${chosen}`);
@@ -412,23 +419,23 @@ const chosenLabels = () => js("[...document.querySelectorAll('app-question-block
  * links and then the person's menu (or Sign in).
  */
 async function openUserMenu() {
-  await js("(document.querySelector('app-top-bar .person-button') ?? document.querySelector('app-top-bar .menu-button')).click(); true");
+  await js("(document.querySelector('app-top-bar .anotoki-top-bar__person-button') ?? document.querySelector('app-top-bar .anotoki-top-bar__menu-button')).click(); true");
   await sleep(300);
 }
 /** The site holds a session (the SDK's stored tokens) and the bar is drawn. */
 const SIGNED_IN =
-  "Object.keys(localStorage).some((name) => name.startsWith('anotoki-auth:') && !!JSON.parse(localStorage.getItem(name) || 'null')?.access_token) && !!document.querySelector('app-top-bar .person-button, app-top-bar .menu-button')";
+  "Object.keys(localStorage).some((name) => name.startsWith('anotoki-auth:') && !!JSON.parse(localStorage.getItem(name) || 'null')?.access_token) && !!document.querySelector('app-top-bar .anotoki-top-bar__person-button, app-top-bar .anotoki-top-bar__menu-button')";
 /** Who the bar says is signed in: the name on its button, or - on a phone - at the head of the menu; null for nobody. */
 async function whoIsIn() {
-  if (await js("!!document.querySelector('app-top-bar .person-button')")) {
-    return text('app-top-bar .person-name');
+  if (await js("!!document.querySelector('app-top-bar .anotoki-top-bar__person-button')")) {
+    return text('app-top-bar .anotoki-top-bar__person-name');
   }
-  if (!(await js("!!document.querySelector('app-top-bar .menu-button')"))) {
+  if (!(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__menu-button')"))) {
     return null;
   }
-  const open = await js("!!document.querySelector('app-top-bar .actions > anotoki-menu [role=menu]')");
+  const open = await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')");
   if (!open) await openUserMenu();
-  const name = await text('app-top-bar .actions > anotoki-menu [role=menu] .menu-name');
+  const name = await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu] .anotoki-top-bar__menu-name');
   if (!open) await escape();
   return name;
 }
@@ -444,7 +451,7 @@ async function signOut(words) {
   await go('/');
   if (await js(SIGNED_IN)) {
     await openUserMenu();
-    await clickText('app-top-bar .actions > anotoki-menu [role=menuitem]', words.signOut);
+    await clickText('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]', words.signOut);
     await sleep(1500);
     await settle();
     await sleep(800);
@@ -478,7 +485,7 @@ async function signedOutOn(path) {
   await go(path);
   await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state, app-admin-layout anotoki-empty-state')", 15000);
   await sleep(500);
-  await js("document.querySelectorAll('.toast .dismiss').forEach((b) => b.click()); true");
+  await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
   await sleep(300);
 }
 
@@ -507,8 +514,10 @@ expect(
   trip.join(', '),
 );
 expect('the owner is signed in', (await whoIsIn()) === 'owner', await whoIsIn());
-expect('the language chooser in the top bar says EN, and its name says it too', (await text('anotoki-language-switcher .switcher')) === 'EN' && (await js("document.querySelector('anotoki-language-switcher .switcher').getAttribute('aria-label')")) === 'Language: English (EN)', await js("document.querySelector('anotoki-language-switcher .switcher')?.getAttribute('aria-label')"));
-expect('no survey is open yet', (await text('app-survey-home'))?.includes('No survey is open right now'));
+expect('the language chooser in the top bar says EN, and its name says it too', (await text('anotoki-language-switcher .anotoki-language-switcher__switcher')) === 'EN' && (await js("document.querySelector('anotoki-language-switcher .anotoki-language-switcher__switcher').getAttribute('aria-label')")) === 'Language: English (EN)', await js("document.querySelector('anotoki-language-switcher .anotoki-language-switcher__switcher')?.getAttribute('aria-label')"));
+// The heading is there before the list: the list's answer may come a moment after it.
+await waitFor(page, "(document.querySelector('app-survey-home')?.textContent ?? '').includes('No survey is open right now')", 10000).catch(() => null);
+expect('no survey is open yet', (await text('app-survey-home'))?.includes('No survey is open right now'), (await text('app-survey-home'))?.slice(0, 160));
 expect('the tab is named in English', (await js('document.title')) === 'Surveys · anotoki survey', await js('document.title'));
 // Nor does the API answer anything of a survey without a token.
 const tokenless = await Promise.all(['/api/surveys', '/api/surveys/anything', '/api/admin/surveys'].map(async (path) => `${path} ${(await fetch(origin + path)).status}`));
@@ -517,10 +526,10 @@ expect('without a token the API answers 401 for the surveys, a survey and the ad
 // The family's top bar on a desktop: the brand, the links, then the language, the theme and the person.
 const barRow = () =>
   js(
-    "[...document.querySelector('app-top-bar .row').querySelectorAll(':scope > anotoki-brand, :scope > .nav, .actions > *')].filter((e) => e.tagName.toLowerCase() !== 'anotoki-menu').map((e) => e.matches('.nav') ? 'links: ' + [...e.querySelectorAll('a')].map((a) => a.textContent.trim() + (a.getAttribute('aria-current') === 'page' ? ' (page)' : '')).join(' ') : e.matches('.person-button') ? 'person' : e.matches('.menu-button') ? 'phone-menu' : e.matches('.sign-in') ? 'sign-in' : e.tagName.toLowerCase())",
+    "[...document.querySelector('app-top-bar .anotoki-top-bar__row').querySelectorAll(':scope > anotoki-brand, :scope > .anotoki-top-bar__nav, .anotoki-top-bar__actions > *')].filter((e) => e.tagName.toLowerCase() !== 'anotoki-menu').map((e) => e.matches('.anotoki-top-bar__nav') ? 'links: ' + [...e.querySelectorAll('a')].map((a) => a.textContent.trim() + (a.getAttribute('aria-current') === 'page' ? ' (page)' : '')).join(' ') : e.matches('.anotoki-top-bar__person-button') ? 'person' : e.matches('.anotoki-top-bar__menu-button') ? 'phone-menu' : e.matches('.anotoki-top-bar__sign-in') ? 'sign-in' : e.tagName.toLowerCase())",
   );
 expect('1280 px: one row - brand, links (Surveys, the page), language, theme, the person', same(await barRow(), ['anotoki-brand', 'links: Surveys (page)', 'anotoki-language-switcher', 'anotoki-theme-toggle', 'person']), JSON.stringify(await barRow()));
-expect('1280 px: the brand is the mark, "anotoki" and "survey", linking home', same(await texts('app-top-bar anotoki-brand .wordmark > span'), ['anotoki', 'survey']) && (await js("document.querySelector('app-top-bar anotoki-brand a').getAttribute('href')")) === '/', await text('app-top-bar anotoki-brand'));
+expect('1280 px: the brand is the mark, "anotoki" and "survey", linking home', same(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span'), ['anotoki', 'survey']) && (await js("document.querySelector('app-top-bar anotoki-brand a').getAttribute('href')")) === '/', await text('app-top-bar anotoki-brand'));
 await expectBar('English, 1280 px, signed in');
 await screenshots('en-1280-bar', false);
 
@@ -541,19 +550,19 @@ await signedOutOn('/admin');
 const refusedCard = await text('app-admin-layout anotoki-empty-state');
 expect(
   'the admin area, the sign-in turned down: "You are not signed in" with its Sign in - not a session that ended',
-  (await text('app-admin-layout anotoki-empty-state .heading')) === 'You are not signed in' && !refusedCard?.includes('session has ended') && (await text('app-admin-layout anotoki-empty-state button')) === 'Sign in',
+  (await text('app-admin-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'You are not signed in' && !refusedCard?.includes('session has ended') && (await text('app-admin-layout anotoki-empty-state button')) === 'Sign in',
   refusedCard,
 );
 await screenshots('en-1280-admin-refused', false);
 
 // Signed out - the IAM turned the sign-in down: the page draws a card with Sign in, and the bar offers it too.
 await signedOutOn('/');
-expect('signed out: the card instead of the page - no list of surveys', (await text('app-participant-layout anotoki-empty-state .heading')) === 'You are not signed in' && !(await js("!!document.querySelector('app-survey-home')")), await text('app-participant-layout anotoki-empty-state'));
-expect('signed out: a Sign in button in the top bar', (await text('app-top-bar button.sign-in'))?.includes('Sign in'));
+expect('signed out: the card instead of the page - no list of surveys', (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'You are not signed in' && !(await js("!!document.querySelector('app-survey-home')")), await text('app-participant-layout anotoki-empty-state'));
+expect('signed out: a Sign in button in the top bar', (await text('app-top-bar button.anotoki-top-bar__sign-in'))?.includes('Sign in'));
 await expectBar('English, 1280 px, signed out');
 await screenshots('en-1280-signed-out', false);
 await setIam({ deny: false });
-await clickText('app-top-bar button.sign-in', 'Sign in');
+await clickText('app-top-bar button.anotoki-top-bar__sign-in', 'Sign in');
 await sleep(1500);
 await settle();
 await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
@@ -572,16 +581,16 @@ await go('/');
 await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000).catch(() => null);
 expect(
   'storage refused: the card, and a toast that says why - not a blank page',
-  (await text('app-participant-layout anotoki-empty-state .heading')) === 'You are not signed in' &&
-    (await texts('.toast .message')).some((message) => message.startsWith('This browser would not let the site remember the sign-in in progress.')),
-  `${await text('app-participant-layout anotoki-empty-state .heading')} | ${(await texts('.toast .message')).join(' | ')}`,
+  (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'You are not signed in' &&
+    (await texts('.anotoki-toast-host__message')).some((message) => message.startsWith('This browser would not let the site remember the sign-in in progress.')),
+  `${await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')} | ${(await texts('.anotoki-toast-host__message')).join(' | ')}`,
 );
 await screenshot('en-1280-storage-refused', false);
 await page.send('Page.removeScriptToEvaluateOnNewDocument', { identifier: refuseStorage });
 expect('storage refused: the console said only that the sign-in could not start', heard.length > 0 && heard.every((message) => message.includes('The sign-in could not start.')), heard.join(' | ').slice(0, 300));
 expected = [];
 heard.length = 0;
-await js("document.querySelectorAll('.toast .dismiss').forEach((b) => b.click()); true");
+await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
 
 // /admin, nobody signed in: through the IAM and back at /admin.
 await forgetSession();
@@ -595,8 +604,8 @@ expect('no language chooser in the admin area', !(await js("!!document.querySele
 expect('the admin area\'s bar: its sections as links - Migrations too, for an ADMIN - Surveys the page', same(await barRow(), ['anotoki-brand', 'links: Surveys (page) Translations Languages Migrations', 'anotoki-theme-toggle', 'person']), JSON.stringify(await barRow()));
 expect(
   'the admin panel\'s brand: "anotoki survey · admin panel", linking to /admin and named after what it shows',
-  same(await texts('app-top-bar anotoki-brand .wordmark > span'), ['anotoki', 'survey', '·', 'admin panel']) && (await js("document.querySelector('app-top-bar anotoki-brand a').getAttribute('href')")) === '/admin' && (await js("document.querySelector('app-top-bar anotoki-brand a').getAttribute('aria-label')")) === 'anotoki survey admin panel: all surveys',
-  `${JSON.stringify(await texts('app-top-bar anotoki-brand .wordmark > span'))} / ${await js("document.querySelector('app-top-bar anotoki-brand a')?.getAttribute('aria-label')")}`,
+  same(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span'), ['anotoki', 'survey', '·', 'admin panel']) && (await js("document.querySelector('app-top-bar anotoki-brand a').getAttribute('href')")) === '/admin' && (await js("document.querySelector('app-top-bar anotoki-brand a').getAttribute('aria-label')")) === 'anotoki survey admin panel: all surveys',
+  `${JSON.stringify(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span'))} / ${await js("document.querySelector('app-top-bar anotoki-brand a')?.getAttribute('aria-label')")}`,
 );
 expect('the admin panel\'s tab: the page, the admin panel, the site', (await js('document.title')) === 'Surveys · Admin panel · anotoki survey', await js('document.title'));
 await screenshot('admin-empty');
@@ -610,7 +619,7 @@ for (const [width, words] of [
   await viewport(width);
   await sleep(400);
   await expectBar(`the admin panel, ${width} px`);
-  expect(`the admin panel, ${width} px: the wordmark is ${words.join(' ')}`, same(await texts('app-top-bar anotoki-brand .wordmark > span'), words), JSON.stringify(await texts('app-top-bar anotoki-brand .wordmark > span')));
+  expect(`the admin panel, ${width} px: the wordmark is ${words.join(' ')}`, same(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span'), words), JSON.stringify(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span')));
   await screenshot(`admin-${width}-bar`);
 }
 await viewport(1280);
@@ -627,10 +636,10 @@ const press = async (key, shift = false) => {
   await sleep(150);
 };
 await openUserMenu();
-const menu = await text('app-top-bar .actions > anotoki-menu [role=menu]');
+const menu = await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]');
 expect('the menu: name, address, role, account, back to the surveys, sign out', ['owner', 'owner@example.test', 'Administrator', 'Your anotoki account', 'Back to the surveys', 'Sign out'].every((part) => menu?.includes(part)), menu);
-expect('the account link goes to the IAM', (await js("document.querySelector('app-top-bar .actions > anotoki-menu a[target=_blank]')?.href")) === `${iam}/account`, await js("document.querySelector('app-top-bar .actions > anotoki-menu a[target=_blank]')?.href"));
-expect('the menu: the focus on its first item, the button says it is open', (await focused())?.includes('Your anotoki account') && (await js("document.querySelector('app-top-bar .person-button').getAttribute('aria-expanded')")) === 'true', await focused());
+expect('the account link goes to the IAM', (await js("document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu a[target=_blank]')?.href")) === `${iam}/account`, await js("document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu a[target=_blank]')?.href"));
+expect('the menu: the focus on its first item, the button says it is open', (await focused())?.includes('Your anotoki account') && (await js("document.querySelector('app-top-bar .anotoki-top-bar__person-button').getAttribute('aria-expanded')")) === 'true', await focused());
 await press('ArrowDown');
 expect('ArrowDown: the next item', (await focused())?.includes('Back to the surveys'), await focused());
 await press('End');
@@ -639,20 +648,20 @@ await press('ArrowDown');
 expect('ArrowDown on the last: round to the first', (await focused())?.includes('Your anotoki account'), await focused());
 await screenshot('user-menu');
 await escape();
-expect('Escape closes the menu, and the focus is back on its button', !(await js("!!document.querySelector('app-top-bar .actions > anotoki-menu [role=menu]')")) && (await focused())?.startsWith('button.person-button'), await focused());
+expect('Escape closes the menu, and the focus is back on its button', !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')")) && (await focused())?.startsWith('button.anotoki-top-bar__person-button'), await focused());
 // Tab and Shift+Tab from any item: closed, the focus on the button (left to the browser it went to the next item, then <body>).
 for (const [move, shift, where] of [[null, false, 'the first'], ['ArrowDown', false, 'a middle'], ['End', false, 'the last'], ['ArrowDown', true, 'a middle (Shift+Tab)']]) {
   await openUserMenu();
   if (move) await press(move);
   await press('Tab', shift);
-  expect(`Tab from ${where} item closes the menu, the focus on its button`, !(await js("!!document.querySelector('app-top-bar .actions > anotoki-menu [role=menu]')")) && (await focused())?.startsWith('button.person-button'), await focused());
+  expect(`Tab from ${where} item closes the menu, the focus on its button`, !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')")) && (await focused())?.startsWith('button.anotoki-top-bar__person-button'), await focused());
 }
 await press('Tab');
-expect('the next Tab moves on from the menu button - not to <body>', !(await focused())?.startsWith('body') && !(await focused())?.startsWith('button.person-button'), await focused());
+expect('the next Tab moves on from the menu button - not to <body>', !(await focused())?.startsWith('body') && !(await focused())?.startsWith('button.anotoki-top-bar__person-button'), await focused());
 await openUserMenu();
 await js("document.querySelector('app-surveys-list').click(); true");
 await sleep(200);
-expect('a click outside closes it', !(await js("!!document.querySelector('app-top-bar .actions > anotoki-menu [role=menu]')")));
+expect('a click outside closes it', !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')")));
 
 // ── A new survey, written and saved ─────────────────────────────────────────
 expect('new survey', (await clickText('button', 'New survey')) === true);
@@ -700,7 +709,7 @@ await screenshot('opened');
 await signInAs(PAT);
 // The way into the admin area is an item of the person's menu, for the people who write surveys only.
 await openUserMenu();
-expect('no way into the admin area in the menu of somebody without a role', (await js("!!document.querySelector('app-top-bar .actions > anotoki-menu [role=menu]')")) && !(await js("!!document.querySelector('app-top-bar .actions > anotoki-menu a[href=\"/admin\"]')")), await text('app-top-bar .actions > anotoki-menu [role=menu]'));
+expect('no way into the admin area in the menu of somebody without a role', (await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')")) && !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu a[href=\"/admin\"]')")), await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]'));
 await escape();
 await go('/');
 expect('the open survey is listed', (await text('app-survey-home .survey-title')) === 'Genshin 6.1 - what next?');
@@ -741,7 +750,7 @@ expect('... and its "See the open surveys" leaves it: the home page', (await js(
 // ── The owner sees the answer, and may delete it ────────────────────────────
 await signInAs(OWNER);
 await openUserMenu();
-expect('the owner\'s menu, where people take surveys, has the way into the admin area', (await text('app-top-bar .actions > anotoki-menu a[href="/admin"]')) === 'Admin panel', await text('app-top-bar .actions > anotoki-menu [role=menu]'));
+expect('the owner\'s menu, where people take surveys, has the way into the admin area', (await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu a[href="/admin"]')) === 'Admin panel', await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]'));
 await escape();
 await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list .stat strong')", 15000);
@@ -770,13 +779,13 @@ await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list .survey')", 15000);
 expect('an editor sees the surveys', (await text('app-surveys-list .title')) === 'Genshin 6.1 - what next?');
 expect('but no Delete button', !(await js("!![...document.querySelectorAll('app-surveys-list button')].find(b => b.getAttribute('aria-label') === 'Delete')")));
-expect('nor Migrations in the bar: applying the database\'s updates is an ADMIN\'s', (await texts('app-top-bar .nav a')).join(' ') === 'Surveys Translations Languages', (await texts('app-top-bar .nav a')).join(' '));
+expect('nor Migrations in the bar: applying the database\'s updates is an ADMIN\'s', (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' ') === 'Surveys Translations Languages', (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' '));
 await go('/admin/migrations');
 await waitFor(page, "!!document.querySelector('anotoki-migrations-page')", 15000);
 await sleep(500);
 expect(
   "... and at its address the family's Migrations page says whose it is, asking the server nothing",
-  (await text('anotoki-migrations-page .notice')) === 'Migrations are for administrators.' &&
+  (await text('anotoki-migrations-page .anotoki-migrations-page__notice')) === 'Migrations are for administrators.' &&
     !(await js("!!document.querySelector('anotoki-migrations-page [data-apply]')")) &&
     !requested.slice(-10).some((request) => request.includes('/api/admin/migrations')),
   await text('anotoki-migrations-page'),
@@ -820,15 +829,15 @@ await screenshots('en-390-step');
 // links and the person's menu inside it.
 await go('/');
 expect('390 px: brand, language, theme, menu button - nothing else in the row', same(await barRow(), ['anotoki-brand', 'anotoki-language-switcher', 'anotoki-theme-toggle', 'phone-menu']), JSON.stringify(await barRow()));
-expect('390 px: the brand is the mark and "survey"', (await text('app-top-bar anotoki-brand .wordmark')) === 'survey', await text('app-top-bar anotoki-brand .wordmark'));
+expect('390 px: the brand is the mark and "survey"', (await text('app-top-bar anotoki-brand .anotoki-brand__wordmark')) === 'survey', await text('app-top-bar anotoki-brand .anotoki-brand__wordmark'));
 await expectBar('English, 390 px, the home page');
 await screenshots('en-390-home', false);
 await openUserMenu();
-const phoneMenu = await texts('app-top-bar .actions > anotoki-menu [role=menuitem]');
-expect('the phone menu: the links, then the person\'s menu (an editor\'s: Admin panel too)', same(phoneMenu, ['Surveys', 'Your anotoki account', 'Admin panel', 'Sign out']) && (await text('app-top-bar .actions > anotoki-menu [role=menu] .menu-name')) === 'edith', JSON.stringify(phoneMenu) + ' ' + (await text('app-top-bar .actions > anotoki-menu [role=menu] .menu-name')));
-expect('the phone menu: Surveys says it is the page', (await js("document.querySelector('app-top-bar .actions > anotoki-menu a[role=menuitem]').getAttribute('aria-current')")) === 'page');
-expect('the phone menu: the focus on its first item, the button says it is open', (await focused())?.includes('Surveys') && (await js("document.querySelector('app-top-bar .menu-button').getAttribute('aria-expanded')")) === 'true', await focused());
-expect('the phone menu is inside the window', await menuInside('app-top-bar .actions > anotoki-menu [role=menu]'));
+const phoneMenu = await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]');
+expect('the phone menu: the links, then the person\'s menu (an editor\'s: Admin panel too)', same(phoneMenu, ['Surveys', 'Your anotoki account', 'Admin panel', 'Sign out']) && (await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu] .anotoki-top-bar__menu-name')) === 'edith', JSON.stringify(phoneMenu) + ' ' + (await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu] .anotoki-top-bar__menu-name')));
+expect('the phone menu: Surveys says it is the page', (await js("document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu a[role=menuitem]').getAttribute('aria-current')")) === 'page');
+expect('the phone menu: the focus on its first item, the button says it is open', (await focused())?.includes('Surveys') && (await js("document.querySelector('app-top-bar .anotoki-top-bar__menu-button').getAttribute('aria-expanded')")) === 'true', await focused());
+expect('the phone menu is inside the window', await menuInside('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]'));
 await press('ArrowDown');
 expect('the phone menu: ArrowDown, the next item', (await focused())?.includes('Your anotoki account'), await focused());
 await press('ArrowUp');
@@ -838,32 +847,32 @@ await press('Home');
 expect('the phone menu: Home, the first', (await focused())?.includes('Surveys'), await focused());
 await screenshots('en-390-phone-menu', false);
 await escape();
-expect('Escape closes the phone menu, the focus back on its button', !(await js("!!document.querySelector('app-top-bar .actions > anotoki-menu [role=menu]')")) && (await focused())?.startsWith('button.round.menu-button'), await focused());
+expect('Escape closes the phone menu, the focus back on its button', !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')")) && (await focused())?.startsWith('button.anotoki-top-bar__round.anotoki-top-bar__menu-button'), await focused());
 await openUserMenu();
 await js("document.querySelector('main').click(); true");
 await sleep(200);
-expect('a click outside closes the phone menu', !(await js("!!document.querySelector('app-top-bar .actions > anotoki-menu [role=menu]')")));
+expect('a click outside closes the phone menu', !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')")));
 for (const [move, shift, where] of [[null, false, 'the first'], ['ArrowDown', false, 'a middle'], ['End', false, 'the last'], ['End', true, 'the last (Shift+Tab)']]) {
   await openUserMenu();
   if (move) await press(move);
   await press('Tab', shift);
-  expect(`Tab from ${where} item of the phone menu closes it, the focus on its button`, !(await js("!!document.querySelector('app-top-bar .actions > anotoki-menu [role=menu]')")) && (await focused())?.startsWith('button.round.menu-button'), await focused());
+  expect(`Tab from ${where} item of the phone menu closes it, the focus on its button`, !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')")) && (await focused())?.startsWith('button.anotoki-top-bar__round.anotoki-top-bar__menu-button'), await focused());
 }
 await go(`/${slug}`);
 await openUserMenu();
-await clickText('app-top-bar .actions > anotoki-menu a', 'Surveys');
+await clickText('app-top-bar .anotoki-top-bar__actions > anotoki-menu a', 'Surveys');
 await waitFor(page, "location.pathname === '/' && !!document.querySelector('app-survey-home h1')", 10000).catch(() => null);
-expect('a link of the phone menu goes there and closes the menu', (await js('location.pathname')) === '/' && !(await js("!!document.querySelector('app-top-bar .actions > anotoki-menu [role=menu]')")), await js('location.pathname'));
+expect('a link of the phone menu goes there and closes the menu', (await js('location.pathname')) === '/' && !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')")), await js('location.pathname'));
 
 // Signed out on a phone: the card, and Sign in inside the menu.
 await viewport(360);
 await signedOutOn('/');
-expect('English, 360 px, signed out: the card with its Sign in', (await text('app-participant-layout anotoki-empty-state .heading')) === 'You are not signed in' && (await text('app-participant-layout anotoki-empty-state button')) === 'Sign in', await text('app-participant-layout anotoki-empty-state'));
+expect('English, 360 px, signed out: the card with its Sign in', (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'You are not signed in' && (await text('app-participant-layout anotoki-empty-state button')) === 'Sign in', await text('app-participant-layout anotoki-empty-state'));
 await expectBar('English, 360 px, signed out');
 await expectNoKeys('English, signed out');
 await screenshots('en-360-home-signed-out');
 await openUserMenu();
-expect('360 px, signed out: the phone menu holds the links and Sign in', same(await texts('app-top-bar .actions > anotoki-menu [role=menuitem]'), ['Surveys', 'Sign in']), JSON.stringify(await texts('app-top-bar .actions > anotoki-menu [role=menuitem]')));
+expect('360 px, signed out: the phone menu holds the links and Sign in', same(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]'), ['Surveys', 'Sign in']), JSON.stringify(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]')));
 await screenshots('en-360-phone-menu-signed-out', false);
 await escape();
 await setIam({ deny: false });
@@ -884,8 +893,8 @@ await sleep(1200);
 const asked = requested.slice(firstVisit).filter((request) => request.includes('/api/translations/'));
 expect(
   'a browser set to Slovak, first visit: the site is Slovak, from the browser alone - nothing chosen, nothing in the address',
-  (await js("navigator.languages.join(',')")) === 'sk-SK' && (await pageLanguage()) === 'sk' && (await text('app-participant-layout anotoki-empty-state .heading')) === 'Nie ste prihlásení' && (await storedLanguage()) === ' / ',
-  `${await js("navigator.languages.join(',')")}: ${await pageLanguage()}, ${await text('app-participant-layout anotoki-empty-state .heading')}, ${await storedLanguage()}`,
+  (await js("navigator.languages.join(',')")) === 'sk-SK' && (await pageLanguage()) === 'sk' && (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'Nie ste prihlásení' && (await storedLanguage()) === ' / ',
+  `${await js("navigator.languages.join(',')")}: ${await pageLanguage()}, ${await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')}, ${await storedLanguage()}`,
 );
 expect('... and its strings were asked for in Slovak alone, once a page load (after the IAM, the cached Slovak again)', asked[0] === 'GET /api/translations/sk-sk' && asked.length <= 2 && asked.every((request) => ['GET /api/translations/sk-sk', 'GET /api/translations/sk'].includes(request)), asked.join(', '));
 await expectNoKeys('Slovak by the browser, signed out');
@@ -895,31 +904,31 @@ await browserLanguage(browsersOwn);
 await js('localStorage.clear(); sessionStorage.clear(); true');
 await go('/?lang=sk');
 await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
-await js("document.querySelectorAll('.toast .dismiss').forEach((b) => b.click()); true");
+await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
 await sleep(300);
 expect('?lang=sk: <html lang="sk">, kept for this tab only - through the IAM and back - and taken out of the address', (await pageLanguage()) === 'sk' && (await storedLanguage()) === ' / sk' && (await js('location.search')) === '', `${await pageLanguage()}, ${await storedLanguage()}, ${await js('location.search')}`);
-expect('Slovak, signed out: the card, its button says Prihlásiť sa', (await text('app-participant-layout anotoki-empty-state .heading')) === 'Nie ste prihlásení' && (await text('app-participant-layout anotoki-empty-state button')) === SK.signIn, await text('app-participant-layout anotoki-empty-state'));
-expect('Slovak: the chooser says SK and is named in Slovak with the code it shows', (await text('anotoki-language-switcher .switcher')) === 'SK' && (await js("document.querySelector('anotoki-language-switcher .switcher').getAttribute('aria-label')")) === 'Jazyk: Slovenčina (SK)', await js("document.querySelector('anotoki-language-switcher .switcher')?.getAttribute('aria-label')"));
+expect('Slovak, signed out: the card, its button says Prihlásiť sa', (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'Nie ste prihlásení' && (await text('app-participant-layout anotoki-empty-state button')) === SK.signIn, await text('app-participant-layout anotoki-empty-state'));
+expect('Slovak: the chooser says SK and is named in Slovak with the code it shows', (await text('anotoki-language-switcher .anotoki-language-switcher__switcher')) === 'SK' && (await js("document.querySelector('anotoki-language-switcher .anotoki-language-switcher__switcher').getAttribute('aria-label')")) === 'Jazyk: Slovenčina (SK)', await js("document.querySelector('anotoki-language-switcher .anotoki-language-switcher__switcher')?.getAttribute('aria-label')"));
 expect('Slovak: the tab', (await js('document.title')) === 'Prieskumy · anotoki prieskum', await js('document.title'));
-expect('Slovak, 360 px: the brand is the mark and "prieskum", the menu button named in Slovak', (await text('app-top-bar anotoki-brand .wordmark')) === 'prieskum' && (await js("document.querySelector('app-top-bar .menu-button').getAttribute('aria-label')")) === 'Ponuka', `${await text('app-top-bar anotoki-brand .wordmark')} / ${await js("document.querySelector('app-top-bar .menu-button')?.getAttribute('aria-label')")}`);
+expect('Slovak, 360 px: the brand is the mark and "prieskum", the menu button named in Slovak', (await text('app-top-bar anotoki-brand .anotoki-brand__wordmark')) === 'prieskum' && (await js("document.querySelector('app-top-bar .anotoki-top-bar__menu-button').getAttribute('aria-label')")) === 'Ponuka', `${await text('app-top-bar anotoki-brand .anotoki-brand__wordmark')} / ${await js("document.querySelector('app-top-bar .anotoki-top-bar__menu-button')?.getAttribute('aria-label')")}`);
 await expectBar('Slovak, 360 px, signed out');
 await expectNoKeys('Slovak, signed out');
 // The detector itself: a key put on the page is found (so "none" above means none).
-await js("document.querySelector('app-participant-layout anotoki-empty-state .heading').append(document.createTextNode(' home.title')); true");
+await js("document.querySelector('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading').append(document.createTextNode(' home.title')); true");
 expect('a key on the page would have been seen', (await keysShown()).includes('home.title'));
 await go('/');
 await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
-await js("document.querySelectorAll('.toast .dismiss').forEach((b) => b.click()); true");
+await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
 await sleep(300);
 await screenshots('sk-360-home-signed-out');
 await openUserMenu();
-expect('Slovak, 360 px, signed out: the phone menu - Prieskumy, Prihlásiť sa', same(await texts('app-top-bar .actions > anotoki-menu [role=menuitem]'), ['Prieskumy', SK.signIn]), JSON.stringify(await texts('app-top-bar .actions > anotoki-menu [role=menuitem]')));
-expect('... inside the window', await menuInside('app-top-bar .actions > anotoki-menu [role=menu]'));
+expect('Slovak, 360 px, signed out: the phone menu - Prieskumy, Prihlásiť sa', same(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]'), ['Prieskumy', SK.signIn]), JSON.stringify(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]')));
+expect('... inside the window', await menuInside('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]'));
 await screenshots('sk-360-phone-menu-signed-out', false);
 await escape();
 
 // The chooser: a menu of the languages under their own names.
-await js("document.querySelector('anotoki-language-switcher .switcher').click(); true");
+await js("document.querySelector('anotoki-language-switcher .anotoki-language-switcher__switcher').click(); true");
 await sleep(300);
 const offered = await js("[...document.querySelectorAll('anotoki-language-switcher [role=menuitemradio]')].map(e => e.textContent.trim() + ' ' + e.getAttribute('lang') + ' ' + e.getAttribute('aria-checked')).join(', ')");
 expect('the chooser offers English and Slovenčina, Slovak checked', offered === 'English en false, Slovenčina sk true', offered);
@@ -933,7 +942,7 @@ for (const width of [390, 760, 761]) {
   await viewport(width);
   await go('/');
   await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
-  await js("document.querySelectorAll('.toast .dismiss').forEach((b) => b.click()); true");
+  await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
   await expectBar(`Slovak, ${width} px, signed out`);
   const row = await barRow();
   const phone = width <= 760;
@@ -954,11 +963,11 @@ await viewport(360);
 since = requested.length;
 await go(`/${slug}`);
 await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
-await js("document.querySelectorAll('.toast .dismiss').forEach((b) => b.click()); true");
+await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
 await sleep(300);
 expect(
   'Slovak, a survey signed out: the card, nothing of the survey on the page or asked of the API',
-  (await text('app-participant-layout anotoki-empty-state .heading')) === 'Nie ste prihlásení' && !(await js("!!document.querySelector('app-take-survey')")) && !(await js('document.body.textContent')).includes('Genshin') && !requested.slice(since).some((request) => request.startsWith('GET /api/surveys')),
+  (await text('app-participant-layout anotoki-empty-state .anotoki-empty-state__heading')) === 'Nie ste prihlásení' && !(await js("!!document.querySelector('app-take-survey')")) && !(await js('document.body.textContent')).includes('Genshin') && !requested.slice(since).some((request) => request.startsWith('GET /api/surveys')),
   requested.slice(since).join(', '),
 );
 await expectNoKeys('Slovak, a survey signed out');
@@ -978,9 +987,9 @@ expect('Slovak: the open survey with its size in Slovak', /^\d+ otáz(ka|ky|ok) 
 expect('the survey is new to Nina', (await text('app-survey-home anotoki-badge')) === 'Nový', await text('app-survey-home anotoki-badge'));
 await expectBar('Slovak, 360 px, signed in');
 await openUserMenu();
-const menuSk = await text('app-top-bar .actions > anotoki-menu [role=menu]');
+const menuSk = await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]');
 expect('the person\'s menu in Slovak', ['nina', 'Váš anotoki účet', 'Odhlásiť sa'].every((part) => menuSk?.includes(part)) && !menuSk?.includes('Administrátorský panel'), menuSk);
-expect('the person\'s menu is inside the window', await menuInside('app-top-bar .actions > anotoki-menu [role=menu]'));
+expect('the person\'s menu is inside the window', await menuInside('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]'));
 await expectNoKeys('Slovak, the person\'s menu');
 await screenshot('sk-360-user-menu');
 await escape();
@@ -1067,33 +1076,33 @@ await screenshot('sk-360-no-access', true);
 // ... and the surveys for the owner, whose tab is Slovak too.
 await signInAs(OWNER, SK);
 await openUserMenu();
-expect('Slovak: the owner\'s way into the admin area', (await text('app-top-bar .actions > anotoki-menu a[href="/admin"]')) === 'Administrátorský panel' && (await text('app-top-bar .actions > anotoki-menu .menu-role')) === 'Rola: administrátor', await text('app-top-bar .actions > anotoki-menu [role=menu]'));
-expect('Slovak: the owner\'s menu is inside the window', await menuInside('app-top-bar .actions > anotoki-menu [role=menu]'));
+expect('Slovak: the owner\'s way into the admin area', (await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu a[href="/admin"]')) === 'Administrátorský panel' && (await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu .anotoki-top-bar__menu-role')) === 'Rola: administrátor', await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]'));
+expect('Slovak: the owner\'s menu is inside the window', await menuInside('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]'));
 await screenshot('sk-360-owner-menu');
 // Through the menu, without a page load: the router says where the page is.
-await clickText('app-top-bar .actions > anotoki-menu a', 'Administrátorský panel');
+await clickText('app-top-bar .anotoki-top-bar__actions > anotoki-menu a', 'Administrátorský panel');
 await waitFor(page, "location.pathname === '/admin' && !!document.querySelector('app-surveys-list .survey')", 15000);
 await sleep(400);
 expect('/admin as the owner: <html lang="en">', (await pageLanguage()) === 'en', await pageLanguage());
 expect('/admin as the owner: no language chooser', !(await js("!!document.querySelector('anotoki-language-switcher')")));
 expect('/admin as the owner: the page and the tab in English', (await text('app-surveys-list'))?.includes('New survey') && (await js('document.title')) === 'Surveys · Admin panel · anotoki survey', `${(await text('app-surveys-list'))?.slice(0, 80)} / ${await js('document.title')}`);
 await openUserMenu();
-const menuAdmin = await text('app-top-bar .actions > anotoki-menu [role=menu]');
+const menuAdmin = await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]');
 expect('/admin as the owner: the shared top bar in English', ['Administrator', 'Your anotoki account', 'Surveys', 'Translations', 'Languages', 'Back to the surveys', 'Sign out'].every((part) => menuAdmin?.includes(part)) && (await js("document.querySelector('app-top-bar anotoki-theme-toggle [role=radiogroup]').getAttribute('aria-label')")) === 'Theme', menuAdmin);
 await expectBar('/admin, 360 px');
 await expectNoKeys('/admin');
 await screenshot('sk-360-admin-menu');
-await clickText('app-top-bar .actions > anotoki-menu a', 'Back to the surveys');
+await clickText('app-top-bar .anotoki-top-bar__actions > anotoki-menu a', 'Back to the surveys');
 await waitFor(page, "location.pathname === '/' && !!document.querySelector('app-survey-home h1')", 15000);
 await sleep(400);
-expect('back where people take surveys: Slovak again, with the chooser', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === SK.home && (await text('anotoki-language-switcher .switcher')) === 'SK', `${await pageLanguage()}, ${await text('app-survey-home h1')}`);
+expect('back where people take surveys: Slovak again, with the chooser', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === SK.home && (await text('anotoki-language-switcher .anotoki-language-switcher__switcher')) === 'SK', `${await pageLanguage()}, ${await text('app-survey-home h1')}`);
 // Opened by its address (a page load), and at the width the pages are made for.
 await viewport(390);
 await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list .survey')", 15000);
 expect('/admin opened by its address: English, <html lang="en">, no chooser', (await pageLanguage()) === 'en' && !(await js("!!document.querySelector('anotoki-language-switcher')")) && (await text('app-surveys-list'))?.includes('New survey'), await pageLanguage());
 await expectBar('/admin, 390 px');
-expect('/admin, 390 px: the brand is the mark and "survey", "admin panel" under it', same(await texts('app-top-bar anotoki-brand .wordmark > span'), ['survey', '·', 'admin panel']), JSON.stringify(await texts('app-top-bar anotoki-brand .wordmark > span')));
+expect('/admin, 390 px: the brand is the mark and "survey", "admin panel" under it', same(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span'), ['survey', '·', 'admin panel']), JSON.stringify(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span')));
 await screenshots('sk-390-admin');
 
 // ── The language of the account, when nothing is stored here ────────────────
@@ -1103,7 +1112,7 @@ await signedOutOn('/');
 await js('localStorage.clear(); sessionStorage.clear(); true');
 await go('/');
 await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state')", 15000);
-await js("document.querySelectorAll('.toast .dismiss').forEach((b) => b.click()); true");
+await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
 expect('nothing stored, nobody signed in: the browser\'s language, English', (await pageLanguage()) === 'en' && (await text('app-participant-layout anotoki-empty-state button')) === 'Sign in', `${await pageLanguage()}, ${await text('app-participant-layout anotoki-empty-state button')}, ${await js('navigator.languages.join()')}`);
 await setIam({ deny: false });
 await clickText('app-participant-layout anotoki-empty-state button', 'Sign in');
@@ -1115,15 +1124,15 @@ expect('used, not stored', (await storedLanguage()) === ' / ', await storedLangu
 await expectBar('Slovak, 360 px, a twenty-character name');
 await screenshot('sk-360-home-token', true);
 await openUserMenu();
-expect('360 px: the twenty-character name whole at the head of the phone menu, the menu inside the window', (await text('app-top-bar .actions > anotoki-menu [role=menu] .menu-name')) === ZUZANA.username && (await menuInside('app-top-bar .actions > anotoki-menu [role=menu]')), await text('app-top-bar .actions > anotoki-menu [role=menu] .menu-name'));
+expect('360 px: the twenty-character name whole at the head of the phone menu, the menu inside the window', (await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu] .anotoki-top-bar__menu-name')) === ZUZANA.username && (await menuInside('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')), await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu] .anotoki-top-bar__menu-name'));
 await screenshots('sk-360-phone-menu', false);
 await escape();
 // The name is beside the round button from 961 px; up to 960 the button is the initial alone.
 for (const width of [960, 961]) {
   await viewport(width);
   await go('/');
-  const shown = (await js("getComputedStyle(document.querySelector('app-top-bar .person-name')).display")) !== 'none';
-  expect(`${width} px: the name is ${width > 960 ? '' : 'not '}in the bar`, shown === width > 960 && (await text('app-top-bar .person-name')) === ZUZANA.username, await text('app-top-bar .person-name'));
+  const shown = (await js("getComputedStyle(document.querySelector('app-top-bar .anotoki-top-bar__person-name')).display")) !== 'none';
+  expect(`${width} px: the name is ${width > 960 ? '' : 'not '}in the bar`, shown === width > 960 && (await text('app-top-bar .anotoki-top-bar__person-name')) === ZUZANA.username, await text('app-top-bar .anotoki-top-bar__person-name'));
   await expectBar(`Slovak, ${width} px, a twenty-character name`);
   await screenshot(`sk-${width}-bar-signed-in`);
 }
@@ -1131,12 +1140,12 @@ for (const width of [960, 961]) {
 // ── The chooser: a choice made here is kept, and is stronger than the account ──
 await viewport(360);
 await go('/');
-await js("document.querySelector('anotoki-language-switcher .switcher').click(); true");
+await js("document.querySelector('anotoki-language-switcher .anotoki-language-switcher__switcher').click(); true");
 await sleep(300);
 await clickText('anotoki-language-switcher [role=menuitemradio]', 'English');
 await waitFor(page, "document.documentElement.lang === 'en'", 15000);
 await sleep(300);
-expect('the chooser: English at once, kept on this device', (await text('app-survey-home h1')) === EN.home && (await text('anotoki-language-switcher .switcher')) === 'EN' && (await storedLanguage()) === 'en / ' && (await js('document.title')) === 'Surveys · anotoki survey', `${await text('app-survey-home h1')}, ${await storedLanguage()}, ${await js('document.title')}`);
+expect('the chooser: English at once, kept on this device', (await text('app-survey-home h1')) === EN.home && (await text('anotoki-language-switcher .anotoki-language-switcher__switcher')) === 'EN' && (await storedLanguage()) === 'en / ' && (await js('document.title')) === 'Surveys · anotoki survey', `${await text('app-survey-home h1')}, ${await storedLanguage()}, ${await js('document.title')}`);
 await go('/');
 expect('and after a reload: the choice, not the account\'s language', (await pageLanguage()) === 'en' && (await text('app-survey-home h1')) === EN.home, `${await pageLanguage()}, ${await text('app-survey-home h1')}`);
 await screenshot('en-360-home-chosen', true);
@@ -1150,27 +1159,46 @@ await viewport(1280);
 await signInAs(OWNER, EN);
 
 // ── The site's own words: the Translations page ─────────────────────────────
+// The anotoki family's page (<anotoki-translations-page>, @anotoki/lib/translations/admin): English, a key a row, a
+// language a column - the site's keys and the library's own (`anotoki.*`: the kit's words, the status page's).
 await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list .survey')", 15000);
 expect('the surveys list has the way to the translations', (await clickText('app-surveys-list anotoki-page-header a', 'Translations')) === true);
-await waitFor(page, "location.pathname === '/admin/translations' && document.querySelectorAll('app-translations .block').length > 50", 15000);
-/** The box of one key in one language, and the block of a plural family (as an expression for the page). */
-const box = (key, code) => `[id="key-${key}"] textarea[lang="${code}"]`;
-const family = (name) => `[...document.querySelectorAll('app-translations .block.is-plural')].find((b) => b.querySelector('.family code').textContent.trim() === ${JSON.stringify(name)})`;
-const saveState = () => text('app-translations .save-state');
-const toasts = () => texts('.toast .message');
+/** The grid is drawn: more than 50 blocks of keys. */
+const GRID_DRAWN = "document.querySelectorAll('anotoki-translations-page .anotoki-translations-page__block').length > 50";
+await waitFor(page, `location.pathname === '/admin/translations' && ${GRID_DRAWN}`, 15000);
+/** A key's row (its id ends with the key), the box of one key in one language, and the block of a plural family (as an expression for the page). */
+const row = (key) => `anotoki-translations-page [id$="-key-${key}"]`;
+const box = (key, code) => `${row(key)} textarea[lang="${code}"]`;
+const family = (name) => `document.querySelector('anotoki-translations-page .anotoki-translations-page__block--plural[data-block="${name}"]')`;
+const boxValue = (key, code) => js(`document.querySelector(${JSON.stringify(box(key, code))})?.value ?? null`);
+const saveState = () => text('anotoki-translations-page [data-save-state]');
+/** Whether the page's Save is pressable now. */
+const saveReady = () => js("document.querySelector('anotoki-translations-page [data-save]')?.disabled === false");
+const toasts = () => texts('.anotoki-toast-host__message');
 /** Toasts stay for seconds, over the corner of the page: gone before a screenshot, or before the next one is read. */
 const dismissToasts = async () => {
-  await js("document.querySelectorAll('.toast .dismiss').forEach((b) => b.click()); true");
+  await js("document.querySelectorAll('.anotoki-toast-host__dismiss').forEach((b) => b.click()); true");
   await sleep(300);
 };
 
 expect('Translations: named in the tab, English, no chooser', (await js('document.title')).startsWith('Translations · ') && (await pageLanguage()) === 'en' && !(await js("!!document.querySelector('anotoki-language-switcher')")), `${await js('document.title')}, ${await pageLanguage()}`);
-const keyRows = await js("document.querySelectorAll('app-translations .row:not(.samples)').length");
-expect('Translations: a row for every key, a column for each language', keyRows === KEYS.length && (await texts('app-translations .grid-head span')).join(' | ') === 'Key | English | Slovak', `${keyRows} rows for ${KEYS.length} keys; ${(await texts('app-translations .grid-head span')).join(' | ')}`);
-expect('Translations: both languages are written whole', (await texts('app-translations .coverage-count')).join(' | ') === `${KEYS.length} / ${KEYS.length} | ${KEYS.length} / ${KEYS.length}`, (await texts('app-translations .coverage-count')).join(' | '));
+const keyRows = await js("document.querySelectorAll('anotoki-translations-page .anotoki-translations-page__row:not(.anotoki-translations-page__samples)').length");
+const gridHead = async () => (await texts('anotoki-translations-page .anotoki-translations-page__grid-head span')).join(' | ');
+expect('Translations: a row for every key, a column for each language', keyRows === KEYS.length && (await gridHead()) === 'Key | English | Slovak', `${keyRows} rows for ${KEYS.length} keys; ${await gridHead()}`);
+const coverageCounts = async () => (await texts('anotoki-translations-page .anotoki-translations-page__coverage-count')).join(' | ');
+expect('Translations: both languages are written whole', (await coverageCounts()) === `${KEYS.length} / ${KEYS.length} | ${KEYS.length} / ${KEYS.length}`, await coverageCounts());
+expect(
+  "Translations: the anotoki library's words are keys of the grid like the site's own - in this site's formal Slovak, and the site's words where it had its own (migration 010)",
+  (await boxValue('anotoki.topbar.menu', 'sk')) === 'Vaša ponuka' &&
+    (await boxValue('anotoki.ui.copyFailed', 'sk')) === 'Kopírovanie nefungovalo. Označte text a skopírujte ho ručne.' &&
+    (await boxValue('anotoki.siteStatus.unavailableText', 'sk')) === 'Skúste to, prosím, znova o pár minút. Táto stránka sa obnoví sama.' &&
+    (await boxValue('anotoki.topbar.roleAdmin', 'sk')) === 'Rola: administrátor' &&
+    (await boxValue('anotoki.topbar.signOut', 'en')) === EN.signOut,
+  `${await boxValue('anotoki.topbar.menu', 'sk')} / ${await boxValue('anotoki.ui.copyFailed', 'sk')} / ${await boxValue('anotoki.topbar.roleAdmin', 'sk')}`,
+);
 const plural = await js(
-  `(() => { const b = ${family('home.questions')}; if (!b) return null; const all = (selector) => [...b.querySelectorAll(selector)].map((e) => e.textContent.replace(/\\s+/g, ' ').trim()); return { keys: all('.key-name'), numbers: all('.numbers'), en: all('.sample[lang=en] li'), sk: all('.sample[lang=sk] li') }; })()`,
+  `(() => { const b = ${family('home.questions')}; if (!b) return null; const all = (selector) => [...b.querySelectorAll(selector)].map((e) => e.textContent.replace(/\\s+/g, ' ').trim()); return { keys: all('.anotoki-translations-page__key-name'), numbers: all('.anotoki-translations-page__numbers'), en: all('.anotoki-translations-page__sample[lang=en] li'), sk: all('.anotoki-translations-page__sample[lang=sk] li') }; })()`,
 );
 expect('Translations: a plural family is one block - one, few, other', plural?.keys.join(' ') === 'home.questions.one home.questions.few home.questions.other', plural?.keys.join(' '));
 expect(
@@ -1179,72 +1207,80 @@ expect(
   plural?.numbers.join(' | '),
 );
 expect('... and the block shows the family as the site says it for 1, 3 and 12', plural?.en.join(' | ') === '1 question | 3 questions | 12 questions' && plural?.sk.join(' | ') === '1 otázka | 3 otázky | 12 otázok', `${plural?.en.join(' | ')} // ${plural?.sk.join(' | ')}`);
-expect('Translations: nothing changed, nothing to save', (await saveState()) === 'Everything is saved' && (await js("[...document.querySelectorAll('app-translations .save-bar button')].find((b) => b.textContent.trim() === 'Save')?.disabled")) === true, await saveState());
+expect('Translations: nothing changed, nothing to save', (await saveState()) === 'Everything is saved' && (await saveReady()) === false, await saveState());
 await expectNoSideways('Translations, desktop');
 await screenshots('admin-translations-1280', false);
 await js(`${family('home.questions')}.scrollIntoView({ block: 'center' }); true`);
 await screenshots('admin-translations-1280-plural', false);
 
 // A Slovak string reworded - first with a placeholder its English string does not have.
+const refusalBeside = (key) => text(`${row(key)} .anotoki-translations-admin__field-error`);
+const changedMark = (key) => text(`${row(key)} .anotoki-translation-cell__mark`);
 await fill(box('home.title', 'sk'), 'Povedzte nám {nope} svoj názor');
-expect('Translations: a changed box is marked, and the bar counts it', (await text('[id="key-home.title"] .mark')) === 'Changed' && (await saveState()) === '1 string changed, not saved yet', `${await text('[id="key-home.title"] .mark')} / ${await saveState()}`);
-await clickText('app-translations .save-bar button', 'Save');
-await waitFor(page, `!!document.querySelector('[id="key-home.title"] .field-error')`, 15000);
-const refusal = await text('[id="key-home.title"] .field-error');
-expect('Translations: a placeholder the English string does not have is refused, beside its key', refusal === 'Nothing was saved. The Slovak string of "home.title" uses {nope}, which its English string does not have.', refusal);
+expect('Translations: a changed box is marked, and the bar counts it', (await changedMark('home.title')) === 'Changed' && (await saveState()) === '1 string changed, not saved yet', `${await changedMark('home.title')} / ${await saveState()}`);
+await clickText('anotoki-translations-page [data-save]', 'Save');
+await waitFor(page, `!!document.querySelector(${JSON.stringify(`${row('home.title')} .anotoki-translations-admin__field-error`)})`, 15000);
+const refusal = await refusalBeside('home.title');
+expect('Translations: a placeholder the English string does not have is refused, beside its key', refusal === 'Nothing was saved. The Slovak string of "home.title" uses {nope}, which its English string does not have', refusal);
 expect('... its box is marked wrong, and the bar says where to look', (await js(`document.querySelector(${JSON.stringify(box('home.title', 'sk'))}).getAttribute('aria-invalid')`)) === 'true' && (await saveState()) === 'Nothing was saved: see home.title', await saveState());
 await sleep(400);
 await screenshots('admin-translations-1280-refused', false);
 const HOME_SK = 'Povedzte nám, čo si myslíte';
 await fill(box('home.title', 'sk'), HOME_SK);
-expect('Translations: changing the box takes the refusal away', !(await js(`!!document.querySelector('[id="key-home.title"] .field-error')`)) && (await saveState()) === '1 string changed, not saved yet', await saveState());
-await clickText('app-translations .save-bar button', 'Save');
-await waitFor(page, "document.querySelector('app-translations .save-state')?.textContent.trim() === 'Everything is saved'", 15000);
-expect('Translations: saved - it says so, and no box is marked any more', (await toasts()).includes('The string is saved.') && !(await js("!!document.querySelector('app-translations app-translation-cell .mark')")), (await toasts()).join(' | '));
-await dismissToasts();
+expect('Translations: changing the box takes the refusal away', (await refusalBeside('home.title')) === null && (await saveState()) === '1 string changed, not saved yet', await saveState());
+await clickText('anotoki-translations-page [data-save]', 'Save');
+await waitFor(page, "document.querySelector('anotoki-translations-page [data-save-state]')?.textContent.trim() === 'The string is saved.'", 15000);
+expect('Translations: saved - the bar says so, and no box is marked any more', !(await js("!!document.querySelector('anotoki-translations-page .anotoki-translation-cell__mark')")) && (await saveReady()) === false, await saveState());
 
 // ── A save that fails with no key to blame: said where Save is ──────────────
 // A box far down the grid, so the top of the page is out of sight - what is said there is not seen.
 const DRAFT_SK = ['notFound.text', 'sk', 'Možno je v adrese preklep, alebo sa to, čo tu bolo, presunulo.'];
 const DRAFT_EN = ['notFound.action', 'en', 'Back to the open surveys'];
-const boxValue = (key, code) => js(`document.querySelector(${JSON.stringify(box(key, code))})?.value ?? null`);
-const marks = () => js("[...document.querySelectorAll('app-translations .row')].filter((row) => row.querySelector('app-translation-cell .mark')).map((row) => row.id.slice(4) + ' ' + [...row.querySelectorAll('.cell')].filter((cell) => cell.querySelector('.mark')).map((cell) => cell.querySelector('textarea').getAttribute('lang')).join('+'))");
+/** The rows with a box marked changed, as "key language+language", as the grid lists them. */
+const marks = () =>
+  js(
+    "[...document.querySelectorAll('anotoki-translations-page .anotoki-translations-page__row')].filter((row) => row.querySelector('.anotoki-translation-cell__mark')).map((row) => row.querySelector('.anotoki-translations-page__key-name').textContent.trim() + ' ' + [...row.querySelectorAll('anotoki-translation-cell')].filter((cell) => cell.querySelector('.anotoki-translation-cell__mark')).map((cell) => cell.querySelector('textarea').getAttribute('lang')).join('+'))",
+  );
 const storedSk = await boxValue(DRAFT_SK[0], 'sk');
 const storedEn = await boxValue(DRAFT_EN[0], 'en');
 /** The bar Save is in, and what it says became of the save, are inside the window - on a page scrolled away from its top. */
 const saidInView = () =>
   js(`(() => {
-    const bar = document.querySelector('app-translations .save-bar')?.getBoundingClientRect();
-    const said = document.querySelector('app-translations .save-refused')?.getBoundingClientRect();
+    const bar = document.querySelector('anotoki-translations-page .anotoki-translations-page__save-bar')?.getBoundingClientRect();
+    const said = document.querySelector('anotoki-translations-page .anotoki-translations-page__save-refused')?.getBoundingClientRect();
     const inside = (r) => !!r && r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight && r.left >= 0 && r.right <= window.innerWidth + 0.5;
     return { ok: inside(bar) && inside(said) && window.scrollY > 400, detail: 'scrolled ' + Math.round(window.scrollY) + ', the bar ' + (bar ? Math.round(bar.top) + '-' + Math.round(bar.bottom) : 'missing') + ' of ' + window.innerHeight };
   })()`);
 const saidOfTheSave = async (words) => {
-  await clickText('app-translations .save-bar button', 'Save');
-  await waitFor(page, `(document.querySelector('app-translations .save-state')?.textContent ?? '').includes(${JSON.stringify(words)}) && !document.querySelector('app-translations .save-bar button[aria-busy=true]')`, 15000);
+  await clickText('anotoki-translations-page [data-save]', 'Save');
+  await waitFor(page, `(document.querySelector('anotoki-translations-page [data-save-state]')?.textContent ?? '').includes(${JSON.stringify(words)}) && !document.querySelector('anotoki-translations-page [data-save][aria-busy=true]')`, 15000);
   await sleep(300);
   return saveState();
 };
 await fill(box(...DRAFT_SK.slice(0, 2)), DRAFT_SK[2]);
 // The server itself fails - a page that is not the API's, as a proxy in front of it answers.
 await intercept('*/api/admin/translations', (request) => (request.method === 'PUT' ? { status: 500, body: '<h1>Internal Server Error</h1>' } : null));
-const failed = await saidOfTheSave('The server answered');
+const failed = await saidOfTheSave('Something went wrong on the server');
 let view = await saidInView();
-expect('Translations: a save the server fails on is said in the bar Save is in', failed === 'Nothing was saved. The server answered 500.', failed);
-expect('... which is in view, far from the top of the page - and nothing is said up there, out of sight', view.ok && !(await js("!!document.querySelector('app-translations anotoki-alert')")), view.detail);
-expect('... and what was typed is still in its box, still to be saved', (await boxValue(DRAFT_SK[0], 'sk')) === DRAFT_SK[2] && same(await marks(), [`${DRAFT_SK[0]} sk`]) && (await js("[...document.querySelectorAll('app-translations .save-bar button')].find((b) => b.textContent.trim() === 'Save')?.disabled")) === false, JSON.stringify(await marks()));
+expect('Translations: a save the server fails on is said in the bar Save is in', failed === 'Nothing was saved. Something went wrong on the server. Try again; the server’s error log says more.', failed);
+expect('... which is in view, far from the top of the page - and nothing is said up there, out of sight', view.ok && !(await js("!!document.querySelector('anotoki-translations-page anotoki-alert')")), view.detail);
+expect('... and what was typed is still in its box, still to be saved', (await boxValue(DRAFT_SK[0], 'sk')) === DRAFT_SK[2] && same(await marks(), [`${DRAFT_SK[0]} sk`]) && (await saveReady()) === true, JSON.stringify(await marks()));
 await screenshots('admin-translations-1280-save-failed', false);
 // No answer at all: the connection is gone for that one request.
 await intercept('*/api/admin/translations', (request) => (request.method === 'PUT' ? 'unreachable' : null));
 const unreachable = await saidOfTheSave('could not be reached');
-expect('Translations: a save that reaches nobody is said in the same place', unreachable === 'Nothing was saved. The site could not be reached. Check the connection and try again.' && (await saidInView()).ok, unreachable);
+expect('Translations: a save that reaches nobody is said in the same place', unreachable === 'Nothing was saved. The server could not be reached. Check the connection and try again.' && (await saidInView()).ok, unreachable);
 await stopIntercepting();
 await viewport(390);
 await sleep(400);
 await js(`document.querySelector(${JSON.stringify(box(...DRAFT_SK.slice(0, 2)))}).scrollIntoView({ block: 'center' }); true`);
 await sleep(300);
 view = await saidInView();
-expect('Translations, 390 px: the bar says it whole, inside the window', view.ok && (await js("(() => { const said = document.querySelector('app-translations .save-refused'); return said.scrollWidth <= said.clientWidth + 1; })()")), view.detail);
+expect(
+  'Translations, 390 px: the bar says it whole, inside the window',
+  view.ok && (await js("(() => { const said = document.querySelector('anotoki-translations-page .anotoki-translations-page__save-refused'); return said.scrollWidth <= said.clientWidth + 1; })()")),
+  view.detail,
+);
 await expectNoSideways('Translations, 390 px, a save that failed');
 await screenshots('admin-translations-390-save-failed', false);
 await viewport(1280);
@@ -1253,13 +1289,17 @@ await sleep(400);
 // ── What is typed and not saved outlives the session ────────────────────────
 // Two boxes typed, in two languages. Then the session ends the way it does by itself: the access token has run
 // out and the IAM will not renew it (its own session is over - signed out elsewhere, the idle limit). The admin
-// area takes its page away at that moment, with no navigation and no question.
+// area takes its page away at that moment, with no navigation and no question. The boxes are the family's drafts
+// (LocalizationDrafts), kept for the tab under the name the site always had.
 await fill(box(...DRAFT_EN.slice(0, 2)), DRAFT_EN[2]);
 // As the grid lists them: by key.
 const BOTH = [`${DRAFT_EN[0]} en`, `${DRAFT_SK[0]} sk`];
 expect('Translations: two boxes typed, neither saved', same(await marks(), BOTH), JSON.stringify(await marks()));
 const DRAFTS_KEY = 'anotoki-survey:localization-drafts';
-const draftsKept = () => js(`(() => { try { const kept = JSON.parse(sessionStorage.getItem(${JSON.stringify(DRAFTS_KEY)})); return kept ? kept.owner + ': ' + Object.entries(kept.strings).map(([key, cells]) => key + ' ' + Object.keys(cells).join('+')).join(', ') : null; } catch { return 'unreadable'; } })()`);
+const draftsKept = () =>
+  js(
+    `(() => { try { const kept = JSON.parse(sessionStorage.getItem(${JSON.stringify(DRAFTS_KEY)})); return kept ? kept.owner + ': ' + Object.entries(kept.strings).map(([key, cells]) => key + ' ' + Object.keys(cells).join('+')).join(', ') : null; } catch { return 'unreadable'; } })()`,
+  );
 leaving = [];
 await setIam({ refuse: true });
 // The token the page holds is run out: written as another tab of the site would write it, which the SDK listens for.
@@ -1272,11 +1312,11 @@ await js(`(() => {
   return true;
 })()`);
 // The next thing the person does needs a token: they press Save.
-await clickText('app-translations .save-bar button', 'Save');
-await waitFor(page, "!document.querySelector('app-translations') && !!document.querySelector('app-top-bar button.sign-in')", 15000);
+await clickText('anotoki-translations-page [data-save]', 'Save');
+await waitFor(page, "!document.querySelector('anotoki-translations-page') && !!document.querySelector('app-top-bar button.anotoki-top-bar__sign-in')", 15000);
 await sleep(400);
 const iamLog = await iamTrips();
-expect('the session ended - the IAM refused to renew it: the page is gone, where it was, and the bar offers to sign in', (await js('location.pathname')) === '/admin/translations' && !(await js("!!document.querySelector('app-top-bar .person-button')")) && iamLog.slice(-3).includes('POST /api/oidc/token'), `${await js('location.pathname')}; the IAM was asked: ${iamLog.slice(-3).join(', ')}`);
+expect('the session ended - the IAM refused to renew it: the page is gone, where it was, and the bar offers to sign in', (await js('location.pathname')) === '/admin/translations' && !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__person-button')")) && iamLog.slice(-3).includes('POST /api/oidc/token'), `${await js('location.pathname')}; the IAM was asked: ${iamLog.slice(-3).join(', ')}`);
 expect('... and what was typed is kept for the tab, for the person it was typed by', (await draftsKept()) === `${OWNER.id}: ${DRAFT_SK[0]} sk, ${DRAFT_EN[0]} en`, await draftsKept());
 const signedOutCard = async () => text('app-admin-layout anotoki-empty-state');
 expect(
@@ -1295,7 +1335,7 @@ expect(
 );
 await screenshots('admin-session-ended-390');
 await openUserMenu();
-expect('... its menu: the admin area\'s sections, then Sign in', same(await texts('app-top-bar .actions > anotoki-menu [role=menuitem]'), ['Surveys', 'Translations', 'Languages', 'Sign in']), JSON.stringify(await texts('app-top-bar .actions > anotoki-menu [role=menuitem]')));
+expect('... its menu: the admin area\'s sections, then Sign in', same(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]'), ['Surveys', 'Translations', 'Languages', 'Sign in']), JSON.stringify(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]')));
 await escape();
 await viewport(1280);
 await sleep(400);
@@ -1305,35 +1345,43 @@ await sleep(400);
 await js("document.querySelector('app-top-bar anotoki-brand a').click(); true");
 await waitFor(page, "location.pathname === '/admin'", 10000).catch(() => null);
 await sleep(400);
-expect('signed out: the brand link goes to /admin - the card stays, still signed out', (await js('location.pathname')) === '/admin' && (await signedOutCard())?.includes('You are signed out') && !(await js("!!document.querySelector('app-top-bar .person-button')")), `${await js('location.pathname')} / ${await signedOutCard()}`);
+expect('signed out: the brand link goes to /admin - the card stays, still signed out', (await js('location.pathname')) === '/admin' && (await signedOutCard())?.includes('You are signed out') && !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__person-button')")), `${await js('location.pathname')} / ${await signedOutCard()}`);
 await js('history.back(); true');
 await waitFor(page, "location.pathname === '/admin/translations'", 10000).catch(() => null);
 await sleep(400);
 expect('... and Back comes back to the Translations page, the card still there', (await js('location.pathname')) === '/admin/translations' && (await signedOutCard())?.includes('You are signed out'), `${await js('location.pathname')} / ${await signedOutCard()}`);
 await setIam({ refuse: false });
-// Signed in again: to the IAM and back is a page load, to the address the page was on. The browser does not ask
-// "Leave site?" on the way: signed out, the drafts are kept in the tab, and the sign-in is the only way on.
+// Signed in again: to the IAM and back is a page load, to the address the page was on. The browser asks "Leave
+// site?" on the way: the family's drafts ask whenever boxes wait, signed in or not (anotoki-lib 0.3.0 - the site's
+// own drafts asked nothing while nobody was signed in). Answered "Leave", they are kept all the same.
 const askedBeforeSignIn = leaving.length;
 await clickText('app-top-bar button', 'Sign in');
 await sleep(1500);
 await settle();
-await waitFor(page, "location.pathname === '/admin/translations' && document.querySelectorAll('app-translations .block').length > 50", 15000);
+await waitFor(page, `location.pathname === '/admin/translations' && ${GRID_DRAWN}`, 15000);
 await sleep(400);
-expect('on the way to the sign-in the browser did not ask "Leave site?"', leaving.length === askedBeforeSignIn, JSON.stringify(leaving.slice(askedBeforeSignIn)));
+expect(
+  'on the way to the sign-in the browser asked "Leave site?" once - the family\'s drafts ask whenever boxes wait',
+  leaving.length === askedBeforeSignIn + 1,
+  `asked ${leaving.length - askedBeforeSignIn} time(s)`,
+);
 expect(
   'signed in again: both boxes hold what was typed, and are marked as changed',
-  (await text('app-top-bar .person-name')) === OWNER.username && (await boxValue(DRAFT_SK[0], 'sk')) === DRAFT_SK[2] && (await boxValue(DRAFT_EN[0], 'en')) === DRAFT_EN[2] && same(await marks(), BOTH),
+  (await text('app-top-bar .anotoki-top-bar__person-name')) === OWNER.username && (await boxValue(DRAFT_SK[0], 'sk')) === DRAFT_SK[2] && (await boxValue(DRAFT_EN[0], 'en')) === DRAFT_EN[2] && same(await marks(), BOTH),
   `${await boxValue(DRAFT_SK[0], 'sk')} / ${await boxValue(DRAFT_EN[0], 'en')} / ${JSON.stringify(await marks())}`,
 );
-expect('... and the bar counts them, with Save ready', (await saveState()) === '2 strings changed, not saved yet' && (await js("[...document.querySelectorAll('app-translations .save-bar button')].find((b) => b.textContent.trim() === 'Save')?.disabled")) === false, await saveState());
+expect('... and the bar counts them, with Save ready', (await saveState()) === '2 strings changed, not saved yet' && (await saveReady()) === true, await saveState());
 await js(`document.querySelector(${JSON.stringify(box(...DRAFT_SK.slice(0, 2)))}).scrollIntoView({ block: 'center' }); true`);
 await screenshots('admin-translations-1280-drafts-back', false);
 
 // Signing out is asked about first: signed out, what is typed would be lost.
-/** The site's own question (a dialog of the page, not the browser's): its heading, its text, its buttons. */
-const question = () => js("(() => { const d = document.querySelector('dialog[open]'); return d ? { title: d.querySelector('.title').textContent.trim(), message: d.querySelector('.message')?.textContent.trim() ?? '', buttons: [...d.querySelectorAll('.footer button')].map((b) => b.textContent.trim()).join(' | ') } : null; })()");
+/** A question of the site's or the family's pages (a dialog of the page, not the browser's): its heading, its text, its buttons. */
+const question = () =>
+  js(
+    "(() => { const d = document.querySelector('dialog[open]'); return d ? { title: d.querySelector('.anotoki-dialog__title').textContent.trim(), message: d.querySelector('.anotoki-confirm-host__message, .anotoki-dialog__description')?.textContent.trim() ?? '', buttons: [...d.querySelectorAll('.anotoki-dialog__footer button')].map((b) => b.textContent.trim()).join(' | ') } : null; })()",
+  );
 await openUserMenu();
-await clickText('app-top-bar .actions > anotoki-menu [role=menuitem]', EN.signOut);
+await clickText('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]', EN.signOut);
 await waitFor(page, "!!document.querySelector('dialog[open]')", 15000);
 await sleep(300);
 let asking = await question();
@@ -1345,7 +1393,7 @@ expect(
 await screenshot('admin-sign-out-unsaved-1280');
 await viewport(390);
 await sleep(400);
-expect('390 px: the question is inside the window', await menuInside('dialog[open] .panel'));
+expect('390 px: the question is inside the window', await menuInside('dialog[open] .anotoki-dialog__panel'));
 await expectNoSideways('the sign-out question, 390 px');
 await screenshots('admin-sign-out-unsaved-390', false);
 await viewport(1280);
@@ -1354,7 +1402,7 @@ await clickText('dialog[open] button', 'Stay');
 await sleep(500);
 expect(
   '"Stay": still signed in, still on the page, the boxes as they were',
-  !(await js("!!document.querySelector('dialog[open]')")) && (await text('app-top-bar .person-name')) === OWNER.username && (await boxValue(DRAFT_SK[0], 'sk')) === DRAFT_SK[2] && same(await marks(), BOTH),
+  !(await js("!!document.querySelector('dialog[open]')")) && (await text('app-top-bar .anotoki-top-bar__person-name')) === OWNER.username && (await boxValue(DRAFT_SK[0], 'sk')) === DRAFT_SK[2] && same(await marks(), BOTH),
   JSON.stringify(await marks()),
 );
 
@@ -1368,7 +1416,7 @@ await expectNoKeys('Slovak, the home page reworded');
 await viewport(360);
 await sleep(300);
 await openUserMenu();
-await clickText('app-top-bar .actions > anotoki-menu [role=menuitem]', SK.signOut);
+await clickText('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]', SK.signOut);
 await waitFor(page, "!!document.querySelector('dialog[open]')", 15000);
 await sleep(300);
 asking = await question();
@@ -1377,7 +1425,7 @@ expect(
   asking?.title === 'Odhlásiť sa bez uloženia posledných zmien?' && asking?.message === 'Niektoré zmeny v textoch alebo jazykoch stránky nie sú uložené – nájdete ich na stránkach „Translations“ a „Languages“. Po odhlásení sa stratia.' && asking?.buttons === 'Zostať | Aj tak sa odhlásiť',
   JSON.stringify(asking),
 );
-expect('Slovak, 360 px: the question is inside the window', await menuInside('dialog[open] .panel'));
+expect('Slovak, 360 px: the question is inside the window', await menuInside('dialog[open] .anotoki-dialog__panel'));
 await expectNoSideways('Slovak, 360 px, the sign-out question');
 await expectNoKeys('Slovak, the sign-out question');
 await screenshots('sk-360-sign-out-unsaved', false);
@@ -1397,7 +1445,7 @@ const browserAsked = leaving.length;
 leaving = null;
 await viewport(1280);
 await go('/admin/translations');
-await waitFor(page, "document.querySelectorAll('app-translations .block').length > 50", 15000);
+await waitFor(page, GRID_DRAWN, 15000);
 expect(
   'back on the Translations page: every box says what the site has, none is marked',
   (await boxValue(DRAFT_SK[0], 'sk')) === storedSk && (await boxValue(DRAFT_EN[0], 'en')) === storedEn && same(await marks(), []) && (await saveState()) === 'Everything is saved',
@@ -1405,34 +1453,43 @@ expect(
 );
 
 // ── The languages on offer: the Languages page ──────────────────────────────
+// The family's page too (<anotoki-languages-page>): a row a language, each saying what happened in a line of its own.
+/** The rows are drawn: `count` languages. */
+const languageRows = (count) => `document.querySelectorAll('anotoki-languages-page .anotoki-languages-page__language').length === ${count}`;
+/** A language's row, as an expression for the page. */
+const languageRow = (code) => `document.querySelector('anotoki-languages-page .anotoki-languages-page__language[data-language="${code}"]')`;
 await go('/admin/languages');
-await waitFor(page, "document.querySelectorAll('app-languages .language').length === 2", 15000);
-const languageHeads = async () => (await js("[...document.querySelectorAll('app-languages .head')].map((h) => [...h.children].map((c) => c.textContent.trim()).join(' '))")).join(' | ');
-const slovakSwitch = "document.querySelector('app-languages .language:nth-child(2) input[role=switch]')";
+await waitFor(page, languageRows(2), 15000);
+/** Each row's head - its code, names and badges - without the count of its strings. */
+const languageHeads = async () =>
+  (await js("[...document.querySelectorAll('anotoki-languages-page .anotoki-languages-page__head')].map((h) => [...h.children].filter((c) => !c.matches('.anotoki-languages-page__note')).map((c) => c.textContent.trim()).join(' '))")).join(' | ');
+/** What the page says the last thing it did was. */
+const happened = () => text('anotoki-languages-page [data-happened]');
+const offeredSwitch = (code) => `${languageRow(code)}.querySelector('anotoki-switch[data-offered] input[role=switch]')`;
+const offeredWords = (code) => js(`${languageRow(code)}?.querySelector('anotoki-switch[data-offered] .anotoki-switch__words')?.textContent.trim() ?? null`);
 const slovakOffered = async (label) => {
-  await js(`${slovakSwitch}.click(); true`);
+  await js(`${offeredSwitch('sk')}.click(); true`);
   // The row says the new state at once; the switch is free again once the server has answered.
-  await waitFor(page, `document.querySelector('app-languages .language:nth-child(2) .switch .words')?.textContent.trim() === ${JSON.stringify(label)} && !${slovakSwitch}.disabled`, 15000);
+  await waitFor(page, `${languageRow('sk')}.querySelector('anotoki-switch[data-offered] .anotoki-switch__words')?.textContent.trim() === ${JSON.stringify(label)} && !${offeredSwitch('sk')}.disabled`, 15000);
 };
 expect('Languages: named in the tab; English the fallback, Slovak released with the site', (await js('document.title')).startsWith('Languages · ') && (await languageHeads()) === 'en English English Fallback | sk Slovak Slovenčina Released with the site', `${await js('document.title')} / ${await languageHeads()}`);
 expect(
   'Languages: English cannot be switched off, and neither language can be deleted',
-  (await js("(() => { const s = document.querySelector('app-languages .language input[role=switch]'); return s.checked && s.disabled; })()")) && !(await js("[...document.querySelectorAll('app-languages .language button')].some((b) => b.textContent.trim() === 'Delete')")),
+  (await js(`(() => { const s = ${offeredSwitch('en')}; return s.checked && s.disabled; })()`)) && !(await js("!!document.querySelector('anotoki-languages-page [data-delete]')")),
 );
 await expectNoSideways('Languages, desktop');
 await screenshots('admin-languages-1280');
 
 await slovakOffered('Hidden');
-expect('Languages: Slovak is hidden with its switch', (await toasts()).includes('Slovak is hidden: nobody is offered it.') && (await js("document.querySelector('app-languages .language:nth-child(2)').classList.contains('is-hidden')")), (await toasts()).join(' | '));
+expect('Languages: Slovak is hidden with its switch - the page says so', (await happened()) === 'Slovak is hidden: readers are not offered it.' && (await js(`${languageRow('sk')}.classList.contains('anotoki-languages-page__language--hidden')`)), await happened());
 const hiddenBundle = await (await fetch(`${origin}/api/translations/sk`)).json();
 expect('hidden: asked for Slovak, the site answers in English and offers English alone', hiddenBundle.language === 'en' && hiddenBundle.languages.map((l) => l.code).join(' ') === 'en', `${hiddenBundle.language}: ${hiddenBundle.languages?.map((l) => l.code).join(' ')}`);
-await dismissToasts();
 await screenshot('admin-languages-1280-slovak-hidden');
 // The page that hid it has the site's languages again at once: through the menu, with no page load, the pages
 // people take surveys on are English already.
 const toTheSurveys = async () => {
   await openUserMenu();
-  await clickText('app-top-bar .actions > anotoki-menu a', 'Back to the surveys');
+  await clickText('app-top-bar .anotoki-top-bar__actions > anotoki-menu a', 'Back to the surveys');
   await waitFor(page, "location.pathname === '/' && !!document.querySelector('app-survey-home h1')", 15000);
   await sleep(400);
 };
@@ -1447,39 +1504,38 @@ expect(
 await expectBar('English alone, desktop');
 await screenshot('en-1280-home-one-language');
 await go('/admin/languages');
-await waitFor(page, "document.querySelectorAll('app-languages .language').length === 2", 15000);
+await waitFor(page, languageRows(2), 15000);
 await slovakOffered('Offered');
-expect('Languages: and offered again', (await toasts()).includes('Slovak is offered to everybody now.'), (await toasts()).join(' | '));
-await dismissToasts();
+expect('Languages: and offered again', (await happened()) === 'Slovak is offered to readers now.', await happened());
 await toTheSurveys();
-expect('offered again: without a page load, the same tab is Slovak again', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === HOME_SK && (await text('app-top-bar anotoki-language-switcher .switcher')) === 'SK', `${await pageLanguage()}, ${await text('app-survey-home h1')}`);
+expect('offered again: without a page load, the same tab is Slovak again', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === HOME_SK && (await text('app-top-bar anotoki-language-switcher .anotoki-language-switcher__switcher')) === 'SK', `${await pageLanguage()}, ${await text('app-survey-home h1')}`);
 await go('/');
-expect('offered again: the same tab is Slovak, and the chooser is back', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === HOME_SK && (await text('app-top-bar anotoki-language-switcher .switcher')) === 'SK', `${await pageLanguage()}, ${await text('app-survey-home h1')}, ${await text('app-top-bar anotoki-language-switcher .switcher')}`);
+expect('offered again: the same tab is Slovak, and the chooser is back', (await pageLanguage()) === 'sk' && (await text('app-survey-home h1')) === HOME_SK && (await text('app-top-bar anotoki-language-switcher .anotoki-language-switcher__switcher')) === 'SK', `${await pageLanguage()}, ${await text('app-survey-home h1')}, ${await text('app-top-bar anotoki-language-switcher .anotoki-language-switcher__switcher')}`);
 
 // A new language starts hidden: nobody is offered a language that has no strings yet, unless the form is told so.
 await go('/admin/languages');
-await waitFor(page, "document.querySelectorAll('app-languages .language').length === 2", 15000);
-const offerAtOnce = "document.querySelector('app-languages form.add .add-offered input[role=switch]')";
-expect('Languages: the form for a new one has a switch to offer it right away, and it is off', (await js(`(() => { const s = ${offerAtOnce}; return !!s && !s.checked && !s.disabled; })()`)) && (await text('app-languages form.add .add-offered .words')) === 'Offer it to readers right away', await text('app-languages form.add .add-offered'));
+await waitFor(page, languageRows(2), 15000);
+const ADD_FORM = 'anotoki-languages-page form.anotoki-languages-page__add';
+const offerAtOnce = `document.querySelector('${ADD_FORM} .anotoki-languages-page__add-offered input[role=switch]')`;
+expect('Languages: the form for a new one has a switch to offer it right away, and it is off', (await js(`(() => { const s = ${offerAtOnce}; return !!s && !s.checked && !s.disabled; })()`)) && (await text(`${ADD_FORM} .anotoki-languages-page__add-offered .anotoki-switch__words`)) === 'Offer it to readers right away', await text(`${ADD_FORM} .anotoki-languages-page__add-offered`));
 for (const [index, words] of ['cs', 'Czech', 'Čeština'].entries()) {
-  await focus('app-languages form.add anotoki-text-field input', index);
+  await focus(`${ADD_FORM} anotoki-text-field input`, index);
   await typeText(words);
 }
-expect('add Czech', (await clickText('app-languages form.add button', 'Add the language')) === true);
-await waitFor(page, "document.querySelectorAll('app-languages .language').length === 3", 15000);
+expect('add Czech', (await clickText(`${ADD_FORM} button[data-add]`, 'Add the language')) === true);
+await waitFor(page, languageRows(3), 15000);
 await sleep(300);
 expect(
   'Languages: the new language is in the list, hidden - and the page says so',
   (await languageHeads()) === 'en English English Fallback | sk Slovak Slovenčina Released with the site | cs Czech Čeština' &&
-    (await js("document.querySelector('app-languages .language:nth-child(3)').classList.contains('is-hidden')")) &&
-    (await text('app-languages .language:nth-child(3) .switch .words')) === 'Hidden' &&
-    (await toasts()).includes('Czech is added, hidden. Write its strings, then offer it.'),
-  `${await languageHeads()} / ${await text('app-languages .language:nth-child(3) .switch .words')} / ${(await toasts()).join(' | ')}`,
+    (await js(`${languageRow('cs')}.classList.contains('anotoki-languages-page__language--hidden')`)) &&
+    (await offeredWords('cs')) === 'Hidden' &&
+    (await happened()) === 'Czech is added, hidden. Write its strings, then offer it.',
+  `${await languageHeads()} / ${await offeredWords('cs')} / ${await happened()}`,
 );
-expect('... the form is empty again, its switch off for the next one', (await js("[...document.querySelectorAll('app-languages form.add anotoki-text-field input')].every((field) => field.value === '')")) && (await js(`${offerAtOnce}.checked`)) === false);
+expect('... the form is empty again, its switch off for the next one', (await js(`[...document.querySelectorAll('${ADD_FORM} anotoki-text-field input')].every((field) => field.value === '')`)) && (await js(`${offerAtOnce}.checked`)) === false);
 const newBundle = await (await fetch(`${origin}/api/translations/cs`)).json();
 expect('a new language is offered to nobody: asked for it, the site answers in English, and offers the two it had', newBundle.language === 'en' && newBundle.languages.map((l) => l.code).join(' ') === 'en sk', `${newBundle.language}: ${newBundle.languages?.map((l) => l.code).join(' ')}`);
-await dismissToasts();
 await expectNoSideways('Languages, a new language, desktop');
 await screenshot('admin-languages-1280-new-hidden', true);
 await viewport(390);
@@ -1489,29 +1545,37 @@ await screenshots('admin-languages-390-new-hidden');
 await viewport(1280);
 await sleep(400);
 // An administrator deletes it again (no survey uses it, no migration wrote strings for it): the rest of the
-// check goes on with the two languages the site is released in.
-expect('delete Czech', (await clickText('app-languages .language:nth-child(3) button', 'Delete')) === true);
+// check goes on with the two languages the site is released in. It has no strings, so the page offers no export first.
+expect('delete Czech', (await clickText(`anotoki-languages-page .anotoki-languages-page__language[data-language="cs"] button[data-delete]`, 'Delete')) === true);
 await waitFor(page, "!!document.querySelector('dialog[open]')", 15000);
-expect('... asked first, by its name and code', (await text('dialog[open] .title')) === 'Delete Czech (cs)?', await text('dialog[open] .title'));
-await clickText('dialog[open] button', 'Delete');
-await waitFor(page, "document.querySelectorAll('app-languages .language').length === 2", 15000);
-expect('Languages: the new language is deleted again', (await toasts()).includes('Czech is deleted.') && (await languageHeads()) === 'en English English Fallback | sk Slovak Slovenčina Released with the site', `${(await toasts()).join(' | ')} / ${await languageHeads()}`);
-await dismissToasts();
+await sleep(300);
+const deleteAsked = await question();
+expect(
+  '... asked first, by its name and code, and what goes with it',
+  deleteAsked?.title === 'Delete Czech (cs)?' && deleteAsked?.message === 'It has no strings of its own, so nothing else goes with it.' && deleteAsked?.buttons === 'Cancel | Delete',
+  JSON.stringify(deleteAsked),
+);
+await clickText('dialog[open] button[data-question-yes]', 'Delete');
+await waitFor(page, languageRows(2), 15000);
+await sleep(300);
+expect('Languages: the new language is deleted again', (await happened()) === 'Czech is deleted.' && (await languageHeads()) === 'en English English Fallback | sk Slovak Slovenčina Released with the site', `${await happened()} / ${await languageHeads()}`);
 
 // Both pages on a phone.
 await viewport(390);
 await go('/admin/languages');
-await waitFor(page, "document.querySelectorAll('app-languages .language').length === 2", 15000);
+await waitFor(page, languageRows(2), 15000);
 await expectBar('Languages, 390 px');
 await screenshots('admin-languages-390');
 await go('/admin/translations');
-await waitFor(page, "document.querySelectorAll('app-translations .block').length > 50", 15000);
+await waitFor(page, GRID_DRAWN, 15000);
 await expectBar('Translations, 390 px');
 expect(
   'Translations, 390 px: the languages stand under one another, each box saying its language, none wider than the page',
-  (await js("getComputedStyle(document.querySelector('app-translations .grid-head')).display")) === 'none' &&
-    (await js("getComputedStyle(document.querySelector('app-translations .cell-language')).display")) !== 'none' &&
-    (await js("[...document.querySelectorAll('app-translation-cell, app-translations .key, app-translations .language, app-translations .save-bar, app-translations .tools > *')].every((el) => { const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 0.5; })")),
+  (await js("getComputedStyle(document.querySelector('anotoki-translations-page .anotoki-translations-page__grid-head')).display")) === 'none' &&
+    (await js("getComputedStyle(document.querySelector('anotoki-translations-page .anotoki-translations-page__cell-language')).display")) !== 'none' &&
+    (await js(
+      "[...document.querySelectorAll('anotoki-translation-cell, anotoki-translations-page .anotoki-translations-page__key, anotoki-translations-page .anotoki-translations-page__language, anotoki-translations-page .anotoki-translations-page__save-bar, anotoki-translations-page .anotoki-translations-page__tools > *')].every((el) => { const r = el.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 0.5; })",
+    )),
 );
 await screenshots('admin-translations-390', false);
 await js(`${family('home.questions')}.scrollIntoView({ block: 'start' }); window.scrollBy(0, -70); true`);
@@ -2172,9 +2236,12 @@ await expectBar('the editor, an open survey past its last day, 390 px');
 await screenshots('editor-past-last-day-390');
 
 // ═══ A database behind the code: the family's page, and the Migrations page ═══
-// A release that brings migrations nobody has applied yet: the database's record says 004 and 005 have not run
-// (their rows taken out of `migrations`). 004 cannot run again - its column is there - so the first Apply stops
-// on it; 005 brings back brand.adminPanel, taken out here, so the strings read while the update waits lack it.
+// A release that brings migrations nobody has applied yet - this one's: the database's record says the site's 004
+// and 010 have not run, nor the anotoki library's own set (anotoki_translations, which runs after the site's), their
+// rows taken out of `migrations`. 004 cannot run again - its column is there - so the first Apply stops on it. And
+// one of the kit's words is as it was before 010: under the site's own key (topbar.roleAdmin), and reworded by the
+// site's owner - which 010 moves under the library's key (anotoki.topbar.roleAdmin). While the update waits the bar
+// says the library's own word; the Apply brings the owner's back, and the strings are read again.
 // The backend's gate (the anotoki family's, @anotoki/lib) answers 503 update_pending to everything but signing in,
 // the strings, the health check and the Migrations page's routes. What people see is the family's page: nobody
 // signed in and signed-in people "The site is being updated" in their language - no error, no code, nothing to
@@ -2184,11 +2251,21 @@ await screenshots('editor-past-last-day-390');
 // stops at a failing file with the database's whole error, then one that brings the site back where it stands,
 // its strings read again.
 const FILE_004 = '004_response_language.sql';
-const FILE_005 = '005_top_bar_and_sign_in.sql';
-sql(`DELETE FROM migrations WHERE filename IN ('${FILE_004}', '${FILE_005}')`);
-sql("DELETE FROM translation_keys WHERE name = 'brand.adminPanel'");
-// The bar of the Migrations page, until 005 is applied: the key with no string shows as itself, and says so.
-expected = [/\[i18n\] no string for 'brand\.adminPanel'/];
+const FILE_010 = '010_strings_through_the_library.sql';
+/** The library's set, as the record names its files (the set, then the file). */
+const LIBRARY_FILES = ['anotoki_translations/001_languages_and_strings.sql', 'anotoki_translations/002_library_words.sql'];
+/** How the owner had reworded the role an ADMIN has, before 010. */
+const OWNERS_ROLE = 'Administrator of the surveys';
+sql(`DELETE FROM migrations WHERE filename IN ('${[FILE_004, FILE_010, ...LIBRARY_FILES].join("', '")}')`);
+sql("DELETE FROM translation_keys WHERE name = 'anotoki.topbar.roleAdmin'");
+sql("INSERT INTO translation_keys (name, description) VALUES ('topbar.roleAdmin', 'The role of an ADMIN, in the person''s menu.')");
+sql(`INSERT INTO translations (key_name, language_code, value) VALUES ('topbar.roleAdmin', 'en', '${OWNERS_ROLE}'), ('topbar.roleAdmin', 'sk', 'Rola: administrátor')`);
+const behindStrings = await (await fetch(`${origin}/api/translations/en`)).json();
+expect(
+  "an update waiting: the strings answer all the same - the role under the site's old key, as its owner worded it, and not yet under the library's",
+  behindStrings.values?.['topbar.roleAdmin'] === OWNERS_ROLE && !('anotoki.topbar.roleAdmin' in (behindStrings.values ?? {})),
+  JSON.stringify(behindStrings.values?.['topbar.roleAdmin'] ?? null),
+);
 const behindResponse = await fetch(`${origin}/api/surveys`);
 const behindAnswer = await behindResponse.json();
 const behindConfig = await (await fetch(`${origin}/api/auth/config`)).json();
@@ -2212,7 +2289,7 @@ const statusHeading = () => text('anotoki-site-status h1');
 const statusActions = async () => (await texts('anotoki-site-status button, anotoki-site-status a')).join(' | ');
 /** What nobody but the site's ADMIN may read there: the server's words, an error, a code, the setup page, the migrations - and no toast. */
 const quiet = async () =>
-  !/error|503|update_pending|not_set_up|setup|migration/i.test((await text('anotoki-site-status')) ?? '') && (await js("document.querySelectorAll('anotoki-toast-host .toast').length")) === 0;
+  !/error|503|update_pending|not_set_up|setup|migration/i.test((await text('anotoki-site-status')) ?? '') && (await js("document.querySelectorAll('anotoki-toast-host .anotoki-toast-host__toast').length")) === 0;
 /**
  * What the site's API was asked since `from` (the page's own requests) beyond what the family's page and the sign-in
  * need while the site cannot run - where it stands, the sign-in's settings, the strings - and the routes in `open`
@@ -2321,25 +2398,39 @@ await screenshot('en-1280-behind-editor');
 const ownerFrom = requested.length;
 const ownerTrips = await signedOutBehind('/admin/migrations');
 const ownerPressed = await signInThere(OWNER, 'Sign in');
-await waitFor(page, "location.pathname === '/admin/migrations' && document.querySelectorAll('anotoki-migrations-page [data-pending] li').length === 2", 15000);
+/** The Migrations page lists the four files pending. */
+const FOUR_PENDING = "location.pathname === '/admin/migrations' && document.querySelectorAll('anotoki-migrations-page [data-pending] li').length === 4";
+await waitFor(page, FOUR_PENDING, 15000);
 await sleep(600);
 /** The Pending card's rows, each as its children's words with a space between ("004_….sql pending"). */
 const pendingRows = async () =>
   (await js("[...document.querySelectorAll('anotoki-migrations-page [data-pending] li')].map((row) => [...row.children].map((child) => child.textContent.trim()).join(' '))")).join(' | ');
-const barLinks = async () => (await texts('app-top-bar .nav a')).join(' ');
+const PENDING = `${FILE_004} pending | ${FILE_010} pending | ${LIBRARY_FILES.map((file) => `${file.split('/')[1]} pending`).join(' | ')}`;
+/** The sets the Pending card names: the site's own, then the library's. */
+const pendingSets = async () => (await texts('anotoki-migrations-page [data-pending] .anotoki-migrations-page__set')).join(' | ');
+const barLinks = async () => (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' ');
+/** The role the person's menu says - on a desktop, the person's own button. */
+const roleInMenu = async () => {
+  await openUserMenu();
+  const role = await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu .anotoki-top-bar__menu-role');
+  await escape();
+  return role;
+};
 expect(
-  'a signed-out ADMIN: Sign in on the family\'s page, and back at the address - the Migrations page, the two files pending in the order they will run, and in the bar the one page that works',
+  'a signed-out ADMIN: Sign in on the family\'s page, and back at the address - the Migrations page, the four files pending in the order they will run, the site\'s set before the library\'s, and in the bar the one page that works',
   ownerTrips === 0 &&
     ownerPressed === true &&
-    (await pendingRows()) === `${FILE_004} pending | ${FILE_005} pending` &&
+    (await pendingRows()) === PENDING &&
+    (await pendingSets()) === 'migrations/survey/ | migrations/anotoki_translations/' &&
     (await barLinks()) === 'Migrations' &&
     (await js('document.title')).startsWith('Migrations · '),
-  `${ownerTrips} / ${await pendingRows()} / bar: ${await barLinks()} / ${await js('document.title')}`,
+  `${ownerTrips} / ${await pendingRows()} / ${await pendingSets()} / bar: ${await barLinks()} / ${await js('document.title')}`,
 );
+const roleWhileBehind = await roleInMenu();
 expect(
-  '... and the strings read while 005 waits lack what it brings: that key shows as itself (until the Apply reads them again)',
-  (await text('app-top-bar anotoki-brand')).includes('brand.adminPanel'),
-  await text('app-top-bar anotoki-brand'),
+  "... and while 010 waits the bar says the library's own word for the role: the owner's is under the site's old key, which nothing reads now",
+  roleWhileBehind === 'Administrator',
+  roleWhileBehind,
 );
 await screenshot('admin-migrations-behind-1280', true);
 
@@ -2368,11 +2459,11 @@ await sleep(500);
 await screenshot('en-1280-behind-admin');
 expect(
   'the ADMIN: nothing of a page behind "A database update is waiting" - the API asked only the Migrations page\'s list, where the site stands, the sign-in\'s settings and the strings - and no toast',
-  askedBehind(ownerFrom, ['GET /api/admin/migrations']).length === 0 && (await js("document.querySelectorAll('anotoki-toast-host .toast').length")) === 0,
+  askedBehind(ownerFrom, ['GET /api/admin/migrations']).length === 0 && (await js("document.querySelectorAll('anotoki-toast-host .anotoki-toast-host__toast').length")) === 0,
   askedBehind(ownerFrom, ['GET /api/admin/migrations']).join(', '),
 );
 expect('"Open Migrations"', (await clickText('anotoki-site-status a', 'Open Migrations')) === true);
-await waitFor(page, "location.pathname === '/admin/migrations' && document.querySelectorAll('anotoki-migrations-page [data-pending] li').length === 2", 15000);
+await waitFor(page, FOUR_PENDING, 15000);
 await sleep(600);
 
 /** "Apply pending", and Apply in the question it asks: what the question said. Then the answer, `heading` in it. */
@@ -2382,7 +2473,7 @@ async function applyPending(heading) {
   await sleep(300);
   const asked = await text('anotoki-migrations-page [data-confirm] h2');
   await clickText('anotoki-migrations-page [data-confirm] button[data-confirm-apply]', 'Apply');
-  await waitFor(page, `(document.querySelector('anotoki-migrations-page [data-result] .heading')?.textContent ?? '').includes(${JSON.stringify(heading)})`, 20000);
+  await waitFor(page, `(document.querySelector('anotoki-migrations-page [data-result] .anotoki-alert__heading')?.textContent ?? '').includes(${JSON.stringify(heading)})`, 20000);
   await sleep(800);
   return asked;
 }
@@ -2391,13 +2482,13 @@ const failedWords = await text('anotoki-migrations-page [data-result]');
 const failedError = await js("document.querySelector('anotoki-migrations-page [data-result] pre')?.textContent ?? ''");
 expect(
   "a failed Apply: where it stopped, nothing applied first, the file rolled back whole - and the database's whole error",
-  applyAsked === 'Apply 2 pending migrations?' &&
-    (await text('anotoki-migrations-page [data-result] .heading')) === `Stopped at ${FILE_004}` &&
+  applyAsked === 'Apply 4 pending migrations?' &&
+    (await text('anotoki-migrations-page [data-result] .anotoki-alert__heading')) === `Stopped at survey/${FILE_004}` &&
     failedWords.includes('Nothing was applied. The failed file was rolled back as a whole.') &&
     /^statement 1 of 1: SQLSTATE\[42701\]: .*column "language" of relation "responses" already exists\n\n {2}ALTER TABLE responses/s.test(failedError),
   `${applyAsked} / ${failedWords.slice(0, 120)} / ${failedError.slice(0, 160)}`,
 );
-expect('... and the database is still behind: both still pending, the bar the same', (await pendingRows()) === `${FILE_004} pending | ${FILE_005} pending` && (await barLinks()) === 'Migrations', `${await pendingRows()} / ${await barLinks()}`);
+expect('... and the database is still behind: all four still pending, the bar the same', (await pendingRows()) === PENDING && (await barLinks()) === 'Migrations', `${await pendingRows()} / ${await barLinks()}`);
 await screenshot('admin-migrations-failed-1280', true);
 await viewport(390);
 await sleep(400);
@@ -2408,17 +2499,23 @@ await viewport(1280);
 // What was in the way is dealt with (here: 004's work is there, so its row goes back): the next Apply goes through.
 sql(`INSERT INTO migrations (filename) VALUES ('${FILE_004}') ON CONFLICT DO NOTHING`);
 await applyPending('Up to date');
-await waitFor(page, "document.querySelectorAll('app-top-bar .nav a').length === 4 && !(document.querySelector('app-top-bar anotoki-brand')?.textContent ?? '').includes('brand.adminPanel')", 15000);
+await waitFor(page, "document.querySelectorAll('app-top-bar .anotoki-top-bar__nav a').length === 4", 15000);
 await sleep(500);
 expect(
-  'a good Apply: "Up to date", what was applied, nothing pending - and the site runs where it stands, every section in the bar',
-  (await text('anotoki-migrations-page [data-result] .heading')) === 'Up to date' &&
-    (await text('anotoki-migrations-page [data-result] .result-text')) === `Applied: ${FILE_005}.` &&
+  'a good Apply: "Up to date", what was applied - the site\'s file, then the library\'s - nothing pending, and the site runs where it stands, every section in the bar',
+  (await text('anotoki-migrations-page [data-result] .anotoki-alert__heading')) === 'Up to date' &&
+    (await text('anotoki-migrations-page [data-result] .anotoki-migrations-page__result-text')) === `Applied: survey/${FILE_010}, ${LIBRARY_FILES.join(', ')}.` &&
     (await text('anotoki-migrations-page [data-pending]')).includes('Nothing pending') &&
     (await barLinks()) === 'Surveys Translations Languages Migrations',
   `${await text('anotoki-migrations-page [data-result]')} / ${await barLinks()}`,
 );
-expect('... and its strings read again: what 005 brought is a word, not a key', (await text('app-top-bar anotoki-brand')).includes('admin panel'), await text('app-top-bar anotoki-brand'));
+const roleAfterApply = await roleInMenu();
+const afterStrings = await (await fetch(`${origin}/api/translations/en`)).json();
+expect(
+  "... and its strings read again: the owner's rewording of the kit's word survived the release - under the library's key now, and the bar says it",
+  roleAfterApply === OWNERS_ROLE && afterStrings.values?.['anotoki.topbar.roleAdmin'] === OWNERS_ROLE && !('topbar.roleAdmin' in (afterStrings.values ?? {})),
+  `${roleAfterApply} / ${JSON.stringify(afterStrings.values?.['anotoki.topbar.roleAdmin'] ?? null)}`,
+);
 await expectNoKeys('the Migrations page, up to date');
 await screenshot('admin-migrations-up-to-date-1280', true);
 await viewport(390);
@@ -2426,13 +2523,10 @@ await sleep(400);
 await expectBar('the Migrations page, up to date, 390 px');
 await screenshots('admin-migrations-up-to-date-390');
 await viewport(1280);
-await clickText('app-top-bar .nav a', 'Surveys');
+await clickText('app-top-bar .anotoki-top-bar__nav a', 'Surveys');
 await waitFor(page, "location.pathname === '/admin' && !!document.querySelector('app-surveys-list')", 15000);
 await sleep(500);
 expect('the rest of the admin panel works again, with no reload', !(await js("!!document.querySelector('anotoki-site-status')")), await js('location.pathname'));
-expect('the console said only what the stage made it say', heard.length > 0 && heard.every((message) => message.includes("no string for 'brand.adminPanel'")), heard.join(' | ').slice(0, 300));
-heard.splice(0);
-expected = [];
 
 // ═══ Visitors: the IAM's "Sign-in required" switched off ══════════════════
 // The IAM says sign-in is not required for the site (the stand-in's `login_required`), and the site's backend is
@@ -2554,9 +2648,9 @@ const peopleRows = () => js("[...document.querySelectorAll('#results-panel-peopl
 expect('the results\' people: the visitor by name, "Not signed in" where an address would be', same(await peopleRows(), [`${visitorName} / Not signed in`]), JSON.stringify(await peopleRows()));
 await screenshot('admin-results-visitor-1280', true);
 await clickText('#results-panel-people .person', visitorName);
-await waitFor(page, "!!document.querySelector('anotoki-drawer .subtitle')", 15000);
+await waitFor(page, "!!document.querySelector('anotoki-drawer .anotoki-drawer__subtitle')", 15000);
 await sleep(400);
-expect('... and in the drawer of their answers', (await text('anotoki-drawer h2')) === visitorName && (await text('anotoki-drawer .subtitle')) === 'Not signed in', `${await text('anotoki-drawer h2')} / ${await text('anotoki-drawer .subtitle')}`);
+expect('... and in the drawer of their answers', (await text('anotoki-drawer h2')) === visitorName && (await text('anotoki-drawer .anotoki-drawer__subtitle')) === 'Not signed in', `${await text('anotoki-drawer h2')} / ${await text('anotoki-drawer .anotoki-drawer__subtitle')}`);
 await screenshot('admin-results-visitor-drawer-1280');
 await viewport(390);
 await go(`/admin/surveys/${visitIds['visit-one']}/responses/${theVisitor?.id}`);
@@ -2630,7 +2724,7 @@ await screenshots('sk-390-visitor-welcome-draft');
 await go('/');
 await waitFor(page, "!!document.querySelector('app-visitor-notice button')", 15000);
 await js("document.querySelector('app-visitor-notice button').click(); true");
-await waitFor(page, SIGNED_IN + " && !document.querySelector('app-visitor-notice') && document.querySelectorAll('.toast .message').length > 0", 20000);
+await waitFor(page, SIGNED_IN + " && !document.querySelector('app-visitor-notice') && document.querySelectorAll('.anotoki-toast-host__message').length > 0", 20000);
 const movedToast = (await toasts()).join(' | ');
 expect(
   'signed in: the toast says what moved into the account and what kept the person\'s earlier answers - in Slovak',
@@ -2747,7 +2841,7 @@ await expectNoSideways('out of reach, 390 px');
 await screenshots('en-390-unavailable');
 await stopIntercepting();
 expect('try again', (await clickText('anotoki-site-status button', 'Try again')) === true);
-await waitFor(page, "location.pathname === '/admin/languages' && document.querySelectorAll('app-languages .language').length === 2", 20000);
+await waitFor(page, `location.pathname === '/admin/languages' && ${languageRows(2)}`, 20000);
 await sleep(400);
 expect('"Try again", the server back: the page asked for - through the sign-in - not a blank one', (await whoIsIn()) === OWNER.username && (await js('document.title')).startsWith('Languages · '), `${await whoIsIn()} / ${await js('document.title')}`);
 
@@ -2767,7 +2861,7 @@ await expectNoKeys('the sign-in out of reach');
 await screenshots('en-390-load-error');
 await stopIntercepting();
 expect('try again', (await clickText('app-load-error button', 'Try again')) === true);
-await waitFor(page, "location.pathname === '/admin/languages' && document.querySelectorAll('app-languages .language').length === 2", 20000);
+await waitFor(page, `location.pathname === '/admin/languages' && ${languageRows(2)}`, 20000);
 await sleep(400);
 expect('"Try again", the server back: the page that was asked for - through the sign-in - not a blank one', (await whoIsIn()) === OWNER.username && (await js('document.title')).startsWith('Languages · '), `${await whoIsIn()} / ${await js('document.title')}`);
 expect('the console said only what a server out of reach makes it say', heard.length > 0 && heard.every((message) => message.includes('The sign-in settings could not be loaded')), heard.join(' | ').slice(0, 300));

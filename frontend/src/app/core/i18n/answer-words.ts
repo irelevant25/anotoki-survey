@@ -1,5 +1,5 @@
+import { TranslationService } from '@anotoki/lib/translations';
 import { Question } from '../survey/survey.model';
-import { TranslationParams, TranslationService } from './translation.service';
 
 /**
  * A rule ("choose up to 3") and a problem ("please choose an answer") in the
@@ -82,7 +82,7 @@ function worded(i18n: AnswerWords, wording: Wording | undefined, params: Readonl
   if (!wording) {
     return i18n.t(FALLBACK);
   }
-  const placeholders: TranslationParams = {};
+  const placeholders: Record<string, string | number> = {};
   for (const [name, value] of Object.entries(params)) {
     if (typeof value === 'string' || typeof value === 'number') {
       placeholders[name] = value;

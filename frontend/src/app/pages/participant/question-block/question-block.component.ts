@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, Injector, afterNextRender, computed, inject, input, output, signal } from '@angular/core';
-import { AutofocusDirective, IconComponent, uniqueId } from '@anotoki/lib/ui';
+import { TranslatePipe, TranslatePluralPipe, TranslationService } from '@anotoki/lib/translations';
+import { AutofocusDirective } from '@anotoki/lib/ui/autofocus';
+import { uniqueId } from '@anotoki/lib/ui/dom';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { problemText, ruleText } from '../../../core/i18n/answer-words';
-import { TranslatePluralPipe } from '../../../core/i18n/translate-plural.pipe';
-import { TranslatePipe } from '../../../core/i18n/translate.pipe';
-import { TranslationService } from '../../../core/i18n/translation.service';
 import { AnswerProblem, choiceLimits, choiceRule, emptyAnswer, textLimit, withoutControls } from '../../../core/survey/answer-rules';
 import { Answer, ChoiceOption, Question } from '../../../core/survey/survey.model';
 import { LightboxService } from '../../../ui/lightbox/lightbox.service';

@@ -22,20 +22,26 @@ is only needed to change PHP dependencies - and for `composer start`.
 ### The anotoki family's library
 
 The database's migrations - the engine, the gate in front of the API, the page
-drawn while the site cannot run and the admin panel's Migrations page - and
-the UI kit - the family's styles and tokens, its components, the top bar and
-the theme (the frontend's `core/kit.ts` wires it in) - are
+drawn while the site cannot run and the admin panel's Migrations page - the
+site's words - the tables' one implementation on the server (the bundle, the
+admin routes, the command line), the language and the strings in the browser,
+the admin panel's Translations and Languages pages (`backend/api/translations.php`
+and the frontend's `core/translations.ts` wire them in) - and the UI kit - the
+family's styles and tokens, its components, the top bar and the theme (the
+frontend's `core/kit.ts` wires it in) - are
 the shared library **anotoki-lib** (`https://github.com/irelevant25/anotoki-lib`,
 its README), one version for both halves:
 
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
-| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.1"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.2.0/anotoki-lib-0.2.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.3"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, and its migration set `anotoki_translations` (`php/migrations/translations`), which runs after the site's own |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.3.0/anotoki-lib-0.3.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-The PHP half is at 0.1.0 (`composer.lock` names `v0.1.0`) and the Angular half
-at 0.2.0: 0.1.1 and 0.2.0 changed only the Angular half, and their CHANGELOG
-says a site may keep `vendor/anotoki/lib` at 0.1.x. The package brings Manrope
+Both halves are at 0.3.0. The kit is imported a piece at a time, each from its
+own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
+smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages
+of the words come with a lazy entry point of their own
+(`@anotoki/lib/translations/admin`). The package brings Manrope
 with it (`@fontsource-variable/manrope`, its dependency) and the theme's
 `theme-boot.js` (`angular.json` copies it next to `index.html`).
 
@@ -185,9 +191,15 @@ php translations.php --import sk file     # and back in, checked as a save in th
 php tools/build.php [--out=DIR]           # the upload (see Building and deploying)
 ```
 
+(`translations.php` is anotoki-lib's command - `TranslationsCommand` - on this
+site's words and frontend: the same name and flags as before.)
+
 The database is `migrations/survey/NNN_name.sql`, applied in order by the
 anotoki family's engine (anotoki-lib's `Migrator`, through
-`api/migrations.php`). Never edit an applied migration; add the next number.
+`api/migrations.php`), and after them the library's own set
+(`anotoki_translations`: its `001` proves the tables' shape, its `002` writes
+the library's own words - `anotoki.*` - where a key has no string yet). Never
+edit an applied migration; add the next number.
 While one waits, the site is closed - every page shows the family's "The site
 is being updated" - but for its ADMIN, who signs in there and applies it on the
 Migrations page; `GET /api/site-status` says where the site stands.
@@ -195,10 +207,14 @@ Migrations page; `GET /api/site-status` says where the site stands.
 ### The site's words
 
 What the site says to somebody taking a survey is not written in a template:
-the page names a key (`{{ 'home.title' | translate }}`) and the string comes
-from the database, in English and Slovak
-([docs/architecture.md](docs/architecture.md), *The site's own words*). The
-admin panel is English, written in its templates. So a new sentence on a page
+the page names a key (`{{ 'home.title' | translate }}` - the library's pipe,
+from `@anotoki/lib/translations`) and the string comes from the database, in
+English and Slovak ([docs/architecture.md](docs/architecture.md), *The site's
+own words*). The admin panel is English, written in its templates. The kit's
+own words (the top bar's, a dialog's X, a toast's) are the library's keys,
+`anotoki.<word>`, in the same tables - reworded on the Translations page; the
+site's own code asks for one by its whole key (`'anotoki.topbar.roleAdmin'`),
+never by the kit's short name. So a new sentence on a page
 people take surveys on is:
 
 1. the key in the template (or `i18n.t()` inside a `computed()`);
@@ -245,9 +261,12 @@ still being written - edited after the template applied it -
 `php tests/tools/testdb.php template --fresh` drops the template and builds it
 again from every migration (not while tests are running: they copy it).
 
-`tests/unit/translations.test.php` reads the frontend's sources: every key a
+`tests/unit/translations.test.php` reads the frontend's sources (anotoki-lib's
+`KeyScanner`, set up in `tools/translation_keys.php`): every key a
 page asks for must be in the database the migrations leave, with an English
-and a Slovak string, and every key there must be asked for.
+and a Slovak string, and every key there must be asked for - but the
+library's own (`anotoki.*`), which its Angular half asks for from
+`node_modules`.
 
 The same scan fails what would show a key although it "exists", each with its
 file and line: a plural family asked for as one string (`'home.questions' |

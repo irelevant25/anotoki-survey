@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 use Anotoki\Lib\Migrations\Http\MigrationsRoutes;
 use Anotoki\Lib\Migrations\Migrator;
+use Anotoki\Lib\Translations\Http\TranslationsRoutes;
+use Anotoki\Lib\Translations\Translations;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Routing\RouteCollectorProxy;
@@ -23,23 +25,30 @@ use Slim\Routing\RouteCollectorProxy;
  *   DELETE /api/admin/responses/{id}              ADMIN -> 204
  *   POST   /api/admin/images                      the picture's bytes (image/*) -> 201 {image}
  *
- * The site's own words (api/translations.php); a {code} that is not a
- * language's is 404:
+ * The site's own words - the anotoki library's routes (TranslationsRoutes, the
+ * IAM's wire format: snake_case), in this site's error body, behind this
+ * site's roles: EDITOR or ADMIN, and deleting a language ADMIN alone. A
+ * {code} that is no language code is 404 before any query; a body that is not
+ * JSON 415, too large 413, empty 422 empty_body, broken 400 invalid_json; the
+ * tables not there yet 503 translations_unavailable:
  *
- *   GET    /api/admin/languages                   {languages: [{code, name, nativeName, enabled, sortOrder, seeded}]}, hidden ones too
- *   POST   /api/admin/languages                   {code, name, nativeName, enabled?} -> 201 {language}, offered unless enabled is false;
- *                                                 409 language_exists, 422 too_many_languages
- *   PUT    /api/admin/languages/{code}            {name?, nativeName?, enabled?, sortOrder?} -> {language}; 409 fallback_language
- *   DELETE /api/admin/languages/{code}            ADMIN -> 204; 409 fallback_language, seeded_language, language_in_use
+ *   GET    /api/admin/languages                   {languages: [{code, name, native_name, enabled, sort_order, seeded, strings}]},
+ *                                                 hidden ones too
+ *   POST   /api/admin/languages                   {code, name, native_name, enabled?} -> 201 {language}, offered unless enabled is
+ *                                                 false; 409 language_exists, 422 too_many_languages
+ *   PUT    /api/admin/languages/{code}            {name?, native_name?, enabled?, sort_order?} -> {language}; 409 fallback_language
+ *   DELETE /api/admin/languages/{code}            ADMIN -> {strings}: how many went with it; 409 fallback_language,
+ *                                                 seeded_language, language_in_use (with `surveys`: a survey is written in it,
+ *                                                 or translated into it - SurveyLanguageUsage, api/translations.php)
  *   GET    /api/admin/translations                {languages, keys: [{name, description, values: {code: text}}]}
  *   PUT    /api/admin/translations                {values: {key: {code: text}}}, the changed ones -> the grid as it is now
- *   GET    /api/admin/translations/{code}/export  that language's own strings: {key: text}
+ *   GET    /api/admin/translations/{code}/export  that language's own strings, a file: {key: text}
  *   PUT    /api/admin/translations/{code}/import  {key: text} -> the grid as it is now
  *
  * The database - ADMIN alone, the admin panel's Migrations page: the anotoki
  * family's routes (MigrationsRoutes::admin, api/migrations.php). They answer
  * while a migration waits, when every other route but signing in and the
- * strings is 503 update_pending (SITE_OPEN_WHILE_UPDATING):
+ * strings is 503 update_pending (siteOpenWhileUpdating()):
  *
  *   GET    /api/admin/migrations                  {sets, applied: [{set, name, applied_at}], pending: [{set, name, ready,
  *                                                 blocked}], missing: [{set, name, applied_at}]} - applied in the order they
@@ -111,47 +120,20 @@ $app->group('/api/admin', function (RouteCollectorProxy $group): void {
 
         return respondJson($response, ['image' => imageStore(currentUser($request), requestBytes($request, IMAGE_MAX_BYTES))], 201);
     });
-
-    $group->get('/languages', function (Request $request, Response $response): Response {
-        return respondJson($response, ['languages' => languagesAll()]);
-    });
-
-    $group->post('/languages', function (Request $request, Response $response): Response {
-        return respondJson($response, ['language' => languageCreate(jsonBody($request))], 201);
-    });
-
-    $group->put('/languages/{code}', function (Request $request, Response $response, array $args): Response {
-        return respondJson($response, ['language' => languageUpdate((string) $args['code'], jsonBody($request))]);
-    });
-
-    $group->delete('/languages/{code}', function (Request $request, Response $response, array $args): Response {
-        languageDelete((string) $args['code']);
-
-        return $response->withStatus(204);
-    })->add(requireRole(ROLE_ADMIN));
-
-    $group->get('/translations', function (Request $request, Response $response): Response {
-        return respondJson($response, translationGrid());
-    });
-
-    // Who saved a string is the request's person - the token's - and nothing a body says.
-    $group->put('/translations', function (Request $request, Response $response): Response {
-        $body = jsonBody($request, TRANSLATIONS_BODY_LIMIT);
-        translationsSave(is_array($body) ? ($body['values'] ?? null) : null, currentUser($request)->id);
-
-        return respondJson($response, translationGrid());
-    });
-
-    $group->get('/translations/{code}/export', function (Request $request, Response $response, array $args): Response {
-        return respondJson($response, translationsExport((string) $args['code']));
-    });
-
-    $group->put('/translations/{code}/import', function (Request $request, Response $response, array $args): Response {
-        translationsImport((string) $args['code'], jsonBody($request, TRANSLATIONS_BODY_LIMIT), currentUser($request)->id);
-
-        return respondJson($response, translationGrid());
-    });
 })->add(requireRole(...ROLES_STAFF));
+
+// The site's words: the anotoki library's routes, with this site's roles and
+// error body. Who saved a string is the request's person - the token's, put
+// there by requireRole() - and nothing a body says (translationWriter()).
+$translations = static fn(): Translations => surveyTranslations();
+
+TranslationsRoutes::strings($app, '/api/admin', $translations, translationWriter(...), respondRefusal(...))
+    ->add(requireRole(...ROLES_STAFF));
+
+// Added in this order, so they run the other way round: the editors' check first, then deleting for an ADMIN alone.
+TranslationsRoutes::languages($app, '/api/admin', $translations, respondRefusal(...))
+    ->add(requireRoleFor('DELETE', ROLE_ADMIN))
+    ->add(requireRole(...ROLES_STAFF));
 
 // The Migrations page's routes. Each request has a connection of its own
 // (surveyMigrator()'s rule: an Apply's lock must never sit on the pooled db()),

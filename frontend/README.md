@@ -43,16 +43,24 @@ src/
                                      status, its gate; the Migrations page is @anotoki/lib/migrations/page)
                                      wired to this site's sign-in, words and dates: provideSiteMigrations(),
                                      MIGRATIONS_PATH
-      kit.ts                         the family's UI kit (@anotoki/lib/ui, /shell) wired to this site:
-                                     provideSiteKit() - the kit's words from the site's own strings
-                                     (lookup) and in formal Slovak where it has none, the icons the site
-                                     draws (SURVEY_ICONS), the account's theme (the library's ThemeService),
-                                     the languages of the bar's chooser
-      i18n/                          the site's words: TranslationService (the account's language, the
-                                     chooser's save to it), the translate and localDate pipes
+      translations.ts                the family's translations module (@anotoki/lib/translations, 0.3.0)
+                                     wired to this site: provideSiteTranslations() - the language and the
+                                     strings (the library's TranslationService and its translate /
+                                     translatePlural pipes; the account's language, the chooser's save to
+                                     it), the names the site always kept them under (anotoki-survey:...),
+                                     the admin pages for EDITOR and ADMIN, FORMAL_SLOVAK (the library's
+                                     words in this site's formal Slovak while the database cannot be read)
+      kit.ts                         the family's UI kit (@anotoki/lib/ui/<piece>, /shell) wired to this
+                                     site: provideSiteKit() - the kit's words from the site's database (the
+                                     library's keys, anotoki.*: TranslationService.forKit()), the icons the
+                                     site draws (SURVEY_ICONS), the account's theme (the library's
+                                     ThemeService), the languages of the bar's chooser (forShell())
+      i18n/                          the site's own words beside the library's: answer-words (an answer's
+                                     rule in the reader's language), error-text, the localDate pipe, and
+                                     dynamic-keys.ts (the keys put together at run time, for the key scan)
       survey/                        the model and every rule (the twin of backend/api/survey_rules.php)
-      admin/                         AdminStore (the editor's saving), LocalizationDrafts, AdminDates (the
-                                     admin panel's dates in the account's order and clock)
+      admin/                         AdminStore (the editor's saving), AdminDates (the admin panel's dates
+                                     in the account's order and clock)
       util/                          dates.ts (the admin panel's English dates), date-patterns.ts (the
                                      account's four date orders and two clocks), storage
       images/                        pictures made small in the browser
@@ -61,8 +69,9 @@ src/
                                      participant, admin
     pages/participant/               the open surveys, a survey to take, the visitor notice
     pages/admin/                     the surveys, the editor, the results (a visitor: "Visitor N",
-                                     "Not signed in"), Translations, Languages; Migrations (ADMIN) is the
-                                     family's page (<anotoki-migrations-page>, admin.routes.ts)
+                                     "Not signed in"); Translations and Languages are the family's pages
+                                     (@anotoki/lib/translations/admin, a lazy entry point), Migrations
+                                     (ADMIN) too (<anotoki-migrations-page>) - admin.routes.ts
     ui/                              the survey's own pieces: the rich text editor, the lightbox, the
                                      picture and the strip of pictures (the rest is the family's kit)
 public/                              the mark, the favicon
@@ -72,12 +81,14 @@ proxy.conf.json                      /api and /setup.php to the backend on :8500
 
 Components are three files (`.ts`, `.html`, `.scss`); colours come from the
 family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
-every page works at 390 px. The UI kit, the top bar and the theme are the
-anotoki family's library (`@anotoki/lib`, 0.2.0), configured in
-`core/kit.ts` - never copied here. What the site says to somebody taking a
+every page works at 390 px. The UI kit, the top bar, the theme and the site's
+words are the anotoki family's library (`@anotoki/lib`, 0.3.0), configured in
+`core/kit.ts` and `core/translations.ts` - never copied here; each kit piece
+is imported from its own entry point (`@anotoki/lib/ui/button`, ...), never
+from the `@anotoki/lib/ui` barrel. What the site says to somebody taking a
 survey is a key (`'home.title' | translate`) whose strings are in the
-database - the kit's own words too, through `core/kit.ts`; the admin panel is
-English, written in its templates.
+database - the kit's own words too, the library's keys (`anotoki.*`); the
+admin panel is English, written in its templates.
 
 ## Commands
 
@@ -93,7 +104,8 @@ npx prettier --check "src/**/*.{ts,html,scss}"   # a checkout with CRLF line end
 
 `npm test` runs every `*.spec.ts` beside its code (Vitest through
 `ng test`, with `src/test-setup.ts`). `src/app/core/testing/` holds what they share: example surveys,
-`provideTestTranslations()` (the kit's words read from the same strings) and `answersOf()` (a person's answers or a visitor's). The pages in a real browser, signed in through a
+`provideTestTranslations()` (the library's test translations - `@anotoki/lib/translations/testing` -
+with the site's strings, the kit's words read from the same) and `answersOf()` (a person's answers or a visitor's). The pages in a real browser, signed in through a
 stand-in IAM, are the `check-in-browser` skill's
 (`node .claude/skills/check-in-browser/scripts/run.mjs` from the repository's
 root).

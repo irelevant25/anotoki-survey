@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Anotoki\Lib\Migrations\Http\MigrationsRoutes;
+use Anotoki\Lib\Translations\Http\TranslationsRoutes;
+use Anotoki\Lib\Translations\Translations;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -21,13 +23,16 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *                                 is keep_days, the days the visitor notice tells people
  *                                 their browser is remembered
  *   GET /api/images/{id}.{ext}    a survey's picture (see api/images.php)
- *   GET /api/translations/{code}  the site's own words in a language, with the
- *                                 languages on offer (see api/translations.php);
+ *   GET /api/translations/{code}  the site's own words in a language, English under
+ *                                 them, with the languages on offer: {language,
+ *                                 languages: [{code, name, native_name}], values,
+ *                                 english?} - the anotoki library's route
+ *                                 (TranslationsRoutes::bundle, api/translations.php);
  *                                 "sk-sk" is answered by "sk" when only that is offered
  *
  * Without the settings everything but the status is 503 not_set_up (the site
  * gate). The health, the sign-in settings and the strings are answered while a
- * migration waits (SITE_OPEN_WHILE_UPDATING); a picture, like everything else
+ * migration waits (siteOpenWhileUpdating()); a picture, like everything else
  * of the site, is 503 update_pending then.
  *
  * @var \Slim\App $app
@@ -53,7 +58,7 @@ $app->get('/api/health', function (Request $request, Response $response): Respon
 // every state, and the frontend draws the site - or the page that says why not.
 MigrationsRoutes::status($app, $siteState);
 
-// Answered while a migration waits too (SITE_OPEN_WHILE_UPDATING): an
+// Answered while a migration waits too (siteOpenWhileUpdating()): an
 // administrator must be able to sign in to apply it. `loginRequired` relays
 // the IAM's "Sign-in required" switch (authLoginRequired()), so the browser
 // never asks the IAM for it.
@@ -84,31 +89,12 @@ $app->get('/api/images/{file}', function (Request $request, Response $response, 
         ->withHeader('Content-Disposition', 'inline; filename="' . $m[1] . '.' . IMAGE_TYPES[$image['type']] . '"');
 });
 
-// No middleware for who is asking, on purpose: the words are the same for
-// everybody, so a token - even one that would not check out - is not looked at,
-// and a page whose sign-in has run out still reads in its language.
-$app->get('/api/translations/{code}', function (Request $request, Response $response, array $args): Response {
-    // Before any query: only a code is looked up (a wrong address is a 404, not
-    // a database refusing bytes that are not text).
-    $code = (string) $args['code'];
-    if (!languageCodeOk($code)) {
-        throw new ApiError(404, 'not_found', 'There is no such language.');
-    }
-
-    // The strings change when somebody saves one in the admin area, or with a
-    // release: the browser asks every time (no-cache) and is told "the same as
-    // you have" in a few bytes. Both headers are set before that answer, so it
-    // carries them too - without them it would go out as no-store. The tag is
-    // compared as it may come back from behind a server that compresses
-    // (translationsNotModified).
-    $body = jsonText(translationBundle($code));
-    $etag = '"' . md5($body) . '"';
-    $response = $response->withHeader('ETag', $etag)->withHeader('Cache-Control', 'no-cache');
-    if (translationsNotModified($request->getHeaderLine('If-None-Match'), $etag)) {
-        return $response->withStatus(304);
-    }
-
-    $response->getBody()->write($body);
-
-    return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
-});
+// The anotoki library's route (TranslationsRoutes::bundle). No middleware for
+// who is asking, on purpose: the words are the same for everybody, so a token -
+// even one that would not check out - is not looked at, and a page whose
+// sign-in has run out still reads in its language. A code that is none is a
+// 404 before any query; the browser asks every time (ETag, no-cache) and is
+// told "the same as you have" in a 304; without the tables or an English
+// string - between an upload and its Apply, or the database out of reach -
+// 503 translations_unavailable, and the pages read what they have.
+TranslationsRoutes::bundle($app, static fn(): Translations => surveyTranslations(), respondRefusal(...));

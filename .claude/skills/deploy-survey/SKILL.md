@@ -25,7 +25,8 @@ cd ../backend && php tools/build.php
 
 `dist/` at the top of the repository holds the upload: the app, `.htaccess`,
 `setup.php`, `api/`, `config/config.php`, `migrations/`, `vendor/` (with
-`vendor/anotoki/lib`, the family's library), `storage/`.
+`vendor/anotoki/lib`, the family's library - its migration set
+`php/migrations/translations/` too, which runs after the site's own), `storage/`.
 No `*.local.php`, no tests or tools, no `migration.php` or `translations.php`
 (the command line's), no composer files - check it, it is what the world will
 be able to read.
@@ -37,6 +38,18 @@ over a string somebody reworded there, but a deleted key takes its strings
 with it, and the files are the only copy of the live wording outside a
 database backup. [docs/operations.md](../../../docs/operations.md) (*The site's
 words and languages*) has the rest, and how a language is added.
+
+**The version whose words are the family's library's** (anotoki-lib 0.3.0:
+migration `010_strings_through_the_library.sql`, then the library's
+`anotoki_translations/001` and `/002` - four files under two headings on the
+Migrations page): export each language first, as above; save whatever is
+typed and not saved on the admin Translations and Languages pages (a tab's
+drafts holding a Languages row typed before the upload are not read again);
+after the upload reload every admin
+page that was open (an old page no longer reads or saves a language's
+`native_name` and `sort_order`). 010 moves the site's strings for the kit
+under the library's keys, an owner's rewording with them, and stops - rolled
+back whole - if anything would be lost.
 
 ## 2. Upload
 
@@ -124,8 +137,11 @@ ADMIN only to the administrators the IAM had when it ran.
   `/api/auth.php` are refused (403), not served.
 - Sign in; open `/admin` as the owner; a survey's picture loads.
 - `https://survey.anotoki.eu/api/translations/sk` → `"language":"sk"` and the
-  strings; the home page in Slovak (the chooser, or `/?lang=sk`) shows words,
-  never a key like `home.title`; `/admin` is English all the same.
+  strings (the library's `anotoki.*` among them; the languages with
+  `native_name`); the home page in Slovak (the chooser, or `/?lang=sk`) shows
+  words, never a key like `home.title`, and the person's menu says "Váš anotoki
+  účet" - formal, never "Tvoj"; `/admin` is English all the same, and
+  `/admin/translations` lists the library's keys among the site's.
 - `/api/translations/sk-sk` answers the same (`"language":"sk"`): a Slovak
   browser's first visit is one request. And asking again is a 304:
   `curl -sI -H 'Accept-Encoding: gzip' https://survey.anotoki.eu/api/translations/sk`,

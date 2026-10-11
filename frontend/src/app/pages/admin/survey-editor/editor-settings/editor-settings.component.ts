@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
-import { ButtonComponent, IconComponent } from '@anotoki/lib/ui';
+import { ButtonComponent } from '@anotoki/lib/ui/button';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { SwitchComponent } from '@anotoki/lib/ui/forms';
 import { AdminDates } from '../../../../core/admin/admin-dates.service';
 import { slugify, uniqueSlug } from '../../../../core/survey/survey-factory';

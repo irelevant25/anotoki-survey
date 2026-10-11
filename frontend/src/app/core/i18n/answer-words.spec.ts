@@ -1,11 +1,11 @@
 import { TestBed } from '@angular/core/testing';
+import { TranslationService } from '@anotoki/lib/translations';
 import { AnswerProblem, ChoiceRule, answerProblem, answerProblemText, choiceRule, choiceRuleText } from '../survey/answer-rules';
 import { newOption, newQuestion } from '../survey/survey-factory';
 import { Question } from '../survey/survey.model';
 import { provideTestTranslations } from '../testing/test-translations';
 import { AnswerWords, problemText, ruleText } from './answer-words';
 import { DYNAMIC_KEYS } from './dynamic-keys';
-import { TranslationService } from './translation.service';
 
 const ENGLISH = {
   'answer.rule.any': 'Choose any that apply.',
@@ -154,10 +154,11 @@ describe('problemText(): why an answer cannot be accepted, in the reader’s wor
     expect(problemText(i18n, { kind: 'chooseOne', params: {} })).toBe('Vyberte, prosím, iba jednu možnosť.');
     expect([2, 5].map((min) => problemText(i18n, { kind: 'chooseAtLeast', params: { min } }))).toEqual(['Vyberte, prosím, aspoň 2 možnosti.', 'Vyberte, prosím, aspoň 5 možností.']);
     expect([3, 12].map((max) => problemText(i18n, { kind: 'chooseAtMost', params: { max } }))).toEqual(['Vyberte, prosím, najviac 3 možnosti.', 'Vyberte, prosím, najviac 12 možností.']);
+    // The count as Slovak writes numbers (the library's plural(): a no-break space between the thousands).
     expect([1, 3, 1000].map((limit) => problemText(i18n, { kind: 'tooLong', params: { limit } }))).toEqual([
       'Skráťte, prosím, odpoveď najviac na 1 znak.',
       'Skráťte, prosím, odpoveď najviac na 3 znaky.',
-      'Skráťte, prosím, odpoveď najviac na 1000 znakov.',
+      'Skráťte, prosím, odpoveď najviac na 1 000 znakov.',
     ]);
   });
 

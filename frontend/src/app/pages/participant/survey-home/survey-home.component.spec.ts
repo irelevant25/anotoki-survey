@@ -1,10 +1,10 @@
 import { computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { TranslationService } from '@anotoki/lib/translations';
 import { ApiError, ApiService, ParticipantSurvey } from '../../../core/api/api.service';
 import { AuthService, Taker } from '../../../core/auth/auth.service';
 import { VisitorKey } from '../../../core/auth/visitor-key';
-import { TranslationService } from '../../../core/i18n/translation.service';
 import { VISITOR_SLOT, writeDraft } from '../../../core/survey/drafts';
 import { newQuestion, newStep, newSurvey } from '../../../core/survey/survey-factory';
 import { Person } from '../../../core/survey/survey.model';
@@ -170,7 +170,7 @@ describe('SurveyHomeComponent', () => {
     await page('sk', [{ ...openSurvey('taken', 'A', 1), answeredAt: '2026-09-29T08:00:00Z' }, openSurvey('started', 'B', 1), openSurvey('new', 'C', 1)]);
 
     expect(all('.survey-state')).toEqual(['Vyplnený', 'Začatý', 'Nový']);
-    expect(text('app-visitor-notice anotoki-alert .text')).toBe(SLOVAK['visitor.notice.other'].replace('{count}', '30'));
+    expect(text('app-visitor-notice anotoki-alert .anotoki-alert__text')).toBe(SLOVAK['visitor.notice.other'].replace('{count}', '30'));
     expect(text('app-visitor-notice button')).toBe('Prihlásiť sa');
   });
 
@@ -211,14 +211,14 @@ describe('SurveyHomeComponent', () => {
     await new Promise((done) => setTimeout(done));
     await fixture.whenStable();
     expect(text('.loading')).toBeUndefined();
-    expect(text('anotoki-empty-state .heading')).toBe('Práve nie je otvorený žiadny prieskum');
-    expect(text('anotoki-empty-state .text')).toBe(SLOVAK['home.empty.text']);
+    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('Práve nie je otvorený žiadny prieskum');
+    expect(text('anotoki-empty-state .anotoki-empty-state__text')).toBe(SLOVAK['home.empty.text']);
   });
 
   it("words a failed load itself, from the error's code - never with the server's English sentence", async () => {
     await page('sk', new ApiError(0, 'offline', 'The site could not be reached. Check the connection and try again.'));
 
-    expect(text('anotoki-alert .heading')).toBe('Prieskumy sa nepodarilo načítať');
+    expect(text('anotoki-alert .anotoki-alert__heading')).toBe('Prieskumy sa nepodarilo načítať');
     expect(text('anotoki-alert')).toContain('So stránkou sa nepodarilo spojiť. Skontrolujte pripojenie a skúste to znova.');
     expect(text('anotoki-alert')).not.toContain('The site could not be reached');
     expect(text('anotoki-alert button')).toBe('Skúsiť znova');
@@ -265,7 +265,7 @@ describe('SurveyHomeComponent', () => {
     expect(all('.survey-meta')).toEqual(['1 otázka · približne 1 minúta', '1 otázka · približne 1 minúta', '1 otázka · približne 1 minúta']);
 
     // In English every one of them is in the language of the page: nothing to say, nothing to mark.
-    expect(await TestBed.inject(TranslationService).setLanguage('en', false)).toBe(true);
+    expect(await TestBed.inject(TranslationService).setLanguage('en', { remember: false })).toBe(true);
     await fixture.whenStable();
     expect(all('.survey-title')).toEqual(['Guides', 'News', 'Quizzes']);
     expect(host.querySelector('.survey-language')).toBeNull();
@@ -297,7 +297,7 @@ describe('SurveyHomeComponent', () => {
     await page('sk', [openSurvey('three', 'Návody', 3, '2099-10-20')]);
     expect(all('.survey-meta')).toEqual(['3 otázky · približne 3 minúty · otvorený do 20. októbra 2099']);
 
-    expect(await TestBed.inject(TranslationService).setLanguage('en', false)).toBe(true);
+    expect(await TestBed.inject(TranslationService).setLanguage('en', { remember: false })).toBe(true);
     await fixture.whenStable();
     expect(text('h1')).toBe('Have your say');
     expect(all('.survey-meta')).toEqual(['3 questions · about 3 min · open until 20 October 2099']);
@@ -307,9 +307,9 @@ describe('SurveyHomeComponent', () => {
     TestBed.resetTestingModule();
     await page('sk', new ApiError(0, 'offline', 'x'));
     expect(text('anotoki-alert')).toContain('So stránkou sa nepodarilo spojiť.');
-    expect(await TestBed.inject(TranslationService).setLanguage('en', false)).toBe(true);
+    expect(await TestBed.inject(TranslationService).setLanguage('en', { remember: false })).toBe(true);
     await fixture.whenStable();
-    expect(text('anotoki-alert .heading')).toBe('The surveys could not be loaded');
+    expect(text('anotoki-alert .anotoki-alert__heading')).toBe('The surveys could not be loaded');
     expect(text('anotoki-alert')).toContain('The site could not be reached. Check the connection and try again.');
     expect(openSurveys).toHaveBeenCalledTimes(1);
   });

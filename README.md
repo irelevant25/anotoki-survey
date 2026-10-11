@@ -87,10 +87,10 @@ wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (`anotoki/lib` from
-Composer at 0.1.0, `@anotoki/lib` from its release at 0.2.0 - which makes the
-pages only while the site is open, and brings the family's UI kit, below):
-one engine, one gate and
+migrations are the shared library's, **anotoki-lib** (0.3.0: `anotoki/lib`
+from Composer, `@anotoki/lib` from its release - which makes the pages only
+while the site is open, and brings the family's UI kit and its translations,
+below): one engine, one gate and
 one behaviour for every anotoki site while the site cannot run - visitors and
 signed-in people read a calm "The site is being updated" in their language
 (and a quiet Sign in), the site's ADMIN "A database update is waiting" and
@@ -112,11 +112,21 @@ anotoki site - while an IAM that does not send them yet leaves everything as
 it was. The pages are drawn with the anotoki family's UI kit - the library's
 styles and palette, its components, the top bar and the segmented theme
 switch, one look for every anotoki site - in this site's own words: the
-kit's words are read from the site's strings, and its Slovak is formal. On
-the hosting this version brings new migrations (up to
-`009_site_status_page.sql`): after the upload an ADMIN signs in from the
-family's page and applies them on the Migrations page (or the setup page
-does) - [docs/operations.md](docs/operations.md).
+kit's words are read from the site's strings, and its Slovak is formal. And
+the site's words are kept the family's way (anotoki-lib 0.3.0's translations):
+the same tables, read and written by the library on both sides - the strings
+a page reads, the admin panel's Translations and Languages pages (the
+family's, as on every anotoki site), the command line - in one wire format
+for every site; the kit's words are keys of their own (`anotoki.*`) among
+the site's, reworded on the Translations page like the rest, in formal
+Slovak; who may do what stays this site's (EDITOR and ADMIN; deleting a
+language an ADMIN's). On the hosting this version brings new migrations (up
+to `010_strings_through_the_library.sql`, and the library's own
+`anotoki_translations` after it - 010 moves the site's strings for the kit
+under the library's keys first, an owner's rewording with them): after the
+upload an ADMIN signs in from the family's page and applies them on the
+Migrations page (or the setup page does) -
+[docs/operations.md](docs/operations.md).
 
 ## Trying it out
 

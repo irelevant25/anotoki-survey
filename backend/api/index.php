@@ -11,19 +11,21 @@ declare(strict_types=1);
  * original path, so every route starts with /api/.
  *
  *   routes/public.php    GET /api/health, GET /api/site-status, GET /api/auth/config,
- *                        GET /api/images/{id}.{ext}, GET /api/translations/{code}
+ *                        GET /api/images/{id}.{ext}, GET /api/translations/{code} (the
+ *                        anotoki library's TranslationsRoutes::bundle)
  *   routes/surveys.php   the surveys for the people taking them, and their answers - signed
  *                        in, or as a visitor while the IAM says sign-in is not required
  *   routes/visitor.php   POST /api/visitor/move: at sign-in, a visitor's answers into the account
- *   routes/admin.php     /api/admin/...: the surveys, the results, the pictures, the languages
- *                        and the site's own strings (EDITOR, ADMIN); the migrations (ADMIN)
+ *   routes/admin.php     /api/admin/...: the surveys, the results, the pictures (EDITOR, ADMIN);
+ *                        the languages and the site's own strings - the library's routes, behind
+ *                        the same roles (deleting a language: ADMIN); the migrations (ADMIN)
  *
  * The middleware, outermost first: security headers -> the error handler ->
  * the site gate (the anotoki family's SiteGate, api/migrations.php: 503
  * not_set_up without config/database.local.php and iam.local.php - offering
  * the setup page only while the site was never installed; 503 update_pending
  * while a migration waits, but for the paths that must answer then:
- * SITE_OPEN_WHILE_UPDATING) -> routing -> on each route, who is asking. After
+ * siteOpenWhileUpdating()) -> routing -> on each route, who is asking. After
  * the answer, what a request left for then (afterAnswerRun(): the visitors'
  * clean-up).
  */
@@ -62,7 +64,7 @@ function buildSurveyApp(): \Slim\App
     require __DIR__ . '/routes/admin.php';
 
     // Added in this order, so they run the other way round.
-    $app->add(new SiteGate($siteState, $app->getResponseFactory(), SITE_OPEN_WHILE_UPDATING));
+    $app->add(new SiteGate($siteState, $app->getResponseFactory(), siteOpenWhileUpdating()));
 
     $errorMiddleware = $app->addErrorMiddleware(false, false, false);
     $errorMiddleware->setDefaultErrorHandler(function (Request $request, Throwable $exception) use ($app): Response {

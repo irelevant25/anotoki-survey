@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, Injector, afterNextRender, booleanAttribute, computed, inject, input, signal, viewChild } from '@angular/core';
-import { IconComponent, SpinnerComponent } from '@anotoki/lib/ui';
+import { IconComponent } from '@anotoki/lib/ui/icon';
+import { SpinnerComponent } from '@anotoki/lib/ui/spinner';
 import { ImageUploader } from '../../../../core/images/image-uploader.service';
 import { IMAGE_TYPES, ImageError, MAX_QUESTION_IMAGES, pictureFiles } from '../../../../core/images/prepare-image';
 import { SurveyImage } from '../../../../core/survey/survey.model';

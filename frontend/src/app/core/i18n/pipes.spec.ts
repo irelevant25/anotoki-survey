@@ -1,12 +1,10 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { TranslatePipe, TranslatePluralPipe, TranslationService } from '@anotoki/lib/translations';
 import { type AnotokiDateFormat, type AnotokiPreferences } from '../auth/anotoki-auth';
 import { AuthService } from '../auth/auth.service';
 import { provideTestTranslations } from '../testing/test-translations';
 import { LocalDatePipe } from './local-date.pipe';
-import { TranslatePluralPipe } from './translate-plural.pipe';
-import { TranslatePipe } from './translate.pipe';
-import { TranslationService } from './translation.service';
 
 const ENGLISH = {
   'home.openUntil': 'open until {day}',
@@ -81,7 +79,7 @@ describe('the translate pipes', () => {
     expect(translate.transform('time.justNow')).toBe('just now');
     expect(plural.transform('home.steps', 3)).toBe('3 steps');
     i18n.noteAddress('/');
-    expect(await i18n.setLanguage('en', false)).toBe(true);
+    expect(await i18n.setLanguage('en', { remember: false })).toBe(true);
     expect(translate.transform('time.justNow')).toBe('just now');
   });
 });

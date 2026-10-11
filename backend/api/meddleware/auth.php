@@ -66,6 +66,23 @@ function requireRole(string ...$roles): callable
 }
 
 /**
+ * requireRole() for one method of a group only; the group's other methods
+ * pass as they came. For the languages' routes - the anotoki library's, one
+ * group (routes/admin.php): an editor adds, renames, orders and switches a
+ * language off, as ever; deleting one is an administrator's, as deleting
+ * anything is. Inside the group's own requireRole() it asks the person the
+ * group found.
+ */
+function requireRoleFor(string $method, string ...$roles): callable
+{
+    $role = requireRole(...$roles);
+
+    return function (Request $request, RequestHandler $handler) use ($method, $role): Response {
+        return strtoupper($request->getMethod()) === strtoupper($method) ? $role($request, $handler) : $handler->handle($request);
+    };
+}
+
+/**
  * requireRole() judged from the token alone: the same 401 and 403, but
  * nothing read from or written to the database - requireRole() records the
  * visit in `users`. For the Migrations page's routes (routes/admin.php),

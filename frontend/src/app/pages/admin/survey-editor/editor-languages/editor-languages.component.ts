@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, ElementRef, computed, input, output, viewChildren } from '@angular/core';
-import { ButtonComponent, IconComponent } from '@anotoki/lib/ui';
+import { ButtonComponent } from '@anotoki/lib/ui/button';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { Survey } from '../../../../core/survey/survey.model';
 import { EditorLanguage, TranslationTab, addableLanguages, languageName, translationTabs } from '../translating';
 

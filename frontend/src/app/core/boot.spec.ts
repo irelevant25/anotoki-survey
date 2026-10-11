@@ -3,12 +3,12 @@ import { TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { Router, TitleStrategy, provideRouter } from '@angular/router';
 import { SiteStatus } from '@anotoki/lib/migrations';
+import { TranslationService } from '@anotoki/lib/translations';
 import { ToastService } from '@anotoki/lib/ui/toast';
 import { ApiService } from './api/api.service';
 import { AuthService, SignInFailure } from './auth/auth.service';
 import { VisitorKey } from './auth/visitor-key';
 import { BOOTED, boot } from './boot';
-import { TranslationService } from './i18n/translation.service';
 import { VISITOR_SLOT, readDraft, writeDraft } from './survey/drafts';
 import { Person } from './survey/survey.model';
 import { provideTestTranslations } from './testing/test-translations';
@@ -198,19 +198,19 @@ describe('SurveyTitleStrategy', () => {
   it('follows the language without a navigation', async () => {
     await TestBed.inject(Router).navigateByUrl('/');
     expect(title()).toBe('Prieskumy · anotoki prieskum');
-    await TestBed.inject(TranslationService).setLanguage('en', false);
+    await TestBed.inject(TranslationService).setLanguage('en', { remember: false });
     expect(title()).toBe('Surveys · anotoki survey');
   });
 
   it('is English in the admin area, where a title may be plain English too', async () => {
     const router = TestBed.inject(Router);
     await router.navigateByUrl('/admin/surveys?tab=people');
-    expect(TestBed.inject(TranslationService).inAdmin()).toBe(true);
+    expect(TestBed.inject(TranslationService).englishOnly()).toBe(true);
     expect(title()).toBe('Results · Admin panel · anotoki survey');
     await router.navigateByUrl('/admin');
     expect(title()).toBe('Surveys · Admin panel · anotoki survey');
     await router.navigateByUrl('/');
-    expect(TestBed.inject(TranslationService).inAdmin()).toBe(false);
+    expect(TestBed.inject(TranslationService).englishOnly()).toBe(false);
     expect(title()).toBe('Prieskumy · anotoki prieskum');
   });
 
@@ -228,7 +228,7 @@ describe('SurveyTitleStrategy', () => {
     TestBed.inject(Title).setTitle('Genshin 1.0');
     expect(title()).toBe('Genshin 1.0');
     // A change of language must not put the site's name over the survey's.
-    await TestBed.inject(TranslationService).setLanguage('en', false);
+    await TestBed.inject(TranslationService).setLanguage('en', { remember: false });
     expect(title()).toBe('Genshin 1.0');
 
     await router.navigateByUrl('/');

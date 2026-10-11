@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { IconComponent } from '@anotoki/lib/ui';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { Tally } from '../../../../core/survey/results';
 import { SurveyImageComponent } from '../../../../ui/survey-image/survey-image.component';
 

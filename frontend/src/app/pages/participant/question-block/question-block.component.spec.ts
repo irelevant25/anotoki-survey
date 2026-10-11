@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslationService } from '../../../core/i18n/translation.service';
+import { TranslationService } from '@anotoki/lib/translations';
 import { AnswerProblem, answerProblem } from '../../../core/survey/answer-rules';
 import { newOption, newQuestion } from '../../../core/survey/survey-factory';
 import { Answer, Question } from '../../../core/survey/survey.model';
@@ -71,7 +71,7 @@ describe('QuestionBlockComponent', () => {
   }
 
   async function english(): Promise<void> {
-    expect(await TestBed.inject(TranslationService).setLanguage('en', false)).toBe(true);
+    expect(await TestBed.inject(TranslationService).setLanguage('en', { remember: false })).toBe(true);
     await fixture.whenStable();
   }
 

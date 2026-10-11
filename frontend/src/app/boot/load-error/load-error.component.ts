@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, DOCUMENT, EnvironmentInjector, computed, inject, runInInjectionContext, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { BrandComponent } from '@anotoki/lib/shell';
-import { ButtonComponent, IconComponent } from '@anotoki/lib/ui';
+import { TranslationService } from '@anotoki/lib/translations';
+import { ButtonComponent } from '@anotoki/lib/ui/button';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { AuthService } from '../../core/auth/auth.service';
 import { boot } from '../../core/boot';
-import { TranslationService } from '../../core/i18n/translation.service';
 import { keptWord } from '../kept-word';
 
 /**

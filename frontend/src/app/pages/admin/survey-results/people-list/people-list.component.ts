@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
-import { IconComponent } from '@anotoki/lib/ui';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { AdminDates } from '../../../../core/admin/admin-dates.service';
 import { ageLabel, genderLabel } from '../../../../core/survey/about-you';
 import { SurveyResponse } from '../../../../core/survey/survey.model';

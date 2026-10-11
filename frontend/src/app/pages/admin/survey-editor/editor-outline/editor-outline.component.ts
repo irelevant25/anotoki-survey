@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
-import { IconComponent } from '@anotoki/lib/ui';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { plainText } from '../../../../core/survey/plain-text';
 import { currentStatus } from '../../../../core/survey/survey-outline';
 import { SurveyProblem, problemsHeading } from '../../../../core/survey/survey-problems';

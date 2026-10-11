@@ -1,4 +1,4 @@
-import { TranslationService } from '../../core/i18n/translation.service';
+import { TranslationService } from '@anotoki/lib/translations';
 
 /**
  * The language a survey's texts are shown in when it is not the page's own:
@@ -29,5 +29,5 @@ export function otherLanguage(i18n: PageLanguage, language: string | null | unde
     return null;
   }
   const offered = i18n.languages().find((entry) => entry.code === language);
-  return offered ? { code: language, name: offered.nativeName, nameLang: language } : { code: language, name: language, nameLang: null };
+  return offered ? { code: language, name: offered.native_name, nameLang: language } : { code: language, name: language, nameLang: null };
 }

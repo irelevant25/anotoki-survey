@@ -2,13 +2,10 @@
     @case ("site") {
         <!-- The gate around the pages, and around nothing else: what is drawn over any page stays below it. The pages come
              as the template marked anotokiSitePages, which the gate makes only while it shows them - never behind the
-             family's page. Inside, the outlet waits for the reload once the site could not run in this page load and runs
-             again (held). -->
+             family's page. -->
         <anotoki-site-gate>
             <ng-template anotokiSitePages>
-                @if (!held()) {
-                    <router-outlet />
-                }
+                <router-outlet />
             </ng-template>
         </anotoki-site-gate>
     }

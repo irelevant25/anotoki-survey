@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, afterNextRender, computed, inject, input, output, viewChild } from '@angular/core';
-import { IconComponent } from '@anotoki/lib/ui';
-import { TranslatePipe } from '../../core/i18n/translate.pipe';
-import { TranslationService } from '../../core/i18n/translation.service';
+import { TranslatePipe, TranslationService } from '@anotoki/lib/translations';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { SurveyImageComponent } from '../survey-image/survey-image.component';
 import { LightboxView } from './lightbox.service';
 

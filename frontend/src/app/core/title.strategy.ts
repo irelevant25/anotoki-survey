@@ -1,7 +1,7 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { Title } from '@angular/platform-browser';
 import { RouterStateSnapshot, TitleStrategy } from '@angular/router';
-import { TranslationService } from './i18n/translation.service';
+import { TranslationService } from '@anotoki/lib/translations';
 
 /** Between an admin page's title and the site's name, in the admin area's English: "Translations · Admin panel · anotoki survey". */
 const ADMIN_PANEL = 'Admin panel';
@@ -48,7 +48,7 @@ export class SurveyTitleStrategy extends TitleStrategy {
         return;
       }
       this._written = true;
-      if (!worded && !this._i18n.inAdmin()) {
+      if (!worded && !this._i18n.englishOnly()) {
         // A participant route's title is a key, and there is nothing to word it
         // with: the site's name alone, never the key (a tab reading
         // "title.surveys" on a site that is not set up yet). The admin area's
@@ -57,7 +57,7 @@ export class SurveyTitleStrategy extends TitleStrategy {
         return;
       }
       // With strings, a key that has none shows as itself: the owner wants to see which.
-      const part = this._i18n.inAdmin() ? ` · ${ADMIN_PANEL}` : '';
+      const part = this._i18n.englishOnly() ? ` · ${ADMIN_PANEL}` : '';
       this._title.setTitle(`${this._i18n.has(page) ? this._i18n.t(page) : page}${part} · ${site}`);
     });
   }

@@ -24,9 +24,17 @@ Working conventions:
   `frontend/src/app/core/survey/` and `backend/api/survey_rules.php`. Change
   both, and both sides' tests.
 - What the site says to somebody taking a survey is a key, not a sentence in a
-  template or in state: `'home.title' | translate` (`core/i18n/`), with the key,
+  template or in state: `'home.title' | translate` (the anotoki family's
+  translations module, `@anotoki/lib/translations`, wired in
+  `core/translations.ts`; on the server `Anotoki\Lib\Translations`, wired in
+  `api/translations.php` - never copied or edited here), with the key,
   its English and its formal Slovak string in a migration
-  (`003_site_strings.sql` is the pattern). A string is text, never HTML. The
+  (`003_site_strings.sql` is the pattern). The kit's words are the library's
+  keys (`anotoki.*`) in the same tables: asked for by their whole key, their
+  Slovak that speaks to the reader formal in the database and in
+  `FORMAL_SLOVAK`. One wire format, the IAM's (snake_case). Who may do what
+  with the words is this site's (EDITOR / ADMIN; deleting a language
+  ADMIN's). A string is text, never HTML. The
   admin panel (`pages/admin`, `layouts/admin-layout`) is English, written in its
   templates. `tests/unit/translations.test.php` fails on a key no migration
   wrote, or one nothing uses.
@@ -38,8 +46,8 @@ Working conventions:
   `SurveyEditing` (by id). Saves carry a revision; conflicts are the editor's
   to settle, never overwritten.
 - What is typed and not saved in the admin panel lives outside its page
-  (`AdminStore`, `LocalizationDrafts`): a session that ends takes the page away
-  with no navigation. A failure is said where the person is looking.
+  (`AdminStore`, the library's `LocalizationDrafts`): a session that ends takes
+  the page away with no navigation. A failure is said where the person is looking.
 - A check followed by a write holds a lock between them, inside the
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
@@ -57,8 +65,11 @@ Working conventions:
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
   (light and dark); every page works at 390 px. The UI kit and the top bar are
-  the anotoki family's (`@anotoki/lib`, wired in `core/kit.ts`) - use them,
-  never copy them; the kit's words come from the site's strings there.
+  the anotoki family's (`@anotoki/lib` 0.3.0, wired in `core/kit.ts`) - use
+  them, each piece from its own entry point (`@anotoki/lib/ui/button`, ...,
+  never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come
+  from the database there (`forKit()`), and its class names are its own
+  (`.anotoki-<piece>__<part>`) - in a spec too.
 - Tests and experiments use throwaway `survey_test_` databases
   (`backend/tests/tools/`), never `anotoki_survey`; the browser check
   (`check-in-browser` skill) signs in through the stand-in IAM, never the real one.

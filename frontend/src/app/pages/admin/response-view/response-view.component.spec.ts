@@ -1,14 +1,14 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { type AdminLanguage } from '@anotoki/lib/translations';
 import { AdminStore } from '../../../core/admin/admin-store.service';
-import { AdminLanguage } from '../../../core/i18n/translation.model';
 import { newOption, newQuestion, newSurvey } from '../../../core/survey/survey-factory';
 import { Survey, SurveyResponse } from '../../../core/survey/survey.model';
 import { ResponseViewComponent } from './response-view.component';
 
 const LANGUAGES: AdminLanguage[] = [
-  { code: 'en', name: 'English', nativeName: 'English', enabled: true, sortOrder: 1, seeded: true },
-  { code: 'sk', name: 'Slovak', nativeName: 'Slovenčina', enabled: true, sortOrder: 2, seeded: true },
+  { code: 'en', name: 'English', native_name: 'English', enabled: true, sort_order: 1, seeded: true, strings: 0 },
+  { code: 'sk', name: 'Slovak', native_name: 'Slovenčina', enabled: true, sort_order: 2, seeded: true, strings: 0 },
 ];
 
 /** Written in English, with its one question in Slovak too. */

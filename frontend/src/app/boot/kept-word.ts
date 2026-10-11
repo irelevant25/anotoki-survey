@@ -1,4 +1,4 @@
-import { TranslationService } from '../core/i18n/translation.service';
+import { TranslationService } from '@anotoki/lib/translations';
 
 /**
  * A string for a page that is drawn when the site cannot run - and so may have

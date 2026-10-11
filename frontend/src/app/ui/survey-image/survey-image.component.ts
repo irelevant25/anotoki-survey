@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, effect, input, signal, untracked } from '@angular/core';
-import { IconComponent } from '@anotoki/lib/ui';
-import { TranslatePipe } from '../../core/i18n/translate.pipe';
+import { TranslatePipe } from '@anotoki/lib/translations';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { SurveyImage } from '../../core/survey/survey.model';
 
 /**

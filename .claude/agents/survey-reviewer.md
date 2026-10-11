@@ -37,7 +37,8 @@ Security and correctness first:
   for a taker holds the taker's row first (`visitorHold()`) so a row that went is 401
   `visitor_unknown`, never a 503. A visitor's `person` has no address: anything new in the admin
   panel that shows `person.email` says "Not signed in" for `person.visitor`. Only what
-  `SITE_OPEN_WHILE_UPDATING` lists answers while a migration is pending (the auth config, the strings, the health
+  `siteOpenWhileUpdating()` lists answers while a migration is pending (the auth config, the strings - the library's
+  `TranslationsRoutes::openPath()` -, the health
   check, the migrations routes - each exactly, never a prefix: the anotoki family's `SiteGate`, `api/migrations.php`) - never anything that
   reads or writes the site's data; the migrations routes' ADMIN check is the token's alone (`requireTokenRole()`);
   whatever applies migrations goes through `surveyMigrator()` on a connection of its own (one lock); the setup page
@@ -82,7 +83,7 @@ Security and correctness first:
   reaches the editor; revisions are sent; a conflict settled "mine" keeps only
   what this page changed (against `_server`), text by text for translations.
   Nothing typed in the admin panel lives only in a component (a session that
-  ends takes the page away without a navigation): `AdminStore`,
+  ends takes the page away without a navigation): `AdminStore`, the library's
   `LocalizationDrafts`. A failed save is said where the person is looking.
 - **The anotoki account's preferences** (theme, date order, clock, language -
   the IAM's migration 015): read from `AuthService.preferences` and the
@@ -123,11 +124,21 @@ Security and correctness first:
     `.other`, `{count}`); those suffixes are used for nothing else;
   - placeholders: the same ones in the template's parameters, the English
     string and (at most those) the Slovak one;
-  - `TranslationService` does not inject the Router, `AuthService` does not
-    inject `TranslationService`;
+  - the translations are the anotoki library's (`@anotoki/lib/translations`,
+    `Anotoki\Lib\Translations`): a copy of its code here, an edit of the
+    vendored library, or the site's own wire format (camelCase) next to the
+    library's snake_case is a finding; `siteTranslationsConfig()` reads
+    `AuthService` only when the service first needs it, and `AuthService` does
+    not inject `TranslationService`;
+  - the library's words (`anotoki.*`) are asked for by their whole key, never
+    by the kit's short name; one that speaks to the reader is formal Slovak in
+    the database and in `FORMAL_SLOVAK` alike;
   - on the server: `languageCodeOk()` before any query with a code from an
-    address; `updated_by` from `currentUser()` only; every save of strings
-    through `translationsCheck()`; the public bundle takes no user middleware.
+    address; `updated_by` from `currentUser()` only (`translationWriter()`);
+    who may reword strings and keep languages is this site's check on the
+    library's route groups (EDITOR / ADMIN, a language's delete ADMIN's -
+    a group without it is a finding); the public bundle takes no user
+    middleware.
 - **Migrations**: a new file (never an edited applied one); data-changing ones
   end in a `DO $$` gate; names that do not clash; the tests' template picks it up.
   String migrations: inserts that never write over a row that is there, one
@@ -148,10 +159,11 @@ Then the house style:
 - Angular: three files per component, OnPush, signals, `inject()`, inputs for
   route/query parameters, colours from tokens (light and dark), 390 px; no
   logic duplicated from `core/` into a component. The UI kit is the family's
-  (`@anotoki/lib`): a copy of a kit piece in `src/app/ui/`, a global style a
-  kit component would meet, or a kit word the site has a string for that is
-  not in `core/kit.ts`'s `SITE_KEYS` (the page would say the kit's word - in
-  Slovak the kit's ty) is a finding.
+  (`@anotoki/lib` 0.3.0): a copy of a kit piece in `src/app/ui/`, a global
+  style a kit component would meet, an import from the `@anotoki/lib/ui`
+  barrel instead of the piece's own entry point (the first load), or a
+  selector of the kit's 0.2.0 class names in a spec or the browser check
+  (they read nothing now) is a finding.
 - PHP: `declare(strict_types=1)`, functions by area, comments that say why.
 - Tests: new rules, routes and refusals have tests (`backend/tests/`, `*.spec.ts`);
   `php tests/run.php` and `npm test` pass - run them. A test must fail with

@@ -2,9 +2,10 @@
 
 // The migration engine - the anotoki family's (anotoki/lib, through
 // api/migrations.php): a database is built from migrations/survey/ in order,
-// each file once, recorded in the `migrations` table the site has always had
-// - by the engine, and by the command line from nothing at all - and what it
-// builds keeps the rules the code leans on.
+// then from the library's own set (anotoki_translations), each file once,
+// recorded in the `migrations` table the site has always had - the library's
+// files as set/name - by the engine, and by the command line from nothing at
+// all - and what it builds keeps the rules the code leans on.
 
 declare(strict_types=1);
 
@@ -15,11 +16,6 @@ function server_pdo(string $name): PDO
     return dbConnect(machineDatabaseSettings(), $name);
 }
 
-/** A file as the engine names it: with its set, the site's one. */
-function file_entry(string $name): array
-{
-    return ['set' => 'survey', 'name' => $name];
-}
 
 /** `php migration.php` with $arguments, for the settings in $config: [exit code, what it printed]. */
 function migration_cli(string $config, array $arguments = []): array
@@ -31,16 +27,22 @@ function migration_cli(string $config, array $arguments = []): array
 }
 
 test('an empty database gets every migration, recorded once - in the table the site has always had', function (): void {
-    $files = migration_files();
-    assert_same('001_initial_schema.sql', $files[0] ?? null, 'the files, in the order they run');
+    $entries = migration_entries();
+    assert_same(['set' => 'survey', 'name' => '001_initial_schema.sql'], $entries[0] ?? null, 'the files, in the order they run');
+    assert_same(
+        [['set' => 'anotoki_translations', 'name' => '001_languages_and_strings.sql'], ['set' => 'anotoki_translations', 'name' => '002_library_words.sql']],
+        array_values(array_filter($entries, static fn(array $entry): bool => $entry['set'] !== 'survey')),
+        'the anotoki library\'s set after the site\'s own'
+    );
+    assert_same('survey', $entries[count($entries) - 3]['set'], 'every file of the site\'s own before the library\'s');
     $name = test_empty_db('fresh');
     $migrator = surveyMigrator(server_pdo($name));
-    assert_same(array_map('file_entry', $files), $migrator->applicable(), 'all of them pending...');
+    assert_same($entries, $migrator->applicable(), 'all of them pending...');
     $pdo = server_pdo($name);
     assert_false((bool) $pdo->query("SELECT to_regclass('migrations') IS NOT NULL")->fetchColumn(), '...and nothing written to find out');
 
     $result = $migrator->apply();
-    assert_same(['applied' => array_map('file_entry', $files), 'failed' => null, 'error' => null, 'busy' => false, 'note' => null], $result);
+    assert_same(['applied' => $entries, 'failed' => null, 'error' => null, 'busy' => false, 'note' => null], $result);
     assert_same([], $migrator->applicable());
     assert_same(['applied' => [], 'failed' => null, 'error' => null, 'busy' => false, 'note' => null], $migrator->apply(), 'a second run applies nothing');
     foreach (['users', 'surveys', 'responses', 'images', 'survey_images', 'languages', 'translation_keys', 'translations'] as $table) {
@@ -52,9 +54,9 @@ test('an empty database gets every migration, recorded once - in the table the s
         [['id', 'integer'], ['filename', 'character varying'], ['applied_at', 'timestamp without time zone']],
         $pdo->query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'migrations' ORDER BY ordinal_position")->fetchAll(PDO::FETCH_NUM)
     );
-    assert_same($files, $pdo->query('SELECT filename FROM migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN), 'one row a file, in the order they ran');
+    assert_same(array_map('migration_record', $entries), $pdo->query('SELECT filename FROM migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN), 'one row a file, in the order they ran - the library\'s with its set');
     $status = $migrator->status();
-    assert_same([['survey'], [], []], [$status['sets'], $status['pending'], $status['missing']]);
+    assert_same([['survey', 'anotoki_translations'], [], []], [$status['sets'], $status['pending'], $status['missing']]);
     foreach ($status['applied'] as $row) {
         assert_match('/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/D', (string) $row['applied_at'], 'when, in UTC');
     }
@@ -62,7 +64,7 @@ test('an empty database gets every migration, recorded once - in the table the s
 });
 
 test('php migration.php builds a database from nothing - made, every file applied - and then says it is up to date', function (): void {
-    $files = migration_files();
+    $files = array_map('migration_record', migration_entries());
     $name = dbName() . '_cli';
     // Not there yet: the command line makes it. Dropped at the end like the file's own.
     $GLOBALS['TEST_DBS'][] = $name;

@@ -72,9 +72,15 @@ test('the build: exactly what to upload - no settings, no tools, no composer fil
     foreach (['api/index.php', 'api/.htaccess', 'api/bootstrap.php', 'api/anotoki_iam.php', 'api/translations.php', 'api/routes/admin.php', 'api/migrations.php',
         'config/config.php', 'config/.htaccess', 'migrations/survey/001_initial_schema.sql', 'migrations/.htaccess', 'vendor/autoload.php',
         'vendor/slim/slim/Slim/App.php', 'vendor/anotoki/lib/php/src/Migrations/Migrator.php', 'vendor/anotoki/lib/php/src/Migrations/Http/SiteGate.php',
+        'migrations/survey/010_strings_through_the_library.sql',
+        // The anotoki library's words: its code, its migration set and the words it ships - run and read on the host.
+        'vendor/anotoki/lib/php/src/Translations/Translations.php', 'vendor/anotoki/lib/php/src/Translations/Http/TranslationsRoutes.php',
+        'vendor/anotoki/lib/php/migrations/translations/001_languages_and_strings.sql', 'vendor/anotoki/lib/php/migrations/translations/002_library_words.sql',
+        'vendor/anotoki/lib/php/resources/library-words.json',
         'vendor/.htaccess', 'storage/.htaccess', 'media/font-TEST.woff2'] as $file) {
         assert_true(in_array($file, $files, true), "$file is in the upload");
     }
+    assert_false(in_array('tools/translation_keys.php', $files, true), 'the key scan stays on computers with a shell');
     foreach ($files as $file) {
         // ^translations\.php$ is the command line's, beside setup.php - anchored, because api/translations.php is the API's and must be there.
         assert_false((bool) preg_match('~\.local\.php$|^tests/|^tools/|router\.php|migration\.php|^translations\.php$|^secret\.php|^\.htaccess.+|^composer\.(json|lock)$|package\.json~', $file), "$file should not be uploaded");

@@ -276,7 +276,8 @@ function surveySlugTaken(string $slug): ApiError
  * Holds the languages a survey is about to be kept in - the one it is written
  * in and every one it is translated into - until the save is done. The body
  * was checked against the languages a moment ago, outside the transaction;
- * without this, one of them could be deleted in that moment (languageDelete()
+ * without this, one of them could be deleted in that moment (a language's
+ * delete - the library's, which asks SurveyLanguageUsage::refuseDelete() -
  * counts the surveys that use a language, and cannot see a save that is not
  * finished), and the survey would be left in a language the site no longer
  * has. With it the two wait for each other on the language's row: a delete

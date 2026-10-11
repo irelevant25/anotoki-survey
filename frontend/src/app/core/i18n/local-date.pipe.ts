@@ -1,9 +1,9 @@
 import { Pipe, PipeTransform, inject } from '@angular/core';
+import { TranslationService } from '@anotoki/lib/translations';
 import { type AnotokiDateFormat } from '../auth/anotoki-auth';
 import { AuthService } from '../auth/auth.service';
 import { formatDatePattern } from '../util/date-patterns';
 import { calendarDays } from '../util/dates';
-import { TranslationService } from './translation.service';
 
 /** A day in full, a short date, or how long ago. */
 export type LocalDateStyle = 'day' | 'date' | 'ago';

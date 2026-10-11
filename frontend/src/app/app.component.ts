@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, linkedSignal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, linkedSignal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SiteGateComponent, SitePagesDirective, SiteStatus } from '@anotoki/lib/migrations';
 import { ConfirmHostComponent } from '@anotoki/lib/ui/dialog';
@@ -6,7 +6,6 @@ import { ToastHostComponent } from '@anotoki/lib/ui/toast';
 import { LoadErrorComponent } from './boot/load-error/load-error.component';
 import { AuthService } from './core/auth/auth.service';
 import { BOOTED } from './core/boot';
-import { PAGES_CLOSED } from './core/migrations';
 import { LightboxComponent } from './ui/lightbox/lightbox.component';
 import { LightboxService } from './ui/lightbox/lightbox.service';
 
@@ -22,6 +21,13 @@ type Drawn = 'site' | 'load-error' | 'nothing';
  * or the card saying the server could not be reached; plus what is drawn over
  * any page: toasts and the confirm dialog (the family's kit, @anotoki/lib/ui),
  * and a picture shown large.
+ *
+ * Nothing of a page is made while the site cannot run - the gate's template -
+ * nor in the moment it runs again: the family's page finds that out by asking
+ * (by itself, or its Try again) and reloads the page without telling the gate
+ * first (SiteStatus.checkForReload(), anotoki-lib 0.2.0). The one way the gate
+ * opens in place is an update applied in this tab (the Migrations page), and
+ * then the pages are meant to open where they stand.
  */
 @Component({
   selector: 'app-root',
@@ -34,32 +40,7 @@ export class AppComponent {
   private readonly _auth = inject(AuthService);
   private readonly _status = inject(SiteStatus);
   private readonly _booted = inject(BOOTED);
-  /** The site could not run in this page load, and no update applied here has opened it again (core/migrations.ts). */
-  private readonly _closed = inject(PAGES_CLOSED);
   protected readonly lightbox = inject(LightboxService);
-
-  constructor() {
-    effect(() => {
-      if (this._status.blocked()) {
-        this._closed.set(true);
-      }
-    });
-  }
-
-  /**
-   * Whether the pages wait for the reload: the site could not run in this page
-   * load and runs again, and no update applied in this tab opened it
-   * (PAGES_CLOSED). The family's page finds the site running again by asking
-   * (by itself, or its Try again) and reloads the page in the next breath -
-   * but the answer opens the gate first, and a page made in that moment would
-   * run for nothing (ask the API, raise a toast) and flash: for a visitor,
-   * past a guard that let it through only because the site was closed.
-   * Everything else is the gate's own decision: its marked template - the
-   * outlet - is made only while it shows the pages, so nothing of a page runs
-   * behind the family's page, and the site's ADMIN reaches the Migrations page
-   * while an update waits.
-   */
-  protected readonly held = computed(() => this._closed() && !this._status.blocked());
 
   /**
    * Nothing is drawn until the start has run to its end (boot()): the sign-in
@@ -75,18 +56,17 @@ export class AppComponent {
    * so a Sign in comes back to the page it left.
    *
    * The card saying the server could not be reached is for a start whose
-   * sign-in got no answer where the status had one - never for a site that
-   * could not run in this page load (the moment before its reload). While a
-   * start is running nothing new is drawn: a card that was there stays - its
-   * "Try again" starts again, and its button goes on turning until the answer
-   * is known.
+   * sign-in got no answer where the status had one - never while the site
+   * cannot run. While a start is running nothing new is drawn: a card that was
+   * there stays - its "Try again" starts again, and its button goes on turning
+   * until the answer is known.
    */
   protected readonly drawn = linkedSignal<Drawn | null, Drawn>({
     source: () => {
       if (!this._booted()) {
         return null;
       }
-      if (this._status.blocked() || this._closed()) {
+      if (this._status.blocked()) {
         return 'site';
       }
       const status = this._auth.status();

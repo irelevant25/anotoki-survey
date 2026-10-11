@@ -241,7 +241,7 @@ back its `<router-outlet>`.
 ## The top bar
 
 The bar is the anotoki family's, the library's `<anotoki-top-bar>`
-(`@anotoki/lib/shell`, anotoki-lib 0.2.0 - built from this site's own bar,
+(`@anotoki/lib/shell`, anotoki-lib 0.3.0 - built from this site's own bar,
 which the IAM, Japanese, Piano and the build analyzer had copied), and
 `layouts/top-bar` is this site's thin wrapper around it: it tells the bar what
 is this site's, worded - its brand, its sections, the person and their role,
@@ -277,22 +277,29 @@ links. No key pressed in the bar reaches the page (`isolateKeys`). Signing
 out saves first (`AdminStore.flushAll()`) and asks when something would be
 lost - a survey's change that cannot be saved, strings or languages typed and
 not saved - while its item waits ("Saving…", the kit's); Sign in waits the
-same way for a visitor's answers on their way. Every word of it is a key
-(`topbar.*`, `common.signIn` / `signOut`, `brand.area`, `brand.adminPanel`); the admin panel reads
-them in English (`effectiveLanguage`) - but the Migrations link, which only an
-ADMIN in the admin panel ever sees: its English word is written in the code
-(`label`), as the admin panel's pages are. The kit's own words in the bar -
-the menus' names, Sign in, Sign out, the theme's - are the site's strings
-too, through `core/kit.ts` (*The UI kit*, below).
+same way for a visitor's answers on their way. Every word of it is a key -
+the site's own (`topbar.surveys`, `topbar.backToSurveys`, `brand.area`,
+`brand.adminPanel`, ...) and the library's (`anotoki.topbar.*`: the role,
+"Your anotoki account", "Admin panel", the menus' names, Sign in, Sign out;
+`anotoki.theme.*`, `anotoki.language.*`); the admin panel reads them in
+English (`effectiveLanguage`) - but the Migrations link, which only an ADMIN
+in the admin panel ever sees: its English word is written in the code
+(`label`), as the admin panel's pages are. The kit's own words in the bar come
+from the site's database too, through `core/kit.ts` (*The UI kit*, below).
 
 ## The UI kit
 
 The pieces every page is drawn with are the anotoki family's (anotoki-lib
-0.2.0, the owner's decisions of 2026-10-07 - [decisions](decisions.md)):
+0.3.0, the owner's decisions of 2026-10-07 - [decisions](decisions.md)):
 buttons, icons, spinners, badges, alerts, cards, empty states, page headers,
 fields, switches, selects, tabs, the drawer, the dialog and "Are you sure?",
-the toasts (`@anotoki/lib/ui` and its entry points), the top bar, the brand,
-the theme switch and the language switcher (`@anotoki/lib/shell`). The
+the toasts (each from its own entry point - `@anotoki/lib/ui/button`,
+`/ui/icon`, `/ui/config`, ... - never the `@anotoki/lib/ui` barrel, which
+would bring every piece into the first load), the top bar, the brand,
+the theme switch and the language switcher (`@anotoki/lib/shell`). Their
+class names are the library's own (`.anotoki-<piece>__<part>`,
+`anotoki-<piece>--<state>`): a spec or the browser check that reads the kit's
+markup reads those. The
 survey keeps only its own: the rich text editor, the lightbox, a survey's
 picture and the strip of pictures (`src/app/ui/`), the layouts' states, and
 the look of the raw fields a page draws itself (`src/styles/_fields.scss`,
@@ -306,12 +313,16 @@ inside each such component's styles).
   rule) and `.rich`, `mark` and the drag and drop - nothing a kit component
   could meet.
 - **The words**: the kit has its own (Sign in, the menus' names, a toast's X,
-  "Saving…"), built in for English and informal Slovak. `core/kit.ts` gives it
-  the site's: for each kit word the site has a string for, the site's key
-  (`lookup` - so every word the site said before the kit still shows, an
-  administrator's rewording included, in the language on the page and in
-  English in the admin panel), and for the rest formal Slovak (`words`) -
-  never the kit's ty.
+  "Saving…"), built in for English and informal Slovak - and each is a key of
+  the library's in the site's database too, `anotoki.<word>` (the library's
+  migration set writes them; *The site's own words*, below). `core/kit.ts`
+  gives the kit `TranslationService.forKit()`: the language on the page
+  (English in the admin panel) and a `lookup` that reads the database's
+  string of `anotoki.<word>` - so an administrator's rewording on the
+  Translations page shows, and every word the site said before the library
+  still does (migration 010 moved the site's strings under those keys) - and,
+  while the database cannot be read, this site's formal Slovak
+  (`FORMAL_SLOVAK`, `core/translations.ts`) - never the kit's ty.
 - **The icons** the site's templates name beyond the kit's own are
   registered in `core/kit.ts` (`SURVEY_ICONS`, from `@anotoki/lib/ui/icons`):
   an icon nobody registered draws nothing.
@@ -379,7 +390,7 @@ closing day, the times - are columns beside it. The frontend's
 | `images` | the pictures' bytes (bytea), type and size - never changed once kept |
 | `survey_images` | which survey shows which picture, rewritten with every save |
 | `languages` | the languages the site has: code, name in English, name as its speakers write it, offered or not, order |
-| `translation_keys` | the keys of the site's own words, each with a description for whoever translates it - written by migrations only |
+| `translation_keys` | the keys of the site's own words, each with a description for whoever translates it - written by migrations only; the library's own (`anotoki.*`) by its migration set |
 | `translations` | one string: a key in a language, who last reworded it and when (nobody: as a migration wrote it). No row: that language reads the key in English |
 
 Ids: the database makes the survey, response and picture ids (UUIDs); the
@@ -390,7 +401,9 @@ an answer keeps pointing at its option when the option is renamed or moved.
 Migrations are the schema: `backend/migrations/survey/NNN_name.sql`, applied in
 order by the anotoki family's engine - the library anotoki-lib
 (`Anotoki\Lib\Migrations\Migrator`, in `vendor/anotoki/lib`), through
-`api/migrations.php` (`surveyMigrator()`, the site's one set `survey`) - from
+`api/migrations.php` (`surveyMigrator()`: the site's set `survey`, then the
+library's `anotoki_translations` - `surveyMigrationSets()`; the library's
+files are recorded as `anotoki_translations/NNN_….sql`) - from
 `setup.php`, `migration.php`, the admin panel's Migrations page and the tests'
 template. Each file runs in a transaction of its own with its row in
 `migrations` (`id, filename, applied_at` - the table as it always was; the
@@ -406,7 +419,12 @@ adds `responses.language`, `005` the top bar's and the sign-in's strings,
 the pages say to a visitor (`visitor.*`, `take.asVisitor`, two refusals, three
 `error.*`), `008` the two toasts of a choice the anotoki account did not take
 (`theme.notSaved`, `language.notSaved`), `009` takes away the four strings of
-the "not set up yet" page the family's page replaced (`boot.notSetUp.*`).
+the "not set up yet" page the family's page replaced (`boot.notSetUp.*`),
+`010` moves the site's strings for the kit under the library's keys
+(*The site's own words*, below). After them the library's own set:
+`anotoki_translations/001` proves the three tables are of the shape the
+library relies on (and makes them on a site born without them), `002` writes
+the library's words (`anotoki.*`), only for a key that has no string yet.
 
 ## A database behind the code
 
@@ -419,8 +437,9 @@ of every route and asks, for each request, where the site stands
 site was never installed: `storage/installed.lock`), **an update waiting** (a
 migration file not applied - every address is 503 `update_pending` with
 `Retry-After: 60`, nothing is read from or written into tables that may not be
-there, except what signing in and applying it need: `SITE_OPEN_WHILE_UPDATING`
-- the sign-in's settings, a language's strings (read-only), `/api/health` and
+there, except what signing in and applying it need: `siteOpenWhileUpdating()`
+- the sign-in's settings, a language's strings (read-only: the library's
+`TranslationsRoutes::openPath()`, one segment after `/api/translations/`), `/api/health` and
 the Migrations page's three routes - `/api/admin/migrations`, `/file` and
 `/apply`, those addresses exactly and nothing else under them - ADMIN from the
 token alone),
@@ -441,15 +460,18 @@ an unmarked template is not the pages at all): to somebody taking surveys,
 or an EDITOR, "The site is being
 updated" in their language - no error, no code, nothing to press but a quiet
 Sign in while nobody is signed in - which asks again by itself and reloads once
-the site runs (no page is made in the moment before the reload, when the gate
-has opened: once the site could not run in a page load, its pages wait for the
-reload or for an Apply in that tab - `PAGES_CLOSED`, `AppComponent.held`); to
+the site runs (no page is made in the moment before the reload: the family's
+page asks with `SiteStatus.checkForReload()`, anotoki-lib 0.2.0, whose answer
+the gate is never told, so it stays shut until the reload - the site's own
+hold for that moment, `PAGES_CLOSED` and `AppComponent.held`, went with 0.3.0,
+`app.component.spec.ts` proving the gate shut); to
 the site's ADMIN, in English, "A database update is waiting" and "Open
 Migrations", which asks again by itself too (another ADMIN may apply the
 update meanwhile). Signed out at the Migrations page's address, the quiet
 Sign in comes back there, to the page. The Migrations page
 (`<anotoki-migrations-page>`, in the admin layout, with only Migrations in the
-bar) lists Pending, Applied (with each file's SQL) and Missing; its "Apply
+bar) lists Pending (by set: the site's own, `survey`, then the library's,
+`anotoki_translations`), Applied (with each file's SQL) and Missing; its "Apply
 pending" (`POST /api/admin/migrations/apply`, behind a question) runs the
 pending files in order, each in its own transaction, and stops at the first
 that fails - rolled back whole, named, with the database's whole error in a
@@ -498,10 +520,10 @@ sentences stay English and are never shown to somebody taking a survey.
   (`\s` and `\p{Z}` in PHP also take U+0085 and U+180E, which the browser does
   not). So the two sides find the same labels empty, the same translations
   missing a text, the same answers given. The site's own strings and the
-  languages' names ask more - something in them to see (`textBlank()`): that
-  is the server's rule, for what would otherwise be kept and drawn as an
-  empty place. Its one twin in the browser is `blankText()` in the Translations
-  page's `translation-grid.ts`, used only to tell whether a box is a change: a
+  languages' names ask more - something in them to see (the library's
+  `Text::blank()`): that is the server's rule, for what would otherwise be
+  kept and drawn as an empty place. Its one twin in the browser is the
+  library's `blankText()` on its Translations page, used only to tell whether a box is a change: a
   box holding nothing to see over no string is none (no "1 string changed",
   no "The string is saved."). A blank box over a string is still a change - it
   means "delete the row".
@@ -634,8 +656,31 @@ English is what every other language falls back to, string by string, so it
 cannot be switched off, deleted or left empty. A string is text and is drawn
 as text - there is no HTML in one.
 
+**Whose code.** The anotoki family's (anotoki-lib 0.3.0; the owner's decision
+of 2026-10-11, [decisions](decisions.md)): every anotoki site keeps its words
+in the same three tables, and one implementation reads and writes them. On
+the server `Anotoki\Lib\Translations` - the bundle, the admin routes, every
+check of a string, the command line (`TranslationsRoutes`,
+`TranslationsCommand`) - which `api/translations.php` configures for this
+site: the languages it is released in (`en`, `sk`), what deleting a language
+would leave behind (`SurveyLanguageUsage`: a survey written in it), who saved a
+string (`translationWriter()`), its error body (`respondRefusal()`). In the
+browser `@anotoki/lib/translations` - the `TranslationService`, the pipes, the
+kit's words, the language switcher's - configured in `core/translations.ts`,
+and the admin pages, `@anotoki/lib/translations/admin`. One wire format, the
+IAM's (snake_case). Who may do what is this site's: the library checks
+nobody (*Editing them*, below). The library has words of its own, under
+`anotoki.` - its kit's and its status page's - in the same tables: its
+migration set (`anotoki_translations`, after the site's own) writes them only
+where a key has no string, and they are reworded on the Translations page like
+any other. Migration 010 moved this site's strings for the kit under those
+keys before the library's set first ran - every language, an owner's rewording
+with who saved it and when - and wrote the library's two sentences that speak
+to the reader and had no key here in this site's formal Slovak.
+
 **How a page gets them.** One request, `GET /api/translations/{code}`
-(`translationBundle()`): the language's strings with English merged underneath,
+(the library's `Translations::bundle()`, its route in `routes/public.php`):
+the language's strings with English merged underneath,
 the languages on offer, and English itself beside them for the admin panel. No
 token goes with it. It is answered with an `ETag`, so asking again is a 304. A
 code with a region that is not offered itself is answered by its language
@@ -654,7 +699,8 @@ was opened with when the router never got anywhere (its first navigation was
 refused by the sign-in guard while the server was out of reach, which would
 leave a blank page), the address in the bar otherwise.
 
-`TranslationService.init()`:
+The library's `TranslationService.init()` (as `core/translations.ts` configures
+it - the site's storage names, the account, `canAsk`):
 
 - takes `?lang=` out of the address (before the router reads it) and keeps it
   for this tab in sessionStorage - it survives the round trip to the IAM;
@@ -671,11 +717,12 @@ leave a blank page), the address in the bar otherwise.
   the account's language, the device's choice, the browser's, English;
 - starts from the cached bundle (localStorage `anotoki-survey:language-cache`)
   when it is a bundle and is in the language settled on (a cache that is not
-  is removed), and still asks the server, waiting up to a second for the answer
-  (`CACHE_WAIT_MS`) - a release adds strings, and a returning reader would
-  otherwise see their keys. Without a cache it waits for the request, and asks
-  once more half a second later (`RETRY_WAIT_MS`) when the first did not come;
-  after that the page is drawn as it is - in keys;
+  is removed - a bundle cached before 0.3.0, with `nativeName`, is not one),
+  and still asks the server, waiting up to a second for the answer (the
+  library's `waits.cache`) - a release adds strings, and a returning reader
+  would otherwise see their keys. Without a cache it waits for the request,
+  and asks once more half a second later (`waits.retry`) when the first did not
+  come; after that the page is drawn as it is - in keys;
 - always settles against the list of offered languages that came with the
   answer, whatever answered, and fetches the settled language's bundle when it
   is another than the one in hand. That is one request in the usual case and
@@ -689,8 +736,9 @@ leave a blank page), the address in the bar otherwise.
   where it is - nobody is signed in, so the token's wish is not known, and
   those are the reader's own words from the last visit. The load error card
   takes the cached string when there is one and the English written in the page
-  otherwise (`boot/kept-word.ts`); the family's page has words of its own (the
-  library's English and Slovak).
+  otherwise (`boot/kept-word.ts`); the family's page reads the library's keys
+  (`anotoki.siteStatus.*`) from that cached bundle, else this site's formal
+  Slovak (`FORMAL_SLOVAK`), else the library's own words.
 
 **Asking again.** Every load - the start, a choice in the chooser, `reload()`,
 asking again - takes the next turn, and an answer is used only while its turn
@@ -727,7 +775,12 @@ it.
   `Intl.PluralRules` for the language on the page (Slovak: 1, 2-4, 0 and 5+),
   the number always `{count}`.
 - **A key with no string comes back as itself**, on the page, and warns once in
-  the console - the owner wants to see which key is missing.
+  the console - the owner wants to see which key is missing. A library key
+  (`anotoki.*`) never does: the database's string, else this site's
+  (`FORMAL_SLOVAK`), else the library's built-in words.
+- A number in a plural family is written the way the language on the page
+  writes numbers (`Intl.NumberFormat`: "1 000" in Slovak, with a no-break
+  space).
 - Keys put together at run time (`error.*`, `answer.rule.*`, `answer.problem.*`,
   `aboutYou.gender.*`, `aboutYou.age.*`) come from closed sets declared in
   `core/i18n/dynamic-keys.ts`, through a table with a fallback key - never from
@@ -740,7 +793,8 @@ it.
   preferences*, above).
 
 **The admin panel is English whatever the person reads.** `effectiveLanguage`
-is `en` while the address is `/admin` or under it, and everything that words a
+is `en` while the address is `/admin` or under it (the library's
+`englishOnly`, the site's prefix), and everything that words a
 string goes through it - so the pieces both areas share (the top bar, the UI
 kit, toasts) are English there, and `<html lang>` says `en`. The service cannot
 ask the Router where the page is (the Router builds the title strategy, which
@@ -756,7 +810,7 @@ calls its admin area the admin panel.
 
 **The chooser** (the family's language switcher, in the top bar where people take
 surveys, when more than one language is on offer - `core/kit.ts` gives it the
-site's languages and `setLanguage()`): a button with the code
+service's `forShell()`: the site's languages and `setLanguage()`): a button with the code
 ("SK") and a menu of the languages under the names their speakers give them.
 Its accessible name holds the code it shows ("Jazyk: Slovenčina (SK)", `language.button`
 with `{name}` and `{code}`): somebody who speaks to the computer says "click SK"
@@ -772,47 +826,54 @@ language })`), so every anotoki site follows it: one save at a time, the
 latest choice last, and the answer to an earlier save never turns the page
 back. The page stays in the chosen language for the visit whatever the
 account answers - silently when the IAM does not offer that language
-(`invalid_request`: it is this site's own, then), with a toast
-(`language.notSaved`) when the IAM could not be reached. A change of the
+(`invalid_request`: it is this site's own, then), with a note under the
+switcher (`anotoki.language.notSaved`) when the IAM could not be reached. A change of the
 account's language made elsewhere (its page, another site, another tab) is
 followed when it comes, over the device's choice and an earlier choice on the
 page - not over this tab's `?lang=`, and not while a choice made here is on
 its way to the account.
 
-**Editing them** (`pages/admin/localization`, EDITOR and ADMIN): *Translations*
-is a grid - a key a row, a language a column - that saves only the cells that
+**Editing them** (the family's pages - `TranslationsPageComponent` and
+`LanguagesPageComponent` from `@anotoki/lib/translations/admin`, a lazy entry
+point, routed in `pages/admin/admin.routes.ts`; for EDITOR and ADMIN,
+`admin.allows` in `core/translations.ts`): *Translations*
+is a grid - a key a row, a language a column, the library's own keys among the
+site's - that saves only the cells that
 changed; the server checks all of them before it writes any
-(`translationsCheck()`: the key exists, the language exists, the length, no
+(the library's `StringCheck`: the key exists, the language exists, the length, no
 brace that is not a placeholder, the placeholders) and answers the grid as it
-is now. *Languages* adds a language - **hidden, unless its switch "Offer it to
+is now; the bar says "The string is saved." *Languages* adds a language - **hidden, unless its switch "Offer it to
 readers right away" is on**: it has no strings yet - renames, reorders, offers
-or hides it; only an ADMIN deletes one, and never English, a language the
-migrations write strings for, or one a survey uses. A language can be exported
-and imported as a flat JSON file, from the page and from the command line
-(`backend/translations.php`). After every save, import or change of a
-language both pages call `TranslationService.reload()`.
+or hides it, each thing it did said in a line of its own on the page; only an
+ADMIN deletes one (the server: `requireRoleFor('DELETE', ROLE_ADMIN)` - the
+page offers Delete to an EDITOR too, and shows the server's refusal), and never
+English, a language the migrations write strings for, or one a survey uses. A
+language can be exported and imported as a flat JSON file, from the page and
+from the command line (`backend/translations.php`). After every save, import
+or change of a language both pages call `TranslationService.reload()`.
 
-- **What is typed and not saved lives outside the pages**, in
-  `LocalizationDrafts` (`core/admin/localization-drafts.service.ts`): the
-  changed cells (`strings`) and the changed rows (`languages`). The admin
+- **What is typed and not saved lives outside the pages**, in the library's
+  `LocalizationDrafts`: the changed cells (`strings`) and the changed rows
+  (`languages`). The admin
   layout draws its pages only for staff, so a session that ends - the IAM's
   idle limit, a sign-out in another tab or on another anotoki site - takes the
   page away with no navigation, and no guard runs then. The router still asks
-  the pages' `unsavedChangesGuard` at the next navigation away - with no page,
+  the pages' `anotokiUnsavedChangesGuard` at the next navigation away - with no page,
   which it lets through (there is nobody to ask, and the drafts are not in the
   page); so the layout's links and Back work in that state. The drafts stay,
   and are mirrored to the tab's sessionStorage
-  (`anotoki-survey:localization-drafts`, `{owner, strings, languages}`),
-  because signing in again is a page load. They keep the store's owner rule:
-  only another person signing in lets go of them. The top bar's "Sign out"
+  (`anotoki-survey:localization-drafts`, `{owner, strings, languages}` - the
+  name and the shape the site always had), because signing in again is a page
+  load. Whose they are is the account's id (`account.userKey`): only another
+  person signing in lets go of them. The top bar's "Sign out"
   asks first (one question, with a survey's unsaved changes when there are
-  both) and gives them up when the answer is to go; "Leave" at the pages' own
-  question gives up that page's. The one `beforeunload` question for both
-  pages is the service's - asked while somebody is signed in, or when the
-  tab's storage would not keep the drafts; not while nobody is signed in and
-  the tab holds them, for the way on from there is the sign-in, which they
-  survive. The cost: closing such a tab while signed out is not asked about,
-  and loses them.
+  both; the drafts' entry point is loaded for it, for staff only) and gives
+  them up when the answer is to go (`LocalizationDrafts.clear()`); "Leave" at
+  the pages' own question gives up that page's. The one `beforeunload`
+  question for both pages is the library's - asked whenever boxes wait,
+  signed in or not: so also on the way to the IAM's sign-in after a session
+  ended, where the drafts survive the answer "Leave" (the site's own asked
+  nothing there; [decisions](decisions.md)).
 - A save that fails is said **in the bar Save is in**, which stays in view:
   "Nothing was saved." with the reason - until the next keystroke, which is
   the start of the next try: the bar says the count again (or "Everything is
@@ -833,19 +894,24 @@ language both pages call `TranslationService.reload()`.
   grid changes, not at a keystroke in a box: a row found only by its unsaved
   words does not leave under the cursor.
 
-**Held together by a test.** `backend/tools/translation_keys.php` scans the
-frontend's sources for the keys it uses; `tests/unit/translations.test.php`
+**Held together by a test.** `backend/tools/translation_keys.php` sets up the
+library's `KeyScanner` on the frontend's sources (the library's own keys,
+`anotoki.*`, are never looked for: its Angular half asks for them);
+`tests/unit/translations.test.php`
 fails when the frontend uses a key the migrations did not write, when the
 migrations wrote one nothing uses, when a key lacks its English or Slovak
-string, or when a Slovak string uses a placeholder its English does not have.
+string, or when a Slovak string uses a placeholder its English does not have;
+and when the library's words that speak to the reader are not this site's
+formal Slovak, in the database and in `FORMAL_SLOVAK` alike.
 The scan also fails what would show a key although "it exists" - a plural
 family asked for as one string (`'L' | translate`, `.t()`, `.around()`,
 `.has()`) or one string asked for as a family (`translatePlural`,
 `.plural()`) - a key put together from a prefix `dynamic-keys.ts` does not
 declare (a literal ending in a dot, a template literal going on with `${`),
 and `innerHTML` given a translated string, on one line or several. The same
-test file feeds every string the migrations wrote through `translationsCheck()`
-and compares each string migration's closing gate with the keys it writes.
+test file asks the library what a save would refuse of every string the
+migrations wrote (`storedRefusals()`) and compares each string migration's
+closing gate with the keys it writes.
 `php translations.php --status` says the same about the configured database
 (exit 1 when it is not clean).
 
@@ -953,19 +1019,20 @@ meet, each by a lock taken inside the request's transaction:
 - **A survey's save and a language's delete.** The save holds the rows of the
   languages it is written in and translated into (`surveyLanguagesLock()`,
   `FOR SHARE` - after the survey's own row in `surveySave()`, first thing in
-  `surveyCreate()`); `languageDelete()` holds the language's row
-  (`FOR UPDATE`), then counts the surveys that use it, then deletes - three
-  statements, so the count sees a save it waited for. Whichever comes second
+  `surveyCreate()`); the library's `deleteLanguage()` holds the language's row
+  (`FOR UPDATE`), then asks this site's `SurveyLanguageUsage::refuseDelete()`,
+  which counts the surveys that use it, then deletes - statements of their
+  own, so the count sees a save it waited for. Whichever comes second
   finds what the first did: the delete answers 409 `language_in_use`, the save
   422 "A language of this survey has just been deleted from the site…". No
   survey is left in a language the site does not have.
-- **Two people adding a language.** `languageCreate()` takes the table
-  (`LOCK TABLE languages IN SHARE ROW EXCLUSIVE MODE`) before it counts, so
+- **Two people adding a language.** The library's `createLanguage()` takes the
+  table (`LOCK TABLE languages IN SHARE ROW EXCLUSIVE MODE`) before it counts, so
   creators wait for each other and the most the site keeps (20) holds. Reading
   the rows, and locking them as the two saves do, is not held up.
-- **Two saves of the same strings.** `translationsCheck()` hands its changes
+- **Two saves of the same strings.** The library's check hands its changes
   back by key and then by language, so every save takes its rows in one order
-  and waits instead of deadlocking; `translationsSave()` holds the languages
+  and waits instead of deadlocking; its `save()` holds the languages
   `FOR SHARE` between the check and the writing.
 
 Everybody takes what they hold in one order, so they wait for each other and

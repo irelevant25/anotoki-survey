@@ -1,6 +1,6 @@
+import { TranslationService } from '@anotoki/lib/translations';
 import { ApiError } from '../../../core/api/api.service';
 import { errorKey, errorParams } from '../../../core/i18n/error-text';
-import { TranslationService } from '../../../core/i18n/translation.service';
 import { AGE_ID, GENDER_ID } from '../../../core/survey/about-you';
 
 /**

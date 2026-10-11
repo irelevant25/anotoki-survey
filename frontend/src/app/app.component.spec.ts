@@ -178,14 +178,34 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
       expect(page()).not.toBeNull();
     });
 
-    it('makes nothing either when it asks again and finds the site ready - the page reloads at once, and a page made in between would run for nothing', async () => {
+    it('makes nothing either when it asks again and finds the site ready - the page reloads, and the gate stays shut until it does', async () => {
       await behind();
       await at('/genshin-6-1');
-      // The family's page asking again by itself (or its Try again): ready - and it reloads the page.
-      await standing({ state: 'ready', installed: true });
+      // The family's page asking again by itself (anotoki-lib 0.2.0: SiteStatus.checkForReload()): ready - and it
+      // reloads the page. The answer is not reported, so the gate does not open in the moment before the reload, and
+      // no page of the site is made to run for nothing.
+      const asked = TestBed.inject(SiteStatus).checkForReload();
+      TestBed.inject(HttpTestingController).expectOne('/api/site-status').flush({ state: 'ready', installed: true });
+      expect(await asked).toBe('ready');
       await fixture.whenStable();
       expect(TestPageComponent.made).toBe(0);
+      expect(statusPage()).not.toBeNull();
       expect([page(), loadError()]).toEqual([null, null]);
+    });
+
+    it('its Try again finds the site back: the family’s page reloads the page, and nothing of a page is made before', async () => {
+      configure();
+      await standing({ state: 'unavailable', installed: true });
+      await start('ready', true);
+      await at('/genshin-6-1');
+      expect(heading()).toBe('The site is not available right now');
+      host.querySelector<HTMLButtonElement>('anotoki-site-status button')!.click();
+      TestBed.inject(HttpTestingController).expectOne('/api/site-status').flush({ state: 'ready', installed: true });
+      await settle();
+      // The answer is the reload's (jsdom has no navigation to show it): the gate was never told, and stays shut.
+      expect(TestBed.inject(SiteStatus).blocked()).toBe(true);
+      expect(TestPageComponent.made).toBe(0);
+      expect(statusPage()).not.toBeNull();
     });
 
     it('shows a signed-in member the same page, with nothing to press - on every address, the Migrations page’s too', async () => {

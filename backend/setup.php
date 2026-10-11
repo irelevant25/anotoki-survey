@@ -482,7 +482,9 @@ if ($method === 'POST') {
                 throw new RuntimeException('Another database update is running (an administrator\'s Apply on the Migrations page, or php migration.php). Nothing was saved. Wait a moment, then press Save again.');
             }
             if ($migrated['failed'] !== null) {
-                throw new RuntimeException('The database update ' . $migrated['failed']['name'] . ' failed: ' . $migrated['error']);
+                // The site's own files by their names, the anotoki library's with their set (anotoki_translations/...).
+                $failed = ($migrated['failed']['set'] === 'survey' ? '' : $migrated['failed']['set'] . '/') . $migrated['failed']['name'];
+                throw new RuntimeException('The database update ' . $failed . ' failed: ' . $migrated['error']);
             }
         } catch (PDOException $e) {
             $errors[] = 'Cannot connect to the database "' . $db['name'] . '" with these details: ' . setupShortError($e->getMessage());

@@ -435,7 +435,7 @@ test('steps, questions and options called "0" and "1" keep their translations: a
 test('the language a survey is written in does not change while a translation is kept across the change', function (): void {
     $survey = $GLOBALS['translated'];
     $id = $survey['id'];
-    $german = as_user(OWNER, 'POST', '/api/admin/languages', ['code' => 'de', 'name' => 'German', 'nativeName' => 'Deutsch']);
+    $german = as_user(OWNER, 'POST', '/api/admin/languages', ['code' => 'de', 'name' => 'German', 'native_name' => 'Deutsch']);
     assert_same(201, $german['status'], test_show($german['body']));
     $put = static fn(array $fields, int $revision): array => as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => $revision, 'survey' => $fields + $survey]);
     // What the database holds: [revision, language, the languages it is translated into].
@@ -524,7 +524,7 @@ test('a translation people are offered must be whole before the survey opens; th
 test('answers say which language the survey was read in - when it is one of the survey\'s; never a reason to refuse them', function (): void {
     $id = $GLOBALS['translated']['id'];
     // A language the site has and this survey does not.
-    assert_same(201, as_user(OWNER, 'POST', '/api/admin/languages', ['code' => 'fr', 'name' => 'French', 'nativeName' => 'Français'])['status']);
+    assert_same(201, as_user(OWNER, 'POST', '/api/admin/languages', ['code' => 'fr', 'name' => 'French', 'native_name' => 'Français'])['status']);
     $send = static fn(int $user, array $more): array => as_user($user, 'POST', '/api/surveys/two-languages/responses', $more + [
         'aboutYou' => ['gender' => 'undisclosed', 'age' => 'undisclosed'], 'answers' => ['q-element' => ['optionIds' => ['o-geo']]],
     ]);
@@ -562,7 +562,7 @@ test('answers say which language the survey was read in - when it is one of the 
     assert_same('language_in_use', as_user(OWNER, 'DELETE', '/api/admin/languages/de')['body']['code'] ?? null);
     $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => $survey['revision'], 'survey' => ['translations' => ['sk' => $survey['translations']['sk']]] + $survey]);
     assert_same(200, $saved['status'], test_show($saved['body']));
-    assert_same(204, as_user(OWNER, 'DELETE', '/api/admin/languages/de')['status']);
+    assert_same(200, as_user(OWNER, 'DELETE', '/api/admin/languages/de')['status']);
     assert_same([9, 0, 1], [
         (int) dbValue('SELECT count(*) FROM responses WHERE survey_id = ?', [$id]),
         (int) dbValue("SELECT count(*) FROM responses WHERE survey_id = ? AND language = 'de'", [$id]),
@@ -570,7 +570,7 @@ test('answers say which language the survey was read in - when it is one of the 
     ]);
 
     assert_same(204, as_user(OWNER, 'DELETE', "/api/admin/surveys/$id")['status']);
-    assert_same(204, as_user(OWNER, 'DELETE', '/api/admin/languages/fr')['status']);
+    assert_same(200, as_user(OWNER, 'DELETE', '/api/admin/languages/fr')['status']);
 });
 
 test('the server said nothing it should not have', function (): void {

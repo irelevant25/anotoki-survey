@@ -1,6 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { IconComponent } from '@anotoki/lib/ui';
+import { IconComponent } from '@anotoki/lib/ui/icon';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { AGE_ID, GENDER_ID } from '../../../core/survey/about-you';
 import { ABOUT_YOU_QUESTIONS } from '../../../core/survey/about-you-questions';

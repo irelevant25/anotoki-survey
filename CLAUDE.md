@@ -42,18 +42,18 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   self-delete). Never print the database password; never copy it anywhere git
   would publish.
 - **While the site cannot run, the anotoki family's library decides what
-  happens** (anotoki-lib - `anotoki/lib` 0.1.0 in `backend/vendor/`,
-  `@anotoki/lib` 0.2.0 in the frontend: 0.1.1 and 0.2.0 changed only the
-  Angular half; the owner's decision of
+  happens** (anotoki-lib 0.3.0 - `anotoki/lib` in `backend/vendor/`,
+  `@anotoki/lib` in the frontend, one version; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
   GitHub, never a local path). Its `SiteGate` stands in front of every route:
   without the settings every address but `/api/site-status` is `503
   {code: "not_set_up"}` (with the setup page only while the site was never
   installed - `storage/installed.lock`); with a migration pending `503
-  {code: "update_pending"}`, but signing in (`/api/auth/config`), the strings,
+  {code: "update_pending"}`, but signing in (`/api/auth/config`), the strings
+  (`GET /api/translations/{code}`, the library's `TranslationsRoutes::openPath()`),
   `/api/health` and the Migrations page's three routes (`/api/admin/migrations`,
   `/file`, `/apply` - each exactly, never what is under them; ADMIN judged
-  from the token alone) keep working (`SITE_OPEN_WHILE_UPDATING`,
+  from the token alone) keep working (`siteOpenWhileUpdating()`,
   `api/migrations.php`). In the browser the family's page stands instead of
   every page (`<anotoki-site-gate>`, the router outlet given to it as the
   `<ng-template anotokiSitePages>` so that no page is made behind it; the
@@ -126,14 +126,30 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   (`surveyTranslationsJson()`). People read a translation only when it is whole
   (`localizedSurvey()`, `core/survey/localize.ts`).
 - **The site's own words are in the database** (`languages`, `translation_keys`,
-  `translations`; `api/translations.php`), English and Slovak. Only what
-  somebody taking a survey sees is translated: those pages name a key
-  (`'home.title' | translate`, `core/i18n/`) and the admin panel stays English,
-  written in its templates. Migrations write the keys and their first strings;
-  the admin panel (`/admin/translations`, `/admin/languages`) only rewords them.
-  A key with no string shows as itself, on purpose. A string is text, never
-  HTML. Slovak here addresses the reader formally (Vy, capital V) - unlike the
-  other anotoki sites.
+  `translations`), English and Slovak - kept by the anotoki family's
+  translations module (anotoki-lib 0.3.0, the owner's decision; `docs/decisions.md`):
+  on the server `Anotoki\Lib\Translations` - the bundle, the admin routes,
+  every check of a string, the command line - wired in `api/translations.php`;
+  in the browser `@anotoki/lib/translations` - the `TranslationService`, the
+  `translate` / `translatePlural` pipes, the admin Translations and Languages
+  pages (`@anotoki/lib/translations/admin`, a lazy entry point) - wired in
+  `core/translations.ts`. One wire format, the IAM's (snake_case:
+  `native_name`, `sort_order`). Who may do what stays the site's: EDITOR and
+  ADMIN reword strings and manage languages, deleting a language is ADMIN's
+  (`routes/admin.php`). Only what somebody taking a survey sees is
+  translated: those pages name a key (`'home.title' | translate`) and the
+  admin panel stays English, written in its templates. Migrations write the
+  keys and their first strings; the admin panel (`/admin/translations`,
+  `/admin/languages`) only rewords them. The library's own words are keys
+  too, under `anotoki.` (the kit's, the status page's): its migration set
+  `anotoki_translations` writes them after the site's migrations, only where
+  a key has no string, and migration 010 moved the site's strings for the
+  kit under them first. A key with no string shows as itself, on purpose. A
+  string is text, never HTML. Slovak here addresses the reader formally (Vy,
+  capital V) - unlike the other anotoki sites and the library's own Slovak:
+  010 writes the library's words that speak to the reader formally, and
+  `FORMAL_SLOVAK` (`core/translations.ts`) says them while the database
+  cannot be read.
 - **Saves carry a revision.** The editor saves through `AdminStore.updateSurvey()`
   (in the editor, through `SurveyEditing`, by id); a save made to an old
   revision is a conflict the editor settles - never overwrite it silently, and
@@ -143,13 +159,17 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   never changed, and deleted a day after no survey shows them.
 - **Migrations are the schema**: `backend/migrations/survey/NNN_name.sql`, the
   family's engine (anotoki-lib's `Migrator`, through `surveyMigrator()` in
-  `api/migrations.php`; the `migrations` table as it always was). Never edit an applied one.
+  `api/migrations.php`; the `migrations` table as it always was), and after
+  them the library's own set (`anotoki_translations`, recorded as
+  `anotoki_translations/NNN_….sql`; `surveyMigrationSets()`). Never edit an applied one.
   Data-changing ones end with a `DO $$` gate that fails loudly. A string the
   site gains, rewords or stops using is a migration too (`003_site_strings.sql`
   is the pattern: a key, its English and its Slovak string, inserts that never
   write over what was reworded in the admin panel);
   `tests/unit/translations.test.php` fails when the frontend uses a key no
-  migration wrote, or a migration wrote one nothing uses.
+  migration wrote, or a migration wrote one nothing uses (the library's
+  `KeyScanner`, `tools/translation_keys.php`; the `anotoki.` keys are the
+  library's to check).
 - **PHP**: `declare(strict_types=1)`, functions by area (`survey*`, `response*`,
   `image*`, `richText*`, `answer*`, `language*`, `translation*`, `database*`), `?`
   parameters in every query, identifiers only from literals. `setup.php` stays
@@ -169,7 +189,8 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   admin panel too (the library's `ThemeService`, configured in
   `core/kit.ts`); dates in the account's order on both sides
   (`localDate`; the admin panel's through `AdminDates`, with its clock); its
-  language over the device's choice (`TranslationService`). The bar's theme
+  language over the device's choice (the library's `TranslationService`,
+  `account` in `core/translations.ts`). The bar's theme
   and the chooser save a choice to the account - shown at once, one save at a
   time, the last choice last, never turned back by an earlier save's answer.
   Signed out, the device's, as before; and while `preferences` is null (an IAM
@@ -178,8 +199,11 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. **The UI kit is the anotoki family's**
-  (anotoki-lib 0.2.0: `@anotoki/lib/ui` and its entry points, `@anotoki/lib/shell`;
-  the owner's decisions of 2026-10-07, `docs/decisions.md`), wired to the site
+  (anotoki-lib 0.3.0: each piece from its own entry point -
+  `@anotoki/lib/ui/button`, `/ui/icon`, `/ui/config`, ... - never the
+  `@anotoki/lib/ui` barrel, for the first load; `@anotoki/lib/shell`; its class
+  names its own, `.anotoki-<piece>__<part>`; the owner's decisions of
+  2026-10-07, `docs/decisions.md`), wired to the site
   in `core/kit.ts` and never copied here - `src/app/ui/` holds only the
   survey's own pieces (the rich text editor, the lightbox, its pictures).
   Colours only from the family's `--anotoki-*` tokens (`@anotoki/lib/styles`:
@@ -194,13 +218,13 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   pipes) or in a `computed()` / `effect()`. English in the templates: everything
   under `pages/admin` and `layouts/admin-layout`, the preview's own chrome, and
   the load error card's fallback beside its keys (`boot/kept-word.ts`). The
-  family's page and Migrations page bring their own words (the library's
-  English and Slovak; this site's formal Slovak for the one sentence that
-  addresses the reader, `core/migrations.ts`), and the same tokens. The kit's
-  own words (Sign in, the menus' names, the theme's, a toast's X) are the
-  site's strings wherever it has one (`core/kit.ts`: `lookup`, so an
-  administrator's rewording shows too) and, where it has none, this site's
-  formal Slovak - never the kit's built-in ty.
+  kit's words (Sign in, the menus' names, the theme's, a toast's X) and the
+  family's page's (`anotoki.siteStatus.*`) are the library's keys in the
+  site's database (`TranslationService.forKit()` in `core/kit.ts`,
+  `siteStatusWords()` in `core/migrations.ts`), so an administrator's
+  rewording shows too; while the database cannot be read, this site's
+  formal Slovak (`FORMAL_SLOVAK`) - never the kit's built-in ty. The
+  Migrations page is English, as the admin panel is.
 - **No changelog** on this site (the owner's decision); the version is
   `frontend/package.json`'s.
 
@@ -212,7 +236,7 @@ composer start                          # php -S localhost:8500 router.php: the 
 php tests/run.php                       # every PHP test, throwaway survey_test_* databases
 php tests/tools/testdb.php template --fresh   # after editing a migration the tests' template has applied
 php migration.php [--status|--dry-run]  # migrations for the configured database
-php translations.php --status           # the keys the frontend uses against the database's strings
+php translations.php --status           # the keys the frontend uses against the database's strings (the library's command)
 php translations.php --export sk [file] | --import sk file   # a language's strings as flat JSON
 php tools/build.php                     # the upload -> ../dist/ (builds the frontend too)
 php composer.phar update anotoki/lib --prefer-dist   # a new anotoki-lib release (with the frontend's, below; DEV.md)
