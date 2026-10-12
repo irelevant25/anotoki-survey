@@ -141,8 +141,9 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   `admin-people-scrubbed-1280-*` ("deleted-101", "Deleted at the IAM on …",
   the check's line), `admin-people-delete-asked-1280` (the question in the
   site's words), `admin-errors-1280-*` / `-390-*` (a 404 asked for, without its
-  query string; the gate's 503 of the update), `admin-backups-1280-*` /
-  `-390-*` (the two made before the update, the daily one, not encrypted),
+  query string; the page's own error, "Page" its source - and no line of the
+  gate's 503 of the update: a state, not a failure, anotoki-lib 0.5.0), `admin-backups-1280-*` / `-390-*` (the two made before the update,
+  the daily one, not encrypted, each one's maker in the By column),
   `admin-backups-sign-in-again-1280` ("Sign in again first" in the dialog),
   `admin-backups-downloaded-1280` (the one made by hand, "Downloading"),
   `admin-audit-1280-*` / `-390-*` (who did what, the newest first: the
@@ -476,7 +477,8 @@ deleted, so the site asks again at once):
     goes to the IAM before anything of a survey is asked for (turned down
     here: the screen), and keeps its key.
 
-The ADMIN's System pages (anotoki-lib 0.4.1, each the family's), English:
+The ADMIN's System pages (anotoki-lib 0.4.1, each the family's; 0.5.0's pages' errors and the
+backups' makers), English:
 
 24. Edith (EDITOR) at `/admin/system`: whose the pages are, no link; at
     `/admin/people`: "People are for administrators.", nothing asked; the API
@@ -490,12 +492,19 @@ The ADMIN's System pages (anotoki-lib 0.4.1, each the family's), English:
     IAM: "Check now" scrubs it here - "deleted-101", "Deleted at the IAM on …",
     the answers kept, the results naming the placeholder. Delete for Nina asks
     only its question (her answers counted, what stays; no password), and the
-    page says what went; her row then has nothing to delete. The error log: a
-    404 asked for here, its path without the query string. The backups: the
+    page says what went; her row then has nothing to delete. A page's own
+    error, thrown in the page on the People page (`expected` takes its console
+    lines and its exception): the family's reporter sends it once, through the
+    app's `HttpClient` - the owner's token on it, no visitor's key, its
+    `password=` secret scrubbed before it leaves. The error log: a 404 asked
+    for here, its path without the query string, and the page's error beside
+    it, its secret gone - `source: client`, at `/admin/people`, by the owner's
+    account (the API's occurrences). The backups: the
     two the Applies made before the update; with the stand-in's sign-in an
     hour old (`auth_time`), Back up now says "Sign in again first", whose
     button goes through the IAM and back; then one is made by hand (its
-    description), downloaded by its single-use link (the file
+    description, its maker by name - "owner" in the By column), downloaded by
+    its single-use link (the file
     `survey-<id>.anotoki-backup`, `ANOTOKI-BACKUP 1`) and deleted. The audit
     log: the backup made, downloaded and deleted, the answers deleted, the
     scrub, the update - by the owner, named. Every page at 1280 and 390 px,

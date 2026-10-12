@@ -220,42 +220,31 @@ function responseDelete(string $id): array
 
 /**
  * Deletes every filled survey of one person - what the People page's Delete
- * takes (api/people.php) - holding their row first, as a send of their
- * answers does (visitorHold()): one at that moment waits for the other. Their
- * row stays: they are somebody who signed in, and the surveys they wrote are
- * theirs. Null when there is nobody (no person) with that id.
+ * takes (peopleDelete(), api/people.php) - holding their row first, as a send
+ * of their answers does (visitorHold()): one at that moment waits for the
+ * other. Their row stays: they are somebody who signed in, and the surveys
+ * they wrote are theirs. Null when there is nobody (no person) with that id.
+ *
+ * Only inside the transaction the library holds around the delete
+ * (People::delete(), anotoki-lib 0.5.0) - the page's, or a restore's that
+ * does it again: it begins, commits and rolls back none of its own, and works
+ * on $pdo alone.
  */
 function responsesDeleteOf(PDO $pdo, int $userId): ?int
 {
+    if (!$pdo->inTransaction()) {
+        throw new LogicException('A person\'s answers are deleted only inside the transaction the library holds around the delete.');
+    }
     if ($userId <= 0) {
         return null;
     }
-    $own = !$pdo->inTransaction();
-    if ($own) {
-        $pdo->beginTransaction();
+    $held = $pdo->prepare('SELECT id FROM users WHERE id = ? AND id > 0 FOR UPDATE');
+    $held->execute([$userId]);
+    if ($held->fetchColumn() === false) {
+        return null;
     }
-    try {
-        $held = $pdo->prepare('SELECT id FROM users WHERE id = ? AND id > 0 FOR UPDATE');
-        $held->execute([$userId]);
-        if ($held->fetchColumn() === false) {
-            if ($own) {
-                $pdo->rollBack();
-            }
+    $deleted = $pdo->prepare('DELETE FROM responses WHERE user_id = ?');
+    $deleted->execute([$userId]);
 
-            return null;
-        }
-        $deleted = $pdo->prepare('DELETE FROM responses WHERE user_id = ?');
-        $deleted->execute([$userId]);
-        $count = $deleted->rowCount();
-        if ($own) {
-            $pdo->commit();
-        }
-
-        return $count;
-    } catch (Throwable $e) {
-        if ($own && $pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        throw $e;
-    }
+    return $deleted->rowCount();
 }

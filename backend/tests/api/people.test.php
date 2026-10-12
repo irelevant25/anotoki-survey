@@ -181,12 +181,38 @@ test('Delete: every answer of the person goes - their row and the surveys they w
     assert_same([0, $others], [(int) dbValue('SELECT count(*) FROM responses WHERE user_id = ?', [PAT]), (int) dbValue('SELECT count(*) FROM responses WHERE user_id <> ?', [PAT])], 'theirs gone, nobody else\'s');
     assert_same((string) PAT, (string) dbValue('SELECT id FROM users WHERE id = ?', [PAT]), 'their row stays: they signed in here');
     $entry = dbOne("SELECT actor_id, target_type, target_id, details FROM anotoki_audit_log WHERE action = 'person.data_deleted' ORDER BY id DESC LIMIT 1");
-    assert_same([OWNER, 'user', (string) PAT, ['deleted' => ['Answers' => $answers]]], [(int) $entry['actor_id'], $entry['target_type'], $entry['target_id'], json_decode((string) $entry['details'], true)], 'audited, by the token\'s sub');
+    $details = json_decode((string) $entry['details'], true);
+    assert_same([OWNER, 'user', (string) PAT, ['Answers' => $answers]], [(int) $entry['actor_id'], $entry['target_type'], $entry['target_id'], $details['deleted'] ?? null], 'audited, by the token\'s sub');
+    assert_match('/^[0-9]{1,18}$/D', (string) ($details['_txid'] ?? ''), 'written inside the delete\'s own transaction, which it names: a restore does the delete again by it');
 
     foreach (['999999', '-1', 'x', '0'] as $sub) {
         $none = as_user(OWNER, 'DELETE', '/api/admin/people/' . $sub);
         assert_same([404, 'not_found'], [$none['status'], $none['body']['code'] ?? null], "$sub: nobody (a visitor is nobody of the page's)");
     }
+});
+
+test('no delete without its entry: one whose audit entry cannot be written is undone - a restore could not do it again', function (): void {
+    $answers = dbAll('SELECT id FROM responses WHERE user_id = ? ORDER BY id', [QUINN]);
+    assert_true($answers !== [], 'Quinn has answers to delete');
+    dbExec("CREATE OR REPLACE FUNCTION survey_test_refuse_entry() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN IF NEW.action = 'person.data_deleted' THEN RAISE EXCEPTION 'the test refuses the entry'; END IF; RETURN NEW; END \$\$");
+    dbExec('CREATE TRIGGER survey_test_refuse_entry BEFORE INSERT ON anotoki_audit_log FOR EACH ROW EXECUTE FUNCTION survey_test_refuse_entry()');
+    try {
+        $refused = as_user(OWNER, 'DELETE', '/api/admin/people/' . QUINN);
+        assert_true($refused['status'] >= 500, 'not done: ' . test_show($refused['body']));
+    } finally {
+        dbExec('DROP TRIGGER survey_test_refuse_entry ON anotoki_audit_log');
+        dbExec('DROP FUNCTION survey_test_refuse_entry()');
+    }
+    assert_same($answers, dbAll('SELECT id FROM responses WHERE user_id = ? ORDER BY id', [QUINN]), 'every answer of Quinn\'s still there');
+    assert_same(0, (int) dbValue("SELECT count(*) FROM anotoki_audit_log WHERE action = 'person.data_deleted' AND target_id = ?", [(string) QUINN]), 'and no entry');
+});
+
+test('a person\'s answers are deleted only inside the transaction the library holds: on a connection with none - the site\'s own, beside a restore - the delete refuses, and nothing goes', function (): void {
+    $answers = dbAll('SELECT id FROM responses WHERE user_id = ? ORDER BY id', [QUINN]);
+    assert_true($answers !== [], 'Quinn has answers to delete');
+    assert_false(db()->inTransaction(), 'the site\'s connection, in no transaction');
+    assert_throws(static fn() => responsesDeleteOf(db(), QUINN), '/only inside the transaction the library holds/');
+    assert_same($answers, dbAll('SELECT id FROM responses WHERE user_id = ? ORDER BY id', [QUINN]), 'every answer of Quinn\'s still there');
 });
 
 test('the scrub, now from the page: an account the IAM deleted loses its name and keeps its answers - nobody else is touched, and its token never brings a row back', function (): void {
@@ -244,5 +270,6 @@ test('the scrub after an answer, at most once an hour - and an IAM out of reach 
     $down = as_user(OWNER, 'POST', '/api/admin/people/sync')['body'];
     assert_same('unreachable', $down['run']['state']);
     assert_same(['2026-11-02T10:00:00Z', true], [$down['sync']['since'], is_string($down['sync']['error'])], 'its place kept, and why it stopped - for the page');
-    assert_same([], server_problems($GLOBALS['app']));
+    // The database's refusal of the entry this file made it refuse is in the server's log, as every one is.
+    assert_same([], array_values(array_filter(server_problems($GLOBALS['app']), static fn(string $line): bool => !str_contains($line, 'the test refuses the entry'))));
 });

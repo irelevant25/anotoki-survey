@@ -92,8 +92,8 @@ wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (now 0.4.1: `anotoki/lib`
-from Composer, `@anotoki/lib` from its release - which makes the pages only
+migrations are the shared library's, **anotoki-lib** (now PHP 0.5.1, Angular
+0.5.0: `anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and
 one behaviour for every anotoki site while the site cannot run - visitors and
@@ -142,12 +142,23 @@ daily, before every update, and by hand after a recent sign-in) - for the
 site's ADMIN alone, on the admin panel's System page. No feedback form and no
 file explorer here (the owner's decision).
 
+And with anotoki-lib 0.5.0: a restore no longer brings back the answers a
+person had deleted on the People page since the backup - they are deleted
+again inside the restore; only a backup made here is restored here (each is
+sealed; one made before 0.5.0 has no seal and is restored offline alone), and
+the Backups page names each one's maker; the pages' own errors are written in
+the error log too; and where a request comes from is what Cloudflare's
+`CF-Connecting-IP` says - believed only from Cloudflare's own addresses, no
+other header ever - and is not kept in the clear: the visitors' limits count
+a keyed hash of it, a pseudonym of the address.
+
 On the hosting this version brings new migrations (up to
 `012_sign_in_words.sql`, and the library's own sets around them -
 `anotoki_admin` first, `anotoki_translations` and `anotoki_people` after; 012
 moves the site's sign-in words under the library's keys first, an owner's
-rewording with them): after the upload an ADMIN signs in from the family's
-page and applies them on the Migrations page (or the setup page does) -
+rewording with them; anotoki-lib 0.5.0 adds none): after the upload an ADMIN
+signs in from the family's page and applies them on the Migrations page (or
+the setup page does), then makes a backup by hand - the first one sealed -
 [docs/operations.md](docs/operations.md).
 
 ## Trying it out

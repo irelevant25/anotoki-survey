@@ -2,123 +2,84 @@
 
 declare(strict_types=1);
 
+use Anotoki\Lib\Support\ClientAddress;
+use Anotoki\Lib\Support\Keys;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
  * Which address a request comes from, for the limits that count per address
- * (new visitors an hour) - and what one address is.
+ * (new visitors an hour) - by the anotoki family's one rule (anotoki-lib
+ * 0.5.0's Support\ClientAddress, the owner's rule of 2026-10-11), the one the
+ * library's own error log reads by too (surveyAdminContext() hands it the same
+ * proxies):
  *
- * REMOTE_ADDR, unless the connection comes from a proxy the visitor settings
- * trust (trusted_proxies, config/visitors.local.php): then the address in its
- * header (client_ip_header, CF-Connecting-IP by default), when that is an
- * address at all. A forwarding header is one the caller writes, so believed
- * from anybody it would let them pick a new address for every request and
- * walk past every limit; X-Forwarded-For is never read on its own. The anotoki
- * IAM and the build analyzer decide the same way.
- *
- * The header should be one the proxy writes whole, over whatever the visitor
- * sent (Cloudflare's CF-Connecting-IP: one address). A list such as
- * X-Forwarded-For, which a proxy appends to, starts with whatever the visitor
- * wrote: it is read from the right - the proxies' own addresses skipped - and
- * the first address no trusted proxy has is the one counted.
+ * REMOTE_ADDR, unless the connection comes from one of the proxies the visitor
+ * settings trust - trusted_proxies, Cloudflare's published ranges
+ * (ClientAddress::CLOUDFLARE: every anotoki site is behind Cloudflare) unless
+ * config/visitors.local.php names others, or none, never a catch-all - and
+ * then the one address in Cloudflare's CF-Connecting-IP, when it is an address
+ * at all. That header is pinned here, never a setting: X-Real-IP,
+ * True-Client-IP, X-Forwarded-For and the like come through Cloudflare as the
+ * visitor sent them, so a site that read one would let anybody name their own
+ * address and walk past every limit with a new one for every request. A
+ * header from anybody but a trusted proxy is never believed either.
  *
  * One address, for counting: an IPv4 address as it is, an IPv6 address by its
  * /64 - one household or one server is handed a whole /64 and picks from it at
  * will, so counting single IPv6 addresses would count nothing. An IPv4 address
  * written as IPv6 (::ffff:198.51.100.7) is that IPv4 address.
  *
+ * What is kept: what a counter goes by (visitor_counters) is a keyed HMAC of
+ * that, under a key of this installation's own (storage/anotoki-lib.key, the
+ * library's Keys - derived for this purpose alone), never the address in the
+ * clear. It is a pseudonym, not a secret: the same for an address as long as
+ * the key lasts, and whoever holds the key can try every IPv4 address against
+ * it in moments - so the key stays in storage/, which is never served or
+ * copied into a backup.
+ *
  * Only for counting: askedFromThisComputer() (api/auth.php) reads
  * requestRemoteAddr() and never believes a proxy.
  */
 
-/** The visitor's address: REMOTE_ADDR, or what a trusted proxy says it is ('?' for none). */
+/** The visitor's address: REMOTE_ADDR, or the one a trusted proxy's CF-Connecting-IP names ('?' for none). */
 function clientAddress(Request $request, array $settings): string
 {
-    $ip = (string) ($request->getServerParams()['REMOTE_ADDR'] ?? '');
-    $proxies = $settings['trusted_proxies'] ?? [];
+    $address = ClientAddress::of($request, $settings['trusted_proxies'] ?? [], ClientAddress::CLOUDFLARE_HEADER);
 
-    if ($ip !== '' && $proxies !== [] && clientAddressInRanges($ip, $proxies)) {
-        $forwarded = clientAddressRightmostUntrusted($request->getHeaderLine((string) ($settings['client_ip_header'] ?? 'CF-Connecting-IP')), $proxies);
-        if ($forwarded !== null) {
-            $ip = $forwarded;
-        }
-    }
-
-    return $ip === '' ? '?' : substr($ip, 0, 45);
+    return $address ?? '?';
 }
 
-/** What the limits count: the address, or for IPv6 its /64 ("2001:db8:1:2::/64"). */
+/** What the limits count: the address, or for IPv6 its /64 ("2001:db8:1:2::/64") - in memory, never kept. */
 function clientAddressCounted(Request $request, array $settings): string
 {
-    return clientAddressBucket(clientAddress($request, $settings));
-}
+    $address = clientAddress($request, $settings);
 
-function clientAddressBucket(string $ip): string
-{
-    $packed = @inet_pton($ip);
-    if ($packed === false) {
-        return $ip;
-    }
-    if (strlen($packed) === 4) {
-        return (string) inet_ntop($packed);
-    }
-    // ::ffff:a.b.c.d
-    if (str_starts_with($packed, str_repeat("\0", 10) . "\xff\xff")) {
-        return (string) inet_ntop(substr($packed, 12));
-    }
-
-    return inet_ntop(substr($packed, 0, 8) . str_repeat("\0", 8)) . '/64';
+    return $address === '?' ? $address : ClientAddress::bucket($address);
 }
 
 /**
- * The address a proxy's header names: read from the right, past the trusted
- * proxies' own addresses; null when the first other entry is no address at
- * all, or there is none.
+ * What is kept of where a request comes from: a keyed HMAC of what the
+ * limits count (clientAddressCounted()), 64 hex digits - the same for every
+ * request from one address bucket while the installation's key lasts: a
+ * stable pseudonym of the address, never the address in the clear.
  */
-function clientAddressRightmostUntrusted(string $header, array $proxies): ?string
+function clientAddressKept(Request $request, array $settings): string
 {
-    foreach (array_reverse(explode(',', $header)) as $entry) {
-        $entry = trim($entry);
-        if (filter_var($entry, FILTER_VALIDATE_IP) === false) {
-            return null;
-        }
-        if (!clientAddressInRanges($entry, $proxies)) {
-            return $entry;
-        }
-    }
-
-    return null;
+    return hash_hmac('sha256', clientAddressCounted($request, $settings), clientAddressKey());
 }
 
-/** Is the address (v4 or v6) inside one of the CIDR ranges? A bare address is a range of one. */
-function clientAddressInRanges(string $ip, array $ranges): bool
+/**
+ * The key of those HMACs: derived from this installation's own key (made once
+ * in the storage folder by the library, the one its error log's hashes and the
+ * backups' seal come from) for this purpose alone. RuntimeException when the
+ * storage folder can neither keep nor give it - the site cannot run without
+ * that folder anyway.
+ */
+function clientAddressKey(): string
 {
-    $address = @inet_pton($ip);
-    if ($address === false) {
-        return false;
-    }
+    static $keys = [];
 
-    foreach ($ranges as $range) {
-        [$subnet, $bits] = array_pad(explode('/', (string) $range, 2), 2, null);
-        $network = @inet_pton(trim((string) $subnet));
-        if ($network === false || strlen($network) !== strlen($address)) {
-            continue;
-        }
+    $storage = storageDir();
 
-        $bits = $bits === null ? strlen($address) * 8 : max(0, min(strlen($address) * 8, (int) $bits));
-        $whole = intdiv($bits, 8);
-        $rest = $bits % 8;
-        if (substr($address, 0, $whole) !== substr($network, 0, $whole)) {
-            continue;
-        }
-        if ($rest === 0) {
-            return true;
-        }
-        $mask = (0xFF << (8 - $rest)) & 0xFF;
-        if ((ord($address[$whole]) & $mask) === (ord($network[$whole]) & $mask)) {
-            return true;
-        }
-    }
-
-    return false;
+    return $keys[$storage] ??= Keys::derive(Keys::installation($storage), 'visitor-limits');
 }

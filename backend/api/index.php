@@ -12,8 +12,9 @@ declare(strict_types=1);
  *
  *   routes/public.php    GET /api/health, GET /api/site-status, GET /api/auth/config (the anotoki
  *                        library's AuthRoutes), GET /api/images/{id}.{ext}, GET /api/translations/{code}
- *                        (the anotoki library's TranslationsRoutes::bundle) - nobody's, whatever a
- *                        request carries
+ *                        (the anotoki library's TranslationsRoutes::bundle), POST /api/client-errors (a
+ *                        page's error into the error log: the library's ErrorLogRoutes::client) -
+ *                        nobody's, whatever a request carries
  *   routes/surveys.php   the surveys for the people taking them, and their answers - signed
  *                        in, or as a visitor while the IAM says sign-in is not required
  *   routes/visitor.php   POST /api/visitor/move: at sign-in, a visitor's answers into the account

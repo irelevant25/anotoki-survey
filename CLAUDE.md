@@ -42,8 +42,9 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   self-delete). Never print the database password; never copy it anywhere git
   would publish.
 - **While the site cannot run, the anotoki family's library decides what
-  happens** (anotoki-lib 0.4.1 - `anotoki/lib` in `backend/vendor/`,
-  `@anotoki/lib` in the frontend, one version; the owner's decision of
+  happens** (anotoki-lib: PHP 0.5.1 - `anotoki/lib` in `backend/vendor/` -,
+  Angular 0.5.0 - `@anotoki/lib` in the frontend -, one release line: a patch
+  that changes one half alone leaves the other where it is; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
   GitHub, never a local path). Its `SiteGate` stands in front of every route:
   without the settings every address but `/api/site-status` is `503
@@ -69,8 +70,24 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   A third file is optional and nobody's but the owner's:
   `config/visitors.local.php` (the visitors' limits and trusted proxies; put
   there by hand, never written by `setup.php`; defaults without it).
-- **Signing in is the anotoki family's library's** (anotoki-lib 0.4.1, the
-  `Auth` module on both halves - the IAM's SDKs are gone from this site):
+- **Where a request comes from is the family's one rule** (anotoki-lib
+  0.5.0's `ClientAddress`, the owner's rule of 2026-10-11; `api/client_address.php`):
+  `REMOTE_ADDR`, or `CF-Connecting-IP` only on a connection from Cloudflare's
+  published ranges - the committed default (`VISITOR_DEFAULTS`, the library's
+  `ClientAddress::CLOUDFLARE`), which `visitors.local.php` may replace (`[]`:
+  `REMOTE_ADDR` alone; a catch-all range - shorter than /8 for IPv4, /16 for
+  IPv6 - is refused, the default holding). The header is pinned in code, never
+  a setting: `X-Real-IP`, `True-Client-IP`, `X-Forwarded-For` come through
+  Cloudflare as the visitor sent them, and none is ever read. An IPv6 address
+  counts by its /64. The visitors' limits and the library's error log read by
+  the same proxies (`surveyAdminContext()`). **No address is kept in the
+  clear**: a visitors' counter goes by a keyed HMAC of it
+  (`clientAddressKept()`, under a key derived from the installation's
+  `storage/anotoki-lib.key`), the error log's `client` likewise - a stable
+  pseudonym of the address while that key lasts (whoever holds the key can
+  try every IPv4 address against it), never a secret.
+- **Signing in is the anotoki family's library's** (anotoki-lib, PHP 0.5.1 /
+  Angular 0.5.0, the `Auth` module on both halves - the IAM's SDKs are gone from this site):
   `Anotoki\Lib\Auth` on the server (`api/auth.php`, `meddleware/auth.php`),
   `@anotoki/lib/auth` in the browser (`AnotokiAuth`, its interceptor, guards,
   callback page and the screen of a failed sign-in; wired in
@@ -134,21 +151,45 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   at most hourly after an answer, or the People page's Check now): its name
   becomes `deleted-{id}`, `anonymized_at` the IAM's time, the answers stay.
   The People page (ADMIN) lists them with how many surveys each answered and
-  wrote, and deletes a person's answers after its question alone - audited.
+  wrote, and deletes a person's answers after its question alone - audited
+  inside the delete's own transaction (no delete without its entry: `503
+  feature_unavailable` while the audit log's table waits). The delete is one
+  hook, `peopleDelete()`, the page's and a restore's: it runs inside the
+  library's transaction (`People::delete()`), begins none of its own, works
+  on the `$pdo` it is given alone - never `db()`, which in a restore waits on
+  the restore's locks - and takes a null request (a restore's).
 - **The admin tools are the library's, for the site's ADMIN alone**
   (`api/admin_tools.php`, the System page `/admin/system`): the error log
-  (files under `storage/logs`, redacted), the audit log (`anotoki_audit_log`,
-  its set `anotoki_admin`) and the backups (`storage/backups`, every table by
-  COPY - the pictures too - daily after an answer, before every update, by
-  hand; made, downloaded, deleted or restored only after a sign-in of the
-  last ten minutes; **not encrypted** and **kept until the owner deletes them
-  - no maximum age**, the owner's decisions of 2026-10-11; a failed one in the
-  error log; after a restore the scrub runs again, and one it cannot finish is
-  the restore's `after_restore_error` - the next request runs it again; until
-  the library's 0.4.2 a restore brings back answers deleted for a person). No
-  feedback and no file explorer (the owner's decision); the browser's errors
-  come to the error log with the library's 0.4.2 (`ErrorLogRoutes::client` is
-  not mounted before). Who acts is the token's person.
+  (files under `storage/logs`, redacted - the pages' own errors too, below),
+  the audit log (`anotoki_audit_log`, its set `anotoki_admin`) and the
+  backups (`storage/backups`, every table by COPY - the pictures too - daily
+  after an answer, before every update, by hand; made, downloaded, deleted or
+  restored only after a sign-in of the last ten minutes; each listed with its
+  maker's name; **not encrypted** and **kept until the owner deletes them -
+  no maximum age**, the owner's decisions of 2026-10-11; **sealed**: only a
+  backup made here is restored here - one made before anotoki-lib 0.5.0 has
+  no seal and is restored offline alone, `docs/operations.md`; a failed one
+  in the error log). A restore does not bring back what a person had deleted
+  on the People page: inside its transaction every People Delete made since
+  the backup is done again (the library's `People::restoreHooks()`, by the
+  audit log's `person.data_deleted`, which is never restored) - but for the
+  answers a visitor's browser moved into the account after the backup, which
+  that backup holds under the visitor's id (`docs/decisions.md`, an open
+  question for the owner); once it committed the
+  scrub runs again, and one it cannot finish is the restore's
+  `after_restore_error` - the next request runs it again. No feedback and no
+  file explorer (the owner's decision). Who acts is the token's person.
+- **The pages' own errors go to the error log** (anotoki-lib 0.5.0; the
+  owner's decision of 2026-10-11 for every site): the browser's reporter
+  (`provideAnotokiErrorReport()`, `app.config.ts`) posts each - scrubbed, at
+  most five a page load - to `POST /api/client-errors` (`ErrorLogRoutes::client`,
+  `routes/public.php`) through the app's `HttpClient`, so the site's
+  interceptors decide what it carries: a person's report goes with the token
+  (counted by account), a visitor's and nobody's with neither - the visitor's
+  key goes to the surveys' routes alone. Nobody's route: 20 an hour from one
+  sender, 500 a day from the visitors and as many from the people signed in;
+  closed while an update waits, like every route `siteOpenWhileUpdating()`
+  does not name.
 - **The rules are written twice, in the same words**: `frontend/src/app/core/survey/`
   (`answer-rules.ts`, `survey-problems.ts`, `localize.ts`) and
   `backend/api/survey_rules.php`. Change one, change the other, and their tests.
@@ -242,7 +283,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. **The UI kit is the anotoki family's**
-  (anotoki-lib 0.4.1: each piece from its own entry point -
+  (anotoki-lib 0.5.0: each piece from its own entry point -
   `@anotoki/lib/ui/button`, `/ui/icon`, `/ui/config`, ... - never the
   `@anotoki/lib/ui` barrel, for the first load; `@anotoki/lib/shell`; its class
   names its own, `.anotoki-<piece>__<part>`; the owner's decisions of

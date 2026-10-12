@@ -5,10 +5,11 @@ declare(strict_types=1);
 use Anotoki\Lib\People\People;
 use Anotoki\Lib\People\PeopleColumn;
 use Anotoki\Lib\People\PeopleTable;
+use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
  * The people who signed in here: this site's users table, kept and read by
- * the anotoki family's library (anotoki-lib 0.4.1's people module,
+ * the anotoki family's library (anotoki-lib 0.5.1's people module,
  * Anotoki\Lib\People) - through a mapping, never a table of its own: every
  * answer, every survey's author and every visitor lives in users.
  *
@@ -30,6 +31,11 @@ use Anotoki\Lib\People\PeopleTable;
  *     /api/admin/people, ADMIN alone - routes/admin.php): with how many surveys
  *     each answered and wrote here, the visitors in one line, where the scrub
  *     stands, and Delete - every answer of theirs, after the page's question.
+ *   - Done again by a restore: a backup made before a Delete still holds the
+ *     answers, so a restore deletes them again inside its own transaction, by
+ *     the audit log's person.data_deleted (the library's People::replay(), the
+ *     Backups' beforeCommit - api/admin_tools.php), then scrubs the accounts
+ *     the IAM deleted since (People::afterRestore()).
  */
 
 /** The site's people for the library: users, its name and times, the connection, the IAM. */
@@ -105,9 +111,18 @@ function peopleVisitors(PDO $pdo): array
  * question is all it asks (the owner's decision of 2026-10-11). Null when
  * there is nobody with that id here: the library's 404.
  *
+ * The library's hook (anotoki-lib 0.5.0, PeopleRoutes' delete and the
+ * restore's replay - api/admin_tools.php): it runs inside the library's
+ * transaction (People::delete()), begins none of its own, and does all of its
+ * work on the $pdo it is given - never db(): in a restore that is the
+ * restore's connection, which holds every restored table, and db() would wait
+ * on it while the restore waits on the hook. $request is the page's, or null
+ * when a restore does the delete again: the same delete either way (nothing
+ * here is kept of what goes).
+ *
  * @return ?array{deleted: array<string, int>}
  */
-function peopleDelete(PDO $pdo, int $sub): ?array
+function peopleDelete(PDO $pdo, int $sub, ?Request $request = null): ?array
 {
     $deleted = responsesDeleteOf($pdo, $sub);
 
@@ -115,15 +130,20 @@ function peopleDelete(PDO $pdo, int $sub): ?array
 }
 
 /**
- * The names of the people an audit entry names, by id: what the audit log's
- * page shows beside an actor (the IAM's placeholder for one it deleted).
+ * The names of the people the admin tools' pages name, by id: the audit log's
+ * actors and a backup's maker (AdminContext's names) - the name the site has
+ * for each, the IAM's placeholder for one it deleted; a visitor, and an id
+ * that is none, has no name.
  *
- * @param list<int> $ids
+ * @param list<int|string> $ids
  * @return array<int, string>
  */
 function peopleNames(array $ids): array
 {
-    $ids = array_values(array_filter($ids, static fn(int $id): bool => $id > 0));
+    $ids = array_values(array_filter(
+        array_map(static fn(mixed $id): int => is_int($id) ? $id : (is_string($id) && preg_match('/^[1-9][0-9]{0,17}$/D', $id) === 1 ? (int) $id : 0), $ids),
+        static fn(int $id): bool => $id > 0
+    ));
     if ($ids === []) {
         return [];
     }

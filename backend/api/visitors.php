@@ -99,7 +99,9 @@ function visitorUser(int $id): SiteUser
  * address's, then everybody's - and held to the end of the transaction: two new
  * visitors at the same moment wait for each other, and the second one counts
  * the first. The count of visitors with a key comes after everybody's row is
- * held, for the same reason.
+ * held, for the same reason. The address's row goes by a keyed HMAC of the
+ * address (clientAddressKept(), api/client_address.php) - a pseudonym, never
+ * the address in the clear.
  *
  * @return array{0: SiteUser, 1: string}
  */
@@ -110,7 +112,7 @@ function visitorMake(Request $request): array
     }
     $settings = visitorSettings();
 
-    if (visitorCounterHit('visitors:new:' . clientAddressCounted($request, $settings), 3600) > $settings['new_per_hour_per_address']) {
+    if (visitorCounterHit('visitors:new:' . clientAddressKept($request, $settings), 3600) > $settings['new_per_hour_per_address']) {
         throw visitorsTooMany('Too many people have answered without signing in from this address within the hour. Sign in to send your answers, or try again later.');
     }
     if (visitorCounterHit('visitors:new', 3600) > $settings['new_per_hour']) {

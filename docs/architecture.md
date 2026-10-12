@@ -28,8 +28,8 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib 0.4.1, its
-`Auth` module on both halves - the IAM's SDKs, which the site vendored until
+client `survey`, with the anotoki family's library (anotoki-lib, PHP 0.5.1 and
+Angular 0.5.0, its `Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
 
@@ -152,8 +152,20 @@ Migrations page, the System pages and the move are a verified token's alone.
   `visitor_counters`, held to the end of the transaction - and visitors with a
   key at once, counted after everybody's counter is held. A refusal rolls the
   counts back with everything else. The address is `REMOTE_ADDR` unless the
-  connection is a trusted proxy's (`api/client_address.php`, the IAM's and
-  the analyzer's rule; IPv6 by its /64).
+  connection is a trusted proxy's - Cloudflare's published ranges unless
+  `visitors.local.php` names others, never a catch-all (shorter than /8 for
+  IPv4, /16 for IPv6: refused, the default holding) - and then its
+  `CF-Connecting-IP` (`api/client_address.php`: the anotoki family's one rule,
+  anotoki-lib 0.5.0's `ClientAddress`, the one the library's error log reads
+  by too; the header pinned in code, never a setting - `X-Real-IP`,
+  `True-Client-IP`, `X-Forwarded-For` pass through Cloudflare as the visitor
+  sent them; IPv6 by its /64). An address's counter goes by a keyed HMAC of
+  it (`clientAddressKept()`, under a key derived from the installation's
+  `storage/anotoki-lib.key`) - a stable pseudonym of the address while that
+  key lasts, not a secret (whoever holds the key can try every IPv4 address
+  against it); the address in the clear is kept in no row, and so in no
+  backup made since anotoki-lib 0.5.0 (one made before may hold an hour's
+  counters by address, until the owner deletes it).
 - **The clean-up** runs after the answer (`afterAnswerRun()` in
   `api/index.php`, `visitorSweepSoon()`): after every new visitor, else at most
   once an hour (a marker file in `storage/`). It ends the visitors unseen for
@@ -272,7 +284,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib 0.4.1, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib 0.5.1, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -295,22 +307,29 @@ answer, every survey's author and every visitor lives in `users`):
   added it); everything else stays, nobody's now - their answers too. No copy
   of a name lives anywhere else here, so the scrub needs no hook. After a
   restore of a backup it runs again at once (the restored cursor would leave
-  out whoever the IAM deleted since) - `surveyScrubAfterRestore()`: a run
-  that does not finish (the IAM out of reach, its time up, another run
-  going) is the restore's `after_restore_error` and an error-log line, and
-  the hourly stamp goes after the answer, so the next request runs it again.
+  out whoever the IAM deleted since) - the library's `People::afterRestore()`
+  (`People::restoreHooks()`, `surveyBackups()`): a run that does not finish
+  (the IAM out of reach, its time up, another run going) is the restore's
+  `after_restore_error` and an error-log line, and the hourly stamp goes after
+  the answer, so the next request runs it again.
 - **The People page** (`/admin/people`, the family's page, ADMIN): everybody
   who signed in, the most recently seen first, with how many surveys each
   answered and wrote (the site's columns, `peopleColumns()`), the visitors in
   one line, where the scrub stands - and Delete: every answer of a person's,
   after the page's question alone (the owner's decision: no proof of a recent
   sign-in), audited (`person.data_deleted`); their row and the surveys they
-  wrote stay.
+  wrote stay. The delete is one hook, `peopleDelete()`, the page's and a
+  restore's: it runs inside the library's transaction (`People::delete()`,
+  which writes the entry inside it too - no delete without its entry, `503
+  feature_unavailable` while the audit log's table waits), begins none of its
+  own and works on the connection it is given alone - in a restore that is
+  the restore's, which holds every table, and the site's own (`db()`) would
+  wait on it for ever (PostgreSQL ends such a restore after a minute).
 
 ## The admin tools
 
 The error log, the audit log and the backups are the anotoki family's
-(anotoki-lib 0.4.1: `Anotoki\Lib\ErrorLog`, `Audit`, `Backups` - wired in
+(anotoki-lib, PHP 0.5.1 and Angular 0.5.0: `Anotoki\Lib\ErrorLog`, `Audit`, `Backups` - wired in
 `api/admin_tools.php`, their routes in `routes/admin.php`; the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/backups`, configured in
 `core/admin/admin-tools.ts`), for the site's ADMIN alone (the owner's
@@ -325,10 +344,26 @@ in the database, and are in every backup).
   413, 415, 429 or 5xx, PHP's own warnings and fatal errors - with the route,
   who (the token's person) and an HMAC of the address bucket, never a body, a
   header, a cookie, a query string or a token; the database's words redacted.
-  Outermost in the stack, so the gate's 503s are written too. Files: it works
-  while the database is out of reach or an update waits. The browser's errors
-  are not written yet: the library's client route is not mounted - they come
-  with its 0.4.2 and its Angular reporter.
+  Outermost in the stack, so what the gate answers is seen too: a failure is
+  written (the database out of reach), a state the site is in on purpose is
+  not (`update_pending`, `not_set_up`, a tool's `feature_unavailable`: the
+  library's `expected`, its default since anotoki-lib 0.5.0 - the family's
+  rule, which the site keeps whole); an exception thrown for another comes
+  with the chain of what caused it. Files: it works while the database is out of reach
+  or an update waits. **The pages' own errors** come too (the owner's decision
+  of 2026-10-11 for every site): the library's reporter in the browser
+  (`provideAnotokiErrorReport()`, `app.config.ts` - the app's `ErrorHandler`,
+  every error still to the console) posts each, scrubbed in the page (no
+  stored value, token, address or query), at most five a page load, to
+  `POST /api/client-errors` (`ErrorLogRoutes::client`, `routes/public.php`)
+  through the app's `HttpClient`: the site's interceptors decide what it
+  carries - a person's with the token, so the server counts it by account; a
+  visitor's and nobody's with neither, the visitor's key going to the surveys'
+  routes alone. Redacted again on the server, `source: client`; 20 an hour
+  from one sender, 500 a day from the visitors and as many from the people
+  signed in, each its own budget. Where a request comes from is read by the
+  same settings as the visitors' limits (`surveyAdminContext()`:
+  Cloudflare's ranges, `CF-Connecting-IP`).
 - **The audit log** - the library's table `anotoki_audit_log` (its set
   `anotoki_admin`, the first to run): who did what in the admin panel - a
   survey made, opened, closed, deleted; answers deleted; the site's words
@@ -350,12 +385,26 @@ in the database, and are in every backup).
   restored only after a sign-in of the last ten minutes (the token's
   `auth_time`; refused `reauth_required`, and the page offers "Sign in again"
   - the IAM asks for the password, `prompt=login`); downloaded by a
-  single-use link of a minute. **Not encrypted** (the owner's decision of
+  single-use link of a minute; listed with its maker's name (the context's
+  `names`, `peopleNames()`). **Not encrypted** (the owner's decision of
   2026-10-11: only the IAM's backups are) - the files stay under `storage/`,
-  which the web never reaches. One backup or update at a time (the
-  migrations' lock). A backup that fails is written in the error log as well
-  as PHP's (`onError`). Until the library's 0.4.2 a restore brings back the
-  answers deleted for a person since the backup was made.
+  which the web never reaches, each the site's own user's alone - but
+  **sealed** (anotoki-lib 0.5.0): the sidecar carries an HMAC of the backup's
+  id and SHA-256 under the installation's key, and only a backup made here is
+  restored here - a restore hashes the very bytes it reads. One made before
+  0.5.0, put into the folder or changed since is refused (`422
+  archive_invalid`) and restored offline alone. One backup or update at a time
+  (the migrations' lock). A backup that fails is written in the error log as
+  well as PHP's (`onError`). **A restore does not bring back what a person
+  had deleted on the People page**: inside its transaction, before anybody
+  sees the rows, every People Delete since the backup's snapshot is done again
+  (`People::replay()`, by the audit log's `person.data_deleted` - the audit
+  log is never restored) with the page's own hook on the restore's
+  connection; one that cannot be done again rolls the restore back whole. One
+  gap stays: answers a visitor's browser moved into the account after the
+  backup are the visitor's in it (`visitorMoveInto()` leaves no record a
+  restore keeps), so the Delete done again does not name them and they come
+  back as "Visitor N" - `docs/decisions.md`.
 
 ## The top bar
 
@@ -502,8 +551,8 @@ closing day, the times - are columns beside it. The frontend's
 
 | Table | Holds |
 | --- | --- |
-| `users` | who has signed in: the IAM's user id, name, address - and the visitors: a negative id, no name, `visitor_key_hash` (the SHA-256 of their key; cleared when the visitor ends, the row and its answers kept) |
-| `visitor_counters` | the limits on new visitors: a count per name (`visitors:new`, `visitors:new:<address>`) and when it starts again |
+| `users` | who has signed in: the IAM's user id and name - no address (011) - and the visitors: a negative id, no name, `visitor_key_hash` (the SHA-256 of their key; cleared when the visitor ends, the row and its answers kept) |
+| `visitor_counters` | the limits on new visitors: a count per name (`visitors:new`, `visitors:new:<keyed HMAC of the address>` - a pseudonym, never the address in the clear) and when it starts again |
 | `surveys` | the surveys; `revision` counts the saves; a partial unique index keeps one live (not draft) survey per address |
 | `responses` | one filled survey per person and survey (unique); gender and age as columns (checked lists), the answers as JSONB by question id; `language`: the language the survey was read in, or null |
 | `images` | the pictures' bytes (bytea), type and size - never changed once kept |

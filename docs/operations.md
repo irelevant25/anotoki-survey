@@ -146,7 +146,7 @@ was open. The upload carries `vendor/anotoki/lib/php/migrations/`
 (the library's set) - `tools/build.php` puts it there, under the deny-all
 `.htaccess` of `vendor/`.
 
-The version on anotoki-lib 0.4.1 (both halves) takes the rest of what every
+The version that took anotoki-lib 0.4.1 (both halves; PHP 0.5.1 and Angular 0.5.0 now, below) takes the rest of what every
 anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
 are gone - `api/anotoki_iam.php` stays on the host after the upload, read by
 nothing: delete it over FTP; the browser keeps its session, under the same
@@ -175,6 +175,20 @@ makes the site's first backup (`before-migration`), made before 011 ran: it
 still holds `users.email`, the only copy of the old addresses. Once the site
 runs again and a look round says the update went well, **the owner deletes
 that backup** on System → Backups.
+
+The same version on anotoki-lib PHP 0.5.1, Angular 0.5.0 (no migration of its
+own; 0.5.1, the PHP half alone, restores a database that ever had a visitor -
+0.5.0 failed such a restore whole):
+a restore does again, inside it, the People deletes made since its backup;
+only a backup made here is restored here (sealed - see *Backups*: the plain
+backups made before 0.5.0 have no seal and are restored offline alone, so
+**make a backup by hand right after the update**); each backup names its
+maker; the pages' own errors come to the error log (`POST /api/client-errors`);
+and the visitors' addresses are Cloudflare's to say - `CF-Connecting-IP`
+believed from Cloudflare's published ranges alone, the committed default -
+and never kept: a visitor counter left from before, named by the address in
+the clear, goes with the clean-up once its hour is over. The host needs PHP's
+`mbstring` (the library requires it) and `zlib` (the backups).
 
 ## The site's words and languages
 
@@ -324,11 +338,9 @@ editing it, look at the log (or `visitorDays` in `/api/auth/config`):
 ```php
 <?php
 return [
-    // Cloudflare's ranges (https://www.cloudflare.com/ips/): without them every
-    // visitor counts as the Cloudflare edge it came through.
-    'trusted_proxies' => ['173.245.48.0/20', '103.21.244.0/22', /* ..., */ '2400:cb00::/32' /* , ... */],
-    'client_ip_header' => 'CF-Connecting-IP',
-    'new_per_hour_per_address' => 30,
+    'new_per_hour_per_address' => 60,
+    // Only for a host NOT behind Cloudflare: believe no proxy, REMOTE_ADDR alone.
+    // 'trusted_proxies' => [],
 ];
 ```
 
@@ -341,15 +353,28 @@ return [
 | `sweep_batch` | 50 | visitors one clean-up ends or deletes |
 | `sweep_timeout_ms` | 2000 | how long one statement of the clean-up may run or wait |
 | `move_lock_timeout_ms` | 5000 | how long the move at sign-in waits for the rows it takes |
-| `trusted_proxies` | none | proxies believed about a visitor's address (addresses or CIDR ranges) |
-| `client_ip_header` | `CF-Connecting-IP` | the header those proxies put it in (a list such as `X-Forwarded-For` is read from the right) |
+| `trusted_proxies` | Cloudflare's published ranges | proxies believed about a visitor's address (addresses or CIDR ranges) - the anotoki library's `ClientAddress::CLOUDFLARE` (www.cloudflare.com/ips-v4 and /ips-v6, as of 2026-10-11), which moves with the library; a list here replaces it whole, `[]` believes nobody |
+| (the header) | `CF-Connecting-IP` | not a setting: pinned in code. `client_ip_header`, which an earlier version read, is left out and logged - `X-Real-IP`, `True-Client-IP` and `X-Forwarded-For` come through Cloudflare as the visitor sent them, and are never believed |
 
 Past a limit a **new** visitor is refused (429 `too_many_visitors`: sign in, or
 try later); visitors there already carry on. The limits are the only
 protection against a script filling the tables: when they bite real people,
 raise them; when the tables fill, lower them. **survey.anotoki.eu is behind
-Cloudflare's proxy**: list Cloudflare's ranges in `trusted_proxies`, or every
-visitor shares the per-address count of the few edges they come through.
+Cloudflare's proxy**, and Cloudflare's ranges are what the site believes
+without a word here (the owner's rule of 2026-10-11): `CF-Connecting-IP` from
+an edge of Cloudflare's names the visitor, from anybody else it is ignored. A
+host not behind Cloudflare sets `trusted_proxies` to `[]` - else nothing
+breaks, but nobody's header is believed anyway. A catch-all range there -
+shorter than /8 for IPv4 or /16 for IPv6, `0.0.0.0/0`, `::/0` - is refused:
+the list is left out (logged) and Cloudflare's holds. The same proxies tell
+the error log where a request came from. **No address is kept in the
+clear**: a counter goes by a keyed HMAC of the address (under a key derived
+from `storage/anotoki-lib.key`) - a stable pseudonym of the address while
+that key lasts, which whoever holds the key could match against every IPv4
+address: keep the storage folder as private as the database. The database
+holds no address, nor does any backup made since anotoki-lib 0.5.0 - one
+made before may hold an hour's counters named by address
+(`visitors:new:<address>`) until it is deleted here.
 
 **The clean-up** needs no cron: after an answer, at most once an hour (and
 after every new visitor), it ends a batch of visitors unseen for `keep_days`
@@ -371,7 +396,7 @@ SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 
 
 Everything is in the database, pictures and the site's reworded strings
 included. The site backs it up itself - the anotoki family's backups
-(anotoki-lib 0.4.1), on the admin panel's System → **Backups** page, for its
+(anotoki-lib 0.5.1), on the admin panel's System → **Backups** page, for its
 ADMIN: every table by COPY through PDO in one snapshot (no `pg_dump` on the
 host), each a file `storage/backups/<id>.anotoki-backup` (`ANOTOKI-BACKUP 1`,
 a JSON header, then a gzip'd tar of the manifest, the applied migrations' SQL
@@ -388,20 +413,38 @@ Making, downloading, deleting and restoring one ask for a
 sign-in of the last ten minutes - "Sign in again" on the page, and the IAM asks
 for the password; a download is a single-use link of a minute. A restore is
 in place, all or nothing, after a backup of the database as it is, and only
-from a backup made at the same migrations (the page says why not otherwise);
-afterwards the scrub of the IAM's deleted accounts runs again. When it cannot
+from a backup made at the same migrations (the page says why not otherwise).
+Inside it, before anybody sees the rows, every person's answers deleted on
+the People page since the backup was made are deleted again (the audit log -
+never restored - says which), and a restore that cannot do it again is
+rolled back whole ("restore again in a minute" while a check of the IAM's
+deleted accounts runs). One gap: answers a visitor's browser moved into the
+person's account after the backup are the visitor's in it, and come back as
+"Visitor N" - delete them in the results (`docs/decisions.md`).
+Afterwards the scrub of the IAM's deleted accounts runs again. When it cannot
 finish (the IAM out of reach), the restore stands and the page says so -
-"The restore stands, but the site's own work after it failed: the accounts
+"The restore stands, but the site's own work after it failed: The accounts
 the IAM deleted were not checked again …" - and the error log has it: press
 Check now on the People page once the IAM answers (the next request also
-runs it). Until the library's 0.4.2 a restore also brings back the answers
-deleted for a person (People → Delete their answers) since the backup was
-made: delete them again. A backup that fails - the daily one, the one before
-an update - is in the error log too. **Not encrypted** (the owner's decision
-of 2026-10-11: only the IAM's backups are): the files hold everybody's
-answers and names - download them to a place as private as the database. The
-web never reaches `storage/` (its `.htaccess`, and each folder's own); what
-the folder holds besides the library's files stays as it is. The config files
+runs it). A backup that fails - the daily one, the one before an update - is
+in the error log too. **Not encrypted** (the owner's decision of 2026-10-11:
+only the IAM's backups are): the files hold everybody's answers and names -
+download them to a place as private as the database. **Sealed** (anotoki-lib
+0.5.0): each backup's `.json` beside it carries an HMAC of its id and its
+SHA-256 under the installation's key (`storage/anotoki-lib.key`), and the
+page restores only a backup made here - one copied in from elsewhere, changed
+since, or **made before 0.5.0** (no seal: every plain backup made before the
+update) is listed as not made here and is restored **offline** alone: take
+the file off the server (its Download), extract it - `tail -n +3 <file> | tar
+-xz`, the schema files and each table's COPY rows - and load it into a
+database with `psql` (nothing is public yet: none of those backups is needed).
+The key is the site's own: a restore of the whole server keeps
+`storage/anotoki-lib.key` with the backups, or they are restored offline too.
+Every file of the backups is the site's own user's alone (`0600`, folders
+`0700`): to fetch one over FTP where PHP runs as another user, download it
+from the page. The web never reaches `storage/` (its `.htaccess`, and each
+folder's own); what the folder holds besides the library's files stays as it
+is. The config files
 are only the connection and the IAM's address; setup.php writes them again -
 all but `config/visitors.local.php`, which is put there by hand: keep a copy
 of it.
@@ -413,9 +456,13 @@ answered 5xx, an answer of 404, 405, 413, 415, 429 or 5xx, PHP's own warnings
 and fatal errors - from `storage/logs/errors-YYYY-MM-DD.jsonl` (UTC days, 30
 kept, 64 MB in all; never a body, a header, a cookie, a query string, a token
 or an address - an HMAC of its bucket instead). It works while the database
-cannot be reached or an update waits; "Clear" asks what goes. Errors in the
-browser are not written there yet: they come with the library's 0.4.2 (its
-Angular reporter; the client route is not mounted until then). The PHP error
+cannot be reached or an update waits; "Clear" asks what goes. A state the
+site is in (an update waiting, a tool's table waiting) is not written; an
+exception thrown for another shows what caused it. **The pages' own errors**
+are there too (`source: client`, anotoki-lib 0.5.0): each a page met, sent by
+the browser - scrubbed there and again on the server, at most five a page
+load, 20 an hour from one person or address, 500 a day from the visitors and
+as many from the people signed in; a person's by their account. The PHP error
 log of the host still has what the site writes there itself (`[auth]`,
 `[visitors]`, `[db]`, `[backups]` lines). On System → **Audit log** (ADMIN):
 who did what in the admin panel - the surveys, the answers, the words, the

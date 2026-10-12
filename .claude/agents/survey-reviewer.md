@@ -33,7 +33,18 @@ Security and correctness first:
   only after a sign-in of the last ten minutes, and its download link is single-use; every admin
   change is audited by the token's person. **No person's address is kept** (011): a new column or
   answer field holding one is a finding; a new column with a person's data has its place in the
-  scrub of the IAM's deleted accounts. **Visitors**: a visitor key makes somebody a visitor only on
+  scrub of the IAM's deleted accounts. **Nor a visitor's in the clear**: what counts per address
+  keeps a keyed HMAC of it (`clientAddressKept()`) - a stable pseudonym while the installation's key
+  lasts; a doc calling it unreadable is a finding; where a request comes from is `clientAddress()` -
+  `CF-Connecting-IP` alone, pinned in code, believed from a trusted proxy only (Cloudflare's ranges,
+  the committed default); a setting that names the header, a read of `X-Real-IP`, `True-Client-IP`
+  or `X-Forwarded-For`, or a trusted range shorter than /8 (IPv4) or /16 (IPv6) taken is a finding.
+  **A People delete is done again by a restore**: its hook (`peopleDelete()`) - and any scrub hook -
+  begins, commits or rolls back no transaction and writes on the `$pdo` it is given alone (`db()`,
+  `surveyAudited()` or a helper on the site's connection there is a finding: in a restore it waits
+  on the restore's locks) and takes a null request. `POST /api/client-errors` is
+  nobody's on purpose (the library caps and redacts it): a visitor's key read there, or a route
+  of the site's own that writes what a browser sends into a log, is a finding. **Visitors**: a visitor key makes somebody a visitor only on
   the three survey routes (`surveyIdentify(..., visitors: true)`), and only after "no Bearer header" and "the IAM says
   sign-in is not required" - in that order; the one other reader of `X-Visitor-Key` is
   `POST /api/visitor/move`, which needs a verified token as well (`RequirePerson`) and only hands
@@ -167,7 +178,7 @@ Then the house style:
 - Angular: three files per component, OnPush, signals, `inject()`, inputs for
   route/query parameters, colours from tokens (light and dark), 390 px; no
   logic duplicated from `core/` into a component. The UI kit is the family's
-  (`@anotoki/lib` 0.4.1): a copy of a kit piece in `src/app/ui/`, a global
+  (`@anotoki/lib` 0.5.0): a copy of a kit piece in `src/app/ui/`, a global
   style a kit component would meet, an import from the `@anotoki/lib/ui`
   barrel instead of the piece's own entry point (the first load), or a
   selector of the kit's 0.2.0 class names in a spec or the browser check

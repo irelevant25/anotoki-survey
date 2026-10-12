@@ -31,9 +31,11 @@ declare(strict_types=1);
  *
  *   visitors.local.php   the limits on visitors (people taking surveys without
  *                        signing in, while the IAM says sign-in is not required)
- *                        and which proxies to believe about a visitor's address
+ *                        and which proxies to believe about a visitor's address -
+ *                        Cloudflare's published ranges without it
  *
- *       return ['trusted_proxies' => ['173.245.48.0/20', ...], 'new_per_hour_per_address' => 60];
+ *       return ['new_per_hour_per_address' => 60];
+ *       return ['trusted_proxies' => []];   // a host not behind Cloudflare: REMOTE_ADDR alone
  *
  *   Every key is optional (VISITOR_DEFAULTS has them all); a value that is not
  *   usable is left out and logged, and a file that cannot be read (a parse
@@ -134,8 +136,21 @@ function localSettings(bool $reload = false): array
  *   sweep_timeout_ms           how long one statement of the clean-up may take or wait
  *   move_lock_timeout_ms       how long the move at sign-in waits for the rows it takes
  *   trusted_proxies            addresses or CIDR ranges of the proxies in front of the site: only a
- *                              request from one of them is believed about the visitor's address
- *   client_ip_header           the header those proxies put the visitor's address in
+ *                              request from one of them is believed about the visitor's address.
+ *                              Cloudflare's published ranges (the owner's rule of 2026-10-11: every
+ *                              anotoki site is behind Cloudflare) - the anotoki library's list,
+ *                              ClientAddress::CLOUDFLARE, which moves with the library; a list here
+ *                              takes its place whole, [] believes nobody (REMOTE_ADDR alone). A
+ *                              catch-all range - shorter than /8 for IPv4, /16 for IPv6 (0.0.0.0/0,
+ *                              ::/0) - would believe anybody: the list is refused, logged, and the
+ *                              default holds (visitorSettingRangeOk())
+ *
+ * Which header is believed is no setting: Cloudflare's CF-Connecting-IP,
+ * pinned in code (api/client_address.php) - never one a local file could
+ * point at X-Real-IP, True-Client-IP or X-Forwarded-For, which Cloudflare
+ * passes through as the visitor sent them. The visitors' limits and the
+ * library's own reading of an address (the error log's,
+ * surveyAdminContext()) go by the same proxies and that one header.
  */
 const VISITOR_DEFAULTS = [
     'new_per_hour_per_address' => 30,
@@ -145,8 +160,7 @@ const VISITOR_DEFAULTS = [
     'sweep_batch' => 50,
     'sweep_timeout_ms' => 2000,
     'move_lock_timeout_ms' => 5000,
-    'trusted_proxies' => [],
-    'client_ip_header' => 'CF-Connecting-IP',
+    'trusted_proxies' => \Anotoki\Lib\Support\ClientAddress::CLOUDFLARE,
 ];
 
 /** The smallest and largest number each numeric setting may be. */
@@ -200,7 +214,8 @@ function visitorSettingsFile(): ?array
  * $values (what visitors.local.php returned, null without one) over the
  * defaults: a value of the wrong type or out of range, and a key nobody
  * reads, are left out and logged - a typo there must not stop people
- * answering surveys.
+ * answering surveys. (client_ip_header, which an earlier version read, is
+ * such a key now: the header is pinned in code.)
  */
 function visitorSettingsChecked(?array $values): array
 {
@@ -209,7 +224,6 @@ function visitorSettingsChecked(?array $values): array
         $usable = match (true) {
             isset(VISITOR_SETTING_RANGES[$key]) => is_int($value) && $value >= VISITOR_SETTING_RANGES[$key][0] && $value <= VISITOR_SETTING_RANGES[$key][1],
             $key === 'trusted_proxies' => is_array($value) && array_is_list($value) && count($value) <= 1000 && array_filter($value, 'visitorSettingRangeOk') === $value,
-            $key === 'client_ip_header' => is_string($value) && preg_match('/^[A-Za-z0-9-]{1,64}$/D', $value) === 1,
             default => null,
         };
         if ($usable === true) {
@@ -222,7 +236,11 @@ function visitorSettingsChecked(?array $values): array
     return $settings;
 }
 
-/** An address, or one with a /prefix that fits it (198.51.100.0/24, 2001:db8::/32). */
+/**
+ * An address, or one with a /prefix that fits it (198.51.100.0/24, 2001:db8::/32) - and no catch-all: a
+ * prefix shorter than /8 for IPv4 or /16 for IPv6 (0.0.0.0/0, ::/0) would make a proxy of half the
+ * Internet, and believe whatever header any of it sent.
+ */
 function visitorSettingRangeOk(mixed $range): bool
 {
     if (!is_string($range) || !preg_match('~^([0-9A-Fa-f:.]{2,45})(/(\d{1,3}))?$~D', $range, $m)) {
@@ -232,8 +250,10 @@ function visitorSettingRangeOk(mixed $range): bool
     if ($address === false) {
         return false;
     }
+    $bits = strlen($address) * 8;
+    $prefix = isset($m[3]) ? (int) $m[3] : $bits;
 
-    return !isset($m[3]) || (int) $m[3] <= strlen($address) * 8;
+    return $prefix <= $bits && $prefix >= ($bits === 32 ? 8 : 16);
 }
 
 /** Null when the site is set up; otherwise a sentence saying what is missing. */

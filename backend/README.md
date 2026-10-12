@@ -20,7 +20,8 @@ api/
                        Identify in front of it (who the request is, once)
   bootstrap.php        what every entry point loads: settings, error handling, the site's functions
   routes/              public.php (health, the site's status, sign-in settings - the library's
-                       AuthRoutes - pictures, a language's strings - the library's bundle route),
+                       AuthRoutes - pictures, a language's strings - the library's bundle route -,
+                       a page's error into the error log - the library's ErrorLogRoutes::client),
                        surveys.php (the people taking surveys - signed in, or a visitor while the
                        IAM says sign-in is not required: the library's RequireCaller), visitor.php
                        (POST /api/visitor/move: at sign-in, a visitor's answers into the account),
@@ -37,17 +38,25 @@ api/
                        visitors on the surveys' own routes - and currentUser(): a SiteUser)
   people.php           the people who signed in, through the family's people module
                        (Anotoki\Lib\People over users): the People page's columns, the visitors'
-                       line, deleting a person's answers; the scrub of the accounts the IAM deleted
+                       line, deleting a person's answers (peopleDelete(): the page's and a
+                       restore's, on the connection it is given); the scrub of the accounts the
+                       IAM deleted
   admin_tools.php      the error log, the audit log and the backups - the family's
                        (Anotoki\Lib\ErrorLog, Audit, Backups): who acts (the token's person), the
-                       proof a backup asks (a sign-in of the last ten minutes), the files in storage/
+                       proof a backup asks (a sign-in of the last ten minutes), whose address a
+                       request is (Cloudflare's rule), the people's names, the files in storage/;
+                       a restore's hooks (People::restoreHooks(): the People deletes since the
+                       backup done again inside it, the scrub after it)
   surveys.php, responses.php, images.php   the data, by area
   translations.php     the site's words through the family's library (anotoki/lib's
                        Anotoki\Lib\Translations): surveyTranslations() - the languages the site is
                        released in, what deleting a language would leave behind (a survey written
                        in it: SurveyLanguageUsage) - and the site's error body for a refusal
   visitors.php         visitors: find, make (within the limits), hold, the clean-up, the move
-  client_address.php   the address a request comes from, for the limits (trusted proxies only)
+  client_address.php   the address a request comes from, for the limits - the library's ClientAddress
+                       over the visitors' settings (Cloudflare's ranges by default) - and what is
+                       kept of it: a keyed HMAC (a pseudonym), never the address in the clear;
+                       the header pinned - CF-Connecting-IP alone, never a setting
   survey_rules.php     what a survey and an answer must be - the twin of
                        ../frontend/src/app/core/survey/
   rich_text.php        richTextClean(): the editor's HTML and nothing else
@@ -64,16 +73,19 @@ api/
 config/
   config.php           reads database.local.php and iam.local.php - both written by setup.php,
                        gitignored, never committed - and visitors.local.php when it is there
-                       (optional, put there by hand; VISITOR_DEFAULTS without it)
+                       (optional, put there by hand; VISITOR_DEFAULTS without it - the trusted
+                       proxies Cloudflare's published ranges)
 migrations/survey/     the schema and the site's strings, NNN_name.sql (never edit an applied one)
 storage/               cache (the IAM's keys, its "Sign-in required" answer, the daily backup's
                        stamp), logs (the error log, audit entries waiting for their table), backups,
+                       anotoki-lib.key (the installation's own key, made once by the library: the
+                       error log's and the visitors' address hashes, the backups' seal),
                        visitors-swept (when the visitors' clean-up last ran); gitignored, and never
                        served (each folder guarded)
 tests/                 run.php, lib.php; unit/, api/; tools/ (testdb.php, testenv.php)
 tools/                 build.php (the upload -> ../dist/), translation_keys.php (the frontend's keys:
                        the library's KeyScanner, set up for this site)
-vendor/                Slim and its pieces, and anotoki/lib 0.4.1 (the family's library, from GitHub -
+vendor/                Slim and its pieces, and anotoki/lib 0.5.1 (the family's library, from GitHub -
                        ../DEV.md says how it is updated; its migration sets in php/migrations/, its
                        stand-in IAM for the tests in php/testing/) - committed: the hosting cannot
                        run Composer
@@ -117,18 +129,24 @@ each from nothing), the key scan and the site's words against it, migrations
 (`strings_through_the_library`, `people_migration`, `sign_in_words`: an
 owner's rewording moved under the library's key, the formal Slovak; every
 person's row kept, the address gone), the switch's reader and
-a request's address (`client_address`); `api/` the routes
+a request's address (`client_address`: Cloudflare's rule, the library's
+error log's too: X-Real-IP / True-Client-IP / X-Forwarded-For never
+believed, a catch-all range refused, only a keyed HMAC kept); `api/` the routes
 end to end through a real `php -S` (`surveys`, `translations`, `auth`, `visitors`
 (who a request is, the limits, the clean-up, the move - and what happens when
 two requests meet: `somebody_else()` holds a row, `begin_call()` sends and
 sees it wait),
 `migrations`: the site gate in each state (not set up - installed or not -, an
 update waiting, the database out of reach, ready), the status, and the
-Migrations page's routes, `people`: the People page's routes and the scrub,
+Migrations page's routes, `people`: the People page's routes, a delete never
+made without its audit entry, and the scrub,
 `admin_tools`: the error log, the audit log and the backups - each for
-nobody, a MEMBER, an EDITOR and an ADMIN; what is written down; a backup
-made, downloaded once, restored and deleted; the scrub after a restore, the
-IAM answering or out of reach; a failed backup in the error log - and
+nobody, a MEMBER, an EDITOR and an ADMIN; what is written down - the pages'
+own errors too, redacted, and their caps; a backup made, named by its maker,
+downloaded once, restored and deleted; only a sealed one restored here; a
+person's answers deleted since a backup deleted again inside its restore; the
+scrub after a restore, the IAM answering or out of reach; a failed backup in
+the error log - and
 `hosting`: the setup page and the upload as a host runs them). A test never
 writes a file into `migrations/survey/` (a running site reads that folder): it
 makes its database "behind" by taking rows out of its `migrations` table.

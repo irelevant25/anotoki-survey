@@ -2,7 +2,10 @@ import { provideHttpClient } from "@angular/common/http";
 import { Component, signal } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { Router, UrlTree, provideRouter } from "@angular/router";
-import { AnotokiAuth, SignInFailureComponent, type SignInFailure } from "@anotoki/lib/auth";
+import { AnotokiAuth, type SignInFailure } from "@anotoki/lib/auth";
+// The screen itself, read at once: @anotoki/lib/auth's SignInFailureComponent is the route that loads it as it
+// is shown (anotoki-lib 0.5.0), out of the first load.
+import { SignInFailureComponent } from "@anotoki/lib/auth/screens";
 import { provideTestAnotokiAuth, testAnotokiAuth } from "@anotoki/lib/auth/testing";
 import { provideTestTranslations } from "../testing/test-translations";
 import { FORMAL_SLOVAK } from "../translations";

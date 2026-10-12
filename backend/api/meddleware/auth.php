@@ -9,7 +9,7 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 
 /**
- * Who may ask what: the anotoki family's checks (anotoki-lib 0.4.1,
+ * Who may ask what: the anotoki family's checks (anotoki-lib 0.5.1,
  * Anotoki\Lib\Auth\Http), in this site's words. Every route that needs
  * somebody has the library's Identify in front of it (surveyIdentify(),
  * api/auth.php) - who the request is, once - and then one of:

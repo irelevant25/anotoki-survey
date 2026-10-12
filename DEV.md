@@ -38,16 +38,22 @@ its README), one version for both halves:
 
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
-| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.4"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`php/testing/stand-in-iam.php`), and its migration sets (`php/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.4.1/anotoki-lib-0.4.1.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.5.0"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`php/testing/stand-in-iam.php`), and its migration sets (`php/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.5.0/anotoki-lib-0.5.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-Both halves are at 0.4.1. The kit is imported a piece at a time, each from its
+The PHP half is at 0.5.1, the Angular half at 0.5.0 - 0.5.1 changed only the
+PHP half (a restore's sequences: `visitor_ids`, which counts down, is no longer
+set past its end), and a release that changes one half only says so in its
+CHANGELOG. The kit is imported a piece at a time, each from its
 own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
 smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages
 of the words, the People page and the admin tools' pages come with lazy entry
 points of their own (`@anotoki/lib/translations/admin`,
 `@anotoki/lib/people/page`, `@anotoki/lib/admin/errors`, `/audit`,
-`/backups`). The package brings Manrope
+`/backups`), and so do the sign-in's callback page and its failure's screen
+(`@anotoki/lib/auth/screens`, loaded as they are shown); the pages' errors
+go to the error log through `@anotoki/lib/error-report` (`app.config.ts`).
+The package brings Manrope
 with it (`@fontsource-variable/manrope`, its dependency) and the theme's
 `theme-boot.js` (`angular.json` copies it next to `index.html`).
 
@@ -146,8 +152,9 @@ the `X-Visitor-Key` header; send it back in that header and the survey says
 `answeredAt`. The limits and trusted proxies are an optional
 `backend/config/visitors.local.php` (gitignored like the others; nothing
 writes it - [docs/operations.md](docs/operations.md#visitors)); without one the
-defaults hold, and on this computer every request comes from `127.0.0.1`, one
-address: 30 new visitors an hour from it.
+defaults hold - Cloudflare's published ranges the only proxies believed - and
+on this computer every request comes from `127.0.0.1`, one address: 30 new
+visitors an hour from it.
 
 ## Day to day
 
@@ -325,9 +332,10 @@ in (in a second browser too), "Visitor N" / "Not signed in" in the results,
 a sign-in that moves the answers and the draft into the account, and the
 switch on again sending a visitor to sign in; and the ADMIN's System pages -
 the People page (an account the IAM deleted, scrubbed on "Check now"; a
-person's answers deleted after its question), the error log, the audit log,
-the backups (one made after a new sign-in, downloaded by its link, deleted) -
-and an EDITOR kept out of them. It takes about eight minutes after the build.
+person's answers deleted after its question), the error log (a 404, and an
+error thrown in the page: reported with the owner's token, scrubbed), the
+audit log, the backups (one made after a new sign-in, named by its maker,
+downloaded by its link, deleted) - and an EDITOR kept out of them. It takes about eight minutes after the build.
 `CHROME=` names the browser (Edge where Chrome is not installed) and `PHP=`
 a PHP 8.2+ where `php` is an older one.
 

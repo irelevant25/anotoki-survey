@@ -72,6 +72,24 @@ its `GET /api/public/anonymized-accounts` (its 016) for the scrub of deleted
 accounts; until it answers, the People page says the check stopped, and
 nothing else is affected.
 
+**The same version on anotoki-lib PHP 0.5.1, Angular 0.5.0** (no migration of
+its own; 0.5.1 - the PHP half alone - restores a database that ever had a
+visitor, which 0.5.0 could not): the
+host needs PHP's `mbstring` (the library requires it; the setup page checks
+it) and `zlib` (the backups compress with it: without it every backup fails,
+and the error log says so). A plain backup is sealed under the installation's key
+(`storage/anotoki-lib.key`, which the upload never carries and FTP never
+deletes), and only a sealed one is restored on the Backups page: every backup
+made before 0.5.0 has no seal and is restored offline alone - **make one by
+hand on System → Backups once the update is in** (it is the first that the
+page restores at today's migrations). The visitors' trusted proxies are
+Cloudflare's published ranges without a word in `config/visitors.local.php`:
+a `trusted_proxies` there replaces them - one written before (a list of
+Cloudflare's ranges, as operations.md used to show) still works, the same
+list; delete it to follow the library's. A catch-all range there is refused
+(logged, the default holding), and `client_ip_header` is no setting any more
+(logged, left out): the header is `CF-Connecting-IP`, pinned.
+
 ## 2. Upload
 
 For a version with a new migration that will be applied with the setup page
@@ -85,9 +103,9 @@ deleted by hand - delete them if they matter.
 `config/visitors.local.php` (the visitors' limits and trusted proxies) is
 never in the upload and nothing writes it: the owner puts it into the web
 root's `config/` by hand over SFTP, and it stays across uploads. Before the
-IAM's "Sign-in required" is switched off for the survey it should hold
-Cloudflare's ranges in `trusted_proxies` (the site is behind Cloudflare's
-proxy) - [docs/operations.md](../../../docs/operations.md#visitors). Once it is
+IAM's "Sign-in required" is switched off for the survey, nothing in it is
+needed for Cloudflare: its ranges are the default (anotoki-lib 0.5.0) -
+[docs/operations.md](../../../docs/operations.md#visitors). Once it is
 off, one check on the host: a POST of answers without a token answers 201
 with an `X-Visitor-Key` header, and the same key sent back makes
 `GET /api/surveys/<slug>` say `answeredAt` (Apache passes `X-*` headers to

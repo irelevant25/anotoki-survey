@@ -6,7 +6,7 @@ import { AuthService, CALLBACK_PATH } from "./auth.service";
 import { VisitorKey } from "./visitor-key";
 
 /**
- * Signing in through the anotoki family's library (anotoki-lib 0.4.1,
+ * Signing in through the anotoki family's library (anotoki-lib 0.5.0,
  * @anotoki/lib/auth) - wired to this site:
  *
  * - the boot configuration is what AuthService read from GET /api/auth/config

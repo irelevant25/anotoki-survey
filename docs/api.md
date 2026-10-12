@@ -44,6 +44,7 @@ the library's shape (`{code, message, ...}`, not this API's `error`):
 | `GET /api/auth/config` | `{issuer, client_id, login_required, sign_in_available, visitor_days}` - the anotoki library's `AuthRoutes` (its wire format, snake_case; the camelCase this site answered before, `clientId`, `loginRequired`, `visitorDays`, the library's browser half reads too): how the browser signs in, and whether it must - `login_required` is the IAM's "Sign-in required" switch for this site (below); `sign_in_available`, whether the IAM knows the site; `visitor_days`, this site's own: how many days a visitor's browser is remembered after its last visit (`keep_days`, `config/visitors.local.php`). No token is read. Answered while a migration is pending too: the site's ADMIN signs in to apply it |
 | `GET /api/images/{id}.{ext}` | a picture: its bytes, cached for a year; `If-None-Match` → 304; 404 when there is none |
 | `GET /api/translations/{code}` | the site's own words in a language: `{language, languages, values, english?}`; `If-None-Match` → 304; 404 `not_found` for a code that is not one; 503 `translations_unavailable` (`Retry-After: 60`) while the tables are not there or the database cannot be asked - the pages then read what they have |
+| `POST /api/client-errors` | a page's own error into the site's error log - the anotoki library's `ErrorLogRoutes::client`, sent by its browser reporter (`@anotoki/lib/error-report`, at most five a page load): `{type?, message, page?, stack?, status?}` → 204, nothing in the body. JSON only (415), 8 KB at most (413), a message (422 `message_required`); 20 an hour from one sender - a person signed in by their account (a `Bearer` token, checked as everywhere; one that does not check out makes the report nobody's, never a refusal), anybody else by an HMAC of their address bucket - and 500 a day from the visitors, as many apart from the people signed in (429 `too_many`, `retry_after` and `Retry-After`). Every text redacted again on the server (no token, address, `password=`-like secret, query string); written `source: client`, with the page's path alone. A visitor's key is never read here. 503 `update_pending` while a migration waits, as every route `siteOpenWhileUpdating()` does not name |
 
 ### Sign-in required: the IAM's switch, relayed
 
@@ -152,7 +153,12 @@ Migrations page and the move answer it 401 `sign_in_required`.
 - **Limits on new visitors** (`config/visitors.local.php`,
   [operations](operations.md#visitors)): per address an hour, in all an hour,
   and visitors with a key at once - past any, 429 `too_many_visitors` with
-  `Retry-After: 3600`, nothing kept. Visitors there already carry on.
+  `Retry-After: 3600`, nothing kept. Visitors there already carry on. The
+  address is `REMOTE_ADDR`, or `CF-Connecting-IP` from Cloudflare's own
+  addresses alone (the anotoki family's rule; the header pinned, no other ever
+  read; an IPv6 address by its /64), and what is kept of it is a keyed HMAC -
+  a stable pseudonym of the address while the installation's key lasts, never
+  the address in the clear.
 - **Unseen for `keep_days`** (30 by default) **a visitor ends**: its key opens
   nothing (401 `visitor_unknown`), and its answers **stay** in the results as
   "Visitor N". A visitor with no answers left is deleted then - or, once ended,
@@ -406,7 +412,7 @@ while the settings are missing (there is no database to update then:
 
 ### The System: the people, the error log, the audit log, the backups
 
-The anotoki family's routes (anotoki-lib 0.4.1: `PeopleRoutes`,
+The anotoki family's routes (anotoki-lib 0.5.1: `PeopleRoutes`,
 `ErrorLogRoutes`, `AuditRoutes`, `BackupsRoutes` - wired in `routes/admin.php`,
 `api/people.php` and `api/admin_tools.php`), behind this site's
 `requireAdmin()` and guarding themselves as well (the library asks the token's
@@ -418,29 +424,33 @@ pages are the library's (admin panel: System).
 | Route | Answers |
 | --- | --- |
 | `GET /api/admin/people?q=&page=` | `{people: [{sub, name, first_seen_at, last_seen_at, anonymized_at, iam_url, answered, written}], columns, total, page, page_size, visitors: {count, active}, sync, ready, problems}` - everybody who signed in, 50 a page, the most recently seen first; `q` a name (any case, anywhere in it) or an IAM id (422 `invalid_query` for one that cannot be a name); `answered` / `written`: how many surveys each answered and wrote here; `visitors`: those listed as "Visitor N", and how many of them still have their key; `sync`: where the scrub of the IAM's deleted accounts stands; 503 while the tables wait for an update |
-| `DELETE /api/admin/people/{sub}` | `{deleted: {"Answers": n}}` - every answer of the person's (their row and the surveys they wrote stay; asked first on the page, no proof of a recent sign-in - the owner's decision); 404 `not_found` for nobody there; audited `person.data_deleted` |
+| `DELETE /api/admin/people/{sub}` | `{deleted: {"Answers": n}}` - every answer of the person's (their row and the surveys they wrote stay; asked first on the page, no proof of a recent sign-in - the owner's decision); 404 `not_found` for nobody there; audited `person.data_deleted` inside the delete's own transaction (its details name it, `_txid`): no delete without its entry - one that cannot be written undoes the delete, and while the audit log's table waits for an update, 503 `feature_unavailable` (`Retry-After: 60`) and nothing deleted. A restore does the delete again by that entry |
 | `POST /api/admin/people/sync` | `{run: {state, handled, scrubbed, error, problems}, sync}` - the scrub now: the IAM's deleted accounts since the last one, each named by the IAM's placeholder `deleted-{id}` here, `anonymized_at` set, everything else kept; audited `people.synced` |
 | `GET /api/admin/errors?days=&level=&status=&search=` | `{total, errors, warnings, notices, distinct, truncated, days, daily, statuses, groups, dropped}` - the error log's report: the newest lines (`storage/logs`, 30 UTC days), grouped by fingerprint. Open while a migration waits |
 | `GET /api/admin/errors/{fingerprint}` | every occurrence of one group |
 | `DELETE /api/admin/errors[?before=YYYY-MM-DD]` | `{deleted}` - everything, or the UTC days before that one; audited `errors.cleared` |
 | `GET /api/admin/audit?actor=&action=&target_type=&target_id=&from=&to=&page=` | `{total, page, pageSize: 50, items}` - the IAM's shape: each entry when, who (the token's `sub`, named from `users`), the action, what it is about, the details - newest first; `actor` an id or a name (the people of that name here); `action` one, or a family (`backup.*`); 503 while its table waits for an update |
 | `GET /api/admin/audit/facets` | the actions, the people and the kinds of target there are, for the page's choices |
-| `GET /api/admin/backups` | `{backups: [{id, kind, created_at, created_by, description, size, table_count, rows, restorable, stale, encrypted}], status: {count, total_bytes, last_daily, free_bytes, database_bytes, encrypted, restore_enabled, restorable, directory_writable, copy_available, problems}}` - open while a migration waits |
+| `GET /api/admin/backups` | `{backups: [{id, kind, created_at, created_by, created_by_name, description, size, table_count, rows, restorable, sealed, stale, encrypted}], status: {count, total_bytes, last_daily, free_bytes, database_bytes, encrypted, restore_enabled, restorable, directory_writable, copy_available, problems}}` - `created_by_name` the maker's name as the site has it (`users`); `sealed`: made here (below), and only then `restorable`. Open while a migration waits |
 | `GET /api/admin/backups/proof` | `{kind: "recent_sign_in"}` - what making, downloading, deleting and restoring ask: a sign-in of the last ten minutes (the token's `auth_time`) |
 | `POST /api/admin/backups` | `{description?}` → 201 `{backup}`: every table by COPY in one snapshot (the pictures too), `kind: manual`; 403 `reauth_required` after an older sign-in (the page offers "Sign in again"); 409 `busy` during an update or another backup; audited `backup.created` |
 | `GET` / `DELETE /api/admin/backups/{id}` | one backup's facts and its tables / deletes it (the proof; audited `backup.deleted`) |
 | `POST /api/admin/backups/{id}/ticket` | `{url, expires_in: 60}` - a single-use link for the download (the proof; audited `backup.downloaded`) |
 | `GET /api/admin/backups/{id}/file?ticket=` | the file, an attachment (`no-store`, `nosniff`, `no-referrer`) - **deliberately outside every check**: a browser's navigation sends no token, the ticket is the check - good once, for one backup, for its minute |
-| `GET /api/admin/backups/{id}/preview` | the rows a restore would take away, table by table |
-| `POST /api/admin/backups/{id}/restore` | `{confirm: the id's last 6}` → the restore in place, all or nothing, after a `before-restore` backup - only where the database's migrations and columns equal the backup's (409 `schema_differs`); the scrub of the IAM's deleted accounts runs again after it - `{restored, before_restore, tables, rows, duration_ms, after_restore_error}`, `after_restore_error` null, or why that scrub did not finish (the IAM out of reach…: the restore stands, and the next request runs the scrub again); closed while a migration waits; audited `backup.restored` |
+| `GET /api/admin/backups/{id}/preview` | the rows a restore would take away, table by table; `restorable` and, when not, `reasons` (a backup not made here: "It carries no seal of this site's …") |
+| `POST /api/admin/backups/{id}/restore` | `{confirm: the id's last 6}` → the restore in place, all or nothing, after a `before-restore` backup - only a backup made here (422 `archive_invalid` for one without this installation's seal: made before anotoki-lib 0.5.0, put into the folder, or changed since - restored offline alone) and only where the database's migrations and columns equal the backup's (409 `schema_differs`). Inside its transaction, before anybody sees the rows, every person's answers deleted on the People page since the backup are deleted again (the audit log's `person.data_deleted`, which is never restored) - one that cannot be done again rolls the restore back whole (500 `restore_failed`); a check of the IAM's deleted accounts running at that moment refuses it ("restore again in a minute"). After it the scrub of the IAM's deleted accounts runs again - `{restored, before_restore, tables, rows, duration_ms, after_restore_error}`, `after_restore_error` null, or why that scrub did not finish (the IAM out of reach…: the restore stands, and the next request runs the scrub again); closed while a migration waits; audited `backup.restored` |
 
 The backups are files under `storage/backups/` (`<id>.anotoki-backup`, a
 gzip'd tar after a two-line header - not encrypted, the owner's decision of
-2026-10-11: only the IAM's are); kept: daily 14, before an update 5, before a restore 5, by hand until
+2026-10-11: only the IAM's are - but sealed: the sidecar `<id>.anotoki-backup.json`
+carries an HMAC of the id and the file's SHA-256 under a key derived from the
+installation's `storage/anotoki-lib.key`, and a restore hashes the very bytes
+it reads); kept: daily 14, before an update 5, before a restore 5, by hand until
 deleted - no maximum age (the owner's decision of 2026-10-11: nothing deletes a
 backup for being old). The daily one is made after the answer of the first
-request of a UTC day. The browser's errors have no route here yet
-(`ErrorLogRoutes::client` comes with the library's 0.4.2).
+request of a UTC day. Every file the backups write is the site's own user's
+alone (`0600`, folders `0700`). The pages' own errors come to the error log
+through `POST /api/client-errors` ("Anybody", above).
 
 ## Limits
 

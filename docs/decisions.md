@@ -503,22 +503,110 @@ site did on its own into the library, and each site onto it. The survey takes:
   it (the IAM out of reach) says so - the restore stands, the Backups page
   shows why, the error log has it - and the next request runs it again, not
   an hour later.
-- **A restore brings back the answers deleted for a person** (People →
+- **A restore brought back the answers deleted for a person** (People →
   Delete their answers) since the backup was made - until the library's
-  0.4.2, which keeps such a delete across a restore. Until then, after a
-  restore, delete them again.
+  next release, which keeps such a delete across a restore: 0.5.0, below.
 - **A backup that fails is written in the site's error log** (System → Error
   log), beside PHP's own log: the daily one after an answer, the one before
   an update, the work after a restore (the library's `onError`, as its README
   wires it).
-- **Browser errors are not in the error log yet**: the library's route for
-  them (`ErrorLogRoutes::client`) is not mounted - they come to every site's
-  error log with the library's 0.4.2 and its Angular reporter (the owner's
-  plan of 2026-10-11).
+- **Browser errors were not in the error log yet**: the library's route for
+  them (`ErrorLogRoutes::client`) was not mounted - they came to every site's
+  error log with the library's next release and its Angular reporter (the
+  owner's plan of 2026-10-11): 0.5.0, below.
 - **The error log is the outermost layer** (as the library's README wires
   it): what the site gate answers - its 503s while an update waits or the site
   is not set up - is written down too, so an outage is something the log can
-  report.
+  report. (Until 0.5.0, below: a state the site is in on purpose is no longer
+  written; an outage still is.)
+
+**A restore keeps a person's deletes, the backups are sealed, the pages'
+errors are logged, and an address is Cloudflare's to say - anotoki-lib 0.5.0
+(2026-10-11), its PHP half 0.5.1 (2026-10-12).** The library's next release,
+taken by every site in one round; for the survey (no migration of its own):
+
+- **The PHP half is 0.5.1, the Angular half 0.5.0.** 0.5.0's restore set every
+  sequence one step up past the later of the backup's value and today's: the
+  survey's `visitor_ids` counts down (INCREMENT BY -1, MAXVALUE -1), so a
+  restore of a database that ever had a visitor failed whole (`setval(0)`,
+  `500 restore_failed`) - or, with more visitors, would have handed out an id
+  again. 0.5.1 moves each sequence in its own direction; it changed only PHP,
+  and the frontend stays on the 0.5.0 tarball. The site's test of it restores
+  a database with visitors (`tests/api/admin_tools.test.php`).
+
+- **A restore does not bring back what a person had deleted on the People
+  page.** The People page's Delete is one hook, the page's and a restore's (`peopleDelete()`):
+  inside the restore's transaction, before anybody sees its rows, every
+  Delete since the backup's snapshot is done again (the library's
+  `People::restoreHooks()`, by the audit log's `person.data_deleted` - the
+  audit log is never restored); one that cannot be done again rolls the
+  restore back whole. So the hook keeps the library's contract: it runs inside
+  the library's transaction and begins none of its own, works on the
+  connection it is given alone (in a restore the site's own would wait on the
+  restore's locks - PostgreSQL ends such a restore after a minute), and takes
+  a null request; `responsesDeleteOf()` refuses to run outside a
+  transaction, so a hook that hands it the site's connection in a restore
+  (in no transaction there) fails at once instead of a minute later - one
+  that opened a transaction of its own there would still wait the minute,
+  which is why a hook never opens one. The delete's entry is written
+  inside the delete's own transaction: no delete without it (`503
+  feature_unavailable` while the audit log's table waits). The site's own
+  scrub after a restore (`surveyScrubAfterRestore()`) went: the library's does
+  the same, the next request scrubbing again when it could not finish.
+  **One gap, open for the owner**: answers a visitor's browser moved into the
+  account (`POST /api/visitor/move`, `visitorMoveInto()`) after the backup are
+  the visitor's in that backup - a negative id the Delete done again does not
+  name - so a restore brings them back as "Visitor N" (no name on them, the
+  person's words in them). Closing it needs the move kept where a restore
+  does not undo it - e.g. a `visitor.moved` entry in the audit log inside the
+  move's transaction, and the Delete taking the answers of the visitors moved
+  into the person too - which puts what people do, not only the admin panel,
+  into the audit log: the owner's call, not this round's. Nothing is public
+  yet, so no such answers exist.
+- **What the error log leaves out is the family's rule** (anotoki-lib 0.5.0's
+  `expected`, taken whole): a state the site is in on purpose - an update
+  waiting (`update_pending`), not set up, a tool's table waiting - is not
+  written; a real failure, a 503 of the database included, is. The survey
+  never filtered its 503s itself, so nothing of its own went; the gate's
+  answers while an update waits are simply no longer in the log.
+- **Only a backup made here is restored here.** A plain backup is sealed under
+  the installation's key (`storage/anotoki-lib.key`); one made before 0.5.0 has
+  no seal and is restored offline alone - nothing is public yet, so none of
+  those is needed (the owner's word for the round). The Backups page names
+  each backup's maker (the context's `names`, the site's `users`).
+- **The pages' errors go to the error log** - the owner's decision for every
+  site: `POST /api/client-errors` (the library's route, nobody's: a visitor's
+  page fails as anybody's does) and the library's reporter in the browser,
+  through the app's own `HttpClient` - so the site's interceptors decide what a
+  report carries: a person's token (the server counts it by account), never a
+  visitor's key (it goes to the surveys' routes alone). Capped by the library
+  (20 an hour a sender, 500 a day from the visitors and as many apart from
+  the people signed in) and closed while an update waits, as every route is -
+  not one of the paths that answer then: the Migrations page's errors are not
+  worth an open write.
+- **Where a request comes from is what Cloudflare says, and is not kept in
+  the clear** - the owner's rule of 2026-10-11 for every site:
+  `CF-Connecting-IP` alone, believed only on a connection from Cloudflare's
+  published ranges, now the committed default (`VISITOR_DEFAULTS`: the
+  library's `ClientAddress::CLOUDFLARE`; the list was empty, so every visitor
+  behind Cloudflare shared the edges' few buckets), `visitors.local.php` able
+  to replace it. **The header is pinned in code** - `client_ip_header`, the
+  setting that named it, went (a file that still has it is logged, the key
+  left out): `X-Real-IP`, `True-Client-IP` and `X-Forwarded-For` come through
+  Cloudflare as the visitor sent them, so a site reading one would let anybody
+  name their own address (a finding of the other sites' reviews, kept out
+  here); the site's own reading of a list header from the right went with it.
+  **A catch-all range is refused**: a `trusted_proxies` entry shorter than /8
+  (IPv4) or /16 (IPv6) - `0.0.0.0/0`, `::/0` - would make a proxy of half the
+  Internet; the list is left out, logged, and Cloudflare's holds. The library's
+  error log reads by the same proxies and the same header. Only a keyed HMAC
+  of an address is kept: the visitors' counters held `visitors:new:<address>`
+  in the clear until now (in the database and so in every backup) - they go by
+  an HMAC under a key derived from the installation's key now, and the old
+  rows go with the clean-up once their hour is over (nothing migrates: a
+  counter lives an hour). The HMAC is a stable pseudonym of the address while
+  that key lasts, not a way to make it unreadable: whoever holds
+  `storage/anotoki-lib.key` can try every IPv4 address against it.
 
 ## Languages
 

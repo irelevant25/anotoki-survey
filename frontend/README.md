@@ -21,7 +21,10 @@ src/
   test-setup.ts                      the unit tests' shims for jsdom (dialog, popover, matchMedia), as the
                                      library's own tests have them
   app/
-    app.config.ts, app.routes.ts     providers, the boot (core/boot.ts) and the routes
+    app.config.ts, app.routes.ts     providers, the boot (core/boot.ts) and the routes; the app's HttpClient
+                                     and its interceptors (SITE_INTERCEPTORS), and the family's error
+                                     reporter (@anotoki/lib/error-report: the pages' errors, scrubbed, to
+                                     the backend's error log through that HttpClient - app.config.spec.ts)
     app.component.*                  the pages behind the anotoki family's gate (<anotoki-site-gate>): while
                                      the site cannot run - not set up, a database update waiting, out of
                                      reach - the family's page stands instead, and the Migrations page for
@@ -32,7 +35,7 @@ src/
     boot/                            the card drawn when the server could not be reached as the site started
                                      (its status answered, the sign-in's settings not)
     core/
-      auth/                          signing in through the family's library (@anotoki/lib/auth, 0.4.1):
+      auth/                          signing in through the family's library (@anotoki/lib/auth, 0.5.0):
                                      auth.config.ts (provideSiteAuth() - the boot configuration, the
                                      site's API and visitors, the words, no sign-in hint; signInOrShowWhy(),
                                      signInFailureGuard), AuthService (the survey's face of the library's
@@ -41,6 +44,7 @@ src/
                                      (the key - the library's VisitorKeyStore - and the move at sign-in).
                                      The guards (personGuard, personOrVisitorGuard), the interceptor, the
                                      callback page and the screen of a failed sign-in are the library's
+                                     (the two screens loaded as they are shown: @anotoki/lib/auth/screens)
       api/                           ApiService: one method a route of ../backend (whom each request is
                                      for: the library's issuedAs)
       migrations.ts                  the anotoki family's library (@anotoki/lib/migrations - the site's
@@ -93,8 +97,10 @@ proxy.conf.json                      /api and /setup.php to the backend on :8500
 Components are three files (`.ts`, `.html`, `.scss`); colours come from the
 family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
 every page works at 390 px. The UI kit, the top bar, the theme, the site's
-words, signing in, the People page and the admin tools are the anotoki
-family's library (`@anotoki/lib`, 0.4.1), configured in `core/kit.ts`,
+words, signing in, the People page, the admin tools and the error reporter
+are the anotoki family's library (`@anotoki/lib`, 0.5.0 - the backend's half is
+0.5.1, a PHP-only fix), configured in
+`app.config.ts`, `core/kit.ts`,
 `core/translations.ts`, `core/auth/auth.config.ts` and
 `core/admin/admin-tools.ts` - never copied here; each kit piece
 is imported from its own entry point (`@anotoki/lib/ui/button`, ...), never

@@ -52,8 +52,9 @@ Working conventions:
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
 - Signing in, the people and the admin tools are the anotoki family's library's
-  (anotoki-lib 0.4.1: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
-  module, the error log, the audit log, the backups) - wired in
+  (anotoki-lib, PHP 0.5.1 / Angular 0.5.0: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
+  module, the error log - the pages' errors too, `@anotoki/lib/error-report` -,
+  the audit log, the backups) - wired in
   `api/auth.php`, `api/people.php`, `api/admin_tools.php`,
   `core/auth/auth.config.ts`, `core/admin/admin-tools.ts`; never copied or
   edited here. Who a request is comes only from the verified token (the
@@ -75,7 +76,7 @@ Working conventions:
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
   (light and dark); every page works at 390 px. The UI kit and the top bar are
-  the anotoki family's (`@anotoki/lib` 0.4.1, wired in `core/kit.ts`) - use
+  the anotoki family's (`@anotoki/lib` 0.5.0, wired in `core/kit.ts`) - use
   them, each piece from its own entry point (`@anotoki/lib/ui/button`, ...,
   never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come
   from the database there (`forKit()`), and its class names are its own

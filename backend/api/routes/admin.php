@@ -81,16 +81,20 @@ use Slim\Routing\RouteCollectorProxy;
  * this site's check):
  *
  *   /api/admin/people     the People page (PeopleRoutes, api/people.php): GET ?q=&page= the people,
- *                         DELETE /{sub} every answer of theirs, POST /sync the scrub of the IAM's
+ *                         DELETE /{sub} every answer of theirs (audited inside its own transaction: 503
+ *                         feature_unavailable while the audit log's table waits - no delete without its
+ *                         entry, which a restore does it again by), POST /sync the scrub of the IAM's
  *                         deleted accounts now
  *   /api/admin/errors     the error log (ErrorLogRoutes): GET ?days=&level=&status=&search=, GET
  *                         /{fingerprint}, DELETE ?before= - open while a migration waits
  *   /api/admin/audit      the audit log (AuditRoutes): GET ?actor=&action=&target_type=&target_id=&from=&to=&page=,
  *                         GET /facets
- *   /api/admin/backups    the backups (BackupsRoutes): GET, GET /proof, POST, GET|DELETE /{id}, POST /{id}/ticket,
- *                         GET /{id}/preview, POST /{id}/restore - making, downloading, deleting and restoring after a
- *                         sign-in of the last ten minutes (403 reauth_required); open while a migration waits, but
- *                         the restore
+ *   /api/admin/backups    the backups (BackupsRoutes): GET (each backup's maker by name), GET /proof, POST,
+ *                         GET|DELETE /{id}, POST /{id}/ticket, GET /{id}/preview, POST /{id}/restore - making,
+ *                         downloading, deleting and restoring after a sign-in of the last ten minutes (403
+ *                         reauth_required); a restore only of a backup made here (sealed - 422 archive_invalid
+ *                         for any other), the answers deleted for a person since done again inside it; open while
+ *                         a migration waits, but the restore
  *   GET /api/admin/backups/{id}/file?ticket=   the download itself: DELIBERATELY outside every check - a
  *                         browser's navigation sends no token, and the single-use ticket is the check
  *
@@ -212,13 +216,16 @@ MigrationsRoutes::admin(
 // (the token's ADMIN, through surveyAdminContext()) behind this site's own
 // check, in this site's error body. The People page records a person's row
 // on none of them: the error log and the backups work while an update waits.
+// A person's Delete is the same hook a restore does it again with
+// (peopleDelete(), surveyBackups()): the library holds its transaction, and
+// writes its person.data_deleted inside it - no delete without its entry.
 PeopleRoutes::admin(
     $app,
     '/api/admin/people',
     surveyPeople(),
     columns: peopleColumns(),
     visitors: peopleVisitors(...),
-    delete: static fn(PDO $pdo, int $sub, Request $request): ?array => peopleDelete($pdo, $sub),
+    delete: peopleDelete(...),
     error: respondRefusal(...),
     audit: surveyAudit(),
     context: surveyAdminContext(),

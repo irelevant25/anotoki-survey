@@ -30,7 +30,9 @@ backend/
   api/bootstrap.php        what every entry point loads: settings, error handling (warnings throw,
                            display_errors off), the site's functions
   api/routes/              public.php (health, the site's status - the family's MigrationsRoutes::status -,
-                           auth config - the family's AuthRoutes -, pictures, the strings of a language),
+                           auth config - the family's AuthRoutes -, pictures, the strings of a language,
+                           POST /api/client-errors - a page's error into the error log, the family's
+                           ErrorLogRoutes::client: nobody's, capped by the library),
                            surveys.php (people - the library's RequireCaller), visitor.php (POST
                            /api/visitor/move: token and key), admin.php (/api/admin/..., EDITOR/ADMIN:
                            surveys, answers, pictures, languages, strings; ADMIN: the migrations, the
@@ -46,7 +48,7 @@ backend/
                            and only hands the key in; nothing of a survey
                            without a token while sign-in is required, but its pictures (an
                            <img> sends none; UUID addresses)
-  api/auth.php             signing in through the family's library (anotoki-lib 0.4.1, Anotoki\Lib\Auth -
+  api/auth.php             signing in through the family's library (anotoki-lib 0.5.1, Anotoki\Lib\Auth -
                            the IAM's SDK is gone): surveyIam() (IamClient), surveySignInRule() /
                            authLoginRequired() (the IAM's "Sign-in required", relayed by
                            /api/auth/config with visitor_days), surveyIdentify() (only Bearer claims to
@@ -55,18 +57,27 @@ backend/
                            (setup.php and the health details)
   api/people.php           the people module over users (Anotoki\Lib\People): surveyPeople(), the People
                            page's columns (answered, written), the visitors' line, peopleDelete()
-                           (every answer of a person's), peopleNames() (the audit log's names)
+                           (every answer of a person's - the library's hook, the page's and a
+                           restore's: inside the library's transaction, on the $pdo it is given
+                           alone, a null request in a restore), peopleNames() (the audit log's and
+                           the backups' names)
   api/admin_tools.php      the error log, the audit log, the backups (Anotoki\Lib\ErrorLog, Audit,
                            Backups): surveyAdminContext() (the token's person, the proof - a sign-in
-                           of the last ten minutes -, the address bucket, this site's error body),
-                           surveyAudit() / surveyAudited(), surveyErrorLog(), surveyBackups()
-                           (storage/backups, the migrations' lock, the scrub again after a restore)
+                           of the last ten minutes -, whose address a request is - the visitors'
+                           trusted proxies and header, Cloudflare's by default -, the people's
+                           names, this site's error body), surveyAudit() / surveyAudited(),
+                           surveyErrorLog(), surveyBackups() (storage/backups, sealed; the
+                           migrations' lock; a restore's hooks - People::restoreHooks(): the People
+                           deletes since the backup done again inside it, the scrub after it)
   api/visitors.php         visitors (the switch off): visitorFind / visitorMake (in the answers'
                            transaction, after the limits - counters that are rows) / visitorHold /
                            visitorSweep (+ visitorSweepSoon: after the answer, hourly) /
                            visitorsForgetEmpty / visitorMoveInto
-  api/client_address.php   the address the limits count: REMOTE_ADDR unless a trusted proxy's
-                           header says otherwise; IPv6 by its /64
+  api/client_address.php   the address the limits count - the family's one rule (the library's
+                           ClientAddress): REMOTE_ADDR unless a trusted proxy's (Cloudflare's ranges
+                           by default) CF-Connecting-IP names one - that header pinned, no other ever
+                           read; IPv6 by its /64 - and clientAddressKept(), what is kept of it: a
+                           keyed HMAC, a pseudonym while the key lasts, never the address in the clear
   api/helpers.php          JSON in and out, and the text helpers: TEXT_SPACE (what the browser's trim()
                            takes for a space), textTrim(), textClean(); afterAnswerAdd() /
                            afterAnswerRun() (work after the answer: the clean-up). (A site's string
@@ -88,7 +99,7 @@ backend/
                            languagesForSurveys() / languagesOffered() (what survey_rules.php reads)
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.4.1's PHP half - never edited here; DEV.md: how it is updated):
+                           anotoki-lib 0.5.1's PHP half - never edited here; DEV.md: how it is updated):
                            surveyMigrationSet(), surveyMigrationSets() (the library's `anotoki_admin`,
                            the site's `survey`, then the library's `anotoki_translations` and
                            `anotoki_people` - recorded as <set>/NNN.sql), surveyMigrator($pdo,
@@ -100,8 +111,10 @@ backend/
                            waits - the sign-in's settings, the strings, the Migrations page's routes,
                            the error log's and the backups': the library's openPath(s)())
   config/config.php        database.local.php + iam.local.php; visitors.local.php (optional, by hand:
-                           VISITOR_DEFAULTS, visitorSettings(); visitorSettingsFile() - a file that
-                           does not parse is logged, the defaults hold); SURVEY_TEST_CONFIG for the tests
+                           VISITOR_DEFAULTS - the trusted proxies Cloudflare's published ranges, the
+                           library's ClientAddress::CLOUDFLARE -, visitorSettings(); visitorSettingsFile()
+                           - a file that does not parse is logged, the defaults hold); SURVEY_TEST_CONFIG
+                           for the tests
   migrations/survey/       the schema - and the site's strings (002 the tables and the two languages,
                            003 every key with its English and Slovak string: the pattern for the next;
                            006 the visitors: visitor_ids, users.visitor_key_hash, visitor_counters;
@@ -126,6 +139,11 @@ backend/
   tests/                   run.php, lib.php, unit/, api/, tools/ (testdb, testenv); the IAM is the
                            library's TestIam (and its stand-in, vendor/anotoki/lib/php/testing)
 frontend/src/app/
+  app.config.ts            the providers; SITE_INTERCEPTORS (the site's status, then who a request is);
+                           provideAnotokiErrorReport() - the family's reporter, the app's ErrorHandler:
+                           the pages' errors, scrubbed, to POST /api/client-errors through that
+                           HttpClient (a person's with the token, a visitor's without the key -
+                           app.config.spec.ts)
   app.component.*          the pages behind the family's gate: <anotoki-site-gate> around the router
                            outlet, given as its <ng-template anotokiSitePages> - made only while the
                            gate shows the pages (anotoki-lib 0.2.0; content given as it is is made
@@ -140,7 +158,7 @@ frontend/src/app/
                            database / AdminDates' dates / reload the strings when up to date),
                            MIGRATIONS_PATH; siteStatusInterceptor in app.config.ts; SiteStatus
                            (state, blocked, check, checkForReload, markReady) is the library's
-  core/auth/               signing in through the family's library (anotoki-lib 0.4.1, @anotoki/lib/auth -
+  core/auth/               signing in through the family's library (anotoki-lib 0.5.0, @anotoki/lib/auth -
                            the vendored SDK is gone): auth.config.ts (provideSiteAuth() - the boot
                            configuration AuthService read, the site's API (/api/, its status, auth
                            config, strings and pictures skipped), the visitors (VisitorKey, the key
@@ -190,7 +208,7 @@ frontend/src/app/
                            error-text.ts (a failed request's key), answer-words.ts (a rule or a
                            problem in the reader's language), dynamic-keys.ts (keys put together at
                            run time - the backend's scan reads it)
-  core/kit.ts              the family's UI kit (anotoki-lib 0.4.1, each piece from its own entry point)
+  core/kit.ts              the family's UI kit (anotoki-lib 0.5.0, each piece from its own entry point)
                            wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
                            the language on the page and the kit's words from the database - the
                            library's keys, anotoki.* - and SURVEY_ICONS) + provideSiteShell() (the
@@ -309,13 +327,30 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   them). The frontend hides; the server refuses. **No address is kept**: a
   person is the IAM's id and name (`users`, recorded from the token by the
   library's `RecordPerson`); a new column with a person's data needs a place
-  in the scrub of the IAM's deleted accounts (`api/people.php`).
+  in the scrub of the IAM's deleted accounts (`api/people.php`). Nor a
+  visitor's in the clear: what counts per address keeps a keyed HMAC of it
+  (`clientAddressKept()` - a stable pseudonym while the installation's key
+  lasts, never called unreadable), and where a request comes from is the
+  family's one rule - `CF-Connecting-IP` from Cloudflare's ranges alone
+  (`clientAddress()`; the library's error log reads by the same proxies). The
+  header is pinned in code: never a setting a local file could point at
+  `X-Real-IP`, `True-Client-IP` or `X-Forwarded-For`; and a trusted range
+  shorter than /8 (IPv4) or /16 (IPv6) is refused (`visitorSettingRangeOk()`).
+- **A person's Delete is done again by a restore** (anotoki-lib 0.5.0): the
+  hook (`peopleDelete()`) runs inside the library's transaction and begins
+  none, writes on the `$pdo` it is given and nothing else - never `db()`, nor
+  an audit entry or a helper of the site's on that connection (`surveyAudited()`,
+  `dbExec()`): in a restore that waits on the restore's locks; the library
+  writes the delete's entry on the same `$pdo` - takes a null request, and
+  deletes nothing a replay could not delete again - what it deletes, a
+  restore deletes again by the audit log's entry, which the library writes
+  inside the same transaction.
 - **Every admin change is audited** (`surveyAudited()`, `api/admin_tools.php`):
   a new admin route that changes something writes its entry, by the token's
   person, inside the change's transaction where there is one.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib 0.4.1,
-  both halves; the owner's decision of 2026-10-07): the
+  applies it - the anotoki family's way, the library's** (anotoki-lib, PHP
+  0.5.1 and Angular 0.5.0; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
   `/api/site-status`, always); a new route that must work then goes there, and
@@ -439,7 +474,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   pieces both areas share (top bar, UI kit, toasts) read through
   `effectiveLanguage`, which is `en` under `/admin` - the kit's own words too
   (`core/kit.ts`), and the family's page at an admin address.
-- **The UI kit is the family's** (anotoki-lib 0.4.1): a new piece of a page
+- **The UI kit is the family's** (anotoki-lib 0.5.0): a new piece of a page
   is the kit's (`anotoki-*`, `anotokiButton`) unless the kit has none,
   imported from its own entry point (`@anotoki/lib/ui/button`, ...) - never
   from the `@anotoki/lib/ui` barrel, which puts every piece into the first
@@ -1046,6 +1081,26 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   way. A string in a migration stays on one line (a line break inside it would
   be a CRLF there), with `''` for an apostrophe and no `E''` or backslash
   escapes: the statement splitter knows `''` and nothing else of a string.
+- **The sign-in's two screens are routes since anotoki-lib 0.5.0**:
+  `@anotoki/lib/auth`'s `AuthCallbackComponent` and `SignInFailureComponent`
+  load their screen as it is shown (`@anotoki/lib/auth/screens`, out of the
+  first load). The site's route stays as it is; a spec that renders a screen
+  and reads its markup at once imports it from `@anotoki/lib/auth/screens`
+  (`auth.config.spec.ts`) - the other one draws nothing yet.
+- **A restore's delete waits on nothing but itself**: the restore holds every
+  restored table on its own connection, and a People delete hook that turns
+  to `db()` there waits on those locks while the restore waits on the hook -
+  no deadlock is seen, and PostgreSQL ends the restore after a minute. So
+  `responsesDeleteOf()` refuses to run outside a transaction: on the restore's
+  path `db()` is in none, and the restore fails at once with the reason. A
+  hook that opened a transaction of its own on `db()` (`dbTx()`) would pass
+  that guard and wait the minute: the library's contract - no transaction of
+  the hook's own - is what keeps it out, and the restore test's time check
+  what catches it.
+- **The pages' error reports are counted in a file beside the log**
+  (`storage/logs/client-errors.json`, the library's: keyed hashes, the hour's
+  and the day's counts) - a test of the caps starts from a fresh one, and
+  writes the day's counts into it to reach a budget without 500 requests.
 
 ## Checks before saying it is done
 
@@ -1068,6 +1123,15 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
    failed, a session that ended over unsaved boxes, a conflict, an open survey
    with a text not translated, the site not set up or out of reach).
 4. Review: the `survey-reviewer` agent, or this list -
+   - [ ] no address kept in the clear - a person's or a visitor's: a keyed
+         HMAC at most (`clientAddressKept()`), described as a pseudonym, never
+         as unreadable; `CF-Connecting-IP` alone, pinned, believed only from a
+         trusted proxy (`clientAddress()`, Cloudflare's ranges), no catch-all
+         range taken;
+   - [ ] a People delete hook (or a scrub hook) writes on the `$pdo` it is
+         given and nowhere else - no audit entry or helper on the site's own
+         connection - in the library's transaction, a null request taken (a
+         restore does it again);
    - [ ] no route trusts anything but the token for who and what role (the
          library's `Identify` in front of its group); the System's routes
          ADMIN's alone; every admin change audited; no person's address kept;

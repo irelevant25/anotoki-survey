@@ -27,7 +27,6 @@ const KEY_PATTERN = '/^[A-Za-z0-9_-]{43}$/D';
 
 const VISITOR_SETTINGS = [
     'trusted_proxies' => ['127.0.0.1'],
-    'client_ip_header' => 'CF-Connecting-IP',
     'new_per_hour_per_address' => 3,
     'new_per_hour' => 6,
     'max_active' => 8,
@@ -159,6 +158,18 @@ function counters(): array
     return array_column(dbAll('SELECT name, count FROM visitor_counters ORDER BY name'), 'count', 'name');
 }
 
+/**
+ * The counter of new visitors from $address as the server names it: a keyed
+ * HMAC of what it counts (the address; an IPv6 address's /64) under the
+ * server's own installation key - never the address (api/client_address.php).
+ */
+function address_counter(string $address): string
+{
+    $key = \Anotoki\Lib\Support\Keys::derive(\Anotoki\Lib\Support\Keys::installation($GLOBALS['app']['config'] . '/storage'), 'visitor-limits');
+
+    return 'visitors:new:' . hash_hmac('sha256', \Anotoki\Lib\Support\ClientAddress::bucket($address), $key);
+}
+
 function answered_at(array $answer, string $slug): ?string
 {
     foreach ($answer['body']['surveys'] ?? [] as $entry) {
@@ -203,10 +214,11 @@ test('nobody\'s answers that are kept make a visitor: its key in a header of the
     assert_true((int) $row['id'] < 0, 'a negative id');
     assert_same([null, null, hash('sha256', $key), true], [$row['preferred_username'], $row['anonymized_at'], $row['visitor_key_hash'], $row['seen']]);
     assert_same((int) $row['id'], (int) dbValue('SELECT user_id FROM responses WHERE id = ?', [$sent['body']['id']]), 'the answers are the visitor\'s');
-    assert_same(['visitors:new' => 1, 'visitors:new:203.0.113.9' => 1], counters());
+    assert_same(['visitors:new' => 1, address_counter('203.0.113.9') => 1], counters());
 
     foreach (['users', 'responses', 'visitor_counters', 'surveys'] as $table) {
         assert_same(0, (int) dbValue("SELECT count(*) FROM $table t WHERE row_to_json(t)::text LIKE ?", ['%' . $key . '%']), "the key is in no row of $table");
+        assert_same(0, (int) dbValue("SELECT count(*) FROM $table t WHERE row_to_json(t)::text LIKE '%203.0.113.9%'"), "nor the address in a row of $table: its counter goes by a keyed HMAC of it");
     }
     assert_no_match('/' . preg_quote($key, '/') . '/', server_log(), 'nor in the server\'s log');
 });
@@ -232,7 +244,7 @@ test('a send that is refused makes nobody a visitor and counts nothing - ten of 
     assert_same([0, [], 0], [(int) dbValue('SELECT count(*) FROM users WHERE id < 0'), counters(), (int) dbValue('SELECT count(*) FROM responses')]);
 
     new_visitor('first', $address);
-    assert_same(['visitors:new' => 1, "visitors:new:$address" => 1], counters());
+    assert_same(['visitors:new' => 1, address_counter($address) => 1], counters());
 });
 
 test('a visitor: its own answeredAt and nobody else\'s, once each survey, one key for all of them', function (): void {
@@ -339,7 +351,7 @@ test('limits on new visitors - an address\'s, everybody\'s, and how many at once
     assert_same([429, 'too_many_visitors', '3600', null], [$fourth['status'], $fourth['body']['code'] ?? null, $fourth['headers']['retry-after'] ?? null, $fourth['headers']['x-visitor-key'] ?? null]);
     assert_match('/this address/', (string) $fourth['body']['error']);
     assert_same([3, 3], [(int) dbValue('SELECT count(*) FROM users WHERE id < 0'), (int) dbValue('SELECT count(*) FROM responses')], 'nothing kept');
-    assert_same(3, counters()['visitors:new:203.0.113.30'], 'the refused one counted nothing');
+    assert_same(3, counters()[address_counter('203.0.113.30')], 'the refused one counted nothing');
     assert_same(201, as_visitor($keys[0], 'POST', '/api/surveys/second/responses', answers())['status'], 'a visitor there already carries on');
     new_visitor('first', '203.0.113.31');
 
@@ -351,7 +363,8 @@ test('limits on new visitors - an address\'s, everybody\'s, and how many at once
     assert_same(429, nobody('POST', '/api/surveys/first/responses', answers(), '2001:db8:1:2::99')['status'], 'the same /64');
     new_visitor('first', '2001:db8:1:3::1');
     new_visitor('first', '::ffff:198.51.100.200');
-    assert_true(isset(counters()['visitors:new:198.51.100.200']), 'an IPv4-mapped address is the IPv4 address: ' . test_show(counters()));
+    assert_true(isset(counters()[address_counter('198.51.100.200')]), 'an IPv4-mapped address is the IPv4 address: ' . test_show(counters()));
+    assert_same(3, counters()[address_counter('2001:db8:1:2::')] ?? null, 'the /64 counted as one');
 
     // Everybody's, within the hour.
     fresh();
@@ -381,7 +394,7 @@ test('two new visitors from one address at the same moment: the second waits for
     // Somebody else is being made a visitor from the address - the third this hour - and is not finished.
     $other = somebody_else();
     $other->beginTransaction();
-    $other->exec("INSERT INTO visitor_counters (name, count, window_ends) VALUES ('visitors:new:$address', 3, now() + interval '1 hour')");
+    $other->prepare("INSERT INTO visitor_counters (name, count, window_ends) VALUES (?, 3, now() + interval '1 hour')")->execute([address_counter($address)]);
     $pending = begin_call($GLOBALS['app']['base'], 'POST', '/api/surveys/first/responses', answers(), ["CF-Connecting-IP: $address"]);
     try {
         if (!$pending['waits']()) {
@@ -655,6 +668,18 @@ test('the results: a visitor is "Visitor N" from its own id, with no address, an
     $byId = array_column($people, null, 'id');
     assert_same(['id' => (string) $visitor, 'name' => 'Visitor ' . -$visitor, 'visitor' => true], $byId[(string) $visitor]);
     assert_same(['id' => (string) PAT, 'name' => 'user' . PAT, 'visitor' => false], $byId[(string) PAT], 'a person by their IAM name; nobody\'s address');
+});
+
+test('the error log reads where a request comes from by these same settings: behind the proxy they trust, each visitor\'s pages report on their own budget', function (): void {
+    // This file's visitors.local.php trusts 127.0.0.1 - the tests - about CF-Connecting-IP: so does the error log
+    // (surveyAdminContext()), whose pages' reports count 20 an hour a sender.
+    $report = static fn(string $ip, string $message): array => nobody('POST', '/api/client-errors', ['message' => $message], $ip);
+    for ($i = 1; $i <= 20; $i++) {
+        assert_same(204, $report('203.0.113.70', "A page's error $i")['status'], "report $i from one visitor");
+    }
+    $over = $report('203.0.113.70', 'One too many');
+    assert_same([429, 'too_many'], [$over['status'], $over['body']['code'] ?? null], 'the 21st from that visitor within the hour');
+    assert_same(204, $report('203.0.113.71', 'Another visitor\'s')['status'], 'another visitor behind the same proxy: a budget of their own');
 });
 
 test('the server said nothing it should not have', function (): void {

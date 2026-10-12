@@ -107,11 +107,16 @@ await page.send('Network.enable');
 const problems = [];
 /**
  * What the console is expected to say in the stage that is running - a stage that takes the server away on
- * purpose: expressions for the messages, which are then kept here (`heard`) instead of counted as problems.
+ * purpose, or throws a page's error for the error log: expressions for the messages (an exception's too), which are
+ * then kept here (`heard`) instead of counted as problems.
  */
 let expected = [];
 const heard = [];
-page.on('Runtime.exceptionThrown', (e) => problems.push('exception: ' + (e.exceptionDetails?.exception?.description ?? e.exceptionDetails?.text)));
+page.on('Runtime.exceptionThrown', (e) => {
+  const message = 'exception: ' + (e.exceptionDetails?.exception?.description ?? e.exceptionDetails?.text);
+  if (expected.some((pattern) => pattern.test(message))) heard.push(message);
+  else problems.push(message);
+});
 page.on('Runtime.consoleAPICalled', (e) => {
   if (e.type !== 'error' && e.type !== 'warning') return;
   const message = `console.${e.type}: ` + e.args.map((a) => a.value ?? a.description).join(' ');
@@ -139,6 +144,14 @@ page.on('Network.requestWillBeSent', (e) => {
     requestedOrigins.push(url.origin);
   } catch {
     // an address that is not one (about:blank, data:)
+  }
+});
+/** The pages' error reports (POST /api/client-errors) as they left: whether each carried a token, a visitor's key. */
+const errorReports = [];
+page.on('Network.requestWillBeSent', (e) => {
+  if (e.request.method === 'POST' && e.request.url.split('?')[0] === `${origin}/api/client-errors`) {
+    const headers = Object.fromEntries(Object.entries(e.request.headers ?? {}).map(([name, value]) => [name.toLowerCase(), String(value)]));
+    errorReports.push({ token: /^Bearer \S+$/.test(headers.authorization ?? ''), visitorKey: 'x-visitor-key' in headers, body: e.request.postData ?? '' });
   }
 });
 /**
@@ -2882,9 +2895,11 @@ await viewport(1280);
 // lists everybody who signed in here, with how many surveys each answered and wrote, the visitors in one line, and
 // deletes a person's answers after its question; an account the IAM deleted (the stand-in's `anonymized`) is
 // scrubbed here on "Check now" - its name the IAM's placeholder, the row marked. The error log has what failed (a 404
-// asked for here); the audit log what was done in the admin panel; the backups the two the Applies made before the
-// update, and one made here - after a sign-in of the last ten minutes, asked for again ("Sign in again") when the
-// sign-in is older - downloaded by its single-use link and deleted. Each at 1280 and 390 px, light and dark.
+// asked for here) and a page's own error (thrown in the page: the family's reporter, anotoki-lib 0.5.0, sends it with
+// the owner's token, scrubbed); the audit log what was done in the admin panel; the backups the two the Applies made
+// before the update, and one made here - after a sign-in of the last ten minutes, asked for again ("Sign in again")
+// when the sign-in is older - named by its maker, downloaded by its single-use link and deleted. Each at 1280 and
+// 390 px, light and dark.
 const DOWNLOADS = join(out, '..', 'downloads');
 mkdirSync(DOWNLOADS, { recursive: true });
 await page.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: DOWNLOADS }).catch((error) => problems.push('downloads cannot be kept: ' + error.message));
@@ -2997,7 +3012,26 @@ await expectNoSideways('the People page, 390 px');
 await screenshots('admin-people-390');
 await viewport(1280);
 
-// The error log: a 404 asked for here, as anybody could - written down without its query string, and shown grouped.
+// A page's own error - thrown where nothing catches it: Angular's global listener hands it to the app's ErrorHandler,
+// the family's reporter (anotoki-lib 0.5.0), which leaves the console its say and sends it to the site's error log
+// through the app's own HttpClient - so with the owner's token, never a visitor's key; scrubbed before it leaves.
+expected = [/anotoki survey check: a page's own error/];
+const reportsBefore = errorReports.length;
+await js("setTimeout(() => { throw new Error(\"anotoki survey check: a page's own error - password=hunter2\"); }, 0); true");
+for (let i = 0; i < 40 && errorReports.length === reportsBefore; i++) await sleep(250);
+await sleep(500);
+const reportsSent = errorReports.slice(reportsBefore);
+expect(
+  "a page's own error: reported once, through the app's HttpClient - the owner's token on it, no visitor's key, the secret scrubbed in the page",
+  reportsSent.length === 1 && reportsSent[0].token && !reportsSent[0].visitorKey && reportsSent[0].body.includes("anotoki survey check: a page's own error") && !reportsSent[0].body.includes('hunter2'),
+  JSON.stringify(reportsSent).slice(0, 400),
+);
+expect("... and the console still has it, as Angular's own handler writes it", heard.some((message) => message.startsWith('console.error')), heard.join(' | ').slice(0, 300));
+expected = [];
+heard.length = 0;
+
+// The error log: a 404 asked for here, as anybody could - written down without its query string, and shown grouped;
+// the page's own error beside it, its secret gone, by the owner's account.
 const missing = await fetch(`${origin}/api/no-such-route-for-the-check?secret=dont-keep-me`);
 expect('a route that is not there: 404', missing.status === 404, String(missing.status));
 await go('/admin/errors');
@@ -3005,6 +3039,15 @@ await waitFor(page, "!!document.querySelector('anotoki-error-log-page [data-grou
 await sleep(500);
 const errorsShown = await text('anotoki-error-log-page [data-groups]');
 expect('the error log: the 404 among what failed, its path without the query string', errorsShown?.includes('/api/no-such-route-for-the-check') && !errorsShown.includes('dont-keep-me'), errorsShown?.slice(0, 300));
+expect("... and the page's own error, without its secret", errorsShown?.includes("anotoki survey check: a page's own error") && !errorsShown.includes('hunter2'), errorsShown?.slice(0, 300));
+const report = await (await asOwner('GET', '/api/admin/errors?days=1')).json();
+const pageGroup = (report.groups ?? []).find((group) => String(group.message ?? '').includes("anotoki survey check: a page's own error"));
+const pageLines = pageGroup ? await (await asOwner('GET', `/api/admin/errors/${pageGroup.fingerprint}?days=1`)).json() : [];
+expect(
+  "... written as the page's (source client), at the page's path, by the owner's account",
+  pageGroup?.source === 'client' && pageLines.length === 1 && pageLines[0].user_id === OWNER.id && pageLines[0].path === '/admin/people',
+  JSON.stringify({ group: pageGroup, lines: pageLines }).slice(0, 400),
+);
 await expectNoKeys('the error log');
 await screenshots('admin-errors-1280', false);
 await viewport(390);
@@ -3046,6 +3089,7 @@ await waitFor(page, "[...document.querySelectorAll('anotoki-backups-page [data-b
 await sleep(600);
 const manualId = await js("document.querySelector('anotoki-backups-page [data-backups] [data-kind=\"manual\"]')?.closest('tr')?.getAttribute('data-backup') ?? null");
 expect('signed in a moment ago: Back up now makes one - "manual", with its description', !!manualId && (await text(`anotoki-backups-page tr[data-backup="${manualId}"]`))?.includes('Before the browser check deletes it'), String(manualId));
+expect('... made by the owner, by name (anotoki-lib 0.5.0: the site gives the people\'s names)', (await text(`anotoki-backups-page tr[data-backup="${manualId}"] td[data-label="By"]`)) === OWNER.username, await text(`anotoki-backups-page tr[data-backup="${manualId}"] td[data-label="By"]`));
 // Downloaded by its single-use link: the file arrives, an anotoki backup.
 const downloadsBefore = new Set(readdirSync(DOWNLOADS));
 await js(`document.querySelector('anotoki-backups-page tr[data-backup="${manualId}"] [data-download]').click(); true`);

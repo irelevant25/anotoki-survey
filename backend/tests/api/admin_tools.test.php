@@ -1,16 +1,19 @@
 <?php
 
 // The admin tools this site takes from the anotoki library (api/admin_tools.php),
-// through the real server: the error log (files - what failed, and never what
-// it must not hold), the audit log (who did what in the admin panel) and the
-// backups (every table by COPY, the pictures' bytes too: made, listed,
-// downloaded by a single-use link, restored, deleted - each after a sign-in of
-// the last ten minutes; daily after an answer, and before every Apply; after a
-// restore, the scrub of the IAM's deleted accounts at once - a restore that
-// could not finish it says so, and the next request tries again). A backup
-// that fails is written in the site's error log. The site's ADMIN's alone;
-// the error log and the backups - but a restore - open while an update waits.
-// The IAM's list of deleted accounts is a file here (anonymized_file).
+// through the real server: the error log (files - what failed, the pages' own
+// errors too, and never what it must not hold), the audit log (who did what in
+// the admin panel) and the backups (every table by COPY, the pictures' bytes
+// too: made, listed with their maker's name, downloaded by a single-use link,
+// restored - only one made here, sealed - and deleted, each after a sign-in of
+// the last ten minutes; daily after an answer, and before every Apply; inside
+// a restore, the answers a person had deleted since the backup deleted again,
+// and after it the scrub of the IAM's deleted accounts at once - a restore that
+// could not finish that says so, and the next request tries again). A backup
+// that fails is written in the site's error log. The site's ADMIN's alone -
+// but the pages' errors, which anybody's page sends; the error log and the
+// backups - but a restore - open while an update waits. The IAM's list of
+// deleted accounts is a file here (anonymized_file).
 
 declare(strict_types=1);
 
@@ -21,6 +24,7 @@ const EDITH = 2;       // EDITOR
 const PAT = 101;       // takes surveys
 const RUTH = 105;      // takes surveys, until the IAM deletes her account
 const SAM = 106;       // the same, a day later
+const NINA = 107;      // takes surveys
 
 /** A file the tests make the database wait for (it runs again over what it wrote). */
 const FILE_007 = '007_visitor_strings.sql';
@@ -155,6 +159,42 @@ function survey_with_picture(string $slug): string
     return $id;
 }
 
+/** $user answers the open survey $slug: the id of their answers. */
+function answered(int $user, string $slug): string
+{
+    $sent = as_user($user, 'POST', "/api/surveys/$slug/responses", [
+        'aboutYou' => null, 'answers' => ['q-words' => ['optionIds' => [], 'other' => '', 'text' => 'Yes.']], 'startedAt' => gmdate('Y-m-d\TH:i:s.v\Z'), 'language' => 'en',
+    ]);
+    assert_same(201, $sent['status'], test_show($sent['body']));
+
+    return (string) $sent['body']['id'];
+}
+
+/** The backup $id as the Backups page lists it. */
+function listed_backup(string $id): array
+{
+    $list = as_user(OWNER, 'GET', '/api/admin/backups');
+    assert_same(200, $list['status'], test_show($list['body']));
+    foreach ($list['body']['backups'] as $backup) {
+        if ($backup['id'] === $id) {
+            return $backup;
+        }
+    }
+    fail("$id is not listed");
+}
+
+/** A page's error, as the browser's reporter sends it (POST /api/client-errors): the answer. */
+function page_error(array $report, array $headers = []): array
+{
+    return call($GLOBALS['app']['base'], 'POST', '/api/client-errors', $report, $headers);
+}
+
+/** The lines of the error log the pages wrote (source: client), oldest first. */
+function client_lines(): array
+{
+    return array_values(array_filter(error_lines(), static fn(array $line): bool => ($line['source'] ?? null) === 'client'));
+}
+
 test('the admin tools are the site\'s ADMIN\'s alone: nobody is asked to sign in, a participant and an EDITOR are refused in this site\'s words', function (): void {
     foreach ([
         'GET /api/admin/errors', 'DELETE /api/admin/errors', 'GET /api/admin/audit', 'GET /api/admin/audit/facets',
@@ -261,6 +301,7 @@ test('backups: made after a recent sign-in, listed, downloaded once by its link,
     assert_same([$backup['id']], array_column($list['backups'], 'id'));
     assert_same([true, true, false], [$list['status']['copy_available'], $list['status']['restorable'], $list['status']['encrypted']], test_show($list['status']['problems']));
     assert_true($list['backups'][0]['restorable'], 'this database\'s schema: restorable here');
+    assert_same(['user' . OWNER, true], [$list['backups'][0]['created_by_name'] ?? null, $list['backups'][0]['sealed'] ?? null], 'its maker by the name the site has; sealed, made here');
 
     $ticket = as_user(OWNER, 'POST', '/api/admin/backups/' . $backup['id'] . '/ticket', new stdClass(), 3600);
     assert_same([403, 'reauth_required'], [$ticket['status'], $ticket['body']['code'] ?? null], 'a download asks the proof too');
@@ -316,14 +357,14 @@ test('a restore, the IAM out of reach: it stands and says the check did not fini
     $restored = restored($backup);
     assert_same($backup['id'], $restored['restored'], 'the restore stands');
     assert_same(
-        'the accounts the IAM deleted were not checked again (the IAM could not be reached). Whoever it deleted since this backup was made may be named here until they are: the check runs again with the next request, and at once with Check now on the People page.',
+        'The accounts the IAM deleted were not checked again (the IAM could not be reached). Whoever it deleted since this backup was made may be named here until they are: the check runs again with the next request, and at once with Check now on the People page.',
         $restored['after_restore_error'],
         'and says what it could not do - the Backups page shows it'
     );
     assert_same('user' . SAM, name_of(SAM), 'the backup\'s name for him is back, for now');
-    $logged = array_values(array_filter(error_lines(), static fn(array $line): bool => str_starts_with((string) ($line['message'] ?? ''), 'the accounts the IAM deleted were not checked again')));
+    $logged = array_values(array_filter(error_lines(), static fn(array $line): bool => str_starts_with((string) ($line['message'] ?? ''), 'The accounts the IAM deleted were not checked again')));
     assert_same([['RuntimeException', 'error', 500]], array_map(static fn(array $line): array => [$line['type'], $line['level'], $line['status']], $logged), 'in the site\'s error log, where its ADMIN reads it: ' . test_show(error_lines()));
-    assert_true(str_contains((string) file_get_contents($GLOBALS['app']['log']), '[backups] RuntimeException: the accounts the IAM deleted were not checked again'), 'and in PHP\'s, as ever');
+    assert_true(str_contains((string) file_get_contents($GLOBALS['app']['log']), '[backups] RuntimeException: The accounts the IAM deleted were not checked again'), 'and in PHP\'s, as ever');
 
     // The IAM answers again. The next request - the restore's own after-the-answer work done before it is served -
     // finds the hour free and checks after its answer; the one after it waits for that.
@@ -333,6 +374,157 @@ test('a restore, the IAM out of reach: it stands and says the check did not fini
     assert_same('deleted-' . SAM, name_of(SAM), 'scrubbed again by the next request\'s check');
     clearstatcache();
     assert_true(filemtime(scrub_stamp()) > time() - 60, 'which claimed the hour anew');
+});
+
+test('a restore never brings back what a person had deleted: their answers deleted on the People page since the backup go again inside the restore - which completes', function (): void {
+    survey_with_picture('replayed');
+    answered(PAT, 'replayed');
+    $nina = answered(NINA, 'replayed');
+    $pats = (int) dbValue('SELECT count(*) FROM responses WHERE user_id = ?', [PAT]);
+    $backup = backup_made('Pat\'s and Nina\'s answers in it');
+
+    // Since the backup: Pat's answers deleted for him on the People page - and Nina's, by an ADMIN in the results,
+    // which is no person's delete: the restore brings hers back, as it brings back the database as it was.
+    $deleted = as_user(OWNER, 'DELETE', '/api/admin/people/' . PAT);
+    assert_same([200, ['deleted' => ['Answers' => $pats]]], [$deleted['status'], $deleted['body']], test_show($deleted['body']));
+    assert_same(204, as_user(OWNER, 'DELETE', '/api/admin/responses/' . $nina)['status']);
+
+    $started = microtime(true);
+    $restored = restored($backup);
+    assert_same([$backup['id'], null], [$restored['restored'], $restored['after_restore_error']], test_show($restored));
+    assert_true(microtime(true) - $started < 30, 'never ended for waiting: the delete works on the restore\'s own connection, which holds every table');
+    assert_same(0, (int) dbValue('SELECT count(*) FROM responses WHERE user_id = ?', [PAT]), 'Pat\'s answers deleted again before anybody saw them');
+    assert_same((string) PAT, (string) dbValue('SELECT id FROM users WHERE id = ?', [PAT]), 'his row stays, as the delete leaves it');
+    assert_same($nina, (string) dbValue('SELECT id FROM responses WHERE user_id = ?', [NINA]), 'Nina\'s answers are back: the database as the backup had it');
+    $entries = array_values(array_filter(audit_entries(), static fn(array $entry): bool => $entry[0] === 'person.data_deleted' && $entry[2] === 'user' && $entry[3] === (string) PAT));
+    assert_same([['person.data_deleted', OWNER, 'user', (string) PAT]], $entries, 'the audit log is never restored - and the delete done again writes no entry of its own');
+});
+
+// anotoki-lib 0.5.0 failed this - its restore set every sequence to GREATEST(backup + 1, now + 1), and visitor_ids
+// counts DOWN (INCREMENT BY -1, MAXVALUE -1): past its end once a visitor was made (setval(0): 500 restore_failed),
+// later onto an id handed out already. 0.5.1 moves each sequence in its own direction.
+test('a restore of a database where visitors were made: visitor_ids goes on counting down below every id handed out, before the backup or since', function (): void {
+    $made = static function (string $key): int {
+        $id = (int) dbValue("INSERT INTO users (id, visitor_key_hash, last_seen_at) VALUES (nextval('visitor_ids'), ?, now()) RETURNING id", [hash('sha256', $key)]);
+        assert_true($id < 0, "a visitor: a negative id ($id)");
+
+        return $id;
+    };
+    try {
+        $before = $made('a visitor before the backup');
+        $backup = backup_made('With a visitor in it');
+        $since = $made('a visitor since the backup');
+        assert_true($since < $before, 'counting down');
+
+        $restored = as_user(OWNER, 'POST', '/api/admin/backups/' . $backup['id'] . '/restore', ['confirm' => substr($backup['id'], -6)]);
+        assert_same(200, $restored['status'], test_show($restored['body']));
+        assert_same((string) $before, (string) dbValue('SELECT id FROM users WHERE id = ?', [$before]), 'the visitor the backup has, back');
+        $next = (int) dbValue("SELECT nextval('visitor_ids')");
+        assert_true($next < $since, "the next visitor's id ($next) is below every one handed out ($since was the last): none twice");
+    } finally {
+        dbExec('DELETE FROM users WHERE id < 0');
+    }
+});
+
+test('only a backup made here is restored here: one without this site\'s seal - made before anotoki-lib 0.5.0, or put into the folder - says so, and is restored offline alone', function (): void {
+    $backup = backup_made('Sealed here');
+    assert_same([true, true], [listed_backup($backup['id'])['sealed'], listed_backup($backup['id'])['restorable']], 'made here: sealed, restorable');
+    $sidecar = storage() . '/backups/' . $backup['id'] . '.anotoki-backup.json';
+    $kept = (string) file_get_contents($sidecar);
+    $info = json_decode($kept, true);
+    assert_match('/^[0-9a-f]{64}$/D', (string) ($info['seal'] ?? ''), 'its seal: an HMAC of its id and its SHA-256');
+    try {
+        foreach ([
+            'no seal, as a plain backup made before anotoki-lib 0.5.0' => null,
+            'another installation\'s seal - a copy from elsewhere' => hash_hmac('sha256', $backup['id'] . "\n" . $info['sha256'], random_bytes(32)),
+            'its own seal over other bytes - the file changed since' => ['sha256' => hash('sha256', 'other bytes')],
+        ] as $what => $seal) {
+            $changed = $info;
+            if (is_array($seal)) {
+                $changed = $seal + $info;
+            } elseif ($seal === null) {
+                unset($changed['seal']);
+            } else {
+                $changed['seal'] = $seal;
+            }
+            file_put_contents($sidecar, json_encode($changed));
+            assert_same([false, false], [listed_backup($backup['id'])['sealed'], listed_backup($backup['id'])['restorable']], "$what: listed as not made here");
+            $preview = as_user(OWNER, 'GET', '/api/admin/backups/' . $backup['id'] . '/preview')['body'];
+            assert_match('/carries no seal of this site\'s/', implode(' ', $preview['reasons'] ?? []), "$what: why not, on the page");
+            $refused = as_user(OWNER, 'POST', '/api/admin/backups/' . $backup['id'] . '/restore', ['confirm' => substr($backup['id'], -6)]);
+            assert_same([422, 'archive_invalid'], [$refused['status'], $refused['body']['code'] ?? null], "$what: never restored here");
+            assert_match('/restore it offline/', (string) ($refused['body']['error'] ?? ''), $what);
+        }
+    } finally {
+        file_put_contents($sidecar, $kept);
+    }
+    assert_same(true, listed_backup($backup['id'])['sealed'], 'its own seal back');
+});
+
+test('a page\'s error reaches the error log through POST /api/client-errors: redacted, by whoever met it - never an address, a token, a stored value or a query', function (): void {
+    $token = test_token(PAT, roles_of(PAT));
+    $sent = page_error([
+        'type' => 'TypeError',
+        'message' => "Cannot read properties of undefined (reading 'title') - anna@example.test, password=hunter2, $token",
+        'page' => '/kept?token=sesame',
+        'stack' => "TypeError: Cannot read properties of undefined\n    at TakeSurveyComponent.step (https://survey.example.test/chunk-ABC.js?secret=sesame:1:2345)\n    at 203.0.113.9:4",
+        'status' => 0,
+    ], bearer($token));
+    assert_same([204, ''], [$sent['status'], $sent['raw']], 'taken, nothing said');
+    $line = client_lines()[0] ?? null;
+    assert_true($line !== null, 'written: ' . test_show(error_lines()));
+    assert_same(['error', 'TypeError', PAT, '/kept'], [$line['level'], $line['type'], $line['user_id'], $line['path']], 'its kind, who met it (the token, checked) and the page without its query');
+    assert_match('/^Cannot read properties of undefined/', (string) $line['message']);
+    assert_true(is_array($line['trace']) && str_contains(implode("\n", $line['trace']), 'TakeSurveyComponent.step'), 'where in the page\'s code');
+    assert_match('/^[0-9a-f]{12}$/', (string) $line['client'], 'where from: a keyed hash, never the address');
+    $raw = (string) json_encode($line);
+    foreach (['anna@example.test', 'hunter2', $token, 'sesame', '203.0.113.9', '127.0.0.1', 'Bearer'] as $never) {
+        assert_false(str_contains($raw, $never), "never written: $never");
+    }
+
+    // Anybody's page sends them: nobody's and a visitor's alike - a visitor's key is never read here - and a token
+    // that does not check out makes the report nobody's, never a refusal.
+    foreach ([
+        'nobody' => [],
+        'a visitor' => ['X-Visitor-Key: ' . str_repeat('k', 43)],
+        'a token that does not check out' => bearer(test_token(PAT, roles_of(PAT), [], ['iam' => test_forger()])),
+    ] as $who => $headers) {
+        assert_same(204, page_error(['message' => "From $who"], $headers)['status'], $who);
+        $mine = array_values(array_filter(client_lines(), static fn(array $line): bool => $line['message'] === "From $who"));
+        assert_same([null], array_column($mine, 'user_id'), "$who: nobody's");
+    }
+
+    // What it takes: JSON, 8 KB at most, a message.
+    assert_same(415, call($GLOBALS['app']['base'], 'POST', '/api/client-errors', 'message=hello', ['Content-Type: text/plain'])['status'], 'JSON only');
+    assert_same(413, page_error(['message' => str_repeat('x', 9000)])['status'], 'at most 8 KB');
+    $none = page_error(['type' => 'Error', 'message' => '  ']);
+    assert_same([422, 'message_required'], [$none['status'], $none['body']['code'] ?? null], 'a message');
+    assert_same(4, count(client_lines()), 'nothing written of what was refused');
+    assert_same([], array_values(array_filter(error_lines(), static fn(array $line): bool => ($line['path'] ?? null) === '/api/client-errors')), 'and the route never writes its own answers in');
+});
+
+test('the pages\' errors are capped: 20 an hour from one sender - a person by their account, anybody else by their address - and the visitors\' 500 a day apart from the people\'s', function (): void {
+    // A new hour and day for the count (the library's file beside the log).
+    @unlink(storage() . '/logs/client-errors.json');
+    $before = count(client_lines());
+    for ($i = 1; $i <= 20; $i++) {
+        assert_same(204, page_error(['message' => "A visitor's error $i"])['status'], "the visitor's report $i");
+    }
+    $over = page_error(['message' => 'A visitor\'s error 21']);
+    assert_same([429, 'too_many'], [$over['status'], $over['body']['code'] ?? null], 'the 21st from the address within the hour');
+    assert_true((int) ($over['headers']['retry-after'] ?? 0) > 0 && is_int($over['body']['retry_after'] ?? null), 'with how long to wait');
+    assert_same(20, count(client_lines()) - $before, 'the 21st not written');
+    assert_same(204, page_error(['message' => 'Pat\'s error'], bearer(test_token(PAT, roles_of(PAT))))['status'], 'a person from the same address: a budget of their own, by their account');
+
+    // The day's budgets, each its own: the visitors' spent, the people signed in still report - and the other way round.
+    $counts = storage() . '/logs/client-errors.json';
+    $state = json_decode((string) file_get_contents($counts), true);
+    file_put_contents($counts, json_encode(['total' => 500, 'members' => 0, 'clients' => []] + $state));
+    assert_same(429, page_error(['message' => 'One more visitor'], ['CF-Connecting-IP: 198.51.100.77'])['status'], 'the visitors\' 500 a day, whoever else they say they are');
+    assert_same(204, page_error(['message' => 'Nina\'s error'], bearer(test_token(NINA, roles_of(NINA))))['status'], 'the people signed in keep theirs');
+    file_put_contents($counts, json_encode(['total' => 0, 'members' => 500, 'clients' => []] + $state));
+    assert_same(429, page_error(['message' => 'Edith\'s error'], bearer(test_token(EDITH, roles_of(EDITH))))['status'], 'the people\'s 500 a day');
+    assert_same(204, page_error(['message' => 'A visitor again'])['status'], 'the visitors keep theirs');
 });
 
 test('a backup that fails is in the site\'s error log, where its ADMIN reads it - not only in PHP\'s', function (): void {
@@ -379,6 +571,7 @@ test('while an update waits: the error log and the backups answer the ADMIN - ne
             'POST /api/admin/backups/' . $made['body']['backup']['id'] . '/restore' => 'a restore',
             'GET /api/admin/audit' => 'the audit log (its table may be the update\'s)',
             'GET /api/admin/people' => 'the people',
+            'POST /api/client-errors' => 'a page\'s error, as everything else of the site',
         ];
         foreach ($closed as $route => $what) {
             [$method, $url] = explode(' ', $route);
@@ -394,6 +587,10 @@ test('while an update waits: the error log and the backups answer the ADMIN - ne
         }
         $editor = as_user(EDITH, 'GET', '/api/admin/backups');
         assert_same(403, $editor['status'], 'judged from the token alone, as the Migrations page\'s');
+        // A state the site is in on purpose is no failure: the gate's 503 update_pending - eight of them above - is
+        // not written (the library's `expected`, anotoki-lib 0.5.0); a real 503 - the database's refusal - is (the
+        // error log's test, above).
+        assert_same([], array_values(array_filter(error_lines(), static fn(array $line): bool => ($line['code'] ?? null) === 'update_pending')), 'no line for the update that waits');
 
         $apply = as_user(OWNER, 'POST', '/api/admin/migrations/apply');
         assert_same([[['set' => 'survey', 'name' => FILE_007]], null], [$apply['body']['applied'], $apply['body']['failed']]);

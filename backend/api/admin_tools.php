@@ -8,40 +8,45 @@ use Anotoki\Lib\Auth\Http\Identify;
 use Anotoki\Lib\Backups\Backups;
 use Anotoki\Lib\Backups\Copy;
 use Anotoki\Lib\ErrorLog\ErrorLog;
-use Anotoki\Lib\People\Http\PeopleUpkeep;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\App;
 
 /**
  * The admin tools this site takes from the anotoki family's library
- * (anotoki-lib 0.4.1): the error log, the audit log and the backups - for the
+ * (anotoki-lib 0.5.1): the error log, the audit log and the backups - for the
  * site's ADMIN alone (the owner's decision: EDITORs see none of them), each an
  * admin page of the library's (routes/admin.php, the frontend's admin.routes.ts).
  * No feedback (the owner's decision for this site) and no file explorer (the
  * pictures live in the database, and are in every backup).
  *
  *   the error log   storage/logs/errors-YYYY-MM-DD.jsonl (UTC days, 30 kept, 64 MB in all): what
- *                   failed - an exception answered 5xx, an answer of 404, 405, 413, 415, 429 or 5xx,
- *                   PHP's own warnings and fatal errors - redacted, with an HMAC of the address bucket
- *                   instead of the address, never a body, a header, a cookie, a query string or a
- *                   token. Files: it works while the database is out of reach or an update waits.
+ *                   failed - an exception answered 5xx (with the chain of what caused it), an answer
+ *                   of 404, 405, 413, 415, 429 or 5xx, PHP's own warnings and fatal errors, and the
+ *                   pages' own errors (POST /api/client-errors, routes/public.php: the browser's
+ *                   @anotoki/lib/error-report) - redacted, with an HMAC of the address bucket instead
+ *                   of the address, never a body, a header, a cookie, a query string or a token.
+ *                   Files: it works while the database is out of reach or an update waits.
  *   the audit log   the library's table anotoki_audit_log (its set anotoki_admin): who did what in the
  *                   admin panel - a survey made, opened, closed, deleted; answers deleted; the site's
  *                   words saved, imported; a language added, changed, deleted; a person's answers
- *                   deleted, the scrub run; backups made, downloaded, deleted, restored; the error log
- *                   cleared; migrations applied. By the token's sub, never an address.
+ *                   deleted (inside the delete's own transaction: a restore does it again by it), the
+ *                   scrub run; backups made, downloaded, deleted, restored; the error log cleared;
+ *                   migrations applied. By the token's sub, never an address.
  *   the backups     storage/backups/<id>.anotoki-backup: every table by COPY through PDO in one
  *                   snapshot (the pictures' bytes too), with the migrations it was made at - daily
  *                   after an answer (14 kept), before every update (5), before a restore (5), and by
  *                   hand (until deleted). Made, downloaded, deleted and restored only after a sign-in
  *                   of the last ten minutes (the token's auth_time); downloaded by a single-use link.
- *                   Not encrypted - the owner's decision of 2026-10-11: only the IAM's backups are.
+ *                   Not encrypted - the owner's decision of 2026-10-11: only the IAM's backups are -
+ *                   but sealed (an HMAC of its id and its SHA-256 under the installation's key,
+ *                   storage/anotoki-lib.key): only a backup made here is restored here. One made
+ *                   before anotoki-lib 0.5.0 has no seal and is restored offline (docs/operations.md).
  *
  * Who acts is the token's person, never a body; whether they are the site's
  * ADMIN, the token's roles (Identify, api/auth.php) - so the error log's and
  * the backups' routes work while an update waits, as the Migrations page's do.
  * The files live under storage/, which the web never reaches (its .htaccess,
- * and each folder's own, GuardedDirectory).
+ * and each folder's own, GuardedDirectory), each the site's own user's alone.
  */
 
 /**
@@ -49,19 +54,29 @@ use Slim\App;
  * token's sub), whether they are the site's ADMIN (the token's roles), the
  * proof a backup asks for (a sign-in of the last ten minutes, from the
  * token's auth_time: 403 reauth_required - the page offers "Sign in again"),
- * the address bucket its limits count (the visitors' trusted-proxy rule,
- * api/client_address.php) and this site's error body.
+ * whose address a request comes from (the visitors' settings' proxies -
+ * Cloudflare's published ranges unless config/visitors.local.php says
+ * otherwise - and Cloudflare's CF-Connecting-IP, the library's default
+ * header, never a setting: the library's one rule, ClientAddress, which the
+ * visitors' limits read by too, api/client_address.php), the people's names
+ * (a backup's maker, the audit log's actors) and this site's error body.
  */
 function surveyAdminContext(): AdminContext
 {
     static $context = null;
+    if ($context !== null) {
+        return $context;
+    }
+    // The header is the library's default, Cloudflare's CF-Connecting-IP: pinned, never read from a setting.
+    $visitors = visitorSettings();
 
-    return $context ??= new AdminContext(
+    return $context = new AdminContext(
         actorId: static fn(Request $request): ?int => (Identify::person($request) ?? surveyTokenPerson($request))?->sub,
         proof: AdminContext::recentSignIn(static fn(Request $request): ?int => Identify::person($request)?->authTime),
-        clientKey: static fn(Request $request): string => clientAddressCounted($request, visitorSettings()),
         error: respondRefusal(...),
         isAdmin: static fn(Request $request): bool => Identify::person($request)?->isAdmin() ?? false,
+        names: peopleNames(...),
+        trustedProxies: $visitors['trusted_proxies'],
     );
 }
 
@@ -131,11 +146,26 @@ function surveyErrorLog(?App $app = null): ErrorLog
  * The backups: the library's, of this site's database, under storage/backups
  * - the Migrations' lock (one backup or update at a time), its migrator (the
  * schema a backup records, and compares before a restore), the audit log, the
- * after-the-answer runner (the daily backup), and after a restore the scrub of
- * the IAM's deleted accounts run again (surveyScrubAfterRestore()). A backup
- * that fails - the daily one after an answer, the one before an update, the
- * work after a restore - is written in the site's error log, where its ADMIN
- * reads it, as well as PHP's.
+ * after-the-answer runner (the daily backup), and a restore's two hooks, the
+ * people module's own (anotoki-lib 0.5.0, People::restoreHooks()):
+ *
+ *   - inside the restore's transaction, before anybody sees its rows: every
+ *     person's answers deleted since the backup was made (the audit log's
+ *     person.data_deleted, which is never restored) deleted again, by the
+ *     People page's own hook on the restore's connection (peopleDelete()) - a
+ *     restore never brings back what a person asked to have deleted; one that
+ *     cannot do it again is rolled back whole;
+ *   - once it committed, the scrub of the IAM's deleted accounts at once: the
+ *     restored database brings back the scrub's place of its day, and with it
+ *     the names of whoever the IAM deleted since. One that does not finish -
+ *     the IAM out of reach, its time up, a run already going - is the
+ *     restore's after_restore_error (the Backups page's note; the error log),
+ *     and the hourly upkeep's stamp goes after this answer (afterAnswerAdd()),
+ *     so the next request runs the scrub again instead of an hour later.
+ *
+ * A backup that fails - the daily one after an answer, the one before an
+ * update, the work after a restore - is written in the site's error log, where
+ * its ADMIN reads it, as well as PHP's.
  */
 function surveyBackups(): Backups
 {
@@ -154,50 +184,8 @@ function surveyBackups(): Backups
             error_log('[backups] ' . get_class($e) . ': ' . \Anotoki\Lib\Support\Redactor::text($e->getMessage()));
             surveyErrorLog()->record($e);
         },
-        'afterRestore' => static function (array $manifest, PDO $pdo): void {
-            surveyScrubAfterRestore($pdo);
-        },
+        ...surveyPeople()->restoreHooks(delete: peopleDelete(...), defer: afterAnswerAdd(...)),
     ]);
-}
-
-/**
- * After a restore, the scrub of the IAM's deleted accounts at once: the
- * restored database brings back the scrub's place of its day, and with it the
- * names of whoever the IAM deleted since. A scrub that does not finish - the
- * IAM out of reach, its time up with more to read, a run already going - is
- * the restore's failure to say (the library's after_restore_error, the
- * Backups page's note; the error log), never a restore that looks complete
- * with a deleted person named again. And the hourly upkeep's stamp goes, so
- * the next request runs the scrub again instead of an hour later - after this
- * answer: this request's own upkeep would claim the hour again at once, and
- * meet the IAM as it is this moment.
- */
-function surveyScrubAfterRestore(PDO $pdo): void
-{
-    $people = surveyPeople();
-    $run = $people->scrubber($pdo)->run();
-    if ($run['state'] === 'done') {
-        return;
-    }
-
-    $cache = $people->iam->cacheDirectory();
-    if ($cache !== null) {
-        afterAnswerAdd(static function () use ($cache): void {
-            @unlink($cache . '/' . PeopleUpkeep::STAMP);
-        });
-    }
-    $why = match ($run['state']) {
-        'unreachable', 'stopped' => lcfirst(rtrim((string) $run['error'], '.')),
-        'more' => 'its time ran out with more of the IAM\'s list to read',
-        'busy' => 'another check was running',
-        'not_ready' => 'what it needs is not there: ' . implode('; ', $run['problems']),
-        default => 'it ended ' . $run['state'],
-    };
-
-    throw new RuntimeException(
-        "the accounts the IAM deleted were not checked again ($why). Whoever it deleted since this backup was made may be named here "
-        . 'until they are: the check runs again with the next request, and at once with Check now on the People page.'
-    );
 }
 
 /**

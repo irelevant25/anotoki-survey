@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Anotoki\Lib\Auth\Http\AuthRoutes;
+use Anotoki\Lib\ErrorLog\Http\ErrorLogRoutes;
 use Anotoki\Lib\Migrations\Http\MigrationsRoutes;
 use Anotoki\Lib\Translations\Http\TranslationsRoutes;
 use Anotoki\Lib\Translations\Translations;
@@ -33,14 +34,26 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *                                 english?} - the anotoki library's route
  *                                 (TranslationsRoutes::bundle, api/translations.php);
  *                                 "sk-sk" is answered by "sk" when only that is offered
+ *   POST /api/client-errors       an error a page met, into the site's error log - the
+ *                                 anotoki library's route (ErrorLogRoutes::client), sent by
+ *                                 its @anotoki/lib/error-report: {type?, message, page?,
+ *                                 stack?, status?} -> 204; JSON only (415), 8 KB at most
+ *                                 (413), a message (422); 20 an hour from one sender - a
+ *                                 person signed in by their account (the token, checked as
+ *                                 Identify checks one: surveyTokenPerson()), anybody else by
+ *                                 an HMAC of their address bucket - and 500 a day from the
+ *                                 visitors and as many from the people signed in, each its
+ *                                 own budget (429 too_many, Retry-After); every text redacted
+ *                                 again, never a token, an address or a stored value
  *
  * Without the settings everything but the status is 503 not_set_up (the site
  * gate). The health, the sign-in settings and the strings are answered while a
- * migration waits (siteOpenWhileUpdating()); a picture, like everything else
- * of the site, is 503 update_pending then.
+ * migration waits (siteOpenWhileUpdating()); a picture and a page's error, like
+ * everything else of the site, are 503 update_pending then.
  *
  * @var \Slim\App $app
  * @var \Anotoki\Lib\Migrations\Http\SiteState $siteState
+ * @var \Anotoki\Lib\ErrorLog\ErrorLog $errorLog
  */
 
 $app->get('/api/health', function (Request $request, Response $response): Response {
@@ -100,3 +113,13 @@ $app->get('/api/images/{file}', function (Request $request, Response $response, 
 // string - between an upload and its Apply, or the database out of reach -
 // 503 translations_unavailable, and the pages read what they have.
 TranslationsRoutes::bundle($app, static fn(): Translations => surveyTranslations(), respondRefusal(...));
+
+// The pages' own errors (the anotoki library's route, the owner's decision of
+// 2026-10-11: every site's error log holds its pages' errors too). Nobody's
+// route - a visitor's page fails as anybody's does - so no Identify in front
+// of it: who sends a report only says which budget it counts against (a
+// token is checked as Identify checks one; one that does not check out counts
+// as nobody's, never a refusal), and a visitor's key is never read here. The
+// library caps it and redacts every text again; the log's own routes never
+// write themselves into it.
+ErrorLogRoutes::client($app, '/api/client-errors', $errorLog, surveyAdminContext());

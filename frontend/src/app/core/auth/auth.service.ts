@@ -7,7 +7,7 @@ import { Person } from '../survey/survey.model';
 
 /**
  * Signing in, through the anotoki IAM - the only way in; the site has no
- * login of its own. The anotoki family's library does it (anotoki-lib 0.4.1,
+ * login of its own. The anotoki family's library does it (anotoki-lib 0.5.0,
  * @anotoki/lib/auth: the IAM's browser SDK moved into the library, with the
  * same storage, so nobody was signed out by the move - AnotokiAuth, its
  * interceptor, its guards, its callback page and the screen of a sign-in that

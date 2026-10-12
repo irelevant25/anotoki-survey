@@ -13,7 +13,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
  * Who a request comes from: the access token of the anotoki IAM, checked by
- * the anotoki family's library (anotoki-lib 0.4.1's auth module,
+ * the anotoki family's library (anotoki-lib 0.5.1's auth module,
  * Anotoki\Lib\Auth - the IAM's SDK moved into the library: RS256 and typ
  * at+jwt pinned, the IAM's published keys, iss, aud, exp). Its `sub` is the
  * user id, its `roles` this site's roles for them:

@@ -12,7 +12,7 @@ export const PEOPLE_PATH = '/admin/people';
 
 /**
  * The admin tools this site takes from the anotoki family's library
- * (anotoki-lib 0.4.1): the error log, the audit log and the backups
+ * (anotoki-lib 0.5.0): the error log, the audit log and the backups
  * (@anotoki/lib/admin and its pages), and the People page
  * (@anotoki/lib/people) - each page an entry point of its own on a lazy route
  * of the admin panel (admin.routes.ts), for the site's ADMIN alone, as the
