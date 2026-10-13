@@ -37,8 +37,12 @@ Security and correctness first:
   keeps a keyed HMAC of it (`clientAddressKept()`) - a stable pseudonym while the installation's key
   lasts; a doc calling it unreadable is a finding; where a request comes from is `clientAddress()` -
   `CF-Connecting-IP` alone, pinned in code, believed from a trusted proxy only (Cloudflare's ranges,
-  the committed default); a setting that names the header, a read of `X-Real-IP`, `True-Client-IP`
-  or `X-Forwarded-For`, or a trusted range shorter than /8 (IPv4) or /16 (IPv6) taken is a finding.
+  the committed default) - and with the origin secret (`config/cloudflare.local.php`,
+  `originSecret()`) only on a request carrying it in `X-Anotoki-Origin`; a setting that names the
+  header, a read of `X-Real-IP`, `True-Client-IP` or `X-Forwarded-For`, a trusted range shorter than
+  /8 (IPv4) or /16 (IPv6) taken, a reading of an address that is not given the secret
+  (`ClientAddress::of()` without it, an `AdminContext` without `originSecret:`), or the secret
+  printed or logged is a finding.
   **A People delete is done again by a restore**: its hook (`peopleDelete()`) - and any scrub hook -
   begins, commits or rolls back no transaction and writes on the `$pdo` it is given alone (`db()`,
   `surveyAudited()` or a helper on the site's connection there is a finding: in a restore it waits
@@ -168,7 +172,8 @@ Security and correctness first:
   committed default for anything in `config/*.local.php` (`VISITOR_DEFAULTS` is the one
   allowed: the optional `visitors.local.php` only tunes it, and a bad value there - or a
   file that does not parse or returns no array (`visitorSettingsFile()`) - is logged and
-  ignored, never fatal); `tools/build.php`
+  ignored, never fatal; the optional `cloudflare.local.php` has no default - no secret
+  without it - and `setup.php` neither writes nor reads it); `tools/build.php`
   still leaves out settings, tests, tools, the command-line scripts
   (`migration.php`, `translations.php`) and composer files; no new route
   named like a folder under the web root's `api/`.

@@ -145,7 +145,14 @@ test('the setup page on a real host: the token, the tests, the database - and th
     assert_match('/That is not the token/', site_form($site, '/setup.php', form('wrong', $database))['raw']);
     assert_false(is_file("$dist/config/database.local.php"), 'nothing written yet');
 
+    // The origin secret is uploaded by hand (config/config.php); the setup page neither writes nor reads it.
+    $originSecret = 'origin-' . bin2hex(random_bytes(20));
+    $cloudflare = "<?php return ['origin_secret' => '$originSecret'];\n";
+    file_put_contents("$dist/config/cloudflare.local.php", $cloudflare);
+
     $done = site_form($site, '/setup.php', form($token, $database));
+    assert_same($cloudflare, file_get_contents("$dist/config/cloudflare.local.php"), 'the origin secret, uploaded by hand: left as it was');
+    assert_false(str_contains($done['raw'], $originSecret), 'and never shown');
     assert_match('/<h1>Installed<\/h1>/', $done['raw']);
     assert_match('/Made the tables \(anotoki_admin\/001_audit_log\.sql, anotoki_admin\/002_feedback\.sql, 001_initial_schema\.sql, 002_/', $done['raw'], 'the library\'s admin set first, by its set; the site\'s own by their names');
     assert_match('/anotoki_people\/001_people\.sql\)/', $done['raw'], 'the library\'s people last');

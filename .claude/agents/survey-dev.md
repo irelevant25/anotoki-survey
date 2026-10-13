@@ -52,7 +52,7 @@ Working conventions:
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
 - Signing in, the people and the admin tools are the anotoki family's library's
-  (anotoki-lib, PHP 0.5.1 / Angular 0.5.0: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
+  (anotoki-lib, PHP 0.5.2 / Angular 0.5.0: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
   module, the error log - the pages' errors too, `@anotoki/lib/error-report` -,
   the audit log, the backups) - wired in
   `api/auth.php`, `api/people.php`, `api/admin_tools.php`,

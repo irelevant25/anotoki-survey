@@ -156,7 +156,9 @@ Migrations page and the move answer it 401 `sign_in_required`.
   `Retry-After: 3600`, nothing kept. Visitors there already carry on. The
   address is `REMOTE_ADDR`, or `CF-Connecting-IP` from Cloudflare's own
   addresses alone (the anotoki family's rule; the header pinned, no other ever
-  read; an IPv6 address by its /64), and what is kept of it is a keyed HMAC -
+  read; an IPv6 address by its /64) - with the origin secret
+  (`config/cloudflare.local.php`), only on a request that carries it in
+  `X-Anotoki-Origin`, any other from Cloudflare counting as its edge -, and what is kept of it is a keyed HMAC -
   a stable pseudonym of the address while the installation's key lasts, never
   the address in the clear.
 - **Unseen for `keep_days`** (30 by default) **a visitor ends**: its key opens
@@ -412,7 +414,7 @@ while the settings are missing (there is no database to update then:
 
 ### The System: the people, the error log, the audit log, the backups
 
-The anotoki family's routes (anotoki-lib 0.5.1: `PeopleRoutes`,
+The anotoki family's routes (anotoki-lib PHP 0.5.2: `PeopleRoutes`,
 `ErrorLogRoutes`, `AuditRoutes`, `BackupsRoutes` - wired in `routes/admin.php`,
 `api/people.php` and `api/admin_tools.php`), behind this site's
 `requireAdmin()` and guarding themselves as well (the library asks the token's

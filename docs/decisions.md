@@ -608,6 +608,29 @@ taken by every site in one round; for the survey (no migration of its own):
   that key lasts, not a way to make it unreadable: whoever holds
   `storage/anotoki-lib.key` can try every IPv4 address against it.
 
+**`CF-Connecting-IP` is believed only through the owner's zone - the origin
+secret, anotoki-lib PHP 0.5.2 (the owner's decision of 2026-10-13; the
+Angular half stays 0.5.0).** Cloudflare's published ranges are every
+Cloudflare customer's, not the owner's zone alone: anybody's Worker can open a
+connection to the host from them and write a `CF-Connecting-IP` of its
+choosing - a new address for every request, past every limit counted per
+address (the new visitors an hour, the pages' reports). So a Transform Rule of
+the owner's zone adds a secret header, `X-Anotoki-Origin`, to every request
+through it, and the site, given the same value, believes `CF-Connecting-IP`
+only on a request that carries it (the library's `ClientAddress::of()`,
+compared in constant time; `clientAddress()` and `surveyAdminContext()` both
+pass it, so the visitors' limits and the error log read alike). Any other
+request from Cloudflare counts as the edge it came from: coarser - a Worker's
+made-up visitors share the edge's one bucket - never looser. The value lives
+in `config/cloudflare.local.php` (`['origin_secret' => ...]`), optional and
+the same file in every anotoki site: put there by hand like
+`visitors.local.php` - `setup.php` neither writes nor reads it, the build
+never carries it. Without it, or with a value that is not a string with
+something in it, Cloudflare's ranges alone are believed, as before; a file
+PHP cannot read is logged by its error's kind and line alone (a parse error's
+message can quote the file) and passed over, never fatal. The secret is never
+printed or logged.
+
 ## Languages
 
 The first five are the owner's, made before any of it was built.

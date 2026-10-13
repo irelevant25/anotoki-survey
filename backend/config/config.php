@@ -41,6 +41,20 @@ declare(strict_types=1);
  *   usable is left out and logged, and a file that cannot be read (a parse
  *   error, no array returned) is logged and the defaults hold - never fatal.
  *
+ * And a fourth, optional too, the same in every anotoki site - put there by
+ * hand like the third; setup.php never writes or reads it:
+ *
+ *   cloudflare.local.php   the secret the owner's Cloudflare zone adds to every
+ *                          request through it, in X-Anotoki-Origin (a Transform
+ *                          Rule - the owner's decision of 2026-10-13)
+ *
+ *       return ['origin_secret' => '<a long random value, 32 characters or more>'];
+ *
+ *   With it, CF-Connecting-IP is believed only on a request that carries that
+ *   secret (originSecret()); without it - or with a value that is not a string
+ *   with something in it - from Cloudflare's ranges alone, as before. The
+ *   secret is never printed or logged.
+ *
  * The tests run against throwaway databases with settings of their own:
  * SURVEY_TEST_CONFIG names a folder holding the same two files, and it is only
  * honoured while the database named there is a survey_test_ one.
@@ -83,7 +97,7 @@ function storageDir(): string
  * The settings, read once per request - and again with $reload, after
  * setup.php has written them.
  *
- * @return array{database: ?array, iam: ?array, problem: ?string}
+ * @return array{database: ?array, iam: ?array, visitors: array, origin_secret: ?string, problem: ?string}
  */
 function localSettings(bool $reload = false): array
 {
@@ -106,6 +120,7 @@ function localSettings(bool $reload = false): array
     $database = $read('database');
     $iam = $read('iam');
     $visitors = visitorSettingsChecked(visitorSettingsFile());
+    $originSecret = originSecretFile();
     $problem = null;
 
     if ($database === null) {
@@ -120,7 +135,7 @@ function localSettings(bool $reload = false): array
         $problem = 'SURVEY_TEST_CONFIG is only for the tests\' survey_test_ databases.';
     }
 
-    return $settings = ['database' => $database, 'iam' => $iam, 'visitors' => $visitors, 'problem' => $problem];
+    return $settings = ['database' => $database, 'iam' => $iam, 'visitors' => $visitors, 'origin_secret' => $originSecret, 'problem' => $problem];
 }
 
 /**
@@ -254,6 +269,56 @@ function visitorSettingRangeOk(mixed $range): bool
     $prefix = isset($m[3]) ? (int) $m[3] : $bits;
 
     return $prefix <= $bits && $prefix >= ($bits === 32 ? 8 : 16);
+}
+
+/**
+ * The secret the owner's Cloudflare zone adds to every request through it
+ * (X-Anotoki-Origin, the library's ClientAddress::ORIGIN_HEADER: a Transform
+ * Rule - the owner's decision of 2026-10-13), from config/cloudflare.local.php;
+ * null without one. Cloudflare's published ranges are every Cloudflare
+ * customer's, not the owner's zone alone: anybody's Worker can reach the host
+ * from them and write the CF-Connecting-IP it likes, a new one for every
+ * request. With the secret that header is believed only on a request that
+ * carries it, and any other request from Cloudflare counts as the edge it came
+ * from - coarser, never looser (api/client_address.php, and the library's own
+ * reading of an address, surveyAdminContext()).
+ */
+function originSecret(): ?string
+{
+    return localSettings()['origin_secret'];
+}
+
+/**
+ * What config/cloudflare.local.php says: its origin_secret when that is a
+ * string with something in it (trimmed - a header's value never starts or ends
+ * with a space); null without the file, or with anything else - no secret,
+ * which is how the site worked before it. Written by hand, like
+ * visitors.local.php, so a file PHP cannot read is logged and passed over,
+ * never fatal - by the kind of error and its line alone: a parse error's
+ * message can quote the file, and the secret is never printed or logged.
+ */
+function originSecretFile(): ?string
+{
+    $file = localConfigFile('cloudflare');
+    if (!is_file($file)) {
+        return null;
+    }
+
+    try {
+        $values = require $file;
+    } catch (Throwable $e) {
+        error_log('[cloudflare] config/cloudflare.local.php could not be read (' . get_class($e) . ' on line ' . $e->getLine() . '): no origin secret.');
+
+        return null;
+    }
+    $secret = is_array($values) ? ($values['origin_secret'] ?? null) : null;
+    if (!is_string($secret) || trim($secret) === '') {
+        error_log('[cloudflare] config/cloudflare.local.php holds no origin_secret (a string with something in it): no origin secret.');
+
+        return null;
+    }
+
+    return trim($secret);
 }
 
 /** Null when the site is set up; otherwise a sentence saying what is missing. */

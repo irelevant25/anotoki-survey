@@ -82,6 +82,12 @@ hosting:
     `CF-Connecting-IP` for IPv6 visitors.
   - The site believes the visitor's address in `CF-Connecting-IP` only on a connection from Cloudflare's
     published ranges (the anotoki library's list), and counts every limit by it.
+  - Rules -> Transform Rules -> **Modify Request Header**: "Set static" `X-Anotoki-Origin` to the origin
+    secret, for every request of the zone - and the same value in `config/cloudflare.local.php`
+    (`return ['origin_secret' => '...'];`, put there by hand; a long random value, 32+ characters). With it the
+    site believes `CF-Connecting-IP` only on a request that carries the secret - anybody's Cloudflare Worker
+    can connect from Cloudflare's ranges; without the file it believes `CF-Connecting-IP` from Cloudflare's
+    ranges alone. Set the rule first, then the file.
 - **After an upload**: the private folders (`storage/`, `config/`) answer 403 in a browser; the host check's
   "Who connects" says Cloudflare, not a proxy of the host's (behind one, every visitor would share one
   address); pending database updates are applied on the admin panel's Migrations page.
@@ -112,7 +118,7 @@ wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (now PHP 0.5.1, Angular
+migrations are the shared library's, **anotoki-lib** (now PHP 0.5.2, Angular
 0.5.0: `anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and
@@ -170,7 +176,11 @@ the Backups page names each one's maker; the pages' own errors are written in
 the error log too; and where a request comes from is what Cloudflare's
 `CF-Connecting-IP` says - believed only from Cloudflare's own addresses, no
 other header ever - and is not kept in the clear: the visitors' limits count
-a keyed hash of it, a pseudonym of the address.
+a keyed hash of it, a pseudonym of the address. With its PHP half's 0.5.2,
+given the owner's zone's secret (`config/cloudflare.local.php`, the Hosting
+checklist above), only on a request that carries it: anybody's Cloudflare
+Worker can connect from Cloudflare's ranges, and any other request counts as
+the edge it came from.
 
 On the hosting this version brings new migrations (up to
 `012_sign_in_words.sql`, and the library's own sets around them -

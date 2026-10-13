@@ -146,7 +146,7 @@ was open. The upload carries `vendor/anotoki/lib/php/migrations/`
 (the library's set) - `tools/build.php` puts it there, under the deny-all
 `.htaccess` of `vendor/`.
 
-The version that took anotoki-lib 0.4.1 (both halves; PHP 0.5.1 and Angular 0.5.0 now, below) takes the rest of what every
+The version that took anotoki-lib 0.4.1 (both halves; PHP 0.5.2 and Angular 0.5.0 now, below) takes the rest of what every
 anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
 are gone - `api/anotoki_iam.php` stays on the host after the upload, read by
 nothing: delete it over FTP; the browser keeps its session, under the same
@@ -189,6 +189,13 @@ believed from Cloudflare's published ranges alone, the committed default -
 and never kept: a visitor counter left from before, named by the address in
 the clear, goes with the clean-up once its hour is over. The host needs PHP's
 `mbstring` (the library requires it) and `zlib` (the backups).
+
+The same version on anotoki-lib PHP 0.5.2, Angular still 0.5.0 (no migration
+of its own): **the origin secret** - `CF-Connecting-IP` believed only on a
+request that carries the owner's zone's `X-Anotoki-Origin` (*Visitors*,
+below). Set the Cloudflare Transform Rule first, then put
+`config/cloudflare.local.php` on the host by hand; without the file the site
+works as before.
 
 ## The site's words and languages
 
@@ -362,12 +369,13 @@ protection against a script filling the tables: when they bite real people,
 raise them; when the tables fill, lower them. **survey.anotoki.eu is behind
 Cloudflare's proxy**, and Cloudflare's ranges are what the site believes
 without a word here (the owner's rule of 2026-10-11): `CF-Connecting-IP` from
-an edge of Cloudflare's names the visitor, from anybody else it is ignored. A
+an edge of Cloudflare's names the visitor - with the origin secret, only on a
+request that carries it (below) -, from anybody else it is ignored. A
 host not behind Cloudflare sets `trusted_proxies` to `[]` - else nothing
 breaks, but nobody's header is believed anyway. A catch-all range there -
 shorter than /8 for IPv4 or /16 for IPv6, `0.0.0.0/0`, `::/0` - is refused:
-the list is left out (logged) and Cloudflare's holds. The same proxies tell
-the error log where a request came from. **No address is kept in the
+the list is left out (logged) and Cloudflare's holds. The same proxies and
+the same secret tell the error log where a request came from. **No address is kept in the
 clear**: a counter goes by a keyed HMAC of the address (under a key derived
 from `storage/anotoki-lib.key`) - a stable pseudonym of the address while
 that key lasts, which whoever holds the key could match against every IPv4
@@ -375,6 +383,39 @@ address: keep the storage folder as private as the database. The database
 holds no address, nor does any backup made since anotoki-lib 0.5.0 - one
 made before may hold an hour's counters named by address
 (`visitors:new:<address>`) until it is deleted here.
+
+**The origin secret** (anotoki-lib PHP 0.5.2, the owner's decision of
+2026-10-13): Cloudflare's ranges are every Cloudflare customer's, not the
+owner's zone alone - anybody's Worker can open a connection to the host from
+them and write the `CF-Connecting-IP` it likes, a new address every time, past
+every limit here. So the owner's zone adds a secret header to every request
+through it, and the site believes `CF-Connecting-IP` only on a request that
+carries it; any other request from Cloudflare counts as the edge it came from
+(coarser - a Worker's made-up visitors share one bucket - never looser). The
+same value in two places, a long random value of 32 characters or more:
+
+- **Cloudflare**: Rules → Transform Rules → Modify Request Header → "Set
+  static" `X-Anotoki-Origin` to the secret, for every request of the zone (one
+  rule serves every anotoki site).
+- **The host**: `config/cloudflare.local.php` beside the other settings, put
+  there by hand like `visitors.local.php` (`setup.php` neither writes nor
+  reads it, an upload never carries it, FTP never deletes it) - the same file
+  in every anotoki site:
+
+  ```php
+  <?php
+  return ['origin_secret' => '<the same long random value>'];
+  ```
+
+Set the rule first - a site without the file pays the header no heed - then
+the file: the other way round, every visitor counts as their edge until the
+rule is there; changing the secret, likewise. Without the file, or with a
+value that is not a string with something in it, the site believes
+`CF-Connecting-IP` from Cloudflare's ranges alone, as before. A file PHP
+cannot read is logged (`[cloudflare] config/cloudflare.local.php could not be
+read (...)`: its error's kind and line, never its contents) and passed over -
+never fatal. The secret is never printed or logged; keep a copy off the
+server, as of the other settings.
 
 **The clean-up** needs no cron: after an answer, at most once an hour (and
 after every new visitor), it ends a batch of visitors unseen for `keep_days`
@@ -396,7 +437,7 @@ SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 
 
 Everything is in the database, pictures and the site's reworded strings
 included. The site backs it up itself - the anotoki family's backups
-(anotoki-lib 0.5.1), on the admin panel's System → **Backups** page, for its
+(anotoki-lib PHP 0.5.2), on the admin panel's System → **Backups** page, for its
 ADMIN: every table by COPY through PDO in one snapshot (no `pg_dump` on the
 host), each a file `storage/backups/<id>.anotoki-backup` (`ANOTOKI-BACKUP 1`,
 a JSON header, then a gzip'd tar of the manifest, the applied migrations' SQL
@@ -446,8 +487,9 @@ from the page. The web never reaches `storage/` (its `.htaccess`, and each
 folder's own); what the folder holds besides the library's files stays as it
 is. The config files
 are only the connection and the IAM's address; setup.php writes them again -
-all but `config/visitors.local.php`, which is put there by hand: keep a copy
-of it.
+all but `config/visitors.local.php` and `config/cloudflare.local.php`, which
+are put there by hand: keep a copy of them (the origin secret is in the
+Cloudflare zone's Transform Rule too).
 
 ## The error log and the audit log
 

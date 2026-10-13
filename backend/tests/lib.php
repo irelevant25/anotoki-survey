@@ -523,18 +523,22 @@ function test_frontend_build(): string
 /**
  * The real server (router.php) with the given IAM settings (the tests' own key
  * set unless said otherwise), against this file's database - and, with
- * $visitors, a config/visitors.local.php holding them. Checks it says it uses
- * that database before any test talks to it. 'config' is its settings folder
- * (its storage/ is in there).
+ * $visitors, a config/visitors.local.php holding them; with $cloudflare, a
+ * config/cloudflare.local.php (['origin_secret' => ...]). Checks it says it
+ * uses that database before any test talks to it. 'config' is its settings
+ * folder (its storage/ is in there).
  *
  * @return array{base: string, log: string, stop: callable, config: string}
  */
-function start_app(?array $iam = null, array $env = [], ?array $visitors = null): array
+function start_app(?array $iam = null, array $env = [], ?array $visitors = null, ?array $cloudflare = null): array
 {
     test_db();
     $config = test_config_dir($iam ?? test_iam());
     if ($visitors !== null) {
         file_put_contents("$config/visitors.local.php", '<?php return ' . var_export($visitors, true) . ";\n");
+    }
+    if ($cloudflare !== null) {
+        file_put_contents("$config/cloudflare.local.php", '<?php return ' . var_export($cloudflare, true) . ";\n");
     }
     $app = test_start_server(TEST_BACKEND, TEST_BACKEND . '/router.php', $env + [
         'SURVEY_TEST_CONFIG' => $config,

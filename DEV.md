@@ -41,10 +41,11 @@ its README), one version for both halves:
 | PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.5.0"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`php/testing/stand-in-iam.php`), and its migration sets (`php/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
 | Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.5.0/anotoki-lib-0.5.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-The PHP half is at 0.5.1, the Angular half at 0.5.0 - 0.5.1 changed only the
-PHP half (a restore's sequences: `visitor_ids`, which counts down, is no longer
-set past its end), and a release that changes one half only says so in its
-CHANGELOG. The kit is imported a piece at a time, each from its
+The PHP half is at 0.5.2, the Angular half at 0.5.0 - 0.5.1 and 0.5.2 changed
+only the PHP half (0.5.1 a restore's sequences: `visitor_ids`, which counts
+down, is no longer set past its end; 0.5.2 the origin secret,
+`config/cloudflare.local.php`), and a release that changes one half only says
+so in its CHANGELOG. The kit is imported a piece at a time, each from its
 own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
 smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages
 of the words, the People page and the admin tools' pages come with lazy entry
@@ -154,7 +155,9 @@ the `X-Visitor-Key` header; send it back in that header and the survey says
 writes it - [docs/operations.md](docs/operations.md#visitors)); without one the
 defaults hold - Cloudflare's published ranges the only proxies believed - and
 on this computer every request comes from `127.0.0.1`, one address: 30 new
-visitors an hour from it.
+visitors an hour from it. `backend/config/cloudflare.local.php` (the origin
+secret, the same in every anotoki site; gitignored, nothing writes it) is for
+the host behind Cloudflare - a computer of yours needs none.
 
 ## Day to day
 

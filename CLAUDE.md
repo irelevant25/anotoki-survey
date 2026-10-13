@@ -42,7 +42,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   self-delete). Never print the database password; never copy it anywhere git
   would publish.
 - **While the site cannot run, the anotoki family's library decides what
-  happens** (anotoki-lib: PHP 0.5.1 - `anotoki/lib` in `backend/vendor/` -,
+  happens** (anotoki-lib: PHP 0.5.2 - `anotoki/lib` in `backend/vendor/` -,
   Angular 0.5.0 - `@anotoki/lib` in the frontend -, one release line: a patch
   that changes one half alone leaves the other where it is; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
@@ -69,7 +69,9 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   of the database first (none can be made: nothing is applied).
   A third file is optional and nobody's but the owner's:
   `config/visitors.local.php` (the visitors' limits and trusted proxies; put
-  there by hand, never written by `setup.php`; defaults without it).
+  there by hand, never written by `setup.php`; defaults without it) - and a
+  fourth, the same in every anotoki site: `config/cloudflare.local.php` (the
+  origin secret, below; by hand too, never written or read by `setup.php`).
 - **Where a request comes from is the family's one rule** (anotoki-lib
   0.5.0's `ClientAddress`, the owner's rule of 2026-10-11; `api/client_address.php`):
   `REMOTE_ADDR`, or `CF-Connecting-IP` only on a connection from Cloudflare's
@@ -78,15 +80,25 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   `REMOTE_ADDR` alone; a catch-all range - shorter than /8 for IPv4, /16 for
   IPv6 - is refused, the default holding). The header is pinned in code, never
   a setting: `X-Real-IP`, `True-Client-IP`, `X-Forwarded-For` come through
-  Cloudflare as the visitor sent them, and none is ever read. An IPv6 address
+  Cloudflare as the visitor sent them, and none is ever read. **With the
+  origin secret, only through the owner's zone** (anotoki-lib PHP 0.5.2, the
+  owner's decision of 2026-10-13): Cloudflare's ranges are every Cloudflare
+  customer's - anybody's Worker can connect from them and write the
+  `CF-Connecting-IP` it likes - so a Transform Rule of the owner's zone adds
+  `X-Anotoki-Origin` with a secret to every request, the site keeps it in
+  `config/cloudflare.local.php` (`['origin_secret' => ...]`, `originSecret()`;
+  never printed or logged) and believes `CF-Connecting-IP` only on a request
+  that carries it; any other request from Cloudflare counts as its edge -
+  coarser, never looser. Without the file, Cloudflare's ranges alone, as
+  before. An IPv6 address
   counts by its /64. The visitors' limits and the library's error log read by
-  the same proxies (`surveyAdminContext()`). **No address is kept in the
+  the same proxies and the same secret (`surveyAdminContext()`). **No address is kept in the
   clear**: a visitors' counter goes by a keyed HMAC of it
   (`clientAddressKept()`, under a key derived from the installation's
   `storage/anotoki-lib.key`), the error log's `client` likewise - a stable
   pseudonym of the address while that key lasts (whoever holds the key can
   try every IPv4 address against it), never a secret.
-- **Signing in is the anotoki family's library's** (anotoki-lib, PHP 0.5.1 /
+- **Signing in is the anotoki family's library's** (anotoki-lib, PHP 0.5.2 /
   Angular 0.5.0, the `Auth` module on both halves - the IAM's SDKs are gone from this site):
   `Anotoki\Lib\Auth` on the server (`api/auth.php`, `meddleware/auth.php`),
   `@anotoki/lib/auth` in the browser (`AnotokiAuth`, its interceptor, guards,

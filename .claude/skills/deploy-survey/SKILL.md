@@ -90,6 +90,17 @@ list; delete it to follow the library's. A catch-all range there is refused
 (logged, the default holding), and `client_ip_header` is no setting any more
 (logged, left out): the header is `CF-Connecting-IP`, pinned.
 
+**The same version on anotoki-lib PHP 0.5.2, Angular still 0.5.0** (no
+migration of its own): the origin secret. First the Cloudflare zone's
+Transform Rule (Rules → Transform Rules → Modify Request Header → "Set static"
+`X-Anotoki-Origin` to the secret, every request of the zone - a site without
+the secret pays it no heed), then `config/cloudflare.local.php` on the host by
+hand (`<?php return ['origin_secret' => '<the same value>'];` - a long random
+value, 32+ characters, the same file in every anotoki site): from then on
+`CF-Connecting-IP` is believed only on a request carrying the secret. Never
+print it; without the file the site works as before
+([docs/operations.md](../../../docs/operations.md#visitors)).
+
 ## 2. Upload
 
 For a version with a new migration that will be applied with the setup page
@@ -100,9 +111,10 @@ web root `anotoki.eu/sub/survey/` (over the old files: FTP never deletes, and
 new migration). Files that were removed from a version stay on the host until
 deleted by hand - delete them if they matter.
 
-`config/visitors.local.php` (the visitors' limits and trusted proxies) is
-never in the upload and nothing writes it: the owner puts it into the web
-root's `config/` by hand over SFTP, and it stays across uploads. Before the
+`config/visitors.local.php` (the visitors' limits and trusted proxies) and
+`config/cloudflare.local.php` (the origin secret) are never in the upload and
+nothing writes them: they are put into the web root's `config/` by hand over
+SFTP, and they stay across uploads. Before the
 IAM's "Sign-in required" is switched off for the survey, nothing in it is
 needed for Cloudflare: its ranges are the default (anotoki-lib 0.5.0) -
 [docs/operations.md](../../../docs/operations.md#visitors). Once it is

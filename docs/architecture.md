@@ -28,7 +28,7 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib, PHP 0.5.1 and
+client `survey`, with the anotoki family's library (anotoki-lib, PHP 0.5.2 and
 Angular 0.5.0, its `Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
@@ -159,7 +159,12 @@ Migrations page, the System pages and the move are a verified token's alone.
   anotoki-lib 0.5.0's `ClientAddress`, the one the library's error log reads
   by too; the header pinned in code, never a setting - `X-Real-IP`,
   `True-Client-IP`, `X-Forwarded-For` pass through Cloudflare as the visitor
-  sent them; IPv6 by its /64). An address's counter goes by a keyed HMAC of
+  sent them; IPv6 by its /64) - with the origin secret
+  (`config/cloudflare.local.php`, `originSecret()`; anotoki-lib PHP 0.5.2, the
+  owner's decision of 2026-10-13), only on a request that carries it in
+  `X-Anotoki-Origin`, which the owner's zone adds to every request through it:
+  anybody's Cloudflare Worker can connect from Cloudflare's ranges, and any
+  other request from them counts as its edge. An address's counter goes by a keyed HMAC of
   it (`clientAddressKept()`, under a key derived from the installation's
   `storage/anotoki-lib.key`) - a stable pseudonym of the address while that
   key lasts, not a secret (whoever holds the key can try every IPv4 address
@@ -179,7 +184,8 @@ Migrations page, the System pages and the move are a verified token's alone.
   the switch): the visitor's answers into the person's account in one
   transaction (`visitorMoveInto()`); the person's answers win where both
   answered.
-- Settings: `config/visitors.local.php`, optional
+- Settings: `config/visitors.local.php`, optional, and the origin secret's
+  `config/cloudflare.local.php`, optional too
   ([operations](operations.md#visitors)).
 
 ### Visitors in the browser
@@ -284,7 +290,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib 0.5.1, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib PHP 0.5.2, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -329,7 +335,7 @@ answer, every survey's author and every visitor lives in `users`):
 ## The admin tools
 
 The error log, the audit log and the backups are the anotoki family's
-(anotoki-lib, PHP 0.5.1 and Angular 0.5.0: `Anotoki\Lib\ErrorLog`, `Audit`, `Backups` - wired in
+(anotoki-lib, PHP 0.5.2 and Angular 0.5.0: `Anotoki\Lib\ErrorLog`, `Audit`, `Backups` - wired in
 `api/admin_tools.php`, their routes in `routes/admin.php`; the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/backups`, configured in
 `core/admin/admin-tools.ts`), for the site's ADMIN alone (the owner's
@@ -363,7 +369,8 @@ in the database, and are in every backup).
   from one sender, 500 a day from the visitors and as many from the people
   signed in, each its own budget. Where a request comes from is read by the
   same settings as the visitors' limits (`surveyAdminContext()`:
-  Cloudflare's ranges, `CF-Connecting-IP`).
+  Cloudflare's ranges, `CF-Connecting-IP` - with the origin secret, only on a
+  request that carries it).
 - **The audit log** - the library's table `anotoki_audit_log` (its set
   `anotoki_admin`, the first to run): who did what in the admin panel - a
   survey made, opened, closed, deleted; answers deleted; the site's words

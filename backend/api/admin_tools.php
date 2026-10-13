@@ -57,26 +57,26 @@ use Slim\App;
  * whose address a request comes from (the visitors' settings' proxies -
  * Cloudflare's published ranges unless config/visitors.local.php says
  * otherwise - and Cloudflare's CF-Connecting-IP, the library's default
- * header, never a setting: the library's one rule, ClientAddress, which the
- * visitors' limits read by too, api/client_address.php), the people's names
- * (a backup's maker, the audit log's actors) and this site's error body.
+ * header, never a setting, believed with the origin secret only on a request
+ * that carries it - config/cloudflare.local.php: the library's one rule,
+ * ClientAddress, which the visitors' limits read by too,
+ * api/client_address.php), the people's names (a backup's maker, the audit
+ * log's actors) and this site's error body. One for each settings folder (the
+ * tests use more than one).
  */
 function surveyAdminContext(): AdminContext
 {
-    static $context = null;
-    if ($context !== null) {
-        return $context;
-    }
-    // The header is the library's default, Cloudflare's CF-Connecting-IP: pinned, never read from a setting.
-    $visitors = visitorSettings();
+    static $made = [];
 
-    return $context = new AdminContext(
+    // The header is the library's default, Cloudflare's CF-Connecting-IP: pinned, never read from a setting.
+    return $made[configDir()] ??= new AdminContext(
         actorId: static fn(Request $request): ?int => (Identify::person($request) ?? surveyTokenPerson($request))?->sub,
         proof: AdminContext::recentSignIn(static fn(Request $request): ?int => Identify::person($request)?->authTime),
         error: respondRefusal(...),
         isAdmin: static fn(Request $request): bool => Identify::person($request)?->isAdmin() ?? false,
         names: peopleNames(...),
-        trustedProxies: $visitors['trusted_proxies'],
+        trustedProxies: visitorSettings()['trusted_proxies'],
+        originSecret: originSecret(),
     );
 }
 

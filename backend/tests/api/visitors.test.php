@@ -162,10 +162,11 @@ function counters(): array
  * The counter of new visitors from $address as the server names it: a keyed
  * HMAC of what it counts (the address; an IPv6 address's /64) under the
  * server's own installation key - never the address (api/client_address.php).
+ * The server is this file's, or $app.
  */
-function address_counter(string $address): string
+function address_counter(string $address, ?array $app = null): string
 {
-    $key = \Anotoki\Lib\Support\Keys::derive(\Anotoki\Lib\Support\Keys::installation($GLOBALS['app']['config'] . '/storage'), 'visitor-limits');
+    $key = \Anotoki\Lib\Support\Keys::derive(\Anotoki\Lib\Support\Keys::installation(($app ?? $GLOBALS['app'])['config'] . '/storage'), 'visitor-limits');
 
     return 'visitors:new:' . hash_hmac('sha256', \Anotoki\Lib\Support\ClientAddress::bucket($address), $key);
 }
@@ -680,6 +681,45 @@ test('the error log reads where a request comes from by these same settings: beh
     $over = $report('203.0.113.70', 'One too many');
     assert_same([429, 'too_many'], [$over['status'], $over['body']['code'] ?? null], 'the 21st from that visitor within the hour');
     assert_same(204, $report('203.0.113.71', 'Another visitor\'s')['status'], 'another visitor behind the same proxy: a budget of their own');
+});
+
+test('with the origin secret, a Worker writing a new CF-Connecting-IP every time is one sender - the edge - in the visitors\' limit and the pages\' reports alike; through the zone, each visitor their own', function (): void {
+    fresh();
+    // A server of its own with a config/cloudflare.local.php: the proxy this file trusts (127.0.0.1, the tests)
+    // stands for an edge of Cloudflare's, which carries anybody's requests - the owner's zone's alone with the secret.
+    $secret = 'origin-' . bin2hex(random_bytes(20));
+    $app = start_app(test_iam(['application_file' => $GLOBALS['switch']]), [], VISITOR_SETTINGS, ['origin_secret' => $secret]);
+    touch($app['config'] . '/storage/visitors-swept'); // no clean-up in this test, as fresh() says for the other server
+    try {
+        $answer = static fn(string $ip, array $headers = []): array => call($app['base'], 'POST', '/api/surveys/first/responses', answers(), array_merge(["CF-Connecting-IP: $ip"], $headers));
+        for ($i = 1; $i <= 3; $i++) {
+            $made = $answer("203.0.113.8$i");
+            assert_same(201, $made['status'], "made-up visitor $i: " . $made['raw']);
+        }
+        $fourth = $answer('203.0.113.89');
+        assert_same([429, 'too_many_visitors'], [$fourth['status'], $fourth['body']['code'] ?? null], 'the fourth, from an address never seen: the edge\'s limit is spent');
+        $wrong = $answer('203.0.113.90', ['X-Anotoki-Origin: not the secret']);
+        assert_same([429, 'too_many_visitors'], [$wrong['status'], $wrong['body']['code'] ?? null], 'a wrong secret: the edge too');
+        assert_same(3, counters()[address_counter('127.0.0.1', $app)] ?? null, 'counted as the edge: ' . test_show(counters()));
+        foreach (['203.0.113.81', '203.0.113.89', '203.0.113.90'] as $claimed) {
+            assert_false(isset(counters()[address_counter($claimed, $app)]), "never as $claimed, the address it claimed");
+        }
+        $real = $answer('203.0.113.91', ["X-Anotoki-Origin: $secret"]);
+        assert_same(201, $real['status'], 'through the owner\'s zone: the visitor it names - ' . $real['raw']);
+        assert_same(1, counters()[address_counter('203.0.113.91', $app)] ?? null, 'counted as that visitor');
+
+        // The pages' own errors: the library's limit (20 an hour a sender), by surveyAdminContext()'s reading.
+        $report = static fn(string $ip, array $headers = []): array => call($app['base'], 'POST', '/api/client-errors', ['message' => "A page's error from $ip"], array_merge(["CF-Connecting-IP: $ip"], $headers));
+        for ($i = 1; $i <= 20; $i++) {
+            assert_same(204, $report("198.51.100.$i")['status'], "report $i, from a made-up visitor");
+        }
+        $over = $report('198.51.100.21');
+        assert_same([429, 'too_many'], [$over['status'], $over['body']['code'] ?? null], 'the 21st, from an address never seen: the edge\'s budget is spent');
+        assert_same(204, $report('198.51.100.22', ["X-Anotoki-Origin: $secret"])['status'], 'through the zone: a visitor with a budget of their own');
+        assert_same([], server_problems($app), 'its server said nothing it should not have');
+    } finally {
+        $app['stop']();
+    }
 });
 
 test('the server said nothing it should not have', function (): void {

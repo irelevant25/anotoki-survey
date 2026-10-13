@@ -56,7 +56,8 @@ api/
   client_address.php   the address a request comes from, for the limits - the library's ClientAddress
                        over the visitors' settings (Cloudflare's ranges by default) - and what is
                        kept of it: a keyed HMAC (a pseudonym), never the address in the clear;
-                       the header pinned - CF-Connecting-IP alone, never a setting
+                       the header pinned - CF-Connecting-IP alone, never a setting - and, with the
+                       origin secret, believed only on a request carrying it (X-Anotoki-Origin)
   survey_rules.php     what a survey and an answer must be - the twin of
                        ../frontend/src/app/core/survey/
   rich_text.php        richTextClean(): the editor's HTML and nothing else
@@ -74,7 +75,8 @@ config/
   config.php           reads database.local.php and iam.local.php - both written by setup.php,
                        gitignored, never committed - and visitors.local.php when it is there
                        (optional, put there by hand; VISITOR_DEFAULTS without it - the trusted
-                       proxies Cloudflare's published ranges)
+                       proxies Cloudflare's published ranges), and cloudflare.local.php (optional,
+                       by hand too: the origin secret, originSecret() - none without it)
 migrations/survey/     the schema and the site's strings, NNN_name.sql (never edit an applied one)
 storage/               cache (the IAM's keys, its "Sign-in required" answer, the daily backup's
                        stamp), logs (the error log, audit entries waiting for their table), backups,
@@ -85,7 +87,7 @@ storage/               cache (the IAM's keys, its "Sign-in required" answer, the
 tests/                 run.php, lib.php; unit/, api/; tools/ (testdb.php, testenv.php)
 tools/                 build.php (the upload -> ../dist/), translation_keys.php (the frontend's keys:
                        the library's KeyScanner, set up for this site)
-vendor/                Slim and its pieces, and anotoki/lib 0.5.1 (the family's library, from GitHub -
+vendor/                Slim and its pieces, and anotoki/lib 0.5.2 (the family's library, from GitHub -
                        ../DEV.md says how it is updated; its migration sets in php/migrations/, its
                        stand-in IAM for the tests in php/testing/) - committed: the hosting cannot
                        run Composer

@@ -48,7 +48,7 @@ backend/
                            and only hands the key in; nothing of a survey
                            without a token while sign-in is required, but its pictures (an
                            <img> sends none; UUID addresses)
-  api/auth.php             signing in through the family's library (anotoki-lib 0.5.1, Anotoki\Lib\Auth -
+  api/auth.php             signing in through the family's library (anotoki-lib 0.5.2, Anotoki\Lib\Auth -
                            the IAM's SDK is gone): surveyIam() (IamClient), surveySignInRule() /
                            authLoginRequired() (the IAM's "Sign-in required", relayed by
                            /api/auth/config with visitor_days), surveyIdentify() (only Bearer claims to
@@ -64,7 +64,8 @@ backend/
   api/admin_tools.php      the error log, the audit log, the backups (Anotoki\Lib\ErrorLog, Audit,
                            Backups): surveyAdminContext() (the token's person, the proof - a sign-in
                            of the last ten minutes -, whose address a request is - the visitors'
-                           trusted proxies and header, Cloudflare's by default -, the people's
+                           trusted proxies and header, Cloudflare's by default, and the origin
+                           secret -, the people's
                            names, this site's error body), surveyAudit() / surveyAudited(),
                            surveyErrorLog(), surveyBackups() (storage/backups, sealed; the
                            migrations' lock; a restore's hooks - People::restoreHooks(): the People
@@ -76,7 +77,9 @@ backend/
   api/client_address.php   the address the limits count - the family's one rule (the library's
                            ClientAddress): REMOTE_ADDR unless a trusted proxy's (Cloudflare's ranges
                            by default) CF-Connecting-IP names one - that header pinned, no other ever
-                           read; IPv6 by its /64 - and clientAddressKept(), what is kept of it: a
+                           read; with the origin secret (originSecret()) only on a request carrying it
+                           in X-Anotoki-Origin, else the edge; IPv6 by its /64 - and
+                           clientAddressKept(), what is kept of it: a
                            keyed HMAC, a pseudonym while the key lasts, never the address in the clear
   api/helpers.php          JSON in and out, and the text helpers: TEXT_SPACE (what the browser's trim()
                            takes for a space), textTrim(), textClean(); afterAnswerAdd() /
@@ -99,7 +102,7 @@ backend/
                            languagesForSurveys() / languagesOffered() (what survey_rules.php reads)
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.5.1's PHP half - never edited here; DEV.md: how it is updated):
+                           anotoki-lib 0.5.2's PHP half - never edited here; DEV.md: how it is updated):
                            surveyMigrationSet(), surveyMigrationSets() (the library's `anotoki_admin`,
                            the site's `survey`, then the library's `anotoki_translations` and
                            `anotoki_people` - recorded as <set>/NNN.sql), surveyMigrator($pdo,
@@ -113,8 +116,11 @@ backend/
   config/config.php        database.local.php + iam.local.php; visitors.local.php (optional, by hand:
                            VISITOR_DEFAULTS - the trusted proxies Cloudflare's published ranges, the
                            library's ClientAddress::CLOUDFLARE -, visitorSettings(); visitorSettingsFile()
-                           - a file that does not parse is logged, the defaults hold); SURVEY_TEST_CONFIG
-                           for the tests
+                           - a file that does not parse is logged, the defaults hold); cloudflare.local.php
+                           (optional, by hand, the same in every anotoki site: originSecret() /
+                           originSecretFile() - a string with something in it, else none; a file that
+                           does not parse is logged by its error's kind and line, never its contents);
+                           SURVEY_TEST_CONFIG for the tests
   migrations/survey/       the schema - and the site's strings (002 the tables and the two languages,
                            003 every key with its English and Slovak string: the pattern for the next;
                            006 the visitors: visitor_ids, users.visitor_key_hash, visitor_counters;
@@ -336,6 +342,14 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   header is pinned in code: never a setting a local file could point at
   `X-Real-IP`, `True-Client-IP` or `X-Forwarded-For`; and a trusted range
   shorter than /8 (IPv4) or /16 (IPv6) is refused (`visitorSettingRangeOk()`).
+  With the origin secret (`config/cloudflare.local.php`, `originSecret()`;
+  anotoki-lib 0.5.2, the owner's decision of 2026-10-13) the header is
+  believed only on a request that carries it in `X-Anotoki-Origin` - anybody's
+  Cloudflare Worker can connect from Cloudflare's ranges -, any other request
+  from them counting as its edge: every reading of an address passes it
+  (`clientAddress()`, `surveyAdminContext()`'s `originSecret:`), and the
+  secret is never printed or logged (a file that does not parse: its error's
+  kind and line alone).
 - **A person's Delete is done again by a restore** (anotoki-lib 0.5.0): the
   hook (`peopleDelete()`) runs inside the library's transaction and begins
   none, writes on the `$pdo` it is given and nothing else - never `db()`, nor
@@ -350,7 +364,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   person, inside the change's transaction where there is one.
 - **A database behind the code closes the site, but not to the ADMIN who
   applies it - the anotoki family's way, the library's** (anotoki-lib, PHP
-  0.5.1 and Angular 0.5.0; the owner's decision of 2026-10-07): the
+  0.5.2 and Angular 0.5.0; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
   `/api/site-status`, always); a new route that must work then goes there, and
@@ -1127,7 +1141,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
          HMAC at most (`clientAddressKept()`), described as a pseudonym, never
          as unreadable; `CF-Connecting-IP` alone, pinned, believed only from a
          trusted proxy (`clientAddress()`, Cloudflare's ranges), no catch-all
-         range taken;
+         range taken; the origin secret passed to every reading of an address
+         (`originSecret()`), never printed or logged;
    - [ ] a People delete hook (or a scrub hook) writes on the `$pdo` it is
          given and nowhere else - no audit entry or helper on the site's own
          connection - in the library's transaction, a null request taken (a

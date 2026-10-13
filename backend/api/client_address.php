@@ -24,6 +24,15 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  * address and walk past every limit with a new one for every request. A
  * header from anybody but a trusted proxy is never believed either.
  *
+ * Nor, with the origin secret (config/cloudflare.local.php, originSecret();
+ * anotoki-lib 0.5.2, the owner's decision of 2026-10-13), one from a Cloudflare
+ * address that does not carry it in X-Anotoki-Origin: Cloudflare's ranges are
+ * every Cloudflare customer's, and anybody's Worker can open a connection from
+ * them and write the CF-Connecting-IP it likes. The owner's zone adds the
+ * secret to every request through it (a Transform Rule); a request without it
+ * counts as the edge it came from - coarser, never looser. Without the file,
+ * Cloudflare's ranges alone are believed, as before.
+ *
  * One address, for counting: an IPv4 address as it is, an IPv6 address by its
  * /64 - one household or one server is handed a whole /64 and picks from it at
  * will, so counting single IPv6 addresses would count nothing. An IPv4 address
@@ -41,10 +50,13 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  * requestRemoteAddr() and never believes a proxy.
  */
 
-/** The visitor's address: REMOTE_ADDR, or the one a trusted proxy's CF-Connecting-IP names ('?' for none). */
+/**
+ * The visitor's address: REMOTE_ADDR, or the one a trusted proxy's CF-Connecting-IP names - with the origin
+ * secret, only on a request that carries it ('?' for none).
+ */
 function clientAddress(Request $request, array $settings): string
 {
-    $address = ClientAddress::of($request, $settings['trusted_proxies'] ?? [], ClientAddress::CLOUDFLARE_HEADER);
+    $address = ClientAddress::of($request, $settings['trusted_proxies'] ?? [], ClientAddress::CLOUDFLARE_HEADER, originSecret());
 
     return $address ?? '?';
 }
