@@ -206,12 +206,21 @@ test('config/cloudflare.local.php: only a string with something in it is a secre
             'nothing returned' => ["<?php ['origin_secret' => '" . ORIGIN_SECRET . "'];\n", 'holds no origin_secret'],
             'a parse error' => ["<?php return ['origin_secret' => 'x' '" . ORIGIN_SECRET . "'];\n", 'could not be read (ParseError on line 1)'],
             'a bare word' => ["<?php return ['origin_secret' => $bare];\n", 'could not be read (Error on line 1)'],
+            // Written by hand without its first line, or saved with a BOM: PHP would print the file before every answer.
+            'no <?php line' => ["return ['origin_secret' => '" . ORIGIN_SECRET . "'];\n", 'prints '],
+            'a BOM' => ["\xEF\xBB\xBF<?php return ['origin_secret' => '" . ORIGIN_SECRET . "'];\n", 'prints 3 bytes of its own'],
         ] as $case => [$contents, $logged]) {
             @unlink($log);
             with_cloudflare_file($contents, function () use ($case): void {
-                assert_same(null, originSecret(), "$case: no secret");
-                assert_same(null, settingsProblem(), "$case: the site is set up all the same");
-                assert_same('203.0.113.1', clientAddress(request_from(EDGE, ['CF-Connecting-IP' => '203.0.113.1']), VISITOR_DEFAULTS), "$case: CF-Connecting-IP from Cloudflare's ranges alone, as before");
+                ob_start();
+                try {
+                    assert_same(null, originSecret(), "$case: no secret");
+                    assert_same(null, settingsProblem(), "$case: the site is set up all the same");
+                    assert_same('203.0.113.1', clientAddress(request_from(EDGE, ['CF-Connecting-IP' => '203.0.113.1']), VISITOR_DEFAULTS), "$case: CF-Connecting-IP from Cloudflare's ranges alone, as before");
+                } finally {
+                    $printed = (string) ob_get_clean();
+                }
+                assert_same('', $printed, "$case: nothing of the file printed");
             });
             $text = (string) @file_get_contents($log);
             assert_true(str_contains($text, '[cloudflare] config/cloudflare.local.php ' . $logged), "$case: logged - " . $text);

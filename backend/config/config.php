@@ -304,10 +304,20 @@ function originSecretFile(): ?string
         return null;
     }
 
+    // A file written by hand without its <?php line, with text after its closing tag, or with a BOM would print what it
+    // holds - the secret - before the answer: what it prints is caught, and the file is no use.
+    ob_start();
     try {
         $values = require $file;
     } catch (Throwable $e) {
         error_log('[cloudflare] config/cloudflare.local.php could not be read (' . get_class($e) . ' on line ' . $e->getLine() . '): no origin secret.');
+
+        return null;
+    } finally {
+        $printed = (string) ob_get_clean();
+    }
+    if ($printed !== '') {
+        error_log('[cloudflare] config/cloudflare.local.php prints ' . strlen($printed) . ' bytes of its own (no <?php line, text after ?>, or a BOM): no origin secret.');
 
         return null;
     }
