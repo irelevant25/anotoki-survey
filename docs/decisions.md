@@ -654,6 +654,34 @@ said in PHP's error log at most once a day (a stamp in `storage/cache`,
 mark, and a Worker writing a new `CF-Connecting-IP` - with the file's own
 secret beside it - is one sender, the edge.
 
+**Every settings file is read cleanly or not at all (2026-10-18; the IAM's
+rule - its `readLocalConfigFile()` - and Piano's).** `database.local.php`,
+`iam.local.php` and `visitors.local.php` were still read with a plain
+`require` after `cloudflare.local.php` went through the guard: a
+`database.local.php` saved with a byte-order mark, without its `<?php` line
+or with text after a closing tag would print what it holds - the database
+password, where the line is missing - ahead of every answer, the status the
+pages read included. All four go through `settingsFileReadCleanly()` now:
+whatever a file prints as PHP reads it is caught and never sent, and the
+file is passed over. A database or IAM file that cannot be read cleanly
+(that, or PHP cannot parse, run or open it) leaves the site not set up -
+`503 not_set_up` everywhere but `/api/site-status`, which says so; never a
+500, never its text - and the setup page on this computer names the file and
+its fault (a real host's says only that the saved settings are not
+complete); saving the form writes the file anew, its password typed again,
+since none is kept from a file never read. A visitors file means the
+defaults, never "not set up". Each fault is said in PHP's error log at most
+once a day (`settingsSaid()`) by its kind and line, or the bytes the file
+printed - never what PHP said, which the visitors file's log used to repeat
+(a parse error's message can quote the file); a visitors value nobody can
+use is said once a day too, by its key's name, never its value.
+`tests/api/migrations.test.php` holds the attack - a byte-order-marked
+`database.local.php` with a password in it and no `<?php` line: no answer
+carries the password (the status, the API, the pages, the setup page), no
+PHP warning is raised, and the site says it is not set up; with a plain
+`require` back, the status answer carries the whole file - and
+`tests/unit/config.test.php` and `client_address.test.php` each kind of file.
+
 **Terms, Privacy and Contact (anotoki-lib 0.6.0's legal pages, the owner's
 decisions of 2026-10-13) are anybody's, and their facts are the code's.**
 The pages are the family's (`@anotoki/lib/legal/pages`); the survey gives its

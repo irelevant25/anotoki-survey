@@ -108,6 +108,10 @@ survey's pages, the kit's link cards and removable chips, and a
 after the upload, if visitors are suddenly refused "too many" from
 everywhere, PHP's error log says why once a day (`[cloudflare] ...`): mend the
 file (save it as UTF-8 without a byte-order mark, its first line `<?php`).
+Every other `config/*.local.php` is read the same careful way: one saved so
+never prints what it holds - a database or IAM file leaves the site "not set
+up" (`[config] ...` in the log, and the setup page on the owner's computer
+says which), a visitors file means the defaults (`[visitors] ...`).
 It brings `013_legal_pages.sql`, then the library's
 `anotoki_translations/005_…` to `010_…`: Apply on the Migrations page. Before
 the upload move any survey opened at the address `terms`, `privacy` or

@@ -22,10 +22,16 @@ declare(strict_types=1);
  *       ];
  *
  * There is nothing to fall back on. Without both files, or with one that does
- * not say what it must, the API answers every request 503 {code: "not_set_up"}
- * pointing at /setup.php, and the frontend shows a "not set up yet" page. A
- * default in a committed file would be a way for the site to run somewhere
- * with settings nobody chose there - which is exactly what this is here to stop.
+ * not say what it must - or that cannot be read cleanly (a slip in an editor:
+ * PHP cannot parse, run or open it, or it prints anything as PHP reads it - a
+ * byte-order mark or a line before its <?php, no <?php line at all, text after
+ * a closing tag; what it prints, the password with it, is caught and never
+ * sent: settingsFileReadCleanly()) - the API answers every request but
+ * GET /api/site-status (which says so) 503 {code: "not_set_up"}, pointing at
+ * /setup.php while the site was never installed, and the frontend shows a "not
+ * set up yet" page. A default in a committed file would be a way for the site
+ * to run somewhere with settings nobody chose there - which is exactly what
+ * this is here to stop.
  *
  * A third file is optional, and nothing writes it - put it there by hand:
  *
@@ -38,8 +44,10 @@ declare(strict_types=1);
  *       return ['trusted_proxies' => []];   // a host not behind Cloudflare: REMOTE_ADDR alone
  *
  *   Every key is optional (VISITOR_DEFAULTS has them all); a value that is not
- *   usable is left out and logged, and a file that cannot be read (a parse
- *   error, no array returned) is logged and the defaults hold - never fatal.
+ *   usable is left out, and a file that cannot be read cleanly (read the same
+ *   careful way as the two above) or returns no array is passed over, the
+ *   defaults holding - never fatal, never "not set up". Each fault is said in
+ *   PHP's error log at most once a day (settingsSaid()), never the file's text.
  *
  * And a fourth, optional too, the same in every anotoki site - put there by
  * hand like the third; setup.php never writes or reads it:
@@ -109,14 +117,28 @@ function localSettings(bool $reload = false): array
         return $settings;
     }
 
-    $read = static function (string $name): ?array {
+    // A file that cannot be read cleanly is no setting - said, rather than a 500
+    // on every path (the site's status too, which the pages read to know what to
+    // say). It is read through settingsFileReadCleanly(): whatever it prints as
+    // PHP reads it - all of it, the password too, from a file without its <?php
+    // line - is caught and never sent; what PHP said is not repeated (a parse
+    // error's message may quote the file, password and all), only its kind and
+    // line, or how many bytes the file printed.
+    $unreadable = null;
+    $read = static function (string $name) use (&$unreadable): ?array {
         $file = localConfigFile($name);
         if (!is_file($file)) {
             return null;
         }
-        $values = require $file;
+        $read = settingsFileReadCleanly($file);
+        if ($read['problem'] !== null) {
+            $unreadable ??= "config/$name.local.php {$read['problem']}.";
+            settingsSaid('config', "config/$name.local.php {$read['problem']}: the site is not set up until it is mended.");
 
-        return is_array($values) ? $values : [];
+            return [];
+        }
+
+        return is_array($read['value']) ? $read['value'] : [];
     };
 
     $database = $read('database');
@@ -130,7 +152,7 @@ function localSettings(bool $reload = false): array
     } elseif ($iam === null) {
         $problem = 'config/iam.local.php is missing.';
     } else {
-        $problem = databaseSettingsProblem($database) ?? iamSettingsProblem($iam);
+        $problem = $unreadable ?? databaseSettingsProblem($database) ?? iamSettingsProblem($iam);
     }
 
     if ($problem === null && usingTestConfig() && !str_starts_with((string) $database['name'], 'survey_test_')) {
@@ -199,9 +221,13 @@ function visitorSettings(): array
 
 /**
  * What visitors.local.php returns - null without one. Unlike the other two,
- * setup.php never writes this file: it is written by hand, so a typo in it
- * (a parse error, a missing `return`) is logged and the defaults hold, never
- * a failure of every request.
+ * setup.php never writes this file: it is written by hand, so a slip in it -
+ * a parse error, a missing `return`, anything it prints as PHP reads it (a
+ * byte-order mark, no <?php line, text after a closing tag) - means the
+ * defaults, never a failure of every request. It is read through
+ * settingsFileReadCleanly(), like every *.local.php: nothing it prints is
+ * sent, and its fault is said at most once a day by its kind and line or its
+ * bytes - never what PHP said, which may quote the file.
  */
 function visitorSettingsFile(): ?array
 {
@@ -210,29 +236,28 @@ function visitorSettingsFile(): ?array
         return null;
     }
 
-    try {
-        $values = require $file;
-    } catch (Throwable $e) {
-        error_log('[visitors] config/visitors.local.php could not be read (' . get_class($e) . ': '
-            . $e->getMessage() . ' on line ' . $e->getLine() . '): the defaults hold.');
+    $read = settingsFileReadCleanly($file);
+    if ($read['problem'] !== null) {
+        settingsSaid('visitors', "config/visitors.local.php {$read['problem']}: the defaults hold.");
 
         return null;
     }
-    if (!is_array($values)) {
-        error_log('[visitors] config/visitors.local.php could not be read (it returns no array): the defaults hold.');
+    if (!is_array($read['value'])) {
+        settingsSaid('visitors', 'config/visitors.local.php could not be read (it returns no array): the defaults hold.');
 
         return null;
     }
 
-    return $values;
+    return $read['value'];
 }
 
 /**
  * $values (what visitors.local.php returned, null without one) over the
  * defaults: a value of the wrong type or out of range, and a key nobody
- * reads, are left out and logged - a typo there must not stop people
- * answering surveys. (client_ip_header, which an earlier version read, is
- * such a key now: the header is pinned in code.)
+ * reads, are left out and logged (at most once a day, by the key's name -
+ * never a value) - a typo there must not stop people answering surveys.
+ * (client_ip_header, which an earlier version read, is such a key now: the
+ * header is pinned in code.)
  */
 function visitorSettingsChecked(?array $values): array
 {
@@ -246,7 +271,7 @@ function visitorSettingsChecked(?array $values): array
         if ($usable === true) {
             $settings[$key] = $value;
         } else {
-            error_log('[visitors] config/visitors.local.php: ' . ($usable === null ? "$key is no setting of visitors" : "$key is not usable, the default holds") . '.');
+            settingsSaid('visitors', 'config/visitors.local.php: ' . ($usable === null ? "$key is no setting of visitors" : "$key is not usable, the default holds") . '.');
         }
     }
 
@@ -356,15 +381,19 @@ function originSecretNobodyCarries(): string
 }
 
 /**
- * Requires a *.local.php written by hand - in a closure of its own, so it sees
- * none of the caller's variables - with whatever it prints caught. A file
- * without its <?php line, with a byte-order mark or a line before it, or with
- * text after a closing tag prints what is outside its PHP when PHP requires it
- * (all of it, the secret too, where the line is missing) ahead of the answer:
- * caught here, it goes nowhere, and the file is read as no file - its problem
- * the number of bytes it printed. One PHP cannot parse or run (a ParseError, an
- * Error, a warning the site's handler throws), or may not open, is no file
- * either, said by the kind of error and its line alone.
+ * Requires a *.local.php - every one is read this way: database, iam,
+ * visitors, cloudflare - in a closure of its own, so it sees none of the
+ * caller's variables, with whatever it prints caught. A file without its
+ * <?php line, with a byte-order mark or a line before it, or with text after a
+ * closing tag prints what is outside its PHP when PHP requires it (all of it,
+ * the password or the secret too, where the line is missing) ahead of the
+ * answer: caught here, it goes nowhere, and the file is read as no file - its
+ * problem the number of bytes it printed. One PHP cannot parse or run (a
+ * ParseError, an Error, a warning the site's handler throws), or may not open,
+ * is no file either, said by the kind of error and its line alone. What each
+ * caller makes of no file is its own: the database's or the IAM's leaves the
+ * site not set up (localSettings()), the visitors' the defaults, the
+ * cloudflare's a secret no request carries.
  *
  * @return array{value: mixed, problem: ?string}
  */

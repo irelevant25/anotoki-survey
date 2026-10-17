@@ -643,6 +643,27 @@ function server_problems(array $app): array
     return array_values(array_filter($lines, static fn(string $line): bool => (bool) preg_match('/PHP (Fatal|Parse|Warning|Notice|Deprecated)|\[server\]|\[db\]|Uncaught/i', $line)));
 }
 
+/** What PHP's error log holds while $fn runs (a file of its own meanwhile) - $fn's own answer beside it. */
+function logged_while(callable $fn): array
+{
+    $log = test_temp_dir('php-log') . '/php.log';
+    $logBefore = ini_get('error_log');
+    ini_set('error_log', $log);
+    try {
+        $answer = $fn();
+    } finally {
+        ini_set('error_log', $logBefore === false ? '' : $logBefore);
+    }
+
+    return [(string) @file_get_contents($log), $answer];
+}
+
+/** How many lines of $log say $what. */
+function lines_saying(string $log, string $what): int
+{
+    return count(array_filter(preg_split('/\R/', $log) ?: [], static fn(string $line): bool => str_contains($line, $what)));
+}
+
 /**
  * An HTTP request. $body: an array/object is sent as JSON, a string as it is
  * (give its Content-Type in $headers). The answer: status, the JSON body

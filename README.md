@@ -194,7 +194,11 @@ Terms · Privacy · Contact at the foot of the pages people take surveys on;
 the anotoki account's own Privacy page and account page are the IAM's, linked
 from there. No feedback form: Contact gives the family's address. The kit's
 new pieces where the site drew its own: the home page's and the System page's
-cards that are one link, the results' filters as removable chips. And a
+cards that are one link, the results' filters as removable chips. And every
+`config/*.local.php` is read cleanly or not at all: one saved with a
+byte-order mark or without its `<?php` line never prints what it holds (the
+database password with it) - a database or IAM file so leaves the site not
+set up, a visitors file means the defaults, and a
 `config/cloudflare.local.php` that cannot be read cleanly fails closed
 (Hosting checklist above).
 

@@ -2,8 +2,9 @@
 
 // config/config.php: the settings come from the two *.local.php files and
 // nowhere else - without them the site is not set up, a committed file can
-// never stand in for them, and the tests' own folder is only ever for a
-// throwaway database.
+// never stand in for them, one that cannot be read cleanly is none (nothing of
+// it printed, its fault said once a day, never its text), and the tests' own
+// folder is only ever for a throwaway database.
 
 declare(strict_types=1);
 
@@ -84,6 +85,68 @@ test('a settings file that does not say what it must is no setting', function ()
         $problem = with_config_dir($dir, 'settingsProblem');
         assert_true(is_string($problem), "$what is refused");
         assert_match($pattern, (string) $problem, $what);
+    }
+});
+
+test('a database.local.php or iam.local.php that cannot be read cleanly - it prints (no <?php line, a byte-order mark or a line before it, text after a closing tag), PHP cannot parse or run it - leaves the site not set up: nothing of it printed, the problem by its kind and line or its bytes, said once a day - never the password, never what PHP said', function (): void {
+    $password = 'sesame-' . bin2hex(random_bytes(12));
+    // A value written bare is a constant PHP does not know, whose error quotes it; two strings side by side are a
+    // parse error quoting the second.
+    $bare = 'sesame_' . bin2hex(random_bytes(12));
+    $values = [
+        'database' => var_export(['password' => $password] + good_database(), true),
+        'iam' => var_export(['client_id' => $password] + good_iam(), true),
+    ];
+    foreach ($values as $name => $mine) {
+        foreach ([
+            'no <?php line' => ["return {$mine};\n", 'prints ' . strlen("return {$mine};\n") . ' bytes of its own'],
+            'a byte-order mark and no <?php line' => ["\xEF\xBB\xBFreturn {$mine};\n", 'prints ' . (3 + strlen("return {$mine};\n")) . ' bytes of its own'],
+            'a byte-order mark' => ["\xEF\xBB\xBF<?php return {$mine};\n", 'prints 3 bytes of its own'],
+            'a line before its <?php' => ["\n<?php return {$mine};\n", 'prints 1 bytes of its own'],
+            'text after a closing tag' => ["<?php \$kept = 1; ?>\n{$password}\n<?php return {$mine};\n", 'prints ' . (strlen($password) + 1) . ' bytes of its own'],
+            'a parse error' => ["<?php return ['password' => 'x' '{$password}'];\n", 'could not be read (ParseError on line 1)'],
+            'a bare word' => ["<?php return ['password' => {$bare}];\n", 'could not be read (Error on line 1)'],
+        ] as $case => [$contents, $fault]) {
+            $what = "config/$name.local.php, $case";
+            $dir = test_temp_dir('unreadable-config');
+            write_settings($dir, good_database(), good_iam());
+            file_put_contents("$dir/$name.local.php", $contents);
+            [$log, [$problems, $printed, $buffers]] = logged_while(static function () use ($dir): array {
+                $level = ob_get_level();
+                ob_start();
+                try {
+                    // Read three times: as the folder is taken, then twice more - and asked for the database's settings.
+                    $problems = with_config_dir($dir, static function (): array {
+                        $problems = [settingsProblem(), localSettings(true)['problem'], localSettings(true)['problem']];
+                        try {
+                            databaseSettings();
+                            $problems[] = null;
+                        } catch (NotSetUp $e) {
+                            $problems[] = $e->getMessage();
+                        }
+
+                        return $problems;
+                    });
+                } finally {
+                    $printed = (string) ob_get_clean();
+                }
+
+                return [$problems, $printed, ob_get_level() - $level];
+            });
+            assert_same('', $printed, "$what: nothing of the file printed");
+            assert_same(0, $buffers, "$what: no buffer of the file's left open");
+            foreach ($problems as $problem) {
+                assert_true(is_string($problem) && str_starts_with($problem, "config/$name.local.php $fault") && str_ends_with($problem, '.'), "$what: not set up, said by its kind and line or its bytes - " . test_show($problem));
+                assert_false(str_contains((string) $problem, 'sesame') || str_contains((string) $problem, 'unexpected'), "$what: never the file's text, nor what PHP said");
+            }
+            assert_same(1, lines_saying($log, "[config] config/$name.local.php $fault"), "$what: said once, read three times - " . $log);
+            assert_true(str_contains($log, 'the site is not set up until it is mended.'), "$what: and what it means - " . $log);
+            assert_false(str_contains($log, 'sesame') || str_contains($log, 'unexpected'), "$what: the log never holds the password, nor what PHP said - " . $log);
+
+            // Mended - written again as setup.php writes it - and the next reading is set up.
+            write_settings($dir, good_database(), good_iam());
+            assert_same(null, with_config_dir($dir, 'settingsProblem'), "$what: mended, set up again");
+        }
     }
 });
 

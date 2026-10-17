@@ -117,7 +117,9 @@ backend/
   config/config.php        database.local.php + iam.local.php; visitors.local.php (optional, by hand:
                            VISITOR_DEFAULTS - the trusted proxies Cloudflare's published ranges, the
                            library's ClientAddress::CLOUDFLARE -, visitorSettings(); visitorSettingsFile()
-                           - a file that does not parse is logged, the defaults hold); cloudflare.local.php
+                           - a file not read cleanly is logged, the defaults hold); every *.local.php
+                           through settingsFileReadCleanly(), never a plain require - a database or
+                           IAM file not read cleanly leaves the site not set up; cloudflare.local.php
                            (optional, by hand, the same in every anotoki site: originSecret() /
                            originSecretFile() - a string with something in it, else none; a file that
                            cannot be read cleanly - it prints, PHP cannot parse, run or open it -

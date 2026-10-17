@@ -176,10 +176,14 @@ Security and correctness first:
 - **Setup and hosting**: `setup.php` stays parseable by PHP 7.4; no new
   committed default for anything in `config/*.local.php` (`VISITOR_DEFAULTS` is the one
   allowed: the optional `visitors.local.php` only tunes it, and a bad value there - or a
-  file that does not parse or returns no array (`visitorSettingsFile()`) - is logged and
+  file that cannot be read cleanly or returns no array (`visitorSettingsFile()`) - is logged and
   ignored, never fatal; the optional `cloudflare.local.php` has no default - no secret
   without it, a secret no request carries with one that cannot be read cleanly - and
-  `setup.php` neither writes nor reads it); `tools/build.php`
+  `setup.php` neither writes nor reads it); every `*.local.php` read through
+  `settingsFileReadCleanly()` - a plain `require` of one (whatever it prints goes out ahead
+  of the answer: the password, from a database file without its `<?php` line), a database or
+  IAM file not read cleanly answered with anything but "not set up", or a fault logged with
+  the file's text or what PHP said, is a finding; `tools/build.php`
   still leaves out settings, tests, tools, the command-line scripts
   (`migration.php`, `translations.php`) and composer files; no new route
   named like a folder under the web root's `api/`.

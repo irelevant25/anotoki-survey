@@ -72,13 +72,16 @@ api/
                        backup first for the Apply and migration.php; surveySiteState() - where the
                        site stands, for the gate and /api/site-status; siteOpenWhileUpdating()
 config/
-  config.php           reads database.local.php and iam.local.php - both written by setup.php,
-                       gitignored, never committed - and visitors.local.php when it is there
-                       (optional, put there by hand; VISITOR_DEFAULTS without it - the trusted
-                       proxies Cloudflare's published ranges), and cloudflare.local.php (optional,
-                       by hand too: the origin secret, originSecret() - none without it, and a
-                       secret no request carries for one that cannot be read cleanly:
-                       settingsFileReadCleanly(), fails closed; settingsSaid() - once a day)
+  config.php           reads every *.local.php through settingsFileReadCleanly() - what a file
+                       prints as PHP reads it is caught, never sent; settingsSaid() says its fault
+                       once a day, never its text: database.local.php and iam.local.php - both
+                       written by setup.php, gitignored, never committed; one not read cleanly
+                       leaves the site not set up - and visitors.local.php when it is there
+                       (optional, put there by hand; VISITOR_DEFAULTS without it or for one not
+                       read cleanly - the trusted proxies Cloudflare's published ranges), and
+                       cloudflare.local.php (optional, by hand too: the origin secret,
+                       originSecret() - none without it, and a secret no request carries for one
+                       that cannot be read cleanly: fails closed)
 migrations/survey/     the schema and the site's strings, NNN_name.sql (never edit an applied one)
 storage/               cache (the IAM's keys, its "Sign-in required" answer, the daily backup's
                        stamp), logs (the error log, audit entries waiting for their table), backups,

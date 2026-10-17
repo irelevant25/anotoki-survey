@@ -355,10 +355,14 @@ carries it (`*.local.php` is left out of the build) and FTP never deletes it:
 put it there by hand, over SFTP, into the web root's `config/` beside the
 other two, and keep a copy (it is not in the database's backup). Without it the
 defaults hold; a value that is not usable is left out and logged (`[visitors]`
-in the PHP log), and a file PHP cannot read (a typo that breaks its syntax, no
-`return [...]`) is logged as `[visitors] config/visitors.local.php could not
-be read (...): the defaults hold` and left out whole - never fatal, so after
-editing it, look at the log (or `visitorDays` in `/api/auth/config`):
+in the PHP log), and a file that cannot be read cleanly - a typo that breaks
+its syntax, no `return [...]`, saved with a byte-order mark or without its
+`<?php` line (what it prints is caught, never sent) - is logged as
+`[visitors] config/visitors.local.php could not be read (ParseError on line
+3): the defaults hold` (or `prints 3 bytes of its own (...)`; never what PHP
+said) and left out whole - never fatal. Each such line comes at most once a
+day, so after editing it, look at the log (or `visitor_days` in
+`/api/auth/config`):
 
 ```php
 <?php
@@ -544,7 +548,7 @@ every backup.
 | Symptom | Likely cause |
 | --- | --- |
 | The whole site says "The site is being updated" | A migration is pending (`GET /api/site-status` says `update_pending`). Sign in as an ADMIN from that page's quiet "Sign in" - the page then says "A database update is waiting" and links to the Migrations page, which applies it. |
-| The whole site says it is not set up, or "not available right now" | `config/database.local.php` or `config/iam.local.php` is missing or incomplete (`/api/site-status` says `not_set_up`) - "not set up yet" with the way to the setup page only while the site was never installed; once `storage/installed.lock` is there, "not available right now": put the file back, or run the setup again (above). `unavailable`: the database cannot be reached. |
+| The whole site says it is not set up, or "not available right now" | `config/database.local.php` or `config/iam.local.php` is missing, incomplete or cannot be read cleanly - saved with a byte-order mark or without its `<?php` line, or with a typo PHP cannot parse; nothing of it is ever printed, and PHP's error log says which file and its fault once a day (`[config] config/database.local.php prints 3 bytes of its own ...`), as the setup page on this computer does (`/api/site-status` says `not_set_up`) - "not set up yet" with the way to the setup page only while the site was never installed; once `storage/installed.lock` is there, "not available right now": put the file back, or run the setup again (above). `unavailable`: the database cannot be reached. |
 | The Migrations page says "Stopped at <file>" | That file failed and was rolled back whole; the box under it is PostgreSQL's own error (also in the server's log). The files before it stand. Fix the cause in the database (or the file, in a new version), then Apply again. |
 | Apply says another database update is running | Another Apply, the setup page, `php migration.php` or a backup is running right now: wait a moment and look again. |
 | Apply stops before anything runs, saying a backup could not be made | The backup each Apply makes first failed (`storage/backups/` not writable, the disk full, PHP without `pdo_pgsql`'s COPY): the Backups page says which. Nothing was applied. |

@@ -401,7 +401,7 @@ remove that line.
 
 | Symptom | Likely cause |
 | --- | --- |
-| "This site is not set up yet"; the API answers 503 `not_set_up` | The setup page has not run, or a `config/*.local.php` is missing (`php migration.php` says which). |
+| "This site is not set up yet"; the API answers 503 `not_set_up` | The setup page has not run, or a `config/*.local.php` is missing or cannot be read cleanly - saved with a byte-order mark, without its `<?php` line, or with a typo (the setup page and `php migration.php` say which, and how; nothing of the file is printed). |
 | "The site is being updated"; the API answers 503 `update_pending` | The database needs an update - a migration not applied (a new file, a pull): `php migration.php`, the setup page, or - signed in as an ADMIN, from that page's "Sign in" - the Migrations page it links to. |
 | "Another database update is running" | An Apply, the setup page or `php migration.php` is applying at this moment (one lock for them all): wait and try again. |
 | The setup page asks for a token on this computer | It was not asked as `localhost` / `127.0.0.1` straight from PHP's built-in server: a LAN address, another name, or a proxy that adds forwarding headers makes it a real host's install. |

@@ -561,6 +561,37 @@ test('not set up and never installed: 503 not_set_up everywhere but the status -
     }
 });
 
+test('a database.local.php saved with a byte-order mark and without its <?php line, its password in it, is never printed: no answer carries the password - the status the pages read, the API, the pages, the setup page - and the site says it is not set up', function (): void {
+    $dir = test_config_dir(test_iam());
+    $password = 'sesame-' . bin2hex(random_bytes(12));
+    // Without its <?php line every byte of the file is text to PHP, printed as PHP reads it - ahead of the answer
+    // and its headers, on every request, unless what it prints is caught (settingsFileReadCleanly()).
+    $file = "\xEF\xBB\xBFreturn " . var_export(['host' => '127.0.0.1', 'port' => 5432, 'name' => dbName(), 'user' => 'postgres', 'password' => $password], true) . ";\n";
+    file_put_contents("$dir/database.local.php", $file);
+    $site = start_with($dir);
+    try {
+        foreach ([['GET', '/api/site-status'], ['GET', '/api/health'], ['GET', '/api/auth/config'], ['GET', '/api/translations/en'], ['GET', '/api/surveys'], ['POST', '/api/admin/migrations/apply'], ['GET', '/'], ['GET', '/terms'], ['GET', '/setup.php']] as [$method, $url]) {
+            $answer = call($site['base'], $method, $url, null, bearer(test_token(ADA, ['ADMIN'])));
+            $seen = $answer['raw'] . "\n" . implode("\n", array_map(static fn(string $name, string $value): string => "$name: $value", array_keys($answer['headers']), $answer['headers']));
+            assert_false(str_contains($seen, $password) || str_contains($seen, 'sesame') || str_contains($seen, "\xEF\xBB\xBF"), "$method $url: nothing of the file in the answer or its headers");
+            if ($url === '/api/site-status') {
+                assert_same([200, ['state' => 'not_set_up', 'installed' => false]], [$answer['status'], $answer['body']], 'the status the pages read: not set up');
+            } elseif (str_starts_with($url, '/api/')) {
+                assert_same([503, 'not_set_up', '/setup.php'], [$answer['status'], $answer['body']['code'] ?? null, $answer['body']['setup'] ?? null], "$method $url: not set up, the setup page named - never a 500");
+            } else {
+                assert_same(200, $answer['status'], "$method $url");
+            }
+        }
+        assert_match('~The saved settings are not complete: config/database\.local\.php prints ' . strlen($file) . ' bytes of its own~', call($site['base'], 'GET', '/setup.php')['raw'], 'the setup page on this computer says which file, and how many bytes it printed - never what');
+        assert_same([], server_problems($site), 'no PHP warning - nothing went out ahead of the headers');
+        $log = (string) file_get_contents($site['log']);
+        assert_same(1, lines_saying($log, '[config] config/database.local.php prints ' . strlen($file) . ' bytes of its own'), 'the log says which file and how many bytes, once, though every request reads it: ' . $log);
+        assert_false(str_contains($log, $password) || str_contains($log, 'sesame'), 'and never the password');
+    } finally {
+        ($site['stop'])();
+    }
+});
+
 test('the database out of reach: the status says unavailable, and everything else is the site\'s own answer', function (): void {
     $dir = test_config_dir(test_iam());
     // This file's database, on a port where nothing listens.

@@ -181,27 +181,6 @@ test('the origin secret: from a Cloudflare address, CF-Connecting-IP only on a r
     assert_same('203.0.113.1', surveyAdminContext()->clientKey(request_from(EDGE, $visitor)));
 });
 
-/** What PHP's error log holds while $fn runs - $fn's own answer beside it. */
-function logged_while(callable $fn): array
-{
-    $log = test_temp_dir('cloudflare-log') . '/php.log';
-    $logBefore = ini_get('error_log');
-    ini_set('error_log', $log);
-    try {
-        $answer = $fn();
-    } finally {
-        ini_set('error_log', $logBefore === false ? '' : $logBefore);
-    }
-
-    return [(string) @file_get_contents($log), $answer];
-}
-
-/** How many lines of $log say $what. */
-function lines_saying(string $log, string $what): int
-{
-    return count(array_filter(preg_split('/\R/', $log) ?: [], static fn(string $line): bool => str_contains($line, $what)));
-}
-
 test('config/cloudflare.local.php read cleanly: its value trimmed; one that names no secret - empty, spaces, no string, another key, no array - is none, as the IAM reads it: logged once a day by the file\'s name, never a value, and the site is set up all the same', function (): void {
     with_cloudflare_file(null, function (): void {
         assert_same(null, originSecret(), 'no file: no secret');
@@ -346,30 +325,64 @@ test('the visitor settings come from config/visitors.local.php beside the others
     assert_same(30, visitorSettings()['keep_days'], 'without one: the default');
 });
 
-test('a visitors.local.php that cannot be read (a parse error, no array returned) is logged and the defaults hold - the site stays up', function (): void {
+/** $fn with $contents in config/visitors.local.php - a settings folder of its own, its storage's stamps new. */
+function with_visitors_file(string $contents, callable $fn): void
+{
     $dir = test_temp_dir('visitor-settings-broken');
     test_write_config($dir, ['name' => dbName()] + machineDatabaseSettings(), ['issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => test_temp_dir('cache'), 'application_file' => test_application_file()]);
-    $log = "$dir/php.log";
-    $logBefore = ini_get('error_log');
-    ini_set('error_log', $log);
+    file_put_contents("$dir/visitors.local.php", $contents);
     putenv("SURVEY_TEST_CONFIG=$dir");
     try {
-        foreach ([
-            'a parse error' => ["<?php return ['keep_days' => 10\n", '/\[visitors\] config\/visitors\.local\.php could not be read \(ParseError: .+\): the defaults hold\./'],
-            'no array returned' => ["<?php ['keep_days' => 10];\n", '/\[visitors\] config\/visitors\.local\.php could not be read \(it returns no array\): the defaults hold\./'],
-            'a string returned' => ["<?php return 'keep_days=10';\n", '/could not be read \(it returns no array\)/'],
-        ] as $case => [$contents, $logged]) {
-            file_put_contents("$dir/visitors.local.php", $contents);
-            @unlink($log);
-            localSettings(true);
-            assert_same(null, settingsProblem(), "$case: the site is set up");
-            assert_same(VISITOR_DEFAULTS, visitorSettings(), "$case: the defaults");
-            assert_same(30, authPublicConfig()['visitor_days'], "$case: /api/auth/config still answers");
-            assert_match($logged, (string) @file_get_contents($log), "$case: logged");
-        }
+        $fn();
     } finally {
-        ini_set('error_log', $logBefore === false ? '' : $logBefore);
         putenv('SURVEY_TEST_CONFIG=' . $GLOBALS['TEST_CONFIG_DIR']);
         localSettings(true);
     }
+}
+
+test('a visitors.local.php that cannot be read cleanly - a parse error, no array returned, anything it prints (no <?php line, a byte-order mark) - means the defaults and the site stays up: nothing of it printed, its fault said once a day by its kind and line or its bytes, never what PHP said nor the file\'s text', function (): void {
+    // A range the file names, to look for in the log - and a word a parse error's message would quote.
+    $mine = "['keep_days' => 10, 'trusted_proxies' => ['192.0.2.0/24']]";
+    foreach ([
+        'a parse error' => ["<?php return ['keep_days' => 10 'unexpected-words'];\n", 'could not be read (ParseError on line 1)'],
+        'no array returned' => ["<?php {$mine};\n", 'could not be read (it returns no array)'],
+        'a string returned' => ["<?php return 'keep_days=10 192.0.2.0/24';\n", 'could not be read (it returns no array)'],
+        'no <?php line' => ["return {$mine};\n", 'prints ' . strlen("return {$mine};\n") . ' bytes of its own'],
+        'a byte-order mark' => ["\xEF\xBB\xBF<?php return {$mine};\n", 'prints 3 bytes of its own'],
+    ] as $case => [$contents, $fault]) {
+        [$log] = logged_while(static function () use ($case, $contents): void {
+            with_visitors_file($contents, static function () use ($case): void {
+                $level = ob_get_level();
+                ob_start();
+                try {
+                    foreach (['read', 'read again'] as $time) {
+                        localSettings(true);
+                        assert_same(null, settingsProblem(), "$case, $time: the site is set up - never \"not set up\"");
+                        assert_same(VISITOR_DEFAULTS, visitorSettings(), "$case, $time: the defaults - none of the file's limits, nor its proxies");
+                        assert_same(30, authPublicConfig()['visitor_days'], "$case, $time: /api/auth/config still answers");
+                    }
+                } finally {
+                    $printed = (string) ob_get_clean();
+                }
+                assert_same('', $printed, "$case: nothing of the file printed");
+                assert_same($level, ob_get_level(), "$case: no buffer left open");
+            });
+        });
+        assert_same(1, lines_saying($log, "[visitors] config/visitors.local.php $fault"), "$case: its fault said once, read twice - " . $log);
+        assert_true(str_contains($log, 'the defaults hold.'), "$case: and that the defaults hold - " . $log);
+        assert_false(str_contains($log, 'unexpected') || str_contains($log, '192.0.2.0') || str_contains($log, 'keep_days'), "$case: never what PHP said, nor the file's text - " . $log);
+    }
+
+    // Read cleanly, with values nobody can use: each left out, said once by the key's name - never its value.
+    [$log] = logged_while(static function (): void {
+        with_visitors_file("<?php return ['keep_days' => 'ten-days', 'client_ip_header' => 'X-Real-IP', 'new_per_hour' => 50];\n", static function (): void {
+            foreach (['read', 'read again'] as $time) {
+                localSettings(true);
+                assert_same([VISITOR_DEFAULTS['keep_days'], 50, false], [visitorSettings()['keep_days'], visitorSettings()['new_per_hour'], array_key_exists('client_ip_header', visitorSettings())], "$time: the usable value taken, the others left out");
+            }
+        });
+    });
+    assert_same(1, lines_saying($log, '[visitors] config/visitors.local.php: keep_days is not usable, the default holds.'), 'said once, read twice - ' . $log);
+    assert_same(1, lines_saying($log, '[visitors] config/visitors.local.php: client_ip_header is no setting of visitors.'), 'said once, read twice - ' . $log);
+    assert_false(str_contains($log, 'ten-days') || str_contains($log, 'X-Real-IP'), 'never a value - ' . $log);
 });

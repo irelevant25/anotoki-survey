@@ -673,7 +673,8 @@ One behaviour for every anotoki site, the shared library's (the owner's
 decision of 2026-10-07, [decisions](decisions.md)). On the server
 (`api/index.php`, `api/migrations.php`) the family's `SiteGate` stands in front
 of every route and asks, for each request, where the site stands
-(`surveySiteState()`): **not set up** (the settings missing - every address but
+(`surveySiteState()`): **not set up** (the settings missing, not saying what
+they must, or not read cleanly - every address but
 `/api/site-status` is 503 `not_set_up`, offering `/setup.php` only while the
 site was never installed: `storage/installed.lock`), **an update waiting** (a
 migration file not applied - every address is 503 `update_pending` with
@@ -686,6 +687,22 @@ the Migrations page's three routes - `/api/admin/migrations`, `/file` and
 token alone),
 **unavailable** (the database out of reach - the routes' own answers) or
 **ready**. `GET /api/site-status` says it, in every state.
+
+Every `config/*.local.php` - the database's and the IAM's, which `setup.php`
+writes, and the visitors' and Cloudflare's, written by hand - is read the one
+careful way (`settingsFileReadCleanly()` in `config/config.php`, the IAM's
+rule; [decisions](decisions.md), 2026-10-18): required in a closure of its own
+under an output buffer, so whatever it prints as PHP reads it - a byte-order
+mark or a line before its `<?php`, no `<?php` line at all (the whole file, the
+password with it), text after a closing tag - is caught and never sent, and
+the file is passed over, as is one PHP cannot parse, run or open. What passing
+over means is the caller's: the database's or the IAM's file leaves the site
+not set up (the setup page on this computer naming the file and its fault -
+never a 500, never its text), the visitors' file the defaults, Cloudflare's a
+secret no request carries (*Visitors*, above). Each fault is said in PHP's
+error log at most once a day (`settingsSaid()`, a stamp in `storage/cache`) by
+its kind and line or the bytes the file printed - never its text, nor what PHP
+said of it.
 
 In the browser (`@anotoki/lib/migrations`, wired in `core/migrations.ts`) the
 start asks first (`SiteStatus.check()` in `boot()`), and `siteStatusInterceptor`

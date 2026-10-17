@@ -73,8 +73,12 @@ Working conventions:
   pages (`/terms`, `/privacy`, `/contact`, the family's) are anybody's - no
   guard - and their facts (`core/legal/legal-facts.ts`, `legal.*`) must stay
   true of the code: a change to what the site keeps changes them, every
-  address in them stays in the code. A `config/cloudflare.local.php` that
-  cannot be read cleanly fails closed (`originSecretFile()`).
+  address in them stays in the code. Every `config/*.local.php` is read
+  through `settingsFileReadCleanly()`, never a plain `require`: a database or
+  IAM file not read cleanly leaves the site not set up, a visitors one means
+  the defaults, and a `config/cloudflare.local.php` that cannot be read
+  cleanly fails closed (`originSecretFile()`); each fault is said once a day,
+  never the file's text or what PHP said.
   Queries use `?` parameters; identifiers come from literals.
 - User HTML only through `richTextClean()`. Pictures are checked by their
   bytes; never SVG.

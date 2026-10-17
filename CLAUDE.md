@@ -40,7 +40,18 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   and `iam.local.php` (gitignored), written by `backend/setup.php` - on this
   computer (no token, a nonce, re-runnable) and on the host (token, lock,
   self-delete). Never print the database password; never copy it anywhere git
-  would publish.
+  would publish. **Every `*.local.php` is read cleanly or not at all**
+  (`settingsFileReadCleanly()`, `config/config.php`; `docs/decisions.md`,
+  2026-10-18 - never a plain `require` of one): whatever a file prints as PHP
+  reads it - a byte-order mark or a line before its `<?php`, no `<?php` line
+  (all of it, the password too), text after a closing tag - is caught and
+  never sent, and the file is passed over, as is one PHP cannot parse, run or
+  open. A database or IAM file so leaves the site not set up (never a 500,
+  never its text; the setup page on this computer names the file and its
+  fault), the visitors' file means the defaults, Cloudflare's fails closed
+  (below). Each fault is said in PHP's error log at most once a day
+  (`settingsSaid()`) by its kind and line or its byte count - never its text,
+  nor what PHP said of it.
 - **While the site cannot run, the anotoki family's library decides what
   happens** (anotoki-lib 0.6.1, both halves - `anotoki/lib` in `backend/vendor/`,
   `@anotoki/lib` in the frontend -, one release line: a patch
