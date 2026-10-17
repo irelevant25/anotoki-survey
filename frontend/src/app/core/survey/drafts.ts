@@ -21,7 +21,9 @@ export interface Draft {
 /** Where the drafts of this browser's visitor are kept, in place of a person's id (an IAM id is a number, never this). */
 export const VISITOR_SLOT = 'visitor';
 
-const PREFIX = 'anotoki-survey:draft:';
+/** The start of every draft's name in localStorage: `anotoki-survey:draft:{surveyId}:{personId}` (the Privacy page names it). */
+export const DRAFT_PREFIX = 'anotoki-survey:draft:';
+const PREFIX = DRAFT_PREFIX;
 
 function key(surveyId: string, personId: string): string {
   return `${PREFIX}${surveyId}:${personId}`;

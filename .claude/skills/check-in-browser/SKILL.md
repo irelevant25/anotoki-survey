@@ -148,6 +148,11 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   `admin-backups-downloaded-1280` (the one made by hand, "Downloading"),
   `admin-audit-1280-*` / `-390-*` (who did what, the newest first: the
   backups, the people, the update, the surveys);
+- the legal pages, nobody signed in: `en-1280-legal-terms-*`,
+  `-privacy-*`, `-contact-*`, the same at `390`, and `sk-1280-legal-*` /
+  `sk-390-legal-*` (Terms, Privacy, Contact - the family's pages with this
+  site's facts; the footer's three links under them, Sign in in the bar);
+  `en-1280-home-footer` (the home page, signed in, the footer at its foot);
 - `en-390-not-set-up-*` (never installed: "This site is not set up yet", the
   setup page), `en-390-not-available-*` (installed once: "not available right
   now", no setup page), `en-390-unavailable-*` (nothing answers) - the
@@ -510,9 +515,27 @@ backups' makers), English:
     scrub, the update - by the owner, named. Every page at 1280 and 390 px,
     light and dark.
 
+Terms, Privacy and Contact (anotoki-lib 0.6.0's legal pages, this site's facts):
+
+25. Nobody signed in (the session forgotten), the IAM requiring a sign-in
+    and told to turn one down: `/terms`, `/privacy` and `/contact`, each with
+    `?lang=en` and `?lang=sk`, at 1280 and 390 px - each opens with no trip to
+    the IAM (`GET /api/oidc/authorize`) and no survey asked for, its heading
+    and tab in the language ("Terms of use · anotoki survey", "Ochrana
+    osobných údajov · anotoki prieskum"), the footer's three links under it
+    (that page's marked `aria-current`), Sign in in the bar, no key on the
+    page, the bar fitting; light and dark. Privacy: the anotoki account's own
+    Privacy page and account page are the stand-in IAM's addresses, the
+    site's parts in order (its three, the visitors, the error log, the audit
+    log, the backups), its storage by name, "The hosting company (to be
+    named)" and Cloudflare, a visitor's days as `/api/auth/config` says them.
+    Contact: the family's address alone (no feedback form), the IAM's account
+    page. Then the footer under the home page signed in, and under the card of
+    a session that ended there - whose Privacy opens with nobody signed in.
+
 The pages drawn instead of the site - storage cleared, 390 px:
 
-25. Every request to the API answered as the backend's gate answers a site
+26. Every request to the API answered as the backend's gate answers a site
     not set up and never installed (`/api/site-status`: `not_set_up`,
     `installed: false`): the family's "This site is not set up yet" in
     English, with "Open the setup page" (`/setup.php`), and the tab named by

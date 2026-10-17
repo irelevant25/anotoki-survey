@@ -42,8 +42,8 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   self-delete). Never print the database password; never copy it anywhere git
   would publish.
 - **While the site cannot run, the anotoki family's library decides what
-  happens** (anotoki-lib: PHP 0.5.2 - `anotoki/lib` in `backend/vendor/` -,
-  Angular 0.5.0 - `@anotoki/lib` in the frontend -, one release line: a patch
+  happens** (anotoki-lib 0.6.1, both halves - `anotoki/lib` in `backend/vendor/`,
+  `@anotoki/lib` in the frontend -, one release line: a patch
   that changes one half alone leaves the other where it is; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
   GitHub, never a local path). Its `SiteGate` stands in front of every route:
@@ -90,7 +90,17 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   never printed or logged) and believes `CF-Connecting-IP` only on a request
   that carries it; any other request from Cloudflare counts as its edge -
   coarser, never looser. Without the file, Cloudflare's ranges alone, as
-  before. An IPv6 address
+  before; read cleanly with no secret in it (blank, missing, not an array),
+  the same. **A file that is there but cannot be read cleanly fails closed**
+  (the IAM's rule, case for case: `originSecretFile()`,
+  `settingsFileReadCleanly()`; `docs/decisions.md`, 2026-10-14) - it prints
+  (no `<?php` line, a byte-order mark or a line before it, text after its
+  closing tag), PHP cannot parse or run it, or may not open it: a secret no
+  request carries (`originSecretNobodyCarries()`), so every request from
+  Cloudflare's ranges counts as its edge until the file is mended - never "no
+  secret", which would believe anybody's Worker there. The site keeps running
+  (the file is optional); the fault is logged at most once a day
+  (`settingsSaid()`), by its kind or its byte count, never its text. An IPv6 address
   counts by its /64. The visitors' limits and the library's error log read by
   the same proxies and the same secret (`surveyAdminContext()`). **No address is kept in the
   clear**: a visitors' counter goes by a keyed HMAC of it
@@ -98,8 +108,8 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   `storage/anotoki-lib.key`), the error log's `client` likewise - a stable
   pseudonym of the address while that key lasts (whoever holds the key can
   try every IPv4 address against it), never a secret.
-- **Signing in is the anotoki family's library's** (anotoki-lib, PHP 0.5.2 /
-  Angular 0.5.0, the `Auth` module on both halves - the IAM's SDKs are gone from this site):
+- **Signing in is the anotoki family's library's** (anotoki-lib 0.6.1, the
+  `Auth` module on both halves - the IAM's SDKs are gone from this site):
   `Anotoki\Lib\Auth` on the server (`api/auth.php`, `meddleware/auth.php`),
   `@anotoki/lib/auth` in the browser (`AnotokiAuth`, its interceptor, guards,
   callback page and the screen of a failed sign-in; wired in
@@ -121,8 +131,27 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   library's `VisitorKeyStore`), and its next sign-in moves the visitor's
   answers and drafts into the account. The admin panel and the editor's
   preview sign in first whatever the switch. Only the pages drawn while the
-  site cannot run (the family's page, the "cannot be reached" card) draw
-  without either.
+  site cannot run (the family's page, the "cannot be reached" card) and the
+  legal pages (below) draw without either.
+- **Terms, Privacy and Contact are anybody's** (anotoki-lib 0.6.0's legal
+  pages, the owner's decisions of 2026-10-13; `docs/decisions.md`): `/terms`,
+  `/privacy`, `/contact` - the family's pages (`@anotoki/lib/legal/pages`,
+  lazy) in the frame of the survey's own (`layouts/legal-layout`), with no
+  guard: what the site keeps is said before anybody signs in to it, and
+  nothing of a survey is on them or asked of the API. Their facts are the
+  survey's (`core/legal/legal-facts.ts`, given by their frame and out of the
+  first load; the words `legal.*`, migration 013) and must stay true of the
+  code: a change to what the site keeps, or for how long, its cookies or
+  browser storage, changes those strings (by a migration) and
+  `SURVEY_LEGAL_UPDATED`. Every address they link to is the code's - the
+  anotoki account's Privacy page and account page from the IAM's address the
+  site signs in with (`AnotokiAuth.issuer()`, `accountUrl()`) -, never a
+  string an administrator could reword. No feedback here: Contact gives the
+  family's address alone. The footer's Terms · Privacy · Contact
+  (`layouts/site-footer`, the family's `<anotoki-legal-links>`) is under the
+  survey's pages and the legal pages, not in the admin panel; the three paths
+  are among the addresses no survey may have (`RESERVED_SLUGS` ↔
+  `SURVEY_RESERVED_SLUGS`).
 - **Who a request is is decided when it is issued** (frontend, the library's
   `anotokiAuthInterceptor`): `ApiService` marks the surveys' requests
   `issuedAs('caller')` - whoever the page is shown to then; the interceptor
@@ -295,8 +324,10 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. **The UI kit is the anotoki family's**
-  (anotoki-lib 0.5.0: each piece from its own entry point -
-  `@anotoki/lib/ui/button`, `/ui/icon`, `/ui/config`, ... - never the
+  (anotoki-lib 0.6.1: each piece from its own entry point -
+  `@anotoki/lib/ui/button`, `/ui/icon`, `/ui/config`, `/ui/link-card` (the
+  survey home's and the System page's cards that are one link),
+  `/ui/chips` (the results' filters, `<anotoki-chip-list>`), ... - never the
   `@anotoki/lib/ui` barrel, for the first load; `@anotoki/lib/shell`; its class
   names its own, `.anotoki-<piece>__<part>`; the owner's decisions of
   2026-10-07, `docs/decisions.md`), wired to the site

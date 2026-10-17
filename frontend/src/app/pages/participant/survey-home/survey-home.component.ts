@@ -6,6 +6,7 @@ import { BadgeComponent } from '@anotoki/lib/ui/badge';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
 import { IconComponent } from '@anotoki/lib/ui/icon';
+import { LinkCardComponent } from '@anotoki/lib/ui/link-card';
 import { SpinnerComponent } from '@anotoki/lib/ui/spinner';
 import { ApiError, ApiService, ParticipantSurvey, toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
@@ -40,6 +41,7 @@ import { VisitorNoticeComponent } from '../visitor-notice/visitor-notice.compone
     ButtonComponent,
     EmptyStateComponent,
     IconComponent,
+    LinkCardComponent,
     SpinnerComponent,
     VisitorNoticeComponent,
     LocalDatePipe,

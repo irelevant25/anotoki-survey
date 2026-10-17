@@ -356,13 +356,15 @@ test('a restore, the IAM out of reach: it stands and says the check did not fini
 
     $restored = restored($backup);
     assert_same($backup['id'], $restored['restored'], 'the restore stands');
+    // The answer says it in the library's fixed sentence (anotoki-lib 0.6.0: no answer carries a failure's own words);
+    // what did not go through, and why, is the error log's - where the site's ADMIN reads it, below.
     assert_same(
-        'The accounts the IAM deleted were not checked again (the IAM could not be reached). Whoever it deleted since this backup was made may be named here until they are: the check runs again with the next request, and at once with Check now on the People page.',
+        'What this site does after a restore did not all go through. The error log says what.',
         $restored['after_restore_error'],
-        'and says what it could not do - the Backups page shows it'
+        'and says that something it does after did not finish - the Backups page shows it'
     );
     assert_same('user' . SAM, name_of(SAM), 'the backup\'s name for him is back, for now');
-    $logged = array_values(array_filter(error_lines(), static fn(array $line): bool => str_starts_with((string) ($line['message'] ?? ''), 'The accounts the IAM deleted were not checked again')));
+    $logged = array_values(array_filter(error_lines(), static fn(array $line): bool => str_starts_with((string) ($line['message'] ?? ''), 'The accounts the IAM deleted were not checked again (the IAM could not be reached). Whoever it deleted since this backup was made may be named here until they are')));
     assert_same([['RuntimeException', 'error', 500]], array_map(static fn(array $line): array => [$line['type'], $line['level'], $line['status']], $logged), 'in the site\'s error log, where its ADMIN reads it: ' . test_show(error_lines()));
     assert_true(str_contains((string) file_get_contents($GLOBALS['app']['log']), '[backups] RuntimeException: The accounts the IAM deleted were not checked again'), 'and in PHP\'s, as ever');
 
@@ -451,9 +453,13 @@ test('only a backup made here is restored here: one without this site\'s seal - 
             assert_same([false, false], [listed_backup($backup['id'])['sealed'], listed_backup($backup['id'])['restorable']], "$what: listed as not made here");
             $preview = as_user(OWNER, 'GET', '/api/admin/backups/' . $backup['id'] . '/preview')['body'];
             assert_match('/carries no seal of this site\'s/', implode(' ', $preview['reasons'] ?? []), "$what: why not, on the page");
+            $logged = count(error_lines());
             $refused = as_user(OWNER, 'POST', '/api/admin/backups/' . $backup['id'] . '/restore', ['confirm' => substr($backup['id'], -6)]);
             assert_same([422, 'archive_invalid'], [$refused['status'], $refused['body']['code'] ?? null], "$what: never restored here");
-            assert_match('/restore it offline/', (string) ($refused['body']['error'] ?? ''), $what);
+            // The answer is the library's fixed sentence (anotoki-lib 0.6.0); which it was - the seal - is the error log's.
+            assert_match('/One not made here is restored offline/', (string) ($refused['body']['error'] ?? ''), $what);
+            $why = array_column(array_slice(error_lines(), $logged), 'message');
+            assert_true((bool) preg_grep('/carries no seal of this site\'s .*restore it offline/', $why), "$what: why, in the error log - " . test_show($why));
         }
     } finally {
         file_put_contents($sidecar, $kept);

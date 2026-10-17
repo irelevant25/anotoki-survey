@@ -13,33 +13,18 @@
   list-style: none;
 }
 
+// The card itself - its edge, ground, shadow, hover and focus ring round the whole link - is the kit's
+// (a[anotokiLinkCard]); what is laid out inside it is the page's.
 .item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.9rem;
   height: 100%;
-  padding: 1rem 1.1rem;
-  border: 1px solid var(--anotoki-border);
-  border-radius: var(--anotoki-radius-lg);
-  background: var(--anotoki-surface);
-  box-shadow: var(--anotoki-shadow-sm);
-  color: var(--anotoki-text);
-  text-decoration: none;
 
-  &:hover {
-    border-color: var(--anotoki-border-strong);
-    background: var(--anotoki-surface-2);
-
-    .label {
-      color: var(--anotoki-link);
-      text-decoration: underline;
-    }
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--anotoki-focus);
-    outline-offset: 2px;
+  &:hover .label {
+    color: var(--anotoki-link);
+    text-decoration: underline;
   }
 }
 

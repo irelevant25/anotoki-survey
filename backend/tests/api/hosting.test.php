@@ -74,6 +74,8 @@ test('the build: exactly what to upload - no settings, no tools, no composer fil
         'config/config.php', 'config/.htaccess', 'migrations/survey/001_initial_schema.sql', 'migrations/.htaccess', 'vendor/autoload.php',
         'vendor/slim/slim/Slim/App.php', 'vendor/anotoki/lib/php/src/Migrations/Migrator.php', 'vendor/anotoki/lib/php/src/Migrations/Http/SiteGate.php',
         'migrations/survey/010_strings_through_the_library.sql', 'migrations/survey/011_people.sql', 'migrations/survey/012_sign_in_words.sql',
+        'migrations/survey/013_legal_pages.sql', 'vendor/anotoki/lib/php/migrations/translations/005_legal_words.sql',
+        'vendor/anotoki/lib/php/migrations/translations/010_backups_where_words.sql',
         // The anotoki library's words: its code, its migration set and the words it ships - run and read on the host.
         'vendor/anotoki/lib/php/src/Translations/Translations.php', 'vendor/anotoki/lib/php/src/Translations/Http/TranslationsRoutes.php',
         'vendor/anotoki/lib/php/migrations/translations/001_languages_and_strings.sql', 'vendor/anotoki/lib/php/migrations/translations/002_library_words.sql',

@@ -33,17 +33,13 @@
   list-style: none;
 }
 
+// A card that is one link as a whole: its edge, ground, shadow and the focus ring round it are the kit's
+// (a[anotokiLinkCard]); the row inside it and the small lift on hover are the page's.
 .survey {
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 1rem 1.1rem;
-  border: 1px solid var(--anotoki-border);
-  border-radius: var(--anotoki-radius-lg);
-  background: var(--anotoki-surface);
-  box-shadow: var(--anotoki-shadow-sm);
-  color: var(--anotoki-text);
-  text-decoration: none;
   transition:
     border-color var(--anotoki-duration) var(--anotoki-ease),
     box-shadow var(--anotoki-duration) var(--anotoki-ease),

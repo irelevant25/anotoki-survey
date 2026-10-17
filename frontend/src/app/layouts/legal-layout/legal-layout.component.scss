@@ -1,0 +1,4 @@
+@use "participant-frame";
+
+// The frame of the survey's own pages: the light behind the page, the skip link, the column, the footer at the foot.
+@include participant-frame.frame;

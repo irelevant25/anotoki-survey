@@ -193,10 +193,28 @@ export function copySurvey(survey: Survey, takenSlugs: Iterable<string>, now = n
 
 /**
  * Addresses the site keeps for itself. A survey lives at /{slug}, so a slug
- * must never be one of the site's own paths. The server keeps the same list
- * (SURVEY_RESERVED_SLUGS in backend/api/survey_rules.php).
+ * must never be one of the site's own paths - the legal pages' (terms,
+ * privacy, contact) among them, which the router matches first. The server
+ * keeps the same list, in the same order (SURVEY_RESERVED_SLUGS in
+ * backend/api/survey_rules.php; tests/unit/rules.test.php holds them together).
  */
-export const RESERVED_SLUGS: ReadonlySet<string> = new Set(['admin', 'preview', 'api', 'auth', 'setup', 'setup-php', 'assets', 'media', 'changelog', 'login', 'logout', 'account']);
+export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
+  'admin',
+  'preview',
+  'api',
+  'auth',
+  'setup',
+  'setup-php',
+  'assets',
+  'media',
+  'changelog',
+  'login',
+  'logout',
+  'account',
+  'terms',
+  'privacy',
+  'contact',
+]);
 
 /** The longest address: long enough for any title's gist, short enough to share. */
 export const SLUG_MAX = 60;

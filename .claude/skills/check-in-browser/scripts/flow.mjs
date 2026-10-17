@@ -3131,6 +3131,90 @@ await screenshots('admin-audit-390');
 await viewport(1280);
 await setIam({ anonymized: [] });
 
+// ═══ Terms, Privacy and Contact ════════════════════════════════════════════
+// The anotoki family's legal pages (@anotoki/lib/legal/pages, anotoki-lib 0.6.0) around the survey's facts
+// (core/legal/legal-facts.ts): anybody's - nobody signed in and the IAM requiring a sign-in here (and told to turn
+// one down: a trip there would end on the screen of a failed sign-in), each opens with no trip to the IAM and asks
+// nothing of a survey. The footer's Terms · Privacy · Contact under them and under the survey's own pages (the card
+// of a session that ended too); the anotoki account's Privacy page and account page at the IAM the site signs in
+// with; at 1280 and 390 px, light and dark, in English and in Slovak - no key where a word should be.
+const LEGAL = {
+  en: { terms: 'Terms of use', privacy: 'Privacy policy', contact: 'Contact', links: ['Terms', 'Privacy', 'Contact'], site: 'anotoki survey' },
+  sk: { terms: 'Podmienky používania', privacy: 'Ochrana osobných údajov', contact: 'Kontakt', links: ['Podmienky', 'Súkromie', 'Kontakt'], site: 'anotoki prieskum' },
+};
+const legalHeading = () => text('app-legal-layout main h1');
+const footerLinks = (frame) => texts(`${frame} app-site-footer .anotoki-legal-links__link`);
+await setIam({ deny: true });
+await forgetSession();
+await js('sessionStorage.clear(); true');
+for (const code of ['en', 'sk']) {
+  const words = LEGAL[code];
+  for (const width of [1280, 390]) {
+    await viewport(width);
+    for (const legal of ['terms', 'privacy', 'contact']) {
+      since = requested.length;
+      await go(`/${legal}?lang=${code}`);
+      await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textContent ?? '').trim() === ${JSON.stringify(words[legal])}`, 15000).catch(() => null);
+      await sleep(300);
+      trip = requested.slice(since);
+      expect(
+        `${code}, ${width} px, /${legal}, nobody signed in, a sign-in required: the page - its heading, the tab - with no trip to the IAM and nothing of a survey asked`,
+        (await legalHeading()) === words[legal] &&
+          (await js('location.pathname')) === `/${legal}` &&
+          (await js('document.title')) === `${words[legal]} · ${words.site}` &&
+          !trip.some((line) => line.startsWith('GET /api/oidc/authorize') || line.startsWith('GET /api/surveys')) &&
+          !(await js(FAILURE_SCREEN)),
+        `${await legalHeading()} / ${await js('location.pathname')} / tab: ${await js('document.title')} / ${trip.filter((line) => line.includes('/api/')).join(', ')}`,
+      );
+      expect(
+        `${code}, ${width} px, /${legal}: Terms · Privacy · Contact in the footer, this page's marked`,
+        same(await footerLinks('app-legal-layout'), words.links) && (await js("document.querySelector('app-legal-layout app-site-footer [aria-current=page]')?.getAttribute('href')")) === `/${legal}`,
+        JSON.stringify(await footerLinks('app-legal-layout')),
+      );
+      expect(`${code}, ${width} px, /${legal}: nobody signed in - the top bar offers Sign in`, (await js("!!document.querySelector('app-top-bar .anotoki-top-bar__sign-in, app-top-bar .anotoki-top-bar__menu-button')")) && !(await js(SIGNED_IN)));
+      await expectNoKeys(`${code}, ${width} px, /${legal}`);
+      await expectBar(`${code}, ${width} px, /${legal}`);
+      await screenshots(`${code}-${width}-legal-${legal}`);
+    }
+  }
+}
+// What the pages link to: the anotoki account's - at the IAM the site signs in with -, the family's address; no feedback here.
+await viewport(1280);
+await go('/privacy?lang=en');
+await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textContent ?? '').trim() === 'Privacy policy'`, 15000);
+expect(
+  "Privacy: the anotoki account's own Privacy page and account page are the IAM's, the site's parts in order, its storage by name, the hosting company and Cloudflare",
+  (await js("document.querySelector('[data-account-privacy]')?.getAttribute('href')")) === `${iam}/privacy` &&
+    (await js("document.querySelector('[data-account-page]')?.getAttribute('href')")) === `${iam}/account` &&
+    same(await js("[...document.querySelectorAll('[data-kept]')].map((part) => part.getAttribute('data-kept'))"), ['data-0', 'data-1', 'data-2', 'visitors', 'error-log', 'audit-log', 'backups']) &&
+    (await texts('[data-stored] code')).includes('anotoki-survey:visitor') &&
+    same(await texts('[data-recipient] .anotoki-legal-page__item-name'), ['The hosting company (to be named)', 'Cloudflare, Inc.']),
+  `${await js("document.querySelector('[data-account-privacy]')?.getAttribute('href')")} / ${await js("document.querySelector('[data-account-page]')?.getAttribute('href')")} / ${JSON.stringify(await texts('[data-stored] code'))}`,
+);
+const visitorDays = (await (await fetch(`${origin}/api/auth/config`)).json()).visitor_days;
+expect("Privacy: a visitor's key ends the days after the last visit the server says (GET /api/auth/config's visitor_days)", ((await text('[data-duration="visitors"] dd')) ?? '').startsWith(`${visitorDays} days after your last visit`), `${visitorDays}: ${await text('[data-duration="visitors"] dd')}`);
+await go('/contact?lang=en');
+await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textContent ?? '').trim() === 'Contact'`, 15000);
+expect(
+  'Contact: the address alone - no feedback form here - and the anotoki account to delete the account',
+  !(await js("!!document.querySelector('[data-open-feedback]')")) &&
+    (await js("document.querySelector('[data-section=\"email\"] a')?.getAttribute('href')")) === 'mailto:support@anotoki.eu' &&
+    (await js("document.querySelector('[data-account-page]')?.getAttribute('href')")) === `${iam}/account`,
+  `${await js("document.querySelector('[data-section=\"email\"] a')?.getAttribute('href')")} / ${await js("document.querySelector('[data-account-page]')?.getAttribute('href')")}`,
+);
+// The footer under the survey's own pages: signed in, and on the card of a session that ended there.
+await setIam({ user: OWNER, deny: false });
+await go('/?lang=en');
+await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
+expect("the survey's home page, signed in: Terms · Privacy · Contact in the footer", same(await footerLinks('app-participant-layout'), LEGAL.en.links), JSON.stringify(await footerLinks('app-participant-layout')));
+await screenshot('en-1280-home-footer', true);
+await sessionEndsOn('/');
+expect('the card of a session that ended: the footer still under it, its Privacy reached with no sign-in', same(await footerLinks('app-participant-layout'), LEGAL.en.links), JSON.stringify(await footerLinks('app-participant-layout')));
+await clickText('app-participant-layout app-site-footer .anotoki-legal-links__link', 'Privacy');
+await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textContent ?? '').trim() === 'Privacy policy'`, 15000).catch(() => null);
+expect('... and Privacy opens from it, nobody signed in', (await legalHeading()) === 'Privacy policy' && (await js('location.pathname')) === '/privacy', `${await legalHeading()} / ${await js('location.pathname')}`);
+await signInAs(OWNER);
+
 // ═══ The pages drawn instead of the site ═══════════════════════════════════
 // A browser that has never been here - nothing stored, so no strings kept from an earlier visit - and a site that
 // is not set up: every request answered as the backend's gate answers it (the family's, @anotoki/lib). Never

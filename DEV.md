@@ -38,21 +38,24 @@ its README), one version for both halves:
 
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
-| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.5.0"` | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`php/testing/stand-in-iam.php`), and its migration sets (`php/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.5.0/anotoki-lib-0.5.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.6.0"` (on 0.x a `^0.5.0` would never take 0.6) | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`php/testing/stand-in-iam.php`), and its migration sets (`php/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.6.1/anotoki-lib-0.6.1.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-The PHP half is at 0.5.2, the Angular half at 0.5.0 - 0.5.1 and 0.5.2 changed
-only the PHP half (0.5.1 a restore's sequences: `visitor_ids`, which counts
-down, is no longer set past its end; 0.5.2 the origin secret,
-`config/cloudflare.local.php`), and a release that changes one half only says
-so in its CHANGELOG. The kit is imported a piece at a time, each from its
+Both halves are at 0.6.1 (0.6.0 brought the legal pages, the kit's new pieces
+and the admin pages' fixes; 0.6.1 a sentence of the Privacy page - its
+translations `010`); a release that changes one half only says so in its
+CHANGELOG. The kit is imported a piece at a time, each from its
 own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
 smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages
 of the words, the People page and the admin tools' pages come with lazy entry
 points of their own (`@anotoki/lib/translations/admin`,
 `@anotoki/lib/people/page`, `@anotoki/lib/admin/errors`, `/audit`,
 `/backups`), and so do the sign-in's callback page and its failure's screen
-(`@anotoki/lib/auth/screens`, loaded as they are shown); the pages' errors
+(`@anotoki/lib/auth/screens`, loaded as they are shown) and the legal pages
+(`@anotoki/lib/legal/pages` - Terms, Privacy, Contact -, with their frame and
+the site's facts: `layouts/legal-layout`, `core/legal/legal-facts.ts`); the
+footer's links to them are `@anotoki/lib/legal` (`<anotoki-legal-links>`, in
+the first load); the pages' errors
 go to the error log through `@anotoki/lib/error-report` (`app.config.ts`).
 The package brings Manrope
 with it (`@fontsource-variable/manrope`, its dependency) and the theme's
@@ -179,6 +182,7 @@ the host behind Cloudflare - a computer of yours needs none.
 | `/admin/translations` | the site's own words: every key, a column a language |
 | `/admin/languages` | the languages: add, rename, reorder, offer or hide, delete (ADMIN) |
 | `/auth/callback` | where the IAM sends the browser back after signing in |
+| `/terms`, `/privacy`, `/contact` | the legal pages - the anotoki family's, with this site's facts - for anybody, signed in or not; Terms · Privacy · Contact at the foot of every page people take surveys on |
 
 `?lang=sk` on any address of the site reads it in that language for the tab
 (and is taken out of the address); the chooser in the top bar remembers a
@@ -338,7 +342,11 @@ the People page (an account the IAM deleted, scrubbed on "Check now"; a
 person's answers deleted after its question), the error log (a 404, and an
 error thrown in the page: reported with the owner's token, scrubbed), the
 audit log, the backups (one made after a new sign-in, named by its maker,
-downloaded by its link, deleted) - and an EDITOR kept out of them. It takes about eight minutes after the build.
+downloaded by its link, deleted) - and an EDITOR kept out of them; and Terms,
+Privacy and Contact - opened with nobody signed in and no trip to the IAM, at
+1280 and 390 px, light and dark, in English and Slovak, the anotoki account's
+Privacy page and account page the stand-in IAM's, the footer's links under the
+survey's pages and the card of a session that ended. It takes about eight minutes after the build.
 `CHROME=` names the browser (Edge where Chrome is not installed) and `PHP=`
 a PHP 8.2+ where `php` is an older one.
 

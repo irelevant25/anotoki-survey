@@ -52,8 +52,10 @@ declare(strict_types=1);
  *
  *   With it, CF-Connecting-IP is believed only on a request that carries that
  *   secret (originSecret()); without it - or with a value that is not a string
- *   with something in it - from Cloudflare's ranges alone, as before. The
- *   secret is never printed or logged.
+ *   with something in it - from Cloudflare's ranges alone, as before. A file
+ *   that is there but cannot be read cleanly fails closed: a secret no request
+ *   carries, every request from Cloudflare's ranges its edge (originSecretFile()).
+ *   The secret is never printed or logged.
  *
  * The tests run against throwaway databases with settings of their own:
  * SURVEY_TEST_CONFIG names a folder holding the same two files, and it is only
@@ -275,7 +277,8 @@ function visitorSettingRangeOk(mixed $range): bool
  * The secret the owner's Cloudflare zone adds to every request through it
  * (X-Anotoki-Origin, the library's ClientAddress::ORIGIN_HEADER: a Transform
  * Rule - the owner's decision of 2026-10-13), from config/cloudflare.local.php;
- * null without one. Cloudflare's published ranges are every Cloudflare
+ * null without one, and one no request carries for a file that cannot be read
+ * cleanly (originSecretFile()). Cloudflare's published ranges are every Cloudflare
  * customer's, not the owner's zone alone: anybody's Worker can reach the host
  * from them and write the CF-Connecting-IP it likes, a new one for every
  * request. With the secret that header is believed only on a request that
@@ -289,13 +292,31 @@ function originSecret(): ?string
 }
 
 /**
- * What config/cloudflare.local.php says: its origin_secret when that is a
- * string with something in it (trimmed - a header's value never starts or ends
- * with a space); null without the file, or with anything else - no secret,
- * which is how the site worked before it. Written by hand, like
- * visitors.local.php, so a file PHP cannot read is logged and passed over,
- * never fatal - by the kind of error and its line alone: a parse error's
- * message can quote the file, and the secret is never printed or logged.
+ * What config/cloudflare.local.php says - the IAM's rule, case for case (its
+ * iamOriginSecret(), ../anotoki-iam/backend/config/cloudflare.php; the owner's
+ * decision of 2026-10-13, docs/decisions.md):
+ *
+ *   - no file: null, no secret - CF-Connecting-IP from Cloudflare's ranges
+ *     alone, which is how the site worked before the file;
+ *   - a file read cleanly whose origin_secret is a string with something in it:
+ *     that string, trimmed (a header's value never starts or ends with a space);
+ *   - a file read cleanly that names no secret - blank, missing, no string, no
+ *     array returned: null, no secret, as the IAM reads it;
+ *   - a file that is there but cannot be read cleanly - it prints anything (no
+ *     <?php line, a byte-order mark or a line before it, text after its closing
+ *     tag), PHP cannot parse or run it, or may not open it: a secret no request
+ *     carries (originSecretNobodyCarries()), so every request from Cloudflare's
+ *     ranges counts as the edge it came from until the file is mended. Its
+ *     owner meant a secret, and believing CF-Connecting-IP from Cloudflare's
+ *     ranges alone - from anybody's Worker there - would be the looser reading:
+ *     a slip of the editor never switches the check off. The site keeps
+ *     running all the same: the file is optional, never a reason to be "not
+ *     set up".
+ *
+ * Each fault is said in PHP's error log at most once a day (settingsSaid()),
+ * by the kind of error and its line, or the bytes the file printed - never its
+ * text: a parse error's message can quote the file, and the secret is never
+ * printed or logged.
  */
 function originSecretFile(): ?string
 {
@@ -304,31 +325,109 @@ function originSecretFile(): ?string
         return null;
     }
 
-    // A file written by hand without its <?php line, with text after its closing tag, or with a BOM would print what it
-    // holds - the secret - before the answer: what it prints is caught, and the file is no use.
-    ob_start();
-    try {
-        $values = require $file;
-    } catch (Throwable $e) {
-        error_log('[cloudflare] config/cloudflare.local.php could not be read (' . get_class($e) . ' on line ' . $e->getLine() . '): no origin secret.');
+    $read = settingsFileReadCleanly($file);
+    if ($read['problem'] !== null) {
+        settingsSaid('cloudflare', "config/cloudflare.local.php {$read['problem']}: no request carries its secret, so every request from Cloudflare's ranges counts as the edge it came from until the file is mended.");
 
-        return null;
-    } finally {
-        $printed = (string) ob_get_clean();
+        return originSecretNobodyCarries();
     }
-    if ($printed !== '') {
-        error_log('[cloudflare] config/cloudflare.local.php prints ' . strlen($printed) . ' bytes of its own (no <?php line, text after ?>, or a BOM): no origin secret.');
 
-        return null;
-    }
+    $values = $read['value'];
     $secret = is_array($values) ? ($values['origin_secret'] ?? null) : null;
     if (!is_string($secret) || trim($secret) === '') {
-        error_log('[cloudflare] config/cloudflare.local.php holds no origin_secret (a string with something in it): no origin secret.');
+        settingsSaid('cloudflare', 'config/cloudflare.local.php holds no origin_secret (a string with something in it): CF-Connecting-IP is believed from Cloudflare\'s ranges alone.');
 
         return null;
     }
 
     return trim($secret);
+}
+
+/**
+ * A secret no request can carry: 256 random bits, made once a process and
+ * never printed, logged or stored, so no X-Anotoki-Origin matches it - what a
+ * cloudflare.local.php that cannot be read cleanly stands for.
+ */
+function originSecretNobodyCarries(): string
+{
+    static $secret = null;
+
+    return $secret ??= bin2hex(random_bytes(32));
+}
+
+/**
+ * Requires a *.local.php written by hand - in a closure of its own, so it sees
+ * none of the caller's variables - with whatever it prints caught. A file
+ * without its <?php line, with a byte-order mark or a line before it, or with
+ * text after a closing tag prints what is outside its PHP when PHP requires it
+ * (all of it, the secret too, where the line is missing) ahead of the answer:
+ * caught here, it goes nowhere, and the file is read as no file - its problem
+ * the number of bytes it printed. One PHP cannot parse or run (a ParseError, an
+ * Error, a warning the site's handler throws), or may not open, is no file
+ * either, said by the kind of error and its line alone.
+ *
+ * @return array{value: mixed, problem: ?string}
+ */
+function settingsFileReadCleanly(string $file): array
+{
+    if (!is_readable($file)) {
+        return ['value' => null, 'problem' => 'could not be read (PHP may not open it)'];
+    }
+
+    $level = ob_get_level();
+    $value = null;
+    $failure = null;
+    $printed = 0;
+    ob_start();
+    try {
+        $value = (static fn(string $path): mixed => require $path)($file);
+    } catch (Throwable $e) {
+        $failure = 'could not be read (' . get_class($e) . ' on line ' . $e->getLine() . ')';
+    } finally {
+        // Every buffer down to the caller's - one the file opened and left open included.
+        while (ob_get_level() > $level) {
+            $buffer = ob_get_clean();
+            if ($buffer === false) {
+                break;
+            }
+            $printed += strlen($buffer);
+        }
+    }
+
+    if ($failure !== null) {
+        return ['value' => null, 'problem' => $failure];
+    }
+    if ($printed > 0) {
+        return ['value' => null, 'problem' => "prints {$printed} bytes of its own (no <?php line, a byte-order mark or a line before it, or text after its closing tag)"];
+    }
+
+    return ['value' => $value, 'problem' => null];
+}
+
+/**
+ * A line in PHP's error log about a settings file written by hand: at most once
+ * a day for each thing said - a stamp in storage/cache named by a hash of the
+ * line - since the file is read on every request, and a fault left in it is the
+ * same fault tomorrow. Where no stamp can be written, once a process.
+ */
+function settingsSaid(string $topic, string $what): void
+{
+    static $saidWithoutStamp = [];
+
+    $stamp = storageDir() . '/cache/said-' . substr(hash('sha256', $topic . "\n" . $what), 0, 16) . '.logged';
+    clearstatcache(true, $stamp);
+    $last = @filemtime($stamp);
+    if ($last !== false && time() - $last < 86400) {
+        return;
+    }
+    if (!((is_dir(dirname($stamp)) || @mkdir(dirname($stamp), 0777, true)) && @touch($stamp))) {
+        if (isset($saidWithoutStamp[$topic . "\n" . $what])) {
+            return;
+        }
+        $saidWithoutStamp[$topic . "\n" . $what] = true;
+    }
+
+    error_log("[{$topic}] {$what}");
 }
 
 /** Null when the site is set up; otherwise a sentence saying what is missing. */

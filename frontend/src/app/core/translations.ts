@@ -34,6 +34,13 @@ export const FORMAL_SLOVAK: Readonly<Record<string, string>> = {
 export const SURVEY_LIBRARY_WORDS: Readonly<Record<string, Readonly<Record<string, string>>>> = { sk: FORMAL_SLOVAK };
 
 /**
+ * Where this device's choice of language, the cached strings and the admin pages' drafts are kept: under the
+ * names the site always had - `anotoki-survey:language`, `:language-cache`, `:localization-drafts` (the library's
+ * translationSettings() makes them of it; the Privacy page lists them, core/legal/legal-facts.ts).
+ */
+export const SURVEY_STORAGE_PREFIX = 'anotoki-survey';
+
+/**
  * The site's words - the anotoki family's translations module
  * (@anotoki/lib/translations, anotoki-lib 0.3.0) wired to this site:
  *
@@ -67,7 +74,7 @@ export const SURVEY_LIBRARY_WORDS: Readonly<Record<string, Readonly<Record<strin
  */
 export function siteTranslationsConfig(auth: AuthService): AnotokiTranslationsConfig {
   return {
-    storagePrefix: 'anotoki-survey',
+    storagePrefix: SURVEY_STORAGE_PREFIX,
     libraryWords: SURVEY_LIBRARY_WORDS,
     account: {
       language: () => (auth.signedIn() ? (auth.user()?.locale ?? null) : null),

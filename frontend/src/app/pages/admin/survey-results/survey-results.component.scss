@@ -100,55 +100,10 @@
   font-weight: 700;
 }
 
+// The chips are the kit's (<anotoki-chip-list>: their edge, words, remove buttons and focus); the row gives them
+// what is left of it before "Show everybody".
 .chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  max-width: 100%;
-  padding: 0.2rem 0.3rem 0.2rem 0.7rem;
-  border: 1px solid var(--anotoki-info-border);
-  border-radius: 999px;
-  background: var(--anotoki-surface);
-  font-size: 0.8125rem;
-}
-
-.chip-question {
-  max-width: 16rem;
-  overflow: hidden;
-  color: var(--anotoki-muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.chip-answer {
-  white-space: nowrap;
-}
-
-.chip-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--anotoki-muted);
-  cursor: pointer;
-
-  &:hover {
-    background: var(--anotoki-danger-soft);
-    color: var(--anotoki-danger);
-  }
+  flex: 1 1 18rem;
 }
 
 .clear {

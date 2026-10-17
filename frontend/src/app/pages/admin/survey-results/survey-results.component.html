@@ -57,17 +57,7 @@
                         <anotoki-icon name="filter" [size]="15" />
                         Only the people who answered
                     </span>
-                    <ul class="chips">
-                        @for (chip of chips(); track chip.filter.questionId + ":" + chip.filter.optionId) {
-                            <li class="chip">
-                                <span class="chip-question">{{ chip.question }}</span>
-                                <strong class="chip-answer">{{ chip.answer }}</strong>
-                                <button type="button" class="chip-remove" [attr.aria-label]="'Remove the filter ' + chip.answer" (click)="removeFilter(chip.filter)">
-                                    <anotoki-icon name="x" [size]="14" />
-                                </button>
-                            </li>
-                        }
-                    </ul>
+                    <anotoki-chip-list class="chips" label="The filters on" [items]="chipItems()" (remove)="removeFilterChip($event)" />
                     <button type="button" class="clear" (click)="clearFilters()">Show everybody</button>
                 </div>
             }

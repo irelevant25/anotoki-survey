@@ -24,7 +24,7 @@
         <ul class="list">
             @for (item of surveys(); track item.survey.id) {
                 <li>
-                    <a class="survey" [routerLink]="['/', item.survey.slug]">
+                    <a anotokiLinkCard class="survey" [routerLink]="['/', item.survey.slug]">
                         <span class="survey-icon" aria-hidden="true"><anotoki-icon name="survey" [size]="22" /></span>
                         <span class="survey-text">
                             <span class="survey-title" [attr.lang]="item.language?.code">{{ item.survey.title }}</span>

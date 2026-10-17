@@ -146,7 +146,7 @@ was open. The upload carries `vendor/anotoki/lib/php/migrations/`
 (the library's set) - `tools/build.php` puts it there, under the deny-all
 `.htaccess` of `vendor/`.
 
-The version that took anotoki-lib 0.4.1 (both halves; PHP 0.5.2 and Angular 0.5.0 now, below) takes the rest of what every
+The version that took anotoki-lib 0.4.1 (both halves; 0.6.1 now, below) takes the rest of what every
 anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
 are gone - `api/anotoki_iam.php` stays on the host after the upload, read by
 nothing: delete it over FTP; the browser keeps its session, under the same
@@ -196,6 +196,24 @@ request that carries the owner's zone's `X-Anotoki-Origin` (*Visitors*,
 below). Set the Cloudflare Transform Rule first, then put
 `config/cloudflare.local.php` on the host by hand; without the file the site
 works as before.
+
+The version on anotoki-lib 0.6.1 (both halves): **Terms, Privacy and
+Contact** (`/terms`, `/privacy`, `/contact`, for anybody) with this site's
+facts, and their links at the foot of the pages people take surveys on; the
+kit's link cards and removable chips; and a `config/cloudflare.local.php`
+that cannot be read cleanly failing closed (*Visitors*, below). It brings, in
+the order they run: the site's `013_legal_pages.sql` (the facts' words,
+English and formal Slovak, the three tabs' titles, the legal pages' skip
+link), then the library's `anotoki_translations/005_legal_words.sql` to
+`010_backups_where_words.sql` (the legal pages' words, the top bar's count,
+the kit's new pieces', the tabs', the inputs', and 0.6.1's two sentences on
+where the backups are). **Before the upload**: a survey opened at the address
+`terms`, `privacy` or `contact` is reached no more there once this version is
+up - the legal page answers - and the editor now refuses those addresses;
+move such a survey first. **After the upload**: apply on the Migrations page,
+then open `/privacy` signed out - its "anotoki account" links go to the IAM's
+own Privacy page and account page - and name the hosting company once the
+owner gives it (it says "to be named" until then: `core/legal/legal-facts.ts`).
 
 ## The site's words and languages
 
@@ -409,13 +427,22 @@ same value in two places, a long random value of 32 characters or more:
 
 Set the rule first - a site without the file pays the header no heed - then
 the file: the other way round, every visitor counts as their edge until the
-rule is there; changing the secret, likewise. Without the file, or with a
-value that is not a string with something in it, the site believes
-`CF-Connecting-IP` from Cloudflare's ranges alone, as before. A file PHP
-cannot read is logged (`[cloudflare] config/cloudflare.local.php could not be
-read (...)`: its error's kind and line, never its contents) and passed over -
-never fatal. The secret is never printed or logged; keep a copy off the
-server, as of the other settings.
+rule is there; changing the secret, likewise. Without the file, or with one
+read cleanly whose value is not a string with something in it, the site
+believes `CF-Connecting-IP` from Cloudflare's ranges alone, as before
+(`[cloudflare] config/cloudflare.local.php holds no origin_secret ...`). A file
+that cannot be read cleanly **fails closed** (since anotoki-lib 0.6.1's pass,
+the IAM's rule): saved with a byte-order mark, without its `<?php` line, with a
+line before it or text after its closing tag - what it prints is caught and
+goes nowhere -, or one PHP cannot parse, run or open. The site keeps running,
+but believes no `CF-Connecting-IP`: every visitor counts as the Cloudflare edge
+they came through (they share its limits - 30 new visitors an hour by
+default) until the file is mended; PHP's error log says so at most once a day,
+by the fault alone (`[cloudflare] config/cloudflare.local.php prints 3 bytes of
+its own (...)` or `could not be read (ParseError on line 2)`, then `: no request
+carries its secret ...`), never its contents. Visitors refused as "too many"
+all at once, from everywhere, are that sign. The secret is never printed or
+logged; keep a copy off the server, as of the other settings.
 
 **The clean-up** needs no cron: after an answer, at most once an hour (and
 after every new visitor), it ends a batch of visitors unseen for `keep_days`
@@ -437,7 +464,7 @@ SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 
 
 Everything is in the database, pictures and the site's reworded strings
 included. The site backs it up itself - the anotoki family's backups
-(anotoki-lib PHP 0.5.2), on the admin panel's System → **Backups** page, for its
+(anotoki-lib 0.6.1), on the admin panel's System → **Backups** page, for its
 ADMIN: every table by COPY through PDO in one snapshot (no `pg_dump` on the
 host), each a file `storage/backups/<id>.anotoki-backup` (`ANOTOKI-BACKUP 1`,
 a JSON header, then a gzip'd tar of the manifest, the applied migrations' SQL

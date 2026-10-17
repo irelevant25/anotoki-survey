@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
+import { type ChipItem, ChipListComponent } from '@anotoki/lib/ui/chips';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
 import { IconComponent } from '@anotoki/lib/ui/icon';
 import { SpinnerComponent } from '@anotoki/lib/ui/spinner';
@@ -37,6 +38,23 @@ function samePair(a: ResultFilter, b: ResultFilter): boolean {
   return a.questionId === b.questionId && a.optionId === b.optionId;
 }
 
+/** A filter as the address writes it: "question:option". */
+function pairText(filter: ResultFilter): string {
+  return `${filter.questionId}:${filter.optionId}`;
+}
+
+/** The longest a question is said on a filter's chip; a longer one is cut at a word, with an ellipsis. */
+const CHIP_QUESTION_MAX = 48;
+
+function shortQuestion(question: string): string {
+  if (question.length <= CHIP_QUESTION_MAX) {
+    return question;
+  }
+  const cut = question.slice(0, CHIP_QUESTION_MAX);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > CHIP_QUESTION_MAX / 2 ? cut.slice(0, space) : cut).trimEnd()}…`;
+}
+
 const NONE: ReadonlySet<string> = new Set();
 
 /**
@@ -57,6 +75,7 @@ const NONE: ReadonlySet<string> = new Set();
     RouterLink,
     BarListComponent,
     ButtonComponent,
+    ChipListComponent,
     ChoiceResultComponent,
     DrawerComponent,
     EmptyStateComponent,
@@ -133,6 +152,12 @@ export class SurveyResultsComponent {
     const survey = this.survey();
     return survey ? this.filters().map((filter) => ({ filter, ...(describeFilter(survey, filter) as { question: string; answer: string }) })) : [];
   });
+  /**
+   * The filters as the kit's removable chips (`<anotoki-chip-list>`): the question - cut short where it is long,
+   * as the chip it replaced did - and the answer chosen; each remove button named with them ("Remove: 2. How
+   * often do you play?: Daily"), and the focus going on to the next chip once one goes.
+   */
+  protected readonly chipItems = computed<ChipItem[]>(() => this.chips().map((chip) => ({ value: pairText(chip.filter), label: `${shortQuestion(chip.question)}: ${chip.answer}` })));
   /** The filtered options, by question id - marked on their bars. */
   protected readonly filteredKeys = computed(() => {
     const map = new Map<string, Set<string>>();
@@ -323,8 +348,30 @@ export class SurveyResultsComponent {
     this._go({ filter: this._serialize(this.filters().filter((item) => !samePair(item, filter))) });
   }
 
+  /**
+   * A chip's remove button: that filter goes. The chip list moves the focus on to the next chip; the last one
+   * takes the whole row of filters with it, so the focus goes to the results' tab first - never to the page's start.
+   */
+  protected removeFilterChip(value: string): void {
+    const filter = this.filters().find((item) => pairText(item) === value);
+    if (!filter) {
+      return;
+    }
+    if (this.filters().length === 1) {
+      this._focusResultsTab();
+    }
+    this.removeFilter(filter);
+  }
+
   protected clearFilters(): void {
+    // "Show everybody" goes with the row it is in: the focus to the results' tab, as for the last chip.
+    this._focusResultsTab();
     this._go({ filter: null });
+  }
+
+  /** The focus on the tab that is chosen - Summary or People - which stays where the filters' row goes. */
+  private _focusResultsTab(): void {
+    document.getElementById(`results-tab-${this.activeTab()}`)?.focus();
   }
 
   protected onSearch(event: Event): void {

@@ -10,13 +10,16 @@ import { ToastService } from '@anotoki/lib/ui/toast';
 import { signInOrShowWhy } from '../../core/auth/auth.config';
 import { AuthService } from '../../core/auth/auth.service';
 import { VisitorKey } from '../../core/auth/visitor-key';
+import { SiteFooterComponent } from '../site-footer/site-footer.component';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 
 /**
  * The frame of what people see: the top bar and the page below it - for
  * somebody signed in, or, while the site welcomes visitors (the IAM's
  * "Sign-in required" is off), for anybody. The editor's preview is for
- * somebody signed in whatever the switch.
+ * somebody signed in whatever the switch. Under it, for anybody, the
+ * footer's Terms · Privacy · Contact (layouts/site-footer): the legal pages
+ * are open to all (layouts/legal-layout).
  *
  * Whenever nobody may see the page here, it is taken away with no navigation,
  * and a card stands in its place: a session that ended with the page open
@@ -34,7 +37,7 @@ import { TopBarComponent } from '../top-bar/top-bar.component';
  */
 @Component({
   selector: 'app-participant-layout',
-  imports: [RouterOutlet, ButtonComponent, EmptyStateComponent, IconComponent, TopBarComponent, TranslatePipe],
+  imports: [RouterOutlet, ButtonComponent, EmptyStateComponent, IconComponent, SiteFooterComponent, TopBarComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './participant-layout.component.html',
   styleUrl: './participant-layout.component.scss',

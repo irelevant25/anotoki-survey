@@ -42,7 +42,12 @@ Security and correctness first:
   header, a read of `X-Real-IP`, `True-Client-IP` or `X-Forwarded-For`, a trusted range shorter than
   /8 (IPv4) or /16 (IPv6) taken, a reading of an address that is not given the secret
   (`ClientAddress::of()` without it, an `AdminContext` without `originSecret:`), or the secret
-  printed or logged is a finding.
+  printed or logged is a finding - and so is a `cloudflare.local.php` that cannot be read cleanly
+  (it prints, PHP cannot parse, run or open it) read as "no secret" instead of failing closed (a
+  secret no request carries: `originSecretFile()`, the IAM's rule), or one that stops the site.
+  **The legal pages' facts** (`core/legal/legal-facts.ts`, `legal.*`): a statement the code does not
+  keep, a change to what the site keeps without its fact, or an address in a string (an
+  administrator could reword where a link goes) is a finding.
   **A People delete is done again by a restore**: its hook (`peopleDelete()`) - and any scrub hook -
   begins, commits or rolls back no transaction and writes on the `$pdo` it is given alone (`db()`,
   `surveyAudited()` or a helper on the site's connection there is a finding: in a restore it waits
@@ -173,7 +178,8 @@ Security and correctness first:
   allowed: the optional `visitors.local.php` only tunes it, and a bad value there - or a
   file that does not parse or returns no array (`visitorSettingsFile()`) - is logged and
   ignored, never fatal; the optional `cloudflare.local.php` has no default - no secret
-  without it - and `setup.php` neither writes nor reads it); `tools/build.php`
+  without it, a secret no request carries with one that cannot be read cleanly - and
+  `setup.php` neither writes nor reads it); `tools/build.php`
   still leaves out settings, tests, tools, the command-line scripts
   (`migration.php`, `translations.php`) and composer files; no new route
   named like a folder under the web root's `api/`.
@@ -183,7 +189,7 @@ Then the house style:
 - Angular: three files per component, OnPush, signals, `inject()`, inputs for
   route/query parameters, colours from tokens (light and dark), 390 px; no
   logic duplicated from `core/` into a component. The UI kit is the family's
-  (`@anotoki/lib` 0.5.0): a copy of a kit piece in `src/app/ui/`, a global
+  (`@anotoki/lib` 0.6.1): a copy of a kit piece in `src/app/ui/`, a global
   style a kit component would meet, an import from the `@anotoki/lib/ui`
   barrel instead of the piece's own entry point (the first load), or a
   selector of the kit's 0.2.0 class names in a spec or the browser check

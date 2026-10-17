@@ -39,7 +39,8 @@ person by person.
   added, in the admin panel - which itself is English. A new language starts
   hidden, to be offered when its strings are written.
 - **Who does what**: people sign in with their **anotoki account** (the anotoki
-  IAM) - every page asks for that first, and nothing of a survey shows before;
+  IAM) - every page asks for that first (but Terms, Privacy and Contact, which
+  anybody may read), and nothing of a survey shows before;
   unless the IAM's "Sign-in required" is switched off for the survey, when
   anybody may take the open surveys without signing in, once from their
   browser, and signing in later moves those answers into their account (the
@@ -87,7 +88,10 @@ hosting:
     (`return ['origin_secret' => '...'];`, put there by hand; a long random value, 32+ characters). With it the
     site believes `CF-Connecting-IP` only on a request that carries the secret - anybody's Cloudflare Worker
     can connect from Cloudflare's ranges; without the file it believes `CF-Connecting-IP` from Cloudflare's
-    ranges alone. Set the rule first, then the file.
+    ranges alone. Set the rule first, then the file. A file that cannot be read cleanly - saved with a
+    byte-order mark, without its `<?php` line, or with a typo PHP cannot read - fails closed: the site keeps
+    running, believes no `CF-Connecting-IP` (every visitor counts as the Cloudflare edge they came through,
+    sharing its limits) and says so once a day in PHP's error log until the file is mended.
 - **After an upload**: the private folders (`storage/`, `config/`) answer 403 in a browser; the host check's
   "Who connects" says Cloudflare, not a proxy of the host's (behind one, every visitor would share one
   address); pending database updates are applied on the admin panel's Migrations page.
@@ -118,8 +122,8 @@ wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (now PHP 0.5.2, Angular
-0.5.0: `anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
+migrations are the shared library's, **anotoki-lib** (now 0.6.1, both halves:
+`anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and
 one behaviour for every anotoki site while the site cannot run - visitors and
@@ -182,14 +186,30 @@ checklist above), only on a request that carries it: anybody's Cloudflare
 Worker can connect from Cloudflare's ranges, and any other request counts as
 the edge it came from.
 
+And with anotoki-lib 0.6.1: **Terms, Privacy and Contact** - the family's
+pages, with this site's facts (what it keeps of the people who sign in, of
+their answers and of visitors, what it keeps in the browser, and for how
+long), open to anybody, signed in or not, in English and formal Slovak - and
+Terms · Privacy · Contact at the foot of the pages people take surveys on;
+the anotoki account's own Privacy page and account page are the IAM's, linked
+from there. No feedback form: Contact gives the family's address. The kit's
+new pieces where the site drew its own: the home page's and the System page's
+cards that are one link, the results' filters as removable chips. And a
+`config/cloudflare.local.php` that cannot be read cleanly fails closed
+(Hosting checklist above).
+
 On the hosting this version brings new migrations (up to
-`012_sign_in_words.sql`, and the library's own sets around them -
+`013_legal_pages.sql`, and the library's own sets around them -
 `anotoki_admin` first, `anotoki_translations` and `anotoki_people` after; 012
 moves the site's sign-in words under the library's keys first, an owner's
-rewording with them; anotoki-lib 0.5.0 adds none): after the upload an ADMIN
-signs in from the family's page and applies them on the Migrations page (or
-the setup page does), then makes a backup by hand - the first one sealed -
-[docs/operations.md](docs/operations.md).
+rewording with them; 013 writes the legal pages' facts; anotoki-lib 0.6.1
+brings its translations `005`-`010`: the legal pages', the kit's new pieces',
+the backups' wording): after the upload an ADMIN signs in from the family's
+page and applies them on the Migrations page (or the setup page does), then
+makes a backup by hand - the first one sealed - [docs/operations.md](docs/operations.md).
+No survey may have the addresses `terms`, `privacy` or `contact` any more:
+one opened at such an address before this version is reached no more there
+(the legal page answers) - move it in the editor.
 
 ## Trying it out
 

@@ -5,7 +5,7 @@ import { signInFailureGuard } from './core/auth/auth.config';
 import { ParticipantLayoutComponent } from './layouts/participant-layout/participant-layout.component';
 
 /**
- * Two areas:
+ * Two areas, and the pages around them:
  *
  *   /, /{slug}, /preview/{id}   what people see: the open surveys, a survey to
  *                               take, and the editor's preview of one - the
@@ -21,6 +21,19 @@ import { ParticipantLayoutComponent } from './layouts/participant-layout/partici
  *                               anotoki family's page (@anotoki/lib/auth) -
  *                               "Signing you in…", or the screen of a sign-in
  *                               that came back without one, or could not start
+ *   /terms, /privacy, /contact  the anotoki family's legal pages
+ *                               (@anotoki/lib/legal/pages) with the survey's
+ *                               facts (core/legal/legal-facts.ts), in the frame
+ *                               of the survey's pages (layouts/legal-layout) -
+ *                               for anybody: no guard, nothing of a survey
+ *                               on them; tried before the survey's own area,
+ *                               whose /{slug} would take them. Each is a path
+ *                               of its own with the frame its parent - never
+ *                               one parent with an empty path: the router
+ *                               takes an address it has read whole (/) for
+ *                               such a parent when none of its children match,
+ *                               and drew the empty frame at / with no guard
+ *                               (app.routes.spec.ts)
  *
  * The guards are the anotoki family's (@anotoki/lib/auth): anybody else is
  * sent to the IAM before anything of a page is drawn, and comes back to the
@@ -40,6 +53,10 @@ import { ParticipantLayoutComponent } from './layouts/participant-layout/partici
  * language on the page (core/title.strategy.ts). The admin area's titles are
  * plain English (admin.routes.ts).
  */
+
+/** The legal pages' frame, loaded with the first of them that is opened (and its facts with it, out of the first load). */
+const legalFrame = () => import('./layouts/legal-layout/legal-layout.component').then((m) => m.LegalLayoutComponent);
+
 export const routes: Routes = [
   {
     path: 'admin',
@@ -47,6 +64,21 @@ export const routes: Routes = [
     loadChildren: () => import('./pages/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
   },
   { path: CALLBACK_PATH.slice(1), component: AuthCallbackComponent, title: 'title.signingIn' },
+  {
+    path: 'terms',
+    loadComponent: legalFrame,
+    children: [{ path: '', title: 'title.terms', loadComponent: () => import('@anotoki/lib/legal/pages').then((m) => m.TermsPageComponent) }],
+  },
+  {
+    path: 'privacy',
+    loadComponent: legalFrame,
+    children: [{ path: '', title: 'title.privacy', loadComponent: () => import('@anotoki/lib/legal/pages').then((m) => m.PrivacyPageComponent) }],
+  },
+  {
+    path: 'contact',
+    loadComponent: legalFrame,
+    children: [{ path: '', title: 'title.contact', loadComponent: () => import('@anotoki/lib/legal/pages').then((m) => m.ContactPageComponent) }],
+  },
   {
     path: '',
     component: ParticipantLayoutComponent,

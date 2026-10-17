@@ -22,8 +22,11 @@ const SURVEY_GENDERS = ['male', 'female', 'non-binary', 'undisclosed'];
 const SURVEY_AGES = ['under-18', '18-24', '25-34', '35-44', '45-plus', 'undisclosed'];
 const SURVEY_ABOUT_YOU_IDS = ['about-gender', 'about-age'];
 
-/** Addresses the site keeps for itself: a survey lives at /{slug}. RESERVED_SLUGS in survey-factory.ts. */
-const SURVEY_RESERVED_SLUGS = ['admin', 'preview', 'api', 'auth', 'setup', 'setup-php', 'assets', 'media', 'changelog', 'login', 'logout', 'account'];
+/**
+ * Addresses the site keeps for itself: a survey lives at /{slug}. RESERVED_SLUGS in survey-factory.ts. The legal
+ * pages - terms, privacy, contact - are routes of their own, matched before a survey's address.
+ */
+const SURVEY_RESERVED_SLUGS = ['admin', 'preview', 'api', 'auth', 'setup', 'setup-php', 'assets', 'media', 'changelog', 'login', 'logout', 'account', 'terms', 'privacy', 'contact'];
 const SURVEY_SLUG_MAX = 60;
 
 /** How much one survey may hold - far more than any survey needs, far less than would strain anything. */

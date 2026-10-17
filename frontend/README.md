@@ -17,7 +17,9 @@ src/
                                      few: the highlighter, the results' bars, the night sky, a decorative rule,
                                      .rich, mark, the drag and drop
   styles/                            partials the components @use: fields (the fields the site draws itself),
-                                     boot, result-card, sky
+                                     boot, result-card, sky, participant-frame (the participant and legal
+                                     layouts' frame: the light behind, the skip link, the column, the footer
+                                     at the foot)
   test-setup.ts                      the unit tests' shims for jsdom (dialog, popover, matchMedia), as the
                                      library's own tests have them
   app/
@@ -35,7 +37,7 @@ src/
     boot/                            the card drawn when the server could not be reached as the site started
                                      (its status answered, the sign-in's settings not)
     core/
-      auth/                          signing in through the family's library (@anotoki/lib/auth, 0.5.0):
+      auth/                          signing in through the family's library (@anotoki/lib/auth):
                                      auth.config.ts (provideSiteAuth() - the boot configuration, the
                                      site's API and visitors, the words, no sign-in hint; signInOrShowWhy(),
                                      signInFailureGuard), AuthService (the survey's face of the library's
@@ -75,9 +77,18 @@ src/
       util/                          dates.ts (the admin panel's English dates), date-patterns.ts (the
                                      account's four date orders and two clocks), storage
       images/                        pictures made small in the browser
+      legal/                         the family's legal pages (@anotoki/lib/legal) wired to this site:
+                                     legal.config.ts (provideAnotokiLegal() in app.config.ts - the
+                                     language, the database's words of the library's keys) and
+                                     legal-facts.ts (what the site keeps, its cookies and storage, who else
+                                     handles data, the anotoki account's pages from the IAM's address -
+                                     every address in code; given by the legal pages' frame)
     layouts/                         top-bar (the site's wrapper over the family's bar, <anotoki-top-bar>:
                                      its brand, sections, person and menu items, signing in and out),
-                                     participant, admin
+                                     participant, admin, legal-layout (the frame of /terms, /privacy and
+                                     /contact - anybody's, no guard - and the facts' provider),
+                                     site-footer (Terms · Privacy · Contact: <anotoki-legal-links>, under
+                                     the participant and legal frames)
     pages/participant/               the open surveys, a survey to take, the visitor notice
     pages/admin/                     the surveys, the editor, the results (a visitor: "Visitor N",
                                      "Not signed in"; nobody's address - the site keeps none);
@@ -97,12 +108,12 @@ proxy.conf.json                      /api and /setup.php to the backend on :8500
 Components are three files (`.ts`, `.html`, `.scss`); colours come from the
 family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
 every page works at 390 px. The UI kit, the top bar, the theme, the site's
-words, signing in, the People page, the admin tools and the error reporter
-are the anotoki family's library (`@anotoki/lib`, 0.5.0 - the backend's half is
-0.5.2, PHP-only fixes), configured in
+words, signing in, the People page, the admin tools, the error reporter and
+the legal pages are the anotoki family's library (`@anotoki/lib`, 0.6.1 - the
+backend's half the same), configured in
 `app.config.ts`, `core/kit.ts`,
-`core/translations.ts`, `core/auth/auth.config.ts` and
-`core/admin/admin-tools.ts` - never copied here; each kit piece
+`core/translations.ts`, `core/auth/auth.config.ts`,
+`core/admin/admin-tools.ts` and `core/legal/` - never copied here; each kit piece
 is imported from its own entry point (`@anotoki/lib/ui/button`, ...), never
 from the `@anotoki/lib/ui` barrel. What the site says to somebody taking a
 survey is a key (`'home.title' | translate`) whose strings are in the

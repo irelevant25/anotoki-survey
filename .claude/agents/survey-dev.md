@@ -52,7 +52,7 @@ Working conventions:
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
 - Signing in, the people and the admin tools are the anotoki family's library's
-  (anotoki-lib, PHP 0.5.2 / Angular 0.5.0: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
+  (anotoki-lib 0.6.1, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
   module, the error log - the pages' errors too, `@anotoki/lib/error-report` -,
   the audit log, the backups) - wired in
   `api/auth.php`, `api/people.php`, `api/admin_tools.php`,
@@ -69,14 +69,19 @@ Working conventions:
   (`surveyAudited()`). In the browser a request says whom it is for as it is
   made (the library's `issuedAs`): a person's never leaves without its token,
   a visitor's never with one; the admin panel and the preview always sign in;
-  a failed sign-in is the library's screen, never a card or a toast.
+  a failed sign-in is the library's screen, never a card or a toast. The legal
+  pages (`/terms`, `/privacy`, `/contact`, the family's) are anybody's - no
+  guard - and their facts (`core/legal/legal-facts.ts`, `legal.*`) must stay
+  true of the code: a change to what the site keeps changes them, every
+  address in them stays in the code. A `config/cloudflare.local.php` that
+  cannot be read cleanly fails closed (`originSecretFile()`).
   Queries use `?` parameters; identifiers come from literals.
 - User HTML only through `richTextClean()`. Pictures are checked by their
   bytes; never SVG.
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
   (light and dark); every page works at 390 px. The UI kit and the top bar are
-  the anotoki family's (`@anotoki/lib` 0.5.0, wired in `core/kit.ts`) - use
+  the anotoki family's (`@anotoki/lib` 0.6.1, wired in `core/kit.ts`) - use
   them, each piece from its own entry point (`@anotoki/lib/ui/button`, ...,
   never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come
   from the database there (`forKit()`), and its class names are its own

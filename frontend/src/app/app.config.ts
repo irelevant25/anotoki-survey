@@ -3,12 +3,14 @@ import { ApplicationConfig, provideAppInitializer, provideBrowserGlobalErrorList
 import { TitleStrategy, provideRouter, withComponentInputBinding, withInMemoryScrolling } from "@angular/router";
 import { anotokiAuthInterceptor } from "@anotoki/lib/auth";
 import { provideAnotokiErrorReport } from "@anotoki/lib/error-report";
+import { provideAnotokiLegal } from "@anotoki/lib/legal";
 import { siteStatusInterceptor } from "@anotoki/lib/migrations";
 import { routes } from "./app.routes";
 import { provideSiteAdmin } from "./core/admin/admin-tools";
 import { provideSiteAuth } from "./core/auth/auth.config";
 import { boot } from "./core/boot";
 import { provideSiteKit } from "./core/kit";
+import { surveyLegalConfig } from "./core/legal/legal.config";
 import { provideSiteMigrations } from "./core/migrations";
 import { SurveyTitleStrategy } from "./core/title.strategy";
 import { provideSiteTranslations } from "./core/translations";
@@ -48,6 +50,10 @@ export const appConfig: ApplicationConfig = {
     provideSiteAdmin(),
     // The anotoki family's UI kit and top bar, wired to this site's words, icons, account and languages - see core/kit.ts.
     provideSiteKit(),
+    // The anotoki family's legal pages - Terms, Privacy, Contact, on lazy routes open to anybody - and the footer's
+    // links to them: the library's words around the survey's facts, every address the pages link to in the code
+    // (core/legal/legal.config.ts; the facts, which only the pages read, come with their frame: core/legal/legal-facts.ts).
+    provideAnotokiLegal(surveyLegalConfig),
     { provide: TitleStrategy, useClass: SurveyTitleStrategy },
     // Before the first page: where the site stands, the theme, the sign-in, the
     // language and its strings - see boot().

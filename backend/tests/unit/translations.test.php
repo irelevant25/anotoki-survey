@@ -368,6 +368,23 @@ test('012 knows the library\'s own words of signing in as its 003 writes them - 
     assert_same(['Prihlasujeme Vás…', 'Signing in…'], [strings_of('sk', $signingIn)[$signingIn[0]] ?? null, strings_of('en', $signingIn)[$signingIn[0]] ?? null], 'the callback page says what this site said');
 });
 
+test('the legal pages\' facts (013) hold no address - where a link goes is the code\'s, never a string an administrator rewords - and their Slovak speaks to the reader formally', function (): void {
+    test_db();
+    $rows = dbAll("SELECT key_name, language_code, value FROM translations WHERE key_name LIKE 'legal.%' ORDER BY key_name COLLATE \"C\", language_code");
+    $keys = array_values(array_unique(array_column($rows, 'key_name')));
+    assert_same(in_order(migration_keys('013_legal_pages.sql')['keys']), in_order(array_merge($keys, ['title.contact', 'title.privacy', 'title.terms'])), 'the facts 013 writes, and the three tabs\' titles');
+    foreach ($rows as ['key_name' => $key, 'language_code' => $code, 'value' => $value]) {
+        assert_false((bool) preg_match('~https?:|://|www\.|@~i', $value), "$key ($code) holds no address: $value");
+        if ($code === 'sk') {
+            // Vy, Vás, Váš with their capital (the site's formal Slovak) - never the lower case, never ty.
+            assert_false((bool) preg_match('/\b(vy|vás|vám|váš|vaš[a-záéíóúý]*|ty|teba|tebe|ťa|ti|tvoj[a-záéíóúý]*)\b/u', $value), "$key: formal Slovak - $value");
+        }
+    }
+    // The visitors' days are the host's number (visitor_days): a plural family, the word agreeing with it.
+    $days = array_map(static fn(string $form): string => implode(' ', array_slice(explode(' ', strings_of('sk', ["legal.visitors.kept.$form"])["legal.visitors.kept.$form"] ?? ''), 0, 3)), ['one', 'few', 'other']);
+    assert_same(['{count} deň po', '{count} dni po', '{count} dní po'], $days, 'the visitors\' days in Slovak: one, few and other');
+});
+
 /* -------------------------------------------------------------------- the scan */
 
 test('the scan as this site has it: the specs and the specs\' helpers are not read; keys put together at run time are declared', function (): void {

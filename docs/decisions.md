@@ -631,6 +631,98 @@ PHP cannot read is logged by its error's kind and line alone (a parse error's
 message can quote the file) and passed over, never fatal. The secret is never
 printed or logged.
 
+**A `cloudflare.local.php` that is there but cannot be read cleanly fails
+closed (2026-10-14, the IAM's rule case for case - its `iamOriginSecret()`,
+the security review of 2026-10-13; this replaces "passed over" above).** Its
+owner meant a secret: a file saved with a byte-order mark, without its
+`<?php` line, with a line before it or text after its closing tag (it prints
+when PHP requires it), one PHP cannot parse or run, or one it may not open,
+is read as a secret no request carries - 256 random bits of the process,
+never written anywhere (`originSecretNobodyCarries()`) - so every request from
+Cloudflare's ranges counts as its edge until the file is mended. Reading it
+as "no secret", as before, would believe the `CF-Connecting-IP` of anybody's
+Worker on those ranges: a slip of the editor must never switch the check off.
+A file read cleanly that names no secret - empty, spaces, not a string, no
+array returned - stays "no secret", as the IAM reads it. The site keeps
+running either way (the file is optional, never a reason to be "not set
+up"). What the file prints is caught and goes nowhere
+(`settingsFileReadCleanly()`, every buffer it opened drained); its fault is
+said in PHP's error log at most once a day (a stamp in `storage/cache`,
+`settingsSaid()`) by its kind and line or its byte count, never its text.
+`tests/unit/client_address.test.php` holds each case, and
+`tests/api/visitors.test.php` the attack it stops: a file with a byte-order
+mark, and a Worker writing a new `CF-Connecting-IP` - with the file's own
+secret beside it - is one sender, the edge.
+
+**Terms, Privacy and Contact (anotoki-lib 0.6.0's legal pages, the owner's
+decisions of 2026-10-13) are anybody's, and their facts are the code's.**
+The pages are the family's (`@anotoki/lib/legal/pages`); the survey gives its
+facts (`core/legal/legal-facts.ts`, the words `legal.*` of migration 013). The
+choices made here:
+
+- **No sign-in in front of them.** Every other page is for somebody signed in
+  (unless the IAM lets visitors in), but what a site keeps must be readable
+  before anybody signs in to it - so `/terms`, `/privacy` and `/contact` have
+  no guard, in a frame of their own that draws the survey's (the skip link,
+  the bar, the column; `layouts/legal-layout`). Nothing of a survey is on
+  them or asked of the API; while the site cannot run, the family's page
+  stands instead of them as of every page. Each is a path of its own with the
+  frame as its parent: one parent with an empty path for the three took `/`
+  for itself (the router takes an address it has read whole for such a parent
+  when none of its children match) and drew the empty frame there with no
+  guard (`app.routes.spec.ts`). The three are addresses no survey may have
+  (`RESERVED_SLUGS` ↔ `SURVEY_RESERVED_SLUGS`, held together by
+  `tests/unit/rules.test.php`); a survey opened at one before is reached no
+  more there.
+- **The facts say what the code does, conservatively.** A person's record (the
+  account's id and name, first and last seen - never the address), their
+  answers (seen by the site's editors and administrators with the person's
+  name, downloadable as a file; deleted only by an administrator, never by
+  age), who wrote which survey, picture and string; visitors (a number, the
+  key's hash, its days from the server's `visitor_days`, the answers kept as
+  "Visitor N", the hour's counts by a keyed code of the address); the audit
+  log (editors' and administrators' changes, never an address); backups kept
+  by count, not by age - the 14 newest daily ones, a daily one made on a day
+  the site is used, so the library's "for 14 days" was not true of a quiet
+  site; every item of the browser's storage by its name - the sign-in's (and
+  what its tokens say: the account's e-mail address among them), a sign-in
+  under way, the theme, the language, a tab's language, the visitor's key, a
+  survey's drafts, the admin pages' unsaved words - and the anotoki account's
+  sign-in hint cookie, which reaches this site and is never read here
+  (`hint: false`); the family's Umami; the hosting company "to be named" and
+  Cloudflare. What the code does not settle is listed for the owner.
+- **Every address is the code's.** The anotoki account's Privacy page and
+  account page come from the IAM's address the site signs in with
+  (`AnotokiAuth.issuer()`, `accountUrl()`), the operator's and Cloudflare's
+  from the library - never from a string an administrator rewords on the
+  Translations page (the library's 0.6.0 review); the backend's test holds
+  every `legal.*` string free of an address, and its Slovak formal.
+- **No feedback form**: Contact gives the family's address alone.
+- **The footer's Terms · Privacy · Contact** (the family's
+  `<anotoki-legal-links>`, `layouts/site-footer`) are under the survey's pages
+  - the card of a session that ended too - and under the legal pages; not in
+  the admin panel, which is English and a frame of its own.
+
+**The kit's new pieces where the site drew its own (anotoki-lib 0.6.0),
+others kept.** Taken: the kit's link card (`a[anotokiLinkCard]`) for the home
+page's surveys and the System page's ways to its pages - each a card that is
+one link, its focus ring round the card -, the layout inside each card the
+page's; the kit's removable chips (`<anotoki-chip-list>`) for the results'
+filters - each remove button named with the question (cut short at a word) and
+the answer, the focus going on to the next chip, and to the results' tab when
+the last one or "Show everybody" takes the row away. Kept: the survey's
+segmented progress on its night sky (the kit's step dots are drawn in the
+page's colours, which a sky dark in both themes would not carry, and the
+segments show how many steps there are at a glance); the editor's toolbar
+(TipTap - its highlighter and two headings are not among the kit's buttons,
+and its link has a form of its own: no simple swap); the editor's language
+tabs (two marks on a tab - its progress and a state - where the kit's tab has
+one badge, and they wrap on a phone); the "3 of 10" pagers (a pager, not a
+list of steps); the picture row (pictures uploaded at once, ordered and
+described - the kit's file picker holds files for a form and uploads none);
+the common answers' chips (a list of answers, no control); the closing day's
+`<input type="date">` (the browser's own, ISO by this site's rule).
+
 ## Languages
 
 The first five are the owner's, made before any of it was built.

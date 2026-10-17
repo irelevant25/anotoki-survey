@@ -28,8 +28,8 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib, PHP 0.5.2 and
-Angular 0.5.0, its `Auth` module on both halves - the IAM's SDKs, which the site vendored until
+client `survey`, with the anotoki family's library (anotoki-lib 0.6.1, its
+`Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
 
@@ -109,9 +109,10 @@ required, every page people take surveys on (`personOrVisitorGuard`,
 welcome it lets anybody through); while sign-in
 is required the API answers nothing of a survey without a token - its
 pictures aside, which an `<img>` loads with no token, at addresses that are
-random UUIDs ([API](api.md#the-people-taking-surveys)). Only the pages drawn
-while the site cannot run (the family's page, the card for a server out of
-reach) draw without it: while the site cannot run and the server said why
+random UUIDs ([API](api.md#the-people-taking-surveys)). Only the legal pages
+(*Terms, Privacy and Contact*, below: anybody's, nothing of a survey on them)
+and the pages drawn while the site cannot run (the family's page, the card for
+a server out of reach) draw without it: while the site cannot run and the server said why
 (`SiteStatus.blocked()`) the guard lets every page through and sends nobody to
 the IAM - the family's page stands instead of each, with its own quiet Sign in
 (*A database behind the code*, below); while it could not even ask (out of
@@ -164,7 +165,12 @@ Migrations page, the System pages and the move are a verified token's alone.
   owner's decision of 2026-10-13), only on a request that carries it in
   `X-Anotoki-Origin`, which the owner's zone adds to every request through it:
   anybody's Cloudflare Worker can connect from Cloudflare's ranges, and any
-  other request from them counts as its edge. An address's counter goes by a keyed HMAC of
+  other request from them counts as its edge. A `cloudflare.local.php` that is
+  there but cannot be read cleanly (it prints, PHP cannot parse or run it, or
+  may not open it) fails closed, the IAM's rule: a secret no request carries,
+  every request from Cloudflare's ranges its edge, the site running all the
+  same and the fault said once a day (`originSecretFile()`,
+  `config/config.php`); one read cleanly that names no secret is no secret. An address's counter goes by a keyed HMAC of
   it (`clientAddressKept()`, under a key derived from the installation's
   `storage/anotoki-lib.key`) - a stable pseudonym of the address while that
   key lasts, not a secret (whoever holds the key can try every IPv4 address
@@ -290,7 +296,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib PHP 0.5.2, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib 0.6.1, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -335,13 +341,18 @@ answer, every survey's author and every visitor lives in `users`):
 ## The admin tools
 
 The error log, the audit log and the backups are the anotoki family's
-(anotoki-lib, PHP 0.5.2 and Angular 0.5.0: `Anotoki\Lib\ErrorLog`, `Audit`, `Backups` - wired in
+(anotoki-lib 0.6.1, both halves: `Anotoki\Lib\ErrorLog`, `Audit`, `Backups` - wired in
 `api/admin_tools.php`, their routes in `routes/admin.php`; the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/backups`, configured in
 `core/admin/admin-tools.ts`), for the site's ADMIN alone (the owner's
 decision): ADMIN from the token, both sides; an EDITOR is told whose the pages
 are, and the API refuses. The admin panel's System page (`/admin/system`, the
-top bar's System link) leads to them, the People page and the Migrations page.
+top bar's System link - each way a card that is one link, the kit's
+`a[anotokiLinkCard]`) leads to them, the People page and the Migrations page.
+Since anotoki-lib 0.6.0 no refusal or answer of theirs carries a failure's own
+words: a backup's, a restore's or its after-work's failure is a fixed sentence
+of the library's ("... The error log says why."), the failure itself in the
+error log (`onError`).
 No feedback form and no file explorer (the owner's decision: the pictures live
 in the database, and are in every backup).
 
@@ -503,6 +514,61 @@ inside each such component's styles).
   an icon nobody registered draws nothing.
 - **The theme** is the kit's `ThemeService` (*The account's preferences*,
   below), told the site's storage key and the account.
+- **0.6.0's pieces** where the site drew its own: the home page's surveys and
+  the System page's ways are the kit's link cards (`a[anotokiLinkCard]`, the
+  layout inside each card the page's), the results' filters its removable
+  chips (`<anotoki-chip-list>`: each remove button named with the question,
+  cut short, and the answer; the focus to the next chip, and to the results'
+  tab when the last goes). The survey's segmented progress on its night sky,
+  the editor's toolbar (TipTap) and language tabs, the pagers, the picture row
+  and the closing day's date field stay its own ([decisions](decisions.md)
+  says why).
+
+## Terms, Privacy and Contact
+
+The anotoki family's legal pages (anotoki-lib 0.6.0, `@anotoki/lib/legal/pages`;
+the owner's decisions of 2026-10-13): their structure and the family's words
+(`anotoki.legal.*`, written by the library's `anotoki_translations/005`, its
+Slovak addressing nobody - so it reads well beside this site's formal Slovak)
+are the library's, the facts this site's.
+
+- **Anybody's.** `/terms`, `/privacy` and `/contact` (app.routes.ts) have no
+  guard: what the site keeps is said before anybody signs in. Each is a path
+  of its own whose parent is the frame (`layouts/legal-layout`: the skip link,
+  the bar - Sign in for nobody -, the column of the survey's pages, one
+  stylesheet with them, `styles/_participant-frame.scss`); one parent with an
+  empty path took `/` for itself (`app.routes.spec.ts`). Nothing of a survey
+  is on them or asked of the API; while the site cannot run, the family's page
+  stands instead, as of every page. The three are reserved addresses
+  (`RESERVED_SLUGS` ↔ `SURVEY_RESERVED_SLUGS`).
+- **The facts** (`core/legal/legal-facts.ts`, given by the frame - out of the
+  first load): the site's name; what it is; three parts of its own - the
+  record of a person (the account's id and name, first and last seen), their
+  answers (seen with their name by the editors and administrators, deleted
+  only by an administrator), who wrote which survey, picture and string -;
+  the visitors (the key's days from `/api/auth/config`'s `visitor_days`, a
+  plural); the library's error log (30 days) and audit log in this site's
+  words (editors' and administrators' changes, never an address); plain
+  backups kept by count (14 daily, 5 before an update, 5 before a restore);
+  every cookie and stored item by its name, from the code's own constants;
+  the family's Umami (`index.html`); the hosting company ("to be named") and
+  Cloudflare. Their words are `legal.*` (migration 013, English and formal
+  Slovak); `SURVEY_LEGAL_UPDATED` is the day they last changed. A change to
+  what the site keeps changes them.
+- **Every address is the code's**: the anotoki account's Privacy page and
+  account page from the IAM's address the site signs in with
+  (`AnotokiAuth.issuer()` + `/privacy`, `accountUrl()`), the operator,
+  the authority and Cloudflare from the library - never a string, which an
+  administrator may reword (`core/legal/legal-facts.spec.ts` holds it, and
+  the backend's test that no `legal.*` string holds an address).
+- **Words and language**: the root configuration (`core/legal/legal.config.ts`,
+  `provideAnotokiLegal()` in `app.config.ts`) gives the language on the page
+  and the database's string of each library key (`libraryWord()`): an owner's
+  rewording on the Translations page shows. No feedback form: Contact gives
+  the family's address alone, and the IAM's account page to delete the account.
+- **The footer** (`layouts/site-footer`, the family's `<anotoki-legal-links>`):
+  Terms · Privacy · Contact under the survey's pages - the card of a session
+  that ended too - and under the legal pages; not in the admin panel.
 
 ## The account's preferences
 

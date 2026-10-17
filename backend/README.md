@@ -76,18 +76,21 @@ config/
                        gitignored, never committed - and visitors.local.php when it is there
                        (optional, put there by hand; VISITOR_DEFAULTS without it - the trusted
                        proxies Cloudflare's published ranges), and cloudflare.local.php (optional,
-                       by hand too: the origin secret, originSecret() - none without it)
+                       by hand too: the origin secret, originSecret() - none without it, and a
+                       secret no request carries for one that cannot be read cleanly:
+                       settingsFileReadCleanly(), fails closed; settingsSaid() - once a day)
 migrations/survey/     the schema and the site's strings, NNN_name.sql (never edit an applied one)
 storage/               cache (the IAM's keys, its "Sign-in required" answer, the daily backup's
                        stamp), logs (the error log, audit entries waiting for their table), backups,
                        anotoki-lib.key (the installation's own key, made once by the library: the
                        error log's and the visitors' address hashes, the backups' seal),
-                       visitors-swept (when the visitors' clean-up last ran); gitignored, and never
+                       visitors-swept (when the visitors' clean-up last ran), cache/said-*.logged
+                       (a settings file's fault said today); gitignored, and never
                        served (each folder guarded)
 tests/                 run.php, lib.php; unit/, api/; tools/ (testdb.php, testenv.php)
 tools/                 build.php (the upload -> ../dist/), translation_keys.php (the frontend's keys:
                        the library's KeyScanner, set up for this site)
-vendor/                Slim and its pieces, and anotoki/lib 0.5.2 (the family's library, from GitHub -
+vendor/                Slim and its pieces, and anotoki/lib 0.6.1 (the family's library, from GitHub -
                        ../DEV.md says how it is updated; its migration sets in php/migrations/, its
                        stand-in IAM for the tests in php/testing/) - committed: the hosting cannot
                        run Composer

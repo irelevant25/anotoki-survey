@@ -48,7 +48,7 @@ backend/
                            and only hands the key in; nothing of a survey
                            without a token while sign-in is required, but its pictures (an
                            <img> sends none; UUID addresses)
-  api/auth.php             signing in through the family's library (anotoki-lib 0.5.2, Anotoki\Lib\Auth -
+  api/auth.php             signing in through the family's library (anotoki-lib 0.6.1, Anotoki\Lib\Auth -
                            the IAM's SDK is gone): surveyIam() (IamClient), surveySignInRule() /
                            authLoginRequired() (the IAM's "Sign-in required", relayed by
                            /api/auth/config with visitor_days), surveyIdentify() (only Bearer claims to
@@ -92,7 +92,8 @@ backend/
                            list, delete
   api/images.php           store (checked by its bytes), find, meta, clean-up
   api/survey_rules.php     surveyFromBody() (shape + cleaning, the translations too), surveyProblems(),
-                           surveyTranslationGaps(), surveyTranslationsJson(), answer rules
+                           surveyTranslationGaps(), surveyTranslationsJson(), answer rules;
+                           SURVEY_RESERVED_SLUGS (the legal pages' terms, privacy, contact among them)
   api/translations.php     the site's own words through the family's library (anotoki/lib's
                            Anotoki\Lib\Translations - the bundle, the admin grid and languages, every
                            check of a string, the command line; never edited here): surveyTranslations()
@@ -102,7 +103,7 @@ backend/
                            languagesForSurveys() / languagesOffered() (what survey_rules.php reads)
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.5.2's PHP half - never edited here; DEV.md: how it is updated):
+                           anotoki-lib 0.6.1's PHP half - never edited here; DEV.md: how it is updated):
                            surveyMigrationSet(), surveyMigrationSets() (the library's `anotoki_admin`,
                            the site's `survey`, then the library's `anotoki_translations` and
                            `anotoki_people` - recorded as <set>/NNN.sql), surveyMigrator($pdo,
@@ -119,7 +120,11 @@ backend/
                            - a file that does not parse is logged, the defaults hold); cloudflare.local.php
                            (optional, by hand, the same in every anotoki site: originSecret() /
                            originSecretFile() - a string with something in it, else none; a file that
-                           does not parse is logged by its error's kind and line, never its contents);
+                           cannot be read cleanly - it prints, PHP cannot parse, run or open it -
+                           FAILS CLOSED, the IAM's rule: a secret no request carries,
+                           originSecretNobodyCarries(), the site running all the same;
+                           settingsFileReadCleanly() catches what it prints, settingsSaid() logs the
+                           fault once a day by its kind or bytes, never its contents);
                            SURVEY_TEST_CONFIG for the tests
   migrations/survey/       the schema - and the site's strings (002 the tables and the two languages,
                            003 every key with its English and Slovak string: the pattern for the next;
@@ -131,7 +136,9 @@ backend/
                            formal Slovak - before the library's own set runs; 011 users.anonymized_at
                            and users.email dropped - the site keeps no address -, every other column
                            of every row proven unchanged; 012 the site's sign-in strings moved under
-                           anotoki.signIn.*, formal Slovak for the two the library says informally)
+                           anotoki.signIn.*, formal Slovak for the two the library says informally;
+                           013 the legal pages' facts - legal.*, English and formal Slovak, no address
+                           in any - and the three tabs' titles)
   setup.php                the installer (this computer: nonce, re-runnable; a host: token, lock, self-delete)
   router.php               php -S behaving like the hosting's Apache (+ the built app)
   translations.php         command line only, never uploaded - the library's TranslationsCommand:
@@ -164,7 +171,7 @@ frontend/src/app/
                            database / AdminDates' dates / reload the strings when up to date),
                            MIGRATIONS_PATH; siteStatusInterceptor in app.config.ts; SiteStatus
                            (state, blocked, check, checkForReload, markReady) is the library's
-  core/auth/               signing in through the family's library (anotoki-lib 0.5.0, @anotoki/lib/auth -
+  core/auth/               signing in through the family's library (anotoki-lib 0.6.1, @anotoki/lib/auth -
                            the vendored SDK is gone): auth.config.ts (provideSiteAuth() - the boot
                            configuration AuthService read, the site's API (/api/, its status, auth
                            config, strings and pictures skipped), the visitors (VisitorKey, the key
@@ -214,7 +221,16 @@ frontend/src/app/
                            error-text.ts (a failed request's key), answer-words.ts (a rule or a
                            problem in the reader's language), dynamic-keys.ts (keys put together at
                            run time - the backend's scan reads it)
-  core/kit.ts              the family's UI kit (anotoki-lib 0.5.0, each piece from its own entry point)
+  core/legal/              the family's legal pages wired to this site (anotoki-lib 0.6.0's @anotoki/lib/legal):
+                           legal.config.ts (surveyLegalConfig() for provideAnotokiLegal() in
+                           app.config.ts - the language on the page, libraryWord() for the library's
+                           keys, no facts), legal-facts.ts (surveyLegalFacts() - the site's name,
+                           what it is, its three parts, the visitors - their days from visitor_days -,
+                           the audit log and backups in its words, every cookie and stored item by
+                           the code's own names, the hosting company and Cloudflare; the anotoki
+                           account's pages from AnotokiAuth.issuer() / accountUrl() - never a string;
+                           SURVEY_LEGAL_UPDATED; surveyLegalPagesConfig(), the frame's provider)
+  core/kit.ts              the family's UI kit (anotoki-lib 0.6.1, each piece from its own entry point)
                            wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
                            the language on the page and the kit's words from the database - the
                            library's keys, anotoki.* - and SURVEY_ICONS) + provideSiteShell() (the
@@ -261,7 +277,13 @@ frontend/src/app/
                            (English; "You are signed out" for a session that ended in place, the
                            no-access card for somebody signed in without a role). A sign-in that
                            came back without one, or could not start, is the library's screen on
-                           /auth/callback (AuthCallbackComponent, app.routes.ts), never a card
+                           /auth/callback (AuthCallbackComponent, app.routes.ts), never a card.
+                           legal-layout: the frame of /terms, /privacy and /contact (anybody's, no
+                           guard; each its own path with this frame as parent - an empty-path
+                           parent took "/" itself, app.routes.spec.ts), the facts' provider;
+                           site-footer: Terms · Privacy · Contact (<anotoki-legal-links>) under the
+                           participant and legal frames - one stylesheet for both frames,
+                           src/styles/_participant-frame.scss
   boot/                    load-error (its "Try again" also opens the page that was asked for): drawn
                            instead of the site when the status answered and the sign-in's settings
                            did not (app.component.ts decides; everything else that keeps the site
@@ -286,7 +308,8 @@ frontend/src/app/
                            image-strip - the rest is the family's kit (@anotoki/lib/ui/<piece>, /shell)
 frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles: root, fonts, base,
                            utilities, tables) and the survey's own tokens; styles/_fields.scss: the
-                           look of the fields a page draws itself, @use'd into that page's styles
+                           look of the fields a page draws itself, @use'd into that page's styles;
+                           styles/_participant-frame.scss: the participant and legal frames' look
 ```
 
 ## Rules
@@ -309,7 +332,9 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   a survey answers without a token while sign-in is required, but the
   pictures' (`/api/images/...`: an `<img>` sends no token, and their addresses
   are random UUIDs - `docs/decisions.md`). Only the pages drawn while the site
-  cannot run (the family's page, the load error card) draw without a sign-in.
+  cannot run (the family's page, the load error card) and the legal pages
+  (`/terms`, `/privacy`, `/contact`: anybody's, in `layouts/legal-layout`,
+  nothing of a survey on them or asked of the API) draw without a sign-in.
   A new page goes under one of the two layouts (their guard), a new route
   behind `$identify` and `RequirePerson` (and `$recordPerson` where it touches
   the site's data) - a visitor's only for what a visitor must reach, and then
@@ -348,8 +373,20 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   Cloudflare Worker can connect from Cloudflare's ranges -, any other request
   from them counting as its edge: every reading of an address passes it
   (`clientAddress()`, `surveyAdminContext()`'s `originSecret:`), and the
-  secret is never printed or logged (a file that does not parse: its error's
-  kind and line alone).
+  secret is never printed or logged. A file that is there but cannot be read
+  cleanly **fails closed** - the IAM's rule, case for case: a secret no
+  request carries, every request from Cloudflare's ranges its edge, never "no
+  secret" (which would believe anybody's Worker); read cleanly with no secret
+  in it, no secret. Its fault is logged once a day by its kind and line or its
+  byte count, never its text; the site keeps running.
+- **The legal pages' facts are the code's** (`core/legal/legal-facts.ts`,
+  the words `legal.*`): a change to what the site keeps or for how long, to a
+  cookie or a stored item's name, to who else handles data, changes them -
+  the strings by a migration (English and formal Slovak, no address in any:
+  `tests/unit/translations.test.php` holds it), `SURVEY_LEGAL_UPDATED` the
+  day. Every address the pages link to stays in the code (the anotoki
+  account's pages from the IAM's address the site signs in with), never in a
+  string an administrator rewords.
 - **A person's Delete is done again by a restore** (anotoki-lib 0.5.0): the
   hook (`peopleDelete()`) runs inside the library's transaction and begins
   none, writes on the `$pdo` it is given and nothing else - never `db()`, nor
@@ -363,8 +400,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   a new admin route that changes something writes its entry, by the token's
   person, inside the change's transaction where there is one.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib, PHP
-  0.5.2 and Angular 0.5.0; the owner's decision of 2026-10-07): the
+  applies it - the anotoki family's way, the library's** (anotoki-lib 0.6.1,
+  both halves; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
   `/api/site-status`, always); a new route that must work then goes there, and
@@ -488,7 +525,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   pieces both areas share (top bar, UI kit, toasts) read through
   `effectiveLanguage`, which is `en` under `/admin` - the kit's own words too
   (`core/kit.ts`), and the family's page at an admin address.
-- **The UI kit is the family's** (anotoki-lib 0.5.0): a new piece of a page
+- **The UI kit is the family's** (anotoki-lib 0.6.1 - its 0.6.0 pieces taken
+  where the site drew its own: the link cards of the home page and the System
+  page, the results' removable filter chips; what stays the site's and why,
+  `docs/decisions.md`): a new piece of a page
   is the kit's (`anotoki-*`, `anotokiButton`) unless the kit has none,
   imported from its own entry point (`@anotoki/lib/ui/button`, ...) - never
   from the `@anotoki/lib/ui` barrel, which puts every piece into the first

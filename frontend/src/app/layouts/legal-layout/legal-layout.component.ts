@@ -1,0 +1,31 @@
+import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
+import { ANOTOKI_LEGAL_CONFIG } from '@anotoki/lib/legal';
+import { TranslatePipe } from '@anotoki/lib/translations';
+import { surveyLegalPagesConfig } from '../../core/legal/legal-facts';
+import { SiteFooterComponent } from '../site-footer/site-footer.component';
+import { TopBarComponent } from '../top-bar/top-bar.component';
+
+/**
+ * The legal pages' frame - Terms, Privacy and Contact, the anotoki family's
+ * pages (@anotoki/lib/legal/pages, lazy routes in app.routes.ts): the frame
+ * the survey's own pages have (the skip link, the top bar, the column - one
+ * stylesheet, styles/_participant-frame.scss) and the footer's links - and the
+ * survey's facts, which only these pages read, given to them here
+ * (core/legal/legal-facts.ts), out of the first load.
+ *
+ * Anybody may read them, signed in or not, whether the IAM requires signing in
+ * here or not: what a site keeps is said before anybody signs in to it. So no
+ * guard stands in front of them and nothing here asks for a sign-in - and
+ * nothing of a survey is on them, nor asked of the API. While the site cannot
+ * run, the family's page stands instead of them, as instead of every page.
+ */
+@Component({
+  selector: 'app-legal-layout',
+  imports: [RouterOutlet, SiteFooterComponent, TopBarComponent, TranslatePipe],
+  providers: [{ provide: ANOTOKI_LEGAL_CONFIG, useFactory: surveyLegalPagesConfig }],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  templateUrl: './legal-layout.component.html',
+  styleUrl: './legal-layout.component.scss',
+})
+export class LegalLayoutComponent {}
