@@ -14,7 +14,7 @@ import { SURVEY_STORAGE_PREFIX } from '../translations';
  * the site keeps or for how long - and the strings that say so (`legal.*`,
  * migration 013).
  */
-export const SURVEY_LEGAL_UPDATED = '2026-10-14';
+export const SURVEY_LEGAL_UPDATED = '2026-10-18';
 
 /**
  * How many days a visitor unseen is kept when the server does not say: the
@@ -82,8 +82,9 @@ export function surveyLegalPagesConfig(): AnotokiLegalConfig {
  *   and is never read here;
  * - counting visits: the family's Umami (src/index.html: umami.anotoki.eu, the
  *   query and the fragment left out) - the library's words;
- * - who else handles data: the hosting company ("to be named" until the owner
- *   names it) and Cloudflare.
+ * - who else handles data: the hosting company (WebSupport s.r.o., named by
+ *   the owner on 2026-10-18: the servers, the database and the mail) and
+ *   Cloudflare.
  *
  * No feedback (the owner's decision for this site): the Contact page gives the
  * address alone. Every address the pages link to is the code's - the anotoki
@@ -131,7 +132,7 @@ export function surveyLegalFacts(i18n: TranslationService, anotoki: AnotokiAuth,
       { name: `${DRAFT_PREFIX}…`, kind: 'local', purpose: i18n.t('legal.storage.draft.purpose'), kept: i18n.t('legal.storage.draft.kept') },
       { name: words.drafts, kind: 'session', purpose: i18n.t('legal.storage.wordDrafts.purpose'), kept: i18n.t('legal.storage.untilTabClosed') },
     ],
-    // "To be named" until the owner names the hosting company.
-    processors: [{ preset: 'hosting' }, { preset: 'cloudflare' }],
+    // The hosting company, named by the owner on 2026-10-18: the servers, the database and the mail.
+    processors: [{ preset: 'hosting', name: 'WebSupport s.r.o.', url: 'https://www.websupport.sk' }, { preset: 'cloudflare' }],
   };
 }

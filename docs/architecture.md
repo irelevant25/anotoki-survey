@@ -552,8 +552,8 @@ are the library's, the facts this site's.
   words (editors' and administrators' changes, never an address); plain
   backups kept by count (14 daily, 5 before an update, 5 before a restore);
   every cookie and stored item by its name, from the code's own constants;
-  the family's Umami (`index.html`); the hosting company ("to be named") and
-  Cloudflare. Their words are `legal.*` (migration 013, English and formal
+  the family's Umami (`index.html`); the hosting company (WebSupport s.r.o.,
+  named by the owner on 2026-10-18) and Cloudflare. Their words are `legal.*` (migration 013, English and formal
   Slovak); `SURVEY_LEGAL_UPDATED` is the day they last changed. A change to
   what the site keeps changes them.
 - **Every address is the code's**: the anotoki account's Privacy page and

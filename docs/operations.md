@@ -217,8 +217,8 @@ own words stay). **Before the upload**: a survey opened at the address
 up - the legal page answers - and the editor now refuses those addresses;
 move such a survey first. **After the upload**: apply on the Migrations page,
 then open `/privacy` signed out - its "anotoki account" links go to the IAM's
-own Privacy page and account page - and name the hosting company once the
-owner gives it (it says "to be named" until then: `core/legal/legal-facts.ts`).
+own Privacy page and account page - and that it names the hosting company
+(WebSupport s.r.o., the owner's word of 2026-10-18: `core/legal/legal-facts.ts`).
 
 ## The site's words and languages
 

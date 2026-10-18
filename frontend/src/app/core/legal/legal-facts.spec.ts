@@ -15,7 +15,7 @@ import { surveyLegalConfig } from './legal.config';
 const IAM = 'https://iam.anotoki.example';
 
 /** Every address a legal page of the survey's may link to: the anotoki account's pages, its own Contact page, the family's address and operator, the authority, Cloudflare. */
-const ADDRESSES = [`${IAM}/account`, `${IAM}/privacy`, '/contact', 'mailto:support@anotoki.eu', 'https://codehero.sk', 'https://dataprotection.gov.sk/', 'https://www.cloudflare.com/privacypolicy/'];
+const ADDRESSES = [`${IAM}/account`, `${IAM}/privacy`, '/contact', 'mailto:support@anotoki.eu', 'https://codehero.sk', 'https://dataprotection.gov.sk/', 'https://www.websupport.sk', 'https://www.cloudflare.com/privacypolicy/'];
 
 /**
  * The survey's own strings the facts name, as stand-ins: the words themselves are migration 013's (and the
@@ -158,7 +158,7 @@ describe('the legal pages, as the survey fills them in', () => {
       ['anotoki-survey:draft:…', 'local', null],
       ['anotoki-survey:localization-drafts', 'session', null],
     ]);
-    expect(facts.processors).toEqual([{ preset: 'hosting' }, { preset: 'cloudflare' }]);
+    expect(facts.processors).toEqual([{ preset: 'hosting', name: 'WebSupport s.r.o.', url: 'https://www.websupport.sk' }, { preset: 'cloudflare' }]);
     // A backend that does not say how long it keeps a visitor: the backend's own default, 30 days.
     expect(surveyLegalFacts(TestBed.inject(TranslationService), TestBed.inject(AnotokiAuth), null).visitors?.kept).toBe('The key ends 30 days after the last visit.');
   });
@@ -184,7 +184,7 @@ describe('the legal pages, as the survey fills them in', () => {
       'anotoki-survey:draft:…',
       'anotoki-survey:localization-drafts',
     ]);
-    expect(texts(host, '[data-recipient] .anotoki-legal-page__item-name')).toEqual(['The hosting company (to be named)', 'Cloudflare, Inc.']);
+    expect(texts(host, '[data-recipient] .anotoki-legal-page__item-name')).toEqual(['WebSupport s.r.o.', 'Cloudflare, Inc.']);
     expect(host.querySelector('[data-analytics]')?.textContent).toContain('umami.anotoki.eu');
 
     // The account: kept by the anotoki account, whose own Privacy page - at the IAM the site signs in with - is linked.

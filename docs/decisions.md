@@ -744,8 +744,8 @@ choices made here:
   under way, the theme, the language, a tab's language, the visitor's key, a
   survey's drafts, the admin pages' unsaved words - and the anotoki account's
   sign-in hint cookie, which reaches this site and is never read here
-  (`hint: false`); the family's Umami; the hosting company "to be named" and
-  Cloudflare. What the code does not settle is listed for the owner.
+  (`hint: false`); the family's Umami; the hosting company (WebSupport s.r.o. -
+  "to be named" until the owner named it on 2026-10-18) and Cloudflare. What the code does not settle is listed for the owner.
 - **Every address is the code's.** The anotoki account's Privacy page and
   account page come from the IAM's address the site signs in with
   (`AnotokiAuth.issuer()`, `accountUrl()`), the operator's and Cloudflare's
