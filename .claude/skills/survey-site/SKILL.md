@@ -51,7 +51,7 @@ backend/
                            and only hands the key in; nothing of a survey
                            without a token while sign-in is required, but its pictures (an
                            <img> sends none; UUID addresses)
-  api/auth.php             signing in through the family's library (anotoki-lib 0.6.2, Anotoki\Lib\Auth -
+  api/auth.php             signing in through the family's library (anotoki-lib 0.6.3, Anotoki\Lib\Auth -
                            the IAM's SDK is gone): surveyIam() (IamClient), surveySignInRule() /
                            authLoginRequired() (the IAM's "Sign-in required", relayed by
                            /api/auth/config with visitor_days), surveyIdentify() (only Bearer claims to
@@ -111,7 +111,7 @@ backend/
                            languagesForSurveys() / languagesOffered() (what survey_rules.php reads)
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.6.2's PHP half - never edited here; DEV.md: how it is updated):
+                           anotoki-lib 0.6.3's PHP half - never edited here; DEV.md: how it is updated):
                            surveyMigrationSet(), surveyMigrationSets() (the library's `anotoki_admin`,
                            the site's `survey`, then the library's `anotoki_translations` and
                            `anotoki_people` - recorded as <set>/NNN.sql), surveyMigrator($pdo,
@@ -194,7 +194,7 @@ frontend/src/app/
                            database / AdminDates' dates / reload the strings when up to date),
                            MIGRATIONS_PATH; siteStatusInterceptor in app.config.ts; SiteStatus
                            (state, blocked, check, checkForReload, markReady) is the library's
-  core/auth/               signing in through the family's library (anotoki-lib 0.6.2, @anotoki/lib/auth -
+  core/auth/               signing in through the family's library (anotoki-lib 0.6.3, @anotoki/lib/auth -
                            the vendored SDK is gone): auth.config.ts (provideSiteAuth() - the boot
                            configuration AuthService read, the site's API (/api/, its status, auth
                            config, strings and pictures skipped), the visitors (VisitorKey, the key
@@ -221,21 +221,24 @@ frontend/src/app/
                            (provideAnotokiPeople: me, the lead, Delete their answers with its
                            question - deleteQuestion() -, visitorsLine())
   core/feedback.ts         provideSiteFeedback(): the family's feedback form (@anotoki/lib/feedback,
-                           its form @anotoki/lib/feedback/form loaded with the press) - the language
+                           its form @anotoki/lib/feedback/form loaded with the press - the footer's
+                           Feedback and the Contact page open it) - the language
                            on the page, the library's words through libraryWord() (formal Slovak),
                            signedIn; no email: the site keeps nobody's address, so none is filled in.
                            feedbackSenderInterceptor (SITE_INTERCEPTORS, before the family's): POST
                            /api/feedback issued as the person's while somebody is signed in, else
                            nobody's (app.config.spec.ts)
-  core/changelog/          Changelog (changelog.json read once - public/changelog.json, each release's
-                           entry first, English and formal Slovak in it -, entries, current, open():
-                           the What's new dialog, ui/changelog-dialog, loaded with the press). Nothing
-                           opens it yet: the family's footer will (the owner's plan of 2026-10-18)
+  core/changelog/          Changelog (changelog.json read once, asked by boot() at the start and never
+                           waited for - public/changelog.json, each release's entry first, English and
+                           formal Slovak in it -, entries, current - the footer's "Version" -, open():
+                           the What's new dialog, ui/changelog-dialog, loaded with the press - the
+                           footer's What's new, (whatsNew) in each frame)
   core/api/api.service.ts  one method a route; the surveys' marked issuedAs('caller') as they are made,
                            the move issuedAs('person') + CARRIES_VISITOR_KEY (the library's);
                            ApiError {status, code, message, body, retryAfter} - toApiError() reads
                            {error, code} and the library's {code, message}
-  core/boot.ts             boot(): the theme, where the site stands (SiteStatus.check() - never stops
+  core/boot.ts             boot(): the theme, the changelog asked for (Changelog.load(), never waited
+                           for: the footer's version), where the site stands (SiteStatus.check() - never stops
                            the start), the sign-in (VisitorKey made before the first await;
                            a visitor's drafts adopted right after a sign-in), then the language and
                            its strings, then BOOTED - the app initializer, and the load error
@@ -265,7 +268,7 @@ frontend/src/app/
                            the code's own names, the hosting company and Cloudflare; the anotoki
                            account's pages from AnotokiAuth.issuer() / accountUrl() - never a string;
                            SURVEY_LEGAL_UPDATED; surveyLegalPagesConfig(), the frame's provider)
-  core/kit.ts              the family's UI kit (anotoki-lib 0.6.2, each piece from its own entry point)
+  core/kit.ts              the family's UI kit (anotoki-lib 0.6.3, each piece from its own entry point)
                            wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
                            the language on the page and the kit's words from the database - the
                            library's keys, anotoki.* - and SURVEY_ICONS) + provideSiteShell() (the
@@ -317,10 +320,15 @@ frontend/src/app/
                            /auth/callback (AuthCallbackComponent, app.routes.ts), never a card.
                            legal-layout: the frame of /terms, /privacy and /contact (anybody's, no
                            guard; each its own path with this frame as parent - an empty-path
-                           parent took "/" itself, app.routes.spec.ts), the facts' provider;
-                           site-footer: Terms · Privacy · Contact (<anotoki-legal-links>) under the
-                           participant and legal frames - one stylesheet for both frames,
-                           src/styles/_participant-frame.scss
+                           parent took "/" itself, app.routes.spec.ts), the facts' provider - the
+                           participant and legal frames one stylesheet, src/styles/_participant-frame.scss.
+                           Each of the three frames ends with the family's footer (<anotoki-site-footer>,
+                           @anotoki/lib/footer, anotoki-lib 0.6.3): [version]="changelog.current()",
+                           [whatsNew] while there is a list, (whatsNew)="changelog.open()", feedback -
+                           in the admin frame [feedback]="!siteStatus.blocked()" (no Feedback round
+                           the Migrations page while an update waits: the server refuses it); no fan
+                           clause; under the cards too. The site's own footer (layouts/site-footer)
+                           is gone - a part the family's lacks goes to the library
   boot/                    load-error (its "Try again" also opens the page that was asked for): drawn
                            instead of the site when the status answered and the sign-in's settings
                            did not (app.component.ts decides; everything else that keeps the site
@@ -435,9 +443,11 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   account's pages from the IAM's address the site signs in with), never in a
   string an administrator rewords.
 - **Feedback is the family's, and anybody's** (anotoki-lib 0.6.2's Feedback,
-  `api/routes/feedback.php`, `core/feedback.ts`): the Contact page opens the
-  form for anybody - signed in, a visitor, nobody - whether sign-in is
-  required or not; the sender is the token's id alone (a bad token 401, a
+  `api/routes/feedback.php`, `core/feedback.ts`): the family's footer's
+  Feedback under every frame and the Contact page open the form for anybody -
+  signed in, a visitor, nobody - whether sign-in is required or not (the
+  message marked whom it is for, `feedbackSenderInterceptor`; not in the admin
+  panel's footer while an update waits - the server answers 503 then); the sender is the token's id alone (a bad token 401, a
   visitor's key never read: a visitor sends as nobody), the reply address only
   what the sender typed (the form is handed none: the site keeps nobody's
   address), no network address kept with a message; no mail is sent - the
@@ -451,8 +461,18 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   `frontend/package.json`'s, held to it by a spec - and every release adds its
   entry first: what changed for people, in English and whole in formal Slovak
   (`translations.sk`), no address. What's new is the kit's dialog over it,
-  opened only when asked - by the family's footer, when the site takes it -
-  never by itself, so nothing about what a browser has seen is stored.
+  opened only when asked - by the family's footer's What's new - never by
+  itself, so nothing about what a browser has seen is stored. `boot()` asks
+  for the list at the start and never waits for it: the footer's version is
+  there when the first page is drawn.
+- **One footer, the family's** (anotoki-lib 0.6.3's `<anotoki-site-footer>`;
+  the owner's choice of 2026-10-18): at the foot of each frame - the survey's
+  pages, the legal pages, the admin panel -, under their cards too, never
+  round the family's page (the frames are inside the gate's pages): the
+  version, What's new, Feedback, then Terms · Privacy · Contact; no fan
+  clause. Its words are the library's (`anotoki.footer.*`, impersonal Slovak),
+  English in the admin panel. A new frame takes it the same way; a part the
+  footer lacks goes to the library, never a footer of the site's own.
 - **A person's Delete is done again by a restore** (anotoki-lib 0.5.0): the
   hook (`peopleDelete()`) runs inside the library's transaction and begins
   none, writes on the `$pdo` it is given and nothing else - never `db()`, nor
@@ -466,7 +486,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   a new admin route that changes something writes its entry, by the token's
   person, inside the change's transaction where there is one.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib 0.6.2,
+  applies it - the anotoki family's way, the library's** (anotoki-lib 0.6.3,
   both halves; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
@@ -487,9 +507,11 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   through and send nobody to the IAM, and the outlet is the gate's
   `<ng-template anotokiSitePages>`, made only while the gate shows the pages - never an outlet
   given to it as it is. So the family's page - and the load error card - is
-  bare: the top bar and the footer belong to the routed layouts, none of which
-  is made then (the owner's wish of 2026-10-18; `app.component.spec.ts` draws
-  the real frames and counts them, the browser check `framesDrawn()`). The library is never edited here: a change it
+  bare: the top bar and the footer belong to the routed layouts - the admin
+  panel's too -, none of which is made then (the owner's wish of 2026-10-18;
+  `app.component.spec.ts` draws the three real frames and counts them, the
+  browser check `framesDrawn()`; the ADMIN on the Migrations page while an
+  update waits has the site's pages, the admin frame round them). The library is never edited here: a change it
   needs is a new release (its repository, `irelevant25/anotoki-lib`), taken in
   by DEV.md's steps.
 - **Both sides say the same**: `answer-rules.ts` ↔ `answerProblem()` /
@@ -591,10 +613,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   with nothing in it to see is an empty one (the library's `Text::blank()`).
 - **The admin panel is English**: literal words in the templates under
   `pages/admin` and `layouts/admin-layout`, no `translate` pipe there. The
-  pieces both areas share (top bar, UI kit, toasts) read through
-  `effectiveLanguage`, which is `en` under `/admin` - the kit's own words too
-  (`core/kit.ts`), and the family's page at an admin address.
-- **The UI kit is the family's** (anotoki-lib 0.6.2 - its 0.6.0 pieces taken
+  pieces both areas share (top bar, UI kit, toasts, the family's footer) read
+  through `effectiveLanguage`, which is `en` under `/admin` - the kit's own
+  words too (`core/kit.ts`), and the family's page at an admin address.
+- **The UI kit is the family's** (anotoki-lib 0.6.3 - its 0.6.0 pieces taken
   where the site drew its own: the link cards of the home page and the System
   page, the results' removable filter chips; what stays the site's and why,
   `docs/decisions.md`): a new piece of a page
@@ -1251,6 +1273,14 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   a file's first five bytes and passes over one that does not start with
   `<?php` before PHP sees the rest; the tests of each kind of file write both
   starts, and fail with that check taken out (a 500, or the process ending).
+- **A spec that draws a frame draws the family's footer**, and its legal links
+  read the legal configuration: the legal frame's own
+  (`surveyLegalPagesConfig()`) extends the root's (`skipSelf`), so a spec that
+  draws `LegalLayoutComponent` gives `provideAnotokiLegal(surveyLegalConfig)`
+  as `app.config.ts` does - NG0201 "No provider found for ANOTOKI_LEGAL_CONFIG"
+  otherwise (a stub of the old footer had hidden it). The frames inject
+  `Changelog` (HttpClient): a layout's spec gives a stand-in with `current`
+  and `open`, or the HTTP providers.
 
 ## Checks before saying it is done
 

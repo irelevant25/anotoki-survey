@@ -52,8 +52,8 @@ Working conventions:
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
 - Signing in, the people and the admin tools are the anotoki family's library's
-  (anotoki-lib 0.6.2, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
-  module, feedback - the form the Contact page opens, `POST /api/feedback`,
+  (anotoki-lib 0.6.3, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
+  module, feedback - the form the footer's Feedback and the Contact page open, `POST /api/feedback`,
   the Feedback page -, the error log - the pages' errors too,
   `@anotoki/lib/error-report` -, the audit log, the backups) - wired in
   `api/auth.php`, `api/people.php`, `api/admin_tools.php`,
@@ -91,15 +91,16 @@ Working conventions:
   bytes; never SVG.
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
-  (light and dark); every page works at 390 px. The UI kit and the top bar are
-  the anotoki family's (`@anotoki/lib` 0.6.2, wired in `core/kit.ts`) - use
+  (light and dark); every page works at 390 px. The UI kit, the top bar and the
+  footer are the anotoki family's (`@anotoki/lib` 0.6.3, wired in `core/kit.ts`;
+  `<anotoki-site-footer>` at the foot of each frame, the admin panel's too) - use
   them, each piece from its own entry point (`@anotoki/lib/ui/button`, ...,
   never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come
   from the database there (`forKit()`), and its class names are its own
   (`.anotoki-<piece>__<part>`) - in a spec too.
 - The site's version is `frontend/package.json`'s, and a release has its entry
   first in `frontend/public/changelog.json`, in English and formal Slovak
-  (`core/changelog/`; What's new opens from the family's footer once it comes).
+  (`core/changelog/`; the family's footer shows the version and opens What's new).
 - Tests and experiments use throwaway `survey_test_` databases
   (`backend/tests/tools/`), never `anotoki_survey`; the browser check
   (`check-in-browser` skill) signs in through the library's stand-in IAM, never the real one.

@@ -281,6 +281,13 @@ async function fill(selector, value) {
 /** The editor has saved everything changed so far (the header says so only once the save after the last change is back). */
 const saved = () => waitFor(page, "(document.querySelector('app-survey-header .save')?.textContent ?? '').includes('Saved')", 15000);
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+/** The site's version: the newest entry of the changelog.json it serves - what the family's footer shows (one source). */
+const VERSION = (await (await fetch(`${origin}/changelog.json`)).json())[0].version;
+/** The family's footer's first row (<anotoki-site-footer>, anotoki-lib 0.6.3), as it reads in each language: the version, What's new, Feedback. */
+const FOOTER_ROW = {
+  en: [`Version ${VERSION}`, '·', "What's new", '·', 'Feedback'],
+  sk: [`Verzia ${VERSION}`, '·', 'Čo je nové', '·', 'Spätná väzba'],
+};
 /** The stand-in IAM told how to behave: who signs in next ({user}), whether it still renews a session ({refuse}). */
 const setIam = async (changes) => (await fetch(`${iam}/_test/state`, { method: 'POST', body: JSON.stringify(changes) })).ok;
 const setIamUser = (user) => setIam({ user });
@@ -2412,11 +2419,14 @@ const setupLink = () => js("[...document.querySelectorAll('a')].filter((a) => (a
 const statusHeading = () => text('anotoki-site-status h1');
 const statusActions = async () => (await texts('anotoki-site-status button, anotoki-site-status a')).join(' | ');
 /**
- * The site's frames counted - the top bar, the footer (its legal links, the family's), the layouts that hold them:
- * a page drawn instead of the site is bare, none of them (the gate makes no routed frame while it shows its page).
+ * The site's frames counted - the top bar, the family's footer (<anotoki-site-footer>, its legal links), the layouts
+ * that hold them: a page drawn instead of the site is bare, none of them (the gate makes no routed frame while it
+ * shows its page).
  */
 const framesDrawn = () =>
-  js("document.querySelectorAll('app-top-bar, anotoki-top-bar, anotoki-shell, app-site-footer, anotoki-legal-links, app-participant-layout, app-admin-layout, app-legal-layout, header, footer').length");
+  js("document.querySelectorAll('app-top-bar, anotoki-top-bar, anotoki-shell, anotoki-site-footer, anotoki-legal-links, app-participant-layout, app-admin-layout, app-legal-layout, header, footer').length");
+/** The family's footer's first row as it is read - each part's words and the dots between them - under `frame`. */
+const footerRow = (frame) => texts(`${frame} anotoki-site-footer .anotoki-site-footer__row > *`);
 /** What nobody but the site's ADMIN may read there: the server's words, an error, a code, the setup page, the migrations - and no toast. */
 const quiet = async () =>
   !/error|503|update_pending|not_set_up|setup|migration/i.test((await text('anotoki-site-status')) ?? '') && (await js("document.querySelectorAll('anotoki-toast-host .anotoki-toast-host__toast').length")) === 0;
@@ -2551,6 +2561,15 @@ expect(
     (await js('document.title')).startsWith('Migrations · '),
   `${ownerTrips} / ${await pendingRows()} / bar: ${await barLinks()} / ${await js('document.title')}`,
 );
+// The site's pages for the ADMIN there, so the admin panel's frame round them: the bar, and the family's footer - the
+// version and What's new, but no Feedback while the update waits (the server would refuse the message: 503).
+expect(
+  "... in the admin panel's frame: its bar and the family's footer under it, English - the version and What's new, no Feedback while the update waits",
+  (await js("!!document.querySelector('app-admin-layout > app-top-bar') && !!document.querySelector('app-admin-layout > anotoki-site-footer > footer')")) &&
+    same(await footerRow('app-admin-layout'), FOOTER_ROW.en.slice(0, 3)) &&
+    !(await js("!!document.querySelector('anotoki-site-footer [data-open-feedback]')")),
+  JSON.stringify(await footerRow('app-admin-layout')),
+);
 await screenshot('admin-migrations-behind-1280', true);
 
 // Anywhere else the ADMIN reads that an update waits, with the way to the Migrations page - in English, the admin
@@ -2631,6 +2650,7 @@ expect(
     (await barLinks()) === 'Surveys Translations Languages System',
   `${await text('anotoki-migrations-page [data-result]')} / ${await barLinks()}`,
 );
+expect('... and the footer offers Feedback again: the site runs', same(await footerRow('app-admin-layout'), FOOTER_ROW.en), JSON.stringify(await footerRow('app-admin-layout')));
 const afterStrings = await (await fetch(`${origin}/api/translations/en`)).json();
 expect(
   "... and the owner's rewording of the sign-in's word survived the release - under the library's key now, the site's key gone",
@@ -3158,15 +3178,24 @@ await setIam({ anonymized: [] });
 // The anotoki family's legal pages (@anotoki/lib/legal/pages, anotoki-lib 0.6.0) around the survey's facts
 // (core/legal/legal-facts.ts): anybody's - nobody signed in and the IAM requiring a sign-in here (and told to turn
 // one down: a trip there would end on the screen of a failed sign-in), each opens with no trip to the IAM and asks
-// nothing of a survey. The footer's Terms · Privacy · Contact under them and under the survey's own pages (the card
-// of a session that ended too); the anotoki account's Privacy page and account page at the IAM the site signs in
-// with; at 1280 and 390 px, light and dark, in English and in Slovak - no key where a word should be.
+// nothing of a survey. The family's footer (<anotoki-site-footer>, anotoki-lib 0.6.3) under them, under the survey's
+// own pages (the card of a session that ended too) and under the admin panel: "Version X · What's new · Feedback",
+// then Terms · Privacy · Contact - What's new the survey's own dialog, Feedback the family's form, anybody's here; the
+// anotoki account's Privacy page and account page at the IAM the site signs in with; at 1280 and 390 px, light and
+// dark, in English and in Slovak - no key where a word should be.
 const LEGAL = {
   en: { terms: 'Terms of use', privacy: 'Privacy policy', contact: 'Contact', links: ['Terms', 'Privacy', 'Contact'], site: 'anotoki survey' },
   sk: { terms: 'Podmienky používania', privacy: 'Ochrana osobných údajov', contact: 'Kontakt', links: ['Podmienky', 'Súkromie', 'Kontakt'], site: 'anotoki prieskum' },
 };
 const legalHeading = () => text('app-legal-layout main h1');
-const footerLinks = (frame) => texts(`${frame} app-site-footer .anotoki-legal-links__link`);
+const footerLinks = (frame) => texts(`${frame} anotoki-site-footer .anotoki-legal-links__link`);
+/** The footer in the window, at the foot of the page - for a look at it beside the build analyzer's. */
+async function footerShot(name) {
+  await js("document.querySelector('anotoki-site-footer')?.scrollIntoView({ block: 'end', behavior: 'instant' }); true");
+  await sleep(250);
+  await screenshot(name);
+  await js("window.scrollTo({ top: 0, behavior: 'instant' }); true");
+}
 await setIam({ deny: true });
 await forgetSession();
 await js('sessionStorage.clear(); true');
@@ -3190,17 +3219,87 @@ for (const code of ['en', 'sk']) {
         `${await legalHeading()} / ${await js('location.pathname')} / tab: ${await js('document.title')} / ${trip.filter((line) => line.includes('/api/')).join(', ')}`,
       );
       expect(
-        `${code}, ${width} px, /${legal}: Terms · Privacy · Contact in the footer, this page's marked`,
-        same(await footerLinks('app-legal-layout'), words.links) && (await js("document.querySelector('app-legal-layout app-site-footer [aria-current=page]')?.getAttribute('href')")) === `/${legal}`,
-        JSON.stringify(await footerLinks('app-legal-layout')),
+        `${code}, ${width} px, /${legal}: the family's footer - "${FOOTER_ROW[code].filter((part) => part !== '·').join(' · ')}", then Terms · Privacy · Contact, this page's marked`,
+        same(await footerRow('app-legal-layout'), FOOTER_ROW[code]) &&
+          same(await footerLinks('app-legal-layout'), words.links) &&
+          (await js("document.querySelector('app-legal-layout anotoki-site-footer [aria-current=page]')?.getAttribute('href')")) === `/${legal}`,
+        `${JSON.stringify(await footerRow('app-legal-layout'))} / ${JSON.stringify(await footerLinks('app-legal-layout'))}`,
       );
       expect(`${code}, ${width} px, /${legal}: nobody signed in - the top bar offers Sign in`, (await js("!!document.querySelector('app-top-bar .anotoki-top-bar__sign-in, app-top-bar .anotoki-top-bar__menu-button')")) && !(await js(SIGNED_IN)));
       await expectNoKeys(`${code}, ${width} px, /${legal}`);
       await expectBar(`${code}, ${width} px, /${legal}`);
       await screenshots(`${code}-${width}-legal-${legal}`);
+      if (legal === 'terms') {
+        // The footer up close, for a look beside the build analyzer's: light in English, dark in Slovak.
+        await theme(code === 'sk' ? 'dark' : 'light');
+        await footerShot(`${code}-${width}-footer-legal-${code === 'sk' ? 'dark' : 'light'}`);
+        await theme('light');
+      }
     }
   }
 }
+
+// The footer's What's new: the survey's own dialog (ui/changelog-dialog, loaded with the press) - every version, the
+// newest first and marked, in the reader's language (the 0.4.0 entry whole in formal Slovak). And its Feedback: the
+// family's form in the kit's dialog, named by the button - for nobody signed in too, the IAM requiring a sign-in and
+// told to turn one down: no "without my name", no address written in, no trip to the IAM; Cancel closes it.
+for (const [code, width] of [
+  ['en', 1280],
+  ['sk', 390],
+]) {
+  await viewport(width);
+  await go(`/terms?lang=${code}`);
+  await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textContent ?? '').trim() === ${JSON.stringify(LEGAL[code].terms)}`, 15000);
+  since = requested.length;
+  await focus('anotoki-site-footer [data-whats-new]');
+  await js("document.querySelector('anotoki-site-footer [data-whats-new]').click(); true");
+  await waitFor(page, "!!document.querySelector('app-changelog-dialog .release')", 15000).catch(() => null);
+  await sleep(400);
+  const releases = await texts('app-changelog-dialog .release .version');
+  expect(
+    `${code}, ${width} px: What's new from the footer - the survey's own dialog, the newest version first and marked, in the reader's language`,
+    (await text('dialog[open] .anotoki-dialog__title')) === (code === 'sk' ? 'Čo je nové' : "What's new") &&
+      releases[0] === (code === 'sk' ? `Verzia ${VERSION}` : `Version ${VERSION}`) &&
+      (await text('app-changelog-dialog .release.latest anotoki-badge')) === (code === 'sk' ? 'Najnovšia' : 'Latest') &&
+      (await js("document.querySelector('app-changelog-dialog .release.latest .changes')?.hasAttribute('lang') ?? true")) === false &&
+      !requested.slice(since).some((line) => line.startsWith('GET /api/oidc/authorize')),
+    `${await text('dialog[open] .anotoki-dialog__title')} / ${JSON.stringify(releases)} / ${await text('app-changelog-dialog .release.latest anotoki-badge')}`,
+  );
+  await expectNoKeys(`${code}, ${width} px, What's new`);
+  await expectNoSideways(`${code}, ${width} px, What's new`);
+  await theme(code === 'sk' ? 'dark' : 'light');
+  await screenshot(`${code}-${width}-whats-new-${code === 'sk' ? 'dark' : 'light'}`);
+  await theme('light');
+  await escape();
+  await sleep(300);
+  expect(`${code}, ${width} px: What's new closed, the focus back on the footer's What's new`, !(await js("!!document.querySelector('app-changelog-dialog')")) && (await js("document.activeElement?.hasAttribute('data-whats-new') ?? false")));
+
+  await focus('anotoki-site-footer [data-open-feedback]');
+  await js("document.querySelector('anotoki-site-footer [data-open-feedback]').click(); true");
+  await waitFor(page, "!!document.querySelector('anotoki-site-footer [data-feedback-dialog] anotoki-feedback-form [data-message] textarea')", 15000).catch(() => null);
+  await sleep(400);
+  expect(
+    `${code}, ${width} px: Feedback from the footer - the family's form in the kit's dialog, named by the button, for nobody signed in: no "without my name", no address written in`,
+    (await text('anotoki-site-footer [data-feedback-dialog] .anotoki-dialog__title')) === FOOTER_ROW[code][4] &&
+      !(await js("!!document.querySelector('[data-feedback-dialog] [data-anonymous]')")) &&
+      (await js("document.querySelector('[data-feedback-dialog] [data-email] input')?.value")) === '' &&
+      (code === 'en' || (await text('[data-feedback-dialog] .anotoki-feedback-form__lead')) === 'Niečo nefunguje, máte nápad alebo otázku? Napíšte nám – čítame každú správu.') &&
+      !requested.slice(since).some((line) => line.startsWith('GET /api/oidc/authorize')),
+    `${await text('anotoki-site-footer [data-feedback-dialog] .anotoki-dialog__title')} / ${await text('[data-feedback-dialog] .anotoki-feedback-form__lead')}`,
+  );
+  await expectNoKeys(`${code}, ${width} px, the footer's feedback form`);
+  await theme(code === 'sk' ? 'dark' : 'light');
+  await screenshot(`${code}-${width}-footer-feedback-${code === 'sk' ? 'dark' : 'light'}`);
+  await theme('light');
+  await js("document.querySelector('[data-feedback-dialog] [data-cancel]').click(); true");
+  await sleep(400);
+  expect(
+    `${code}, ${width} px: the footer's form closed by its Cancel, the focus back on Feedback`,
+    !(await js("!!document.querySelector('[data-feedback-dialog]')")) && (await js("document.activeElement?.closest('anotoki-site-footer') !== null && document.activeElement?.hasAttribute('data-open-feedback')")),
+    await js("document.activeElement?.outerHTML?.slice(0, 80) ?? null"),
+  );
+}
+await viewport(1280);
 // What the pages link to: the anotoki account's - at the IAM the site signs in with -, the family's address.
 await viewport(1280);
 await go('/privacy?lang=en');
@@ -3287,18 +3386,79 @@ await screenshots('sk-390-contact-feedback-form', false);
 await js("document.querySelector('[data-feedback-dialog] .anotoki-dialog__close').click(); true");
 await sleep(300);
 await viewport(1280);
-// The footer under the survey's own pages: signed in, and on the card of a session that ended there.
+// The footer under the survey's own pages: signed in - at 1280 and 390 px, light in English and dark in Slovak - and
+// on the card of a session that ended there.
 await setIam({ user: OWNER, deny: false });
+for (const [code, scheme] of [
+  ['en', 'light'],
+  ['sk', 'dark'],
+]) {
+  for (const width of [1280, 390]) {
+    await viewport(width);
+    await go(`/?lang=${code}`);
+    await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
+    expect(
+      `the survey's home page, signed in, ${code}, ${width} px: the family's footer - "${FOOTER_ROW[code].filter((part) => part !== '·').join(' · ')}", then Terms · Privacy · Contact`,
+      same(await footerRow('app-participant-layout'), FOOTER_ROW[code]) && same(await footerLinks('app-participant-layout'), LEGAL[code].links),
+      `${JSON.stringify(await footerRow('app-participant-layout'))} / ${JSON.stringify(await footerLinks('app-participant-layout'))}`,
+    );
+    await expectNoSideways(`the home page's footer, ${code}, ${width} px`);
+    await theme(scheme);
+    await screenshot(`${code}-${width}-home-footer-${scheme}`, true);
+    await footerShot(`${code}-${width}-footer-home-${scheme}`);
+    await theme('light');
+  }
+}
+await viewport(1280);
 await go('/?lang=en');
 await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
-expect("the survey's home page, signed in: Terms · Privacy · Contact in the footer", same(await footerLinks('app-participant-layout'), LEGAL.en.links), JSON.stringify(await footerLinks('app-participant-layout')));
-await screenshot('en-1280-home-footer', true);
 await sessionEndsOn('/');
-expect('the card of a session that ended: the footer still under it, its Privacy reached with no sign-in', same(await footerLinks('app-participant-layout'), LEGAL.en.links), JSON.stringify(await footerLinks('app-participant-layout')));
-await clickText('app-participant-layout app-site-footer .anotoki-legal-links__link', 'Privacy');
+expect(
+  'the card of a session that ended: the footer still under it - Feedback too, anybody\'s here -, its Privacy reached with no sign-in',
+  same(await footerRow('app-participant-layout'), FOOTER_ROW.en) && same(await footerLinks('app-participant-layout'), LEGAL.en.links),
+  `${JSON.stringify(await footerRow('app-participant-layout'))} / ${JSON.stringify(await footerLinks('app-participant-layout'))}`,
+);
+await clickText('app-participant-layout anotoki-site-footer .anotoki-legal-links__link', 'Privacy');
 await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textContent ?? '').trim() === 'Privacy policy'`, 15000).catch(() => null);
 expect('... and Privacy opens from it, nobody signed in', (await legalHeading()) === 'Privacy policy' && (await js('location.pathname')) === '/privacy', `${await legalHeading()} / ${await js('location.pathname')}`);
 await signInAs(OWNER);
+
+// The footer under the admin panel too (the owner, 2026-10-18: the family's footer in every admin panel) - in English
+// like the rest of the panel, from a Slovak tab as well; at 1280 and 390 px, light and dark. Its What's new is the
+// survey's own dialog, in English there.
+for (const width of [1280, 390]) {
+  await viewport(width);
+  await go('/admin?lang=sk');
+  await waitFor(page, "!!document.querySelector('app-surveys-list')", 15000);
+  await sleep(400);
+  expect(
+    `the admin panel, ${width} px, from a Slovak tab: the family's footer under it, in English - "${FOOTER_ROW.en.filter((part) => part !== '·').join(' · ')}", then Terms · Privacy · Contact`,
+    same(await footerRow('app-admin-layout'), FOOTER_ROW.en) && same(await footerLinks('app-admin-layout'), LEGAL.en.links) && (await js("!!document.querySelector('app-admin-layout > main + anotoki-site-footer')")),
+    `${JSON.stringify(await footerRow('app-admin-layout'))} / ${JSON.stringify(await footerLinks('app-admin-layout'))}`,
+  );
+  await expectNoKeys(`the admin panel's footer, ${width} px`);
+  await expectNoSideways(`the admin panel's footer, ${width} px`);
+  await screenshots(`admin-${width}-surveys-footer`);
+  await footerShot(`admin-${width}-footer-light`);
+  await theme('dark');
+  await footerShot(`admin-${width}-footer-dark`);
+  await theme('light');
+}
+await viewport(1280);
+await focus('app-admin-layout anotoki-site-footer [data-whats-new]');
+await js("document.querySelector('app-admin-layout anotoki-site-footer [data-whats-new]').click(); true");
+await waitFor(page, "!!document.querySelector('app-changelog-dialog .release')", 15000).catch(() => null);
+await sleep(400);
+expect(
+  "the admin panel's What's new: the survey's own dialog, in English from the Slovak tab too",
+  (await text('dialog[open] .anotoki-dialog__title')) === "What's new" && (await text('app-changelog-dialog .release .version')) === `Version ${VERSION}`,
+  `${await text('dialog[open] .anotoki-dialog__title')} / ${await text('app-changelog-dialog .release .version')}`,
+);
+await screenshot('admin-1280-whats-new-light');
+await escape();
+await sleep(300);
+await go('/?lang=en');
+await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
 
 // ═══ Feedback, on the admin panel ══════════════════════════════════════════
 // The message nobody sent from the Contact page: no mail goes out, so the admin panel says it - how many messages

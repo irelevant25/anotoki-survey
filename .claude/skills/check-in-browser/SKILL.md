@@ -1,6 +1,6 @@
 ---
 name: check-in-browser
-description: Check the survey site in a real browser, signed in, end to end - every page signed in first (to the IAM and back, nothing of a survey before), the family's top bar at 360, 390 and 1280 px with its phone menu; the owner writes and opens a survey with a picture, somebody takes it once, the results and the roles; the pages people take surveys on in Slovak (the top bar on a phone, a survey step by step, no key where a word should be, the admin panel English all the same); and the translating itself (the Translations and Languages pages, a survey translated in the editor, read in Slovak, in English where a text is missing, and which language each person read it in); and what goes wrong (a sign-in the IAM turns down or the browser cannot start - the anotoki family's screen that says why, in English and formal Slovak -, a save the server fails on, a session that ends over unsaved strings, a save over a translator's save, the site not set up - never installed, or installed once - or out of reach, a database behind the code: the anotoki family's page for everybody, bare - no top bar, no footer -, and the admin panel's Migrations page that applies it, reached by a Sign in from that page); and visitors - the IAM's "Sign-in required" switched off: surveys taken without signing in, in two browsers, "Visitor N" / "Not signed in" in the admin panel, the answers and the draft moved into the account at a sign-in, and a visitor sent to sign in once the switch is on again; and the ADMIN's System pages (People with the scrub of an account the IAM deleted and a person's answers deleted, Feedback, the error log, the audit log, the backups made after a new sign-in, downloaded and deleted) and an EDITOR kept out of them; and Terms, Privacy and Contact with the footer's links to them - Contact's feedback form sent by nobody signed in, then counted beside System, opened, resolved and deleted on the admin panel - with headless Chrome or Edge and the anotoki library's stand-in IAM, on a throwaway database. Use after any change to the frontend, the API, sign-in, the site's strings or a survey's translations, before saying a change works, when a page renders blank or looks broken, or when the user asks to see or screenshot the site.
+description: Check the survey site in a real browser, signed in, end to end - every page signed in first (to the IAM and back, nothing of a survey before), the family's top bar at 360, 390 and 1280 px with its phone menu; the owner writes and opens a survey with a picture, somebody takes it once, the results and the roles; the pages people take surveys on in Slovak (the top bar on a phone, a survey step by step, no key where a word should be, the admin panel English all the same); and the translating itself (the Translations and Languages pages, a survey translated in the editor, read in Slovak, in English where a text is missing, and which language each person read it in); and what goes wrong (a sign-in the IAM turns down or the browser cannot start - the anotoki family's screen that says why, in English and formal Slovak -, a save the server fails on, a session that ends over unsaved strings, a save over a translator's save, the site not set up - never installed, or installed once - or out of reach, a database behind the code: the anotoki family's page for everybody, bare - no top bar, no footer -, and the admin panel's Migrations page that applies it, reached by a Sign in from that page); and visitors - the IAM's "Sign-in required" switched off: surveys taken without signing in, in two browsers, "Visitor N" / "Not signed in" in the admin panel, the answers and the draft moved into the account at a sign-in, and a visitor sent to sign in once the switch is on again; and the ADMIN's System pages (People with the scrub of an account the IAM deleted and a person's answers deleted, Feedback, the error log, the audit log, the backups made after a new sign-in, downloaded and deleted) and an EDITOR kept out of them; and Terms, Privacy and Contact, and the anotoki family's footer under every page and the admin panel - the version, What's new (the survey's own list), Feedback (the family's form), Terms · Privacy · Contact; none round the family's page, no Feedback in it while an update waits - Contact's feedback form sent by nobody signed in, then counted beside System, opened, resolved and deleted on the admin panel - with headless Chrome or Edge and the anotoki library's stand-in IAM, on a throwaway database. Use after any change to the frontend, the API, sign-in, the site's strings or a survey's translations, before saying a change works, when a page renders blank or looks broken, or when the user asks to see or screenshot the site.
 ---
 
 # Check the survey site in a browser
@@ -152,13 +152,26 @@ hundred). Look at them - a check can pass on a page that looks wrong:
 - the legal pages, nobody signed in: `en-1280-legal-terms-*`,
   `-privacy-*`, `-contact-*`, the same at `390`, and `sk-1280-legal-*` /
   `sk-390-legal-*` (Terms, Privacy, Contact - the family's pages with this
-  site's facts; the footer's three links under them, Sign in in the bar);
+  site's facts; the family's footer under them, Sign in in the bar);
+  `en-1280-footer-legal-light`, `en-390-…`, `sk-1280-footer-legal-dark`,
+  `sk-390-…` (the footer up close - its top border, "Version · What's new ·
+  Feedback", Terms · Privacy · Contact - for a look beside the build
+  analyzer's: light in English, dark in Slovak); `en-1280-whats-new-light` /
+  `sk-390-whats-new-dark` (the footer's What's new: the survey's own list, the
+  newest version first and marked), `en-1280-footer-feedback-light` /
+  `sk-390-footer-feedback-dark` (the footer's Feedback: the family's form in
+  the kit's dialog, for nobody signed in);
   `en-1280-contact-feedback-form-*` (Contact's "Send feedback" pressed: the
   family's form in the kit's dialog, for nobody signed in - no "without my
   name", no address), `en-1280-contact-feedback-sent` (the thanks in place),
   `sk-390-contact-feedback-form-*` (the form in the site's formal Slovak, on a
-  phone); `en-1280-home-footer` (the home page, signed in, the footer at its
-  foot);
+  phone); `en-1280-home-footer-light`, `en-390-…`, `sk-1280-home-footer-dark`,
+  `sk-390-…` (the home page, signed in, the footer at its foot; the
+  `-footer-home-` ones up close); `admin-1280-surveys-footer-*`,
+  `admin-390-…` (the admin panel with its footer, light and dark, English from
+  a Slovak tab), `admin-1280-footer-light` / `-dark`, `admin-390-…` (up
+  close), `admin-1280-whats-new-light` (What's new from the admin panel, in
+  English);
 - that message on the admin panel: `admin-761-bar-feedback-count`,
   `admin-960-…`, `admin-961-…`, `admin-390-bar-feedback-count-*` (the count
   beside System, the bar fitting), `admin-system-feedback-count-1280-*`
@@ -452,7 +465,10 @@ A database behind the code - the one stage that changes the database itself
     out at `/admin/migrations`, signs in from it: back there, on the family's
     Migrations page - the six files pending in one list in the order they
     run (the site's by their names, the library's with their set, anotoki-lib
-    0.4.0), only "Migrations" in the bar, the tab "Migrations · …". On a
+    0.4.0), only "Migrations" in the bar, the tab "Migrations · …" - in the
+    admin panel's frame, its bar and the family's footer, which offers the
+    version and What's new but no Feedback while the update waits (and offers
+    it again once the Apply is up to date). On a
     Slovak page the owner reads "A database update is waiting" (English,
     `lang="en"`) with "Open Migrations", which opens the page at 1280.
     "Apply pending", asked "Apply 6 pending migrations?": a backup of the
@@ -534,16 +550,24 @@ backups' makers; 0.6.2's Feedback), English:
     light and dark.
 
 Terms, Privacy and Contact (anotoki-lib 0.6.0's legal pages, this site's facts;
-0.6.2's feedback form):
+0.6.2's feedback form; 0.6.3's footer):
 
 25. Nobody signed in (the session forgotten), the IAM requiring a sign-in
     and told to turn one down: `/terms`, `/privacy` and `/contact`, each with
     `?lang=en` and `?lang=sk`, at 1280 and 390 px - each opens with no trip to
     the IAM (`GET /api/oidc/authorize`) and no survey asked for, its heading
     and tab in the language ("Terms of use · anotoki survey", "Ochrana
-    osobných údajov · anotoki prieskum"), the footer's three links under it
-    (that page's marked `aria-current`), Sign in in the bar, no key on the
-    page, the bar fitting; light and dark. Privacy: the anotoki account's own
+    osobných údajov · anotoki prieskum"), the family's footer under it -
+    "Version X · What's new · Feedback" ("Verzia X · Čo je nové · Spätná
+    väzba"; X the served `changelog.json`'s newest), then the three links
+    (that page's marked `aria-current`) -, Sign in in the bar, no key on the
+    page, the bar fitting; light and dark. The footer's What's new (English at
+    1280, Slovak at 390): the survey's own dialog, the newest version first
+    with "Latest" / "Najnovšia", its sentences in the page's language; Escape
+    closes it, the focus back on What's new. Its Feedback: the family's form
+    in the kit's dialog named "Feedback" / "Spätná väzba", for nobody - no
+    "without my name", no address, the formal Slovak lead -, no trip to the
+    IAM; its Cancel closes it, the focus back on Feedback. Privacy: the anotoki account's own
     Privacy page and account page are the stand-in IAM's addresses, the
     site's parts in order (its three, the visitors, feedback, the error log,
     the audit log, the backups), what a feedback message keeps (the library's
@@ -558,8 +582,12 @@ Terms, Privacy and Contact (anotoki-lib 0.6.0's legal pages, this site's facts;
     place, `POST /api/feedback`, no trip to the IAM; closed by the dialog's X,
     the focus back on the button. In Slovak at 390 px: the form in the site's
     formal Slovak ("Vaša správa"), never the library's ty, no sideways
-    scroll. Then the footer under the home page signed in, and under the card
-    of a session that ended there - whose Privacy opens with nobody signed in.
+    scroll. Then the footer under the home page signed in (English light and
+    Slovak dark, at 1280 and 390 px), and under the card of a session that
+    ended there - Feedback in it, anybody's here - whose Privacy opens with
+    nobody signed in. Then the admin panel's: the same footer under it, in
+    English from a Slovak tab, at 1280 and 390 px, light and dark; its What's
+    new the same list, in English.
 
 26. That message on the admin panel, the owner signed in again: beside System
     in the bar the count nobody opened yet ("1", heard as ", 1 new feedback
@@ -616,8 +644,11 @@ again), `forgetSession()`,
 `screenshot(name, whole)` and `screenshots(name)` (the same page light, then
 dark), `expect(what, ok, detail)`, `expectBar(where)` (the top bar holds what
 is in it, and nothing scrolls sideways), `expectNoSideways(where)`,
-`framesDrawn()` (how many of the site's frames - the bar, the footer, the
-layouts that hold them - are on the page: none on a page drawn instead of it),
+`framesDrawn()` (how many of the site's frames - the bar, the family's footer,
+the layouts that hold them - are on the page: none on a page drawn instead of
+it), `footerRow(frame)` (the footer's first row under a frame, its dots too;
+`FOOTER_ROW.en` / `.sk` as it should read, the version `VERSION` from the
+served `changelog.json`), `footerShot(name)` (the footer up close),
 `expectNoKeys(where)`, `text(selector)` / `texts(selector)`, `fill(selector,
 value)` (a field's or a box's content replaced), `saved()` (the editor's header
 says Saved), `marked(root)` (everything under `root` that says a language of

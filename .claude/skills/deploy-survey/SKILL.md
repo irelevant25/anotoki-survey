@@ -120,13 +120,19 @@ the upload move any survey opened at the address `terms`, `privacy` or
 those addresses). After it, open `/privacy` signed out: the anotoki account's
 Privacy page and account page are the IAM's.
 
-**Version 0.4.0, still anotoki-lib 0.6.2**: feedback (the Contact page's form,
-the admin panel's Feedback page), the version and its What's new list, and two
-hardenings. It brings `014_feedback_words.sql` (the library's feedback words
+**Version 0.4.0, on anotoki-lib 0.6.3, both halves**: the family's footer
+under every page and the admin panel ("Version 0.4.0 · What's new · Feedback",
+then Terms · Privacy · Contact), feedback (the footer's and the Contact page's
+form, the admin panel's Feedback page), the version and its What's new list,
+and two hardenings. It brings `014_feedback_words.sql` (the library's feedback words
 in formal Slovak, written only where the library's informal ones still stand:
 an owner's rewording stays) and `015_whats_new_and_feedback.sql` (the
-Privacy page's sentence on how long feedback is kept, What's new's words):
-Apply on the Migrations page. The feedback table is the library's
+Privacy page's sentence on how long feedback is kept, What's new's words),
+then the library's `anotoki_translations/012_footer_words.sql` (the footer's
+four words): Apply on the Migrations page - until then the admin panel's
+footer round it offers no Feedback, and the footer says the library's built-in
+words. After it, open a page signed out: the footer's version is the
+release's, What's new lists it, Feedback opens the form. The feedback table is the library's
 `anotoki_admin/002`, applied since 0.4.1. **A `config/cloudflare.local.php`
 on the host must name its secret** - `['origin_secret' => '<a string>']`: one
 read cleanly with the secret blank, misspelt, or not a string - or a folder
@@ -233,10 +239,12 @@ ADMIN only to the administrators the IAM had when it ran.
   backups open (the Apply's backup listed); `/storage/logs/`,
   `/storage/backups/` and `/storage/anotoki-lib.key` are refused (403), not
   served.
-- Signed out, Contact's "Send feedback" opens the form; a message sent shows
-  the thanks, and the admin panel counts it beside System until it is opened.
-  `https://survey.anotoki.eu/changelog.json` lists the release's version
-  first.
+- Signed out, Contact's "Send feedback" and the footer's Feedback open the
+  form; a message sent shows the thanks, and the admin panel counts it beside
+  System until it is opened. `https://survey.anotoki.eu/changelog.json` lists
+  the release's version first, the footer under every page says it ("Version
+  0.4.0") and its What's new opens the list; the admin panel has the same
+  footer, in English.
 - `https://survey.anotoki.eu/setup.php` does not show the installer.
 - `/config/database.local.php`, `/storage/`, `/vendor/composer/installed.json`,
   `/api/auth.php` are refused (403), not served.

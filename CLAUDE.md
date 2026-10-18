@@ -60,7 +60,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   day (`settingsSaid()`) by its kind and line, its start or its byte count -
   never its text, nor what PHP said of it.
 - **While the site cannot run, the anotoki family's library decides what
-  happens** (anotoki-lib 0.6.2, both halves - `anotoki/lib` in `backend/vendor/`,
+  happens** (anotoki-lib 0.6.3, both halves - `anotoki/lib` in `backend/vendor/`,
   `@anotoki/lib` in the frontend -, one release line: a patch
   that changes one half alone leaves the other where it is; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
@@ -83,8 +83,10 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   "being updated" for everybody - a quiet Sign in while nobody is signed in -
   and the way to the Migrations page for the site's ADMIN. **It stands alone:
   no top bar, no footer** (the owner, 2026-10-18 - they live in the routed
-  frames, which the gate does not make; `app.component.spec.ts` holds it in
-  every state). Applying takes one
+  frames, the admin panel's too, which the gate does not make;
+  `app.component.spec.ts` holds it in every state; the ADMIN on the Migrations
+  page while an update waits has the site's pages, so the admin panel's frame
+  round them - its footer with no Feedback then). Applying takes one
   lock (`DATABASE_UPDATE_LOCK`) shared with `setup.php`, `migration.php`, the
   tests' template and the backups; the Apply and `migration.php` make a backup
   of the database first (none can be made: nothing is applied).
@@ -133,7 +135,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   `storage/anotoki-lib.key`), the error log's `client` likewise - a stable
   pseudonym of the address while that key lasts (whoever holds the key can
   try every IPv4 address against it), never a secret.
-- **Signing in is the anotoki family's library's** (anotoki-lib 0.6.2, the
+- **Signing in is the anotoki family's library's** (anotoki-lib 0.6.3, the
   `Auth` module on both halves - the IAM's SDKs are gone from this site):
   `Anotoki\Lib\Auth` on the server (`api/auth.php`, `meddleware/auth.php`),
   `@anotoki/lib/auth` in the browser (`AnotokiAuth`, its interceptor, guards,
@@ -172,17 +174,28 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   anotoki account's Privacy page and account page from the IAM's address the
   site signs in with (`AnotokiAuth.issuer()`, `accountUrl()`) -, never a
   string an administrator could reword. Contact opens the feedback form
-  first (below), then gives the family's address. The footer's Terms ·
-  Privacy · Contact (`layouts/site-footer`, the family's
-  `<anotoki-legal-links>`) is under the survey's pages and the legal pages,
-  not in the admin panel - until the family's footer (`<anotoki-site-footer>`,
-  anotoki-lib 0.6.3) takes its place: no footer of the site's own is built
-  meanwhile; the three paths are among the addresses no survey may have
-  (`RESERVED_SLUGS` ↔ `SURVEY_RESERVED_SLUGS`).
+  first (below), then gives the family's address. Their links are in the
+  family's footer (below); the three paths are among the addresses no survey
+  may have (`RESERVED_SLUGS` ↔ `SURVEY_RESERVED_SLUGS`).
+- **One footer, the family's** (anotoki-lib 0.6.3's `<anotoki-site-footer>`,
+  `@anotoki/lib/footer` - the build analyzer's, the owner's choice of
+  2026-10-18; `docs/decisions.md`): at the foot of each frame - the survey's
+  pages (under the card of a session that ended too), the legal pages and the
+  admin panel (under its cards too) -, never round the family's page: a top
+  border, "Version 0.4.0 · What's new · Feedback", then Terms · Privacy ·
+  Contact; no fan clause. The version is `Changelog.current()` and What's new
+  the survey's own dialog on `(whatsNew)` (`changelog.open()`) - neither while
+  the list cannot be had; Feedback the family's form, which the footer opens
+  itself - anybody's (below), so under every frame, but not in the admin
+  panel's while an update waits (`[feedback]="!siteStatus.blocked()"`: the
+  server would refuse it). Its words are the library's (`anotoki.footer.*`,
+  its translations `012`; their Slovak impersonal), in the language on the
+  page - English in the admin panel. No footer of the site's own: a part the
+  family's lacks goes to the library.
 - **Feedback is the family's library's** (anotoki-lib 0.6.2's Feedback; the
   owner's wish of 2026-10-18, `docs/decisions.md`): the form
-  (`@anotoki/lib/feedback/form`, loaded with the first press - the Contact
-  page opens it, the family's footer will; `core/feedback.ts`), its route
+  (`@anotoki/lib/feedback/form`, loaded with the first press - the family's
+  footer's Feedback and the Contact page open it; `core/feedback.ts`), its route
   `POST /api/feedback` (`routes/feedback.php`) and the admin page
   (`/admin/feedback`, `@anotoki/lib/admin/feedback`, an ADMIN's System page;
   `/api/admin/feedback`), the library's table (`anotoki_feedback`, its admin
@@ -380,7 +393,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. **The UI kit is the anotoki family's**
-  (anotoki-lib 0.6.2: each piece from its own entry point -
+  (anotoki-lib 0.6.3: each piece from its own entry point -
   `@anotoki/lib/ui/button`, `/ui/icon`, `/ui/config`, `/ui/link-card` (the
   survey home's and the System page's cards that are one link),
   `/ui/chips` (the results' filters, `<anotoki-chip-list>`), ... - never the
@@ -413,12 +426,13 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   sites' shape (version, day, what was added, fixed, changed - for people)
   with each version's whole formal-Slovak translation beside it
   (`translations.sk`); the newest entry is the site's version, one source
-  (`Changelog.current()`, `core/changelog/`), and `frontend/package.json`'s
-  (and `package-lock.json`'s) is held to it by a spec - a release adds its
-  entry first and moves both. What's new is the kit's dialog
-  (`ui/changelog-dialog`, lazy), opened only when asked - by the family's
-  footer, once the site takes it - never by itself, so nothing about it is
-  kept in a browser.
+  (`Changelog.current()`, `core/changelog/`, asked for as the site starts -
+  `boot()`, never waited for), the footer's "Version", and
+  `frontend/package.json`'s (and `package-lock.json`'s) is held to it by a
+  spec - a release adds its entry first and moves both. What's new is the
+  kit's dialog (`ui/changelog-dialog`, lazy), opened only when asked - by the
+  family's footer's What's new - never by itself, so nothing about it is kept
+  in a browser.
 
 ## Commands
 

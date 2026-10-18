@@ -207,11 +207,14 @@ Then the house style:
 - Angular: three files per component, OnPush, signals, `inject()`, inputs for
   route/query parameters, colours from tokens (light and dark), 390 px; no
   logic duplicated from `core/` into a component. The UI kit is the family's
-  (`@anotoki/lib` 0.6.2): a copy of a kit piece in `src/app/ui/`, a global
+  (`@anotoki/lib` 0.6.3): a copy of a kit piece in `src/app/ui/`, a global
   style a kit component would meet, an import from the `@anotoki/lib/ui`
   barrel instead of the piece's own entry point (the first load), or a
   selector of the kit's 0.2.0 class names in a spec or the browser check
-  (they read nothing now) is a finding.
+  (they read nothing now) is a finding. So is a footer of the site's own, or
+  a frame without the family's (`<anotoki-site-footer>`: the version, What's
+  new, Feedback - none in the admin panel while an update waits -, Terms ·
+  Privacy · Contact), or anything of a frame round the family's status page.
 - PHP: `declare(strict_types=1)`, functions by area, comments that say why.
 - Tests: new rules, routes and refusals have tests (`backend/tests/`, `*.spec.ts`);
   `php tests/run.php` and `npm test` pass - run them. A test must fail with
