@@ -1,7 +1,7 @@
 ////
 /// The frame of the pages people read - the survey's own (layouts/participant-layout) and the legal pages
-/// (layouts/legal-layout): the light behind them, the skip link, the column under the top bar, and the footer's
-/// links (layouts/site-footer) at the foot of the window on a short page, after the page on a long one.
+/// (layouts/legal-layout): the light behind them, the skip link, the column under the top bar, and the family's
+/// footer (<anotoki-site-footer>) at the foot of the window on a short page, after the page on a long one.
 ////
 
 @mixin frame {

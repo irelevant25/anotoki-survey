@@ -5,8 +5,8 @@
     "changes": {
       "added": [
         "Terms, Privacy and Contact, at the foot of the pages: the rules of using the survey site, what it keeps about you and your answers and for how long, and how to reach us - anybody may read them, signed in or not",
-        "Send feedback: tell the people who look after the survey site about something that does not work, an idea or anything else - with your name, or without it. The Contact page opens the form",
-        "The version of the survey site, and What's new - this list of what each version changed"
+        "Send feedback: tell the people who look after the survey site about something that does not work, an idea or anything else - with your name, or without it. Feedback at the foot of every page opens the form, and so does the Contact page",
+        "At the foot of every page: the version of the survey site, and What's new - this list of what each version changed"
       ],
       "updated": [
         "On the home page, each open survey is one card: press anywhere on it to open the survey",
@@ -17,8 +17,8 @@
       "sk": {
         "added": [
           "Podmienky, Súkromie a Kontakt v spodnej časti stránok: pravidlá používania stránky s prieskumami, čo si o Vás a Vašich odpovediach uchováva a ako dlho, a ako nás zastihnúť – prečítať si ich môže ktokoľvek, prihlásený aj neprihlásený",
-          "Spätná väzba: povedzte tým, ktorí sa o stránku s prieskumami starajú, čo nefunguje, aký máte nápad alebo čokoľvek iné – s Vaším menom alebo bez neho. Formulár otvoríte na stránke Kontakt",
-          "Verzia stránky s prieskumami a Čo je nové – tento zoznam toho, čo zmenila každá verzia"
+          "Spätná väzba: povedzte tým, ktorí sa o stránku s prieskumami starajú, čo nefunguje, aký máte nápad alebo čokoľvek iné – s Vaším menom alebo bez neho. Formulár otvoríte tlačidlom Spätná väzba v spodnej časti každej stránky alebo na stránke Kontakt",
+          "V spodnej časti každej stránky: verzia stránky s prieskumami a Čo je nové – tento zoznam toho, čo zmenila každá verzia"
         ],
         "updated": [
           "Na úvodnej stránke je každý otvorený prieskum jednou kartou: prieskum otvoríte stlačením kdekoľvek na nej",

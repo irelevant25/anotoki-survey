@@ -28,7 +28,7 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib 0.6.2, its
+client `survey`, with the anotoki family's library (anotoki-lib 0.6.3, its
 `Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
@@ -300,7 +300,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib 0.6.2, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib 0.6.3, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -345,7 +345,7 @@ answer, every survey's author and every visitor lives in `users`):
 ## The admin tools
 
 The error log, the audit log, feedback and the backups are the anotoki
-family's (anotoki-lib 0.6.2, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
+family's (anotoki-lib 0.6.3, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
 `Feedback`, `Backups` - wired in `api/admin_tools.php`, their routes in
 `routes/admin.php` (feedback's form in `routes/feedback.php`); the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/feedback`, `/backups`, configured in
@@ -363,10 +363,13 @@ and are in every backup).
 
 - **Feedback** (the owner's wish of 2026-10-18; before it, none) - the
   library's form (`@anotoki/lib/feedback/form`, its code loaded with the first
-  press; set up in `core/feedback.ts`) opened from the Contact page (and,
-  once the site takes it, the family's footer), sending `POST /api/feedback`
-  for anybody - a person, a visitor, nobody, whether sign-in is required or
-  not. Who sent it is the token's alone (`Identify` in front, `RecordPerson`
+  press; set up in `core/feedback.ts`) opened from the family's footer's
+  Feedback under every page (its dialog the footer's own,
+  `@anotoki/lib/footer/feedback`, loaded with the press) and from the Contact
+  page, sending `POST /api/feedback` for anybody - a person, a visitor,
+  nobody, whether sign-in is required or not; the admin panel's footer
+  offers it only while the site runs (round the Migrations page while an
+  update waits the server would refuse it, 503 `update_pending`). Who sent it is the token's alone (`Identify` in front, `RecordPerson`
   after it), the person's id and nothing else - none at all for a message
   sent "without my name"; a visitor's key is never read there. In the browser
   the message says whom it is for as it is issued (`feedbackSenderInterceptor`,
@@ -610,12 +613,45 @@ are the library's, the facts this site's.
   everything else, and the IAM's account page to delete the account; Privacy
   lists the feedback - what it keeps and what for in the library's words, how
   long in the site's (`legal.feedback.kept`, migration 015).
-- **The footer** (`layouts/site-footer`, the family's `<anotoki-legal-links>`):
-  Terms · Privacy · Contact under the survey's pages - the card of a session
-  that ended too - and under the legal pages; not in the admin panel. The
-  family's footer (`<anotoki-site-footer>`, anotoki-lib 0.6.3) takes its place
-  next, with the version and What's new (*What's new and the version*, below)
-  and Send feedback.
+- **Their links** are in the family's footer under every page (*The footer*,
+  below): Terms · Privacy · Contact (`<anotoki-legal-links>`, the paths and
+  words of `provideAnotokiLegal()`), the open page marked.
+
+## The footer
+
+The anotoki family's footer (`<anotoki-site-footer>`, anotoki-lib 0.6.3's
+`@anotoki/lib/footer`; the owner's choice of 2026-10-18 - the build analyzer's
+footer, its order, its words and its top border, on every site and in every
+admin panel), at the foot of each of the site's frames: the survey's pages
+(`layouts/participant-layout` - under the card of a session that ended too),
+the legal pages (`layouts/legal-layout`) and the admin panel
+(`layouts/admin-layout`, under its cards too). The site's own footer
+(`layouts/site-footer`, the legal links alone) went for it; it had no words of
+its own, so no key went with it. A top border; then one row:
+
+- **Version 0.4.0** - `Changelog.current()`, the newest entry of
+  `public/changelog.json` (*What's new and the version*, below), asked for as
+  the site starts (`boot()`, never waited for): there when the first page is
+  drawn;
+- **What's new** - the survey's own dialog: the footer says it was pressed
+  (`(whatsNew)`), the frame opens `Changelog.open()`. Neither it nor the
+  version while the list cannot be had;
+- **Feedback** - the family's form in the kit's dialog, opened by the footer
+  itself (its code with the press, `@anotoki/lib/footer/feedback`), set up by
+  the site's `provideAnotokiFeedback()` (`core/feedback.ts`): anybody's here,
+  so under every frame for anybody, the message marked whom it is for
+  (`feedbackSenderInterceptor`); in the admin panel only while the site runs
+  (round the Migrations page while an update waits the server would refuse it);
+
+then Terms · Privacy · Contact; no fan clause (the survey is no fan site). Its
+words are the library's (`anotoki.footer.*`, the library's translations `012`;
+`anotoki.legalLinks.*`), read by the footer itself through the kit's lookup -
+the database's string first, an owner's rewording - in the language on the
+page, English in the admin panel; their Slovak addresses nobody, so it fits
+the survey's formal Slovak with nothing taken over. Never round the family's
+page shown while the site cannot run: the frames are routed, inside the gate's
+pages (*A database behind the code*, below). About 16 kB raw (4.5 kB sent) of the first
+load, with the changelog's service.
 
 ## What's new and the version
 
@@ -624,18 +660,18 @@ lists the survey's versions, newest first, in the other anotoki sites' shape -
 `{version, date, changes: {added?, fixed?, updated?}}`, each sentence about
 something people notice - with each version's formal-Slovak translation
 beside it (`translations.sk`). `Changelog` (`core/changelog/changelog.service.ts`)
-asks for it once a page load, when something first wants it (never the API:
-the file is shipped beside `index.html`); the newest entry is the site's
-version (`current()`) - one source, `frontend/package.json`'s held to it by a
+asks for it once a page load, as the site starts (`boot()`, beside everything
+else and never waited for; never the API: the file is shipped beside
+`index.html`); the newest entry is the site's version (`current()`), which the
+family's footer shows - one source, `frontend/package.json`'s held to it by a
 spec. What's new (`Changelog.open()`) is the kit's dialog
 (`ui/changelog-dialog`, loaded with the first press): every version, newest
 first, its day in the account's date order, its lists under the site's words
 (`whatsNew.*`, migration 015) - in the reader's language where the version's
 translation is whole (`changesIn()`), in English otherwise, marked
-`lang="en"`. It opens only when asked - the family's footer's link, once the
-site takes it; until then nothing opens it - and never by itself, so the
-browser keeps nothing of it. A list that cannot be had (a broken upload)
-leaves no version and no What's new.
+`lang="en"`. It opens only when asked - the family's footer's What's new, in
+each frame - and never by itself, so the browser keeps nothing of it. A list
+that cannot be had (a broken upload) leaves no version and no What's new.
 
 ## The account's preferences
 
@@ -789,8 +825,11 @@ template marked `<ng-template anotokiSitePages>`, which the gate makes only
 while it shows the pages - anotoki-lib 0.2.0; an outlet given as it is would
 be made anyway and put the page in place out of sight, where it would run, and
 an unmarked template is not the pages at all) - standing alone, with no top bar
-and no footer, which live in the routed frames the gate does not make (the
-owner's wish of 2026-10-18; `app.component.spec.ts`): to somebody taking surveys,
+and no footer, which live in the routed frames the gate does not make - the
+admin panel's too (the owner's wish of 2026-10-18; `app.component.spec.ts`
+draws the three real frames and counts them; the ADMIN on the Migrations page
+while an update waits has the site's pages, so the admin panel's frame round
+them, its footer offering no Feedback then): to somebody taking surveys,
 or an EDITOR, "The site is being
 updated" in their language - no error, no code, nothing to press but a quiet
 Sign in while nobody is signed in - which asks again by itself and reloads once

@@ -39,12 +39,13 @@ its README), one version for both halves:
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
 | PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.6.0"` (on 0.x a `^0.5.0` would never take 0.6) | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`php/testing/stand-in-iam.php`), and its migration sets (`php/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.6.2/anotoki-lib-0.6.2.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.6.3/anotoki-lib-0.6.3.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-Both halves are at 0.6.2 (0.6.0 brought the legal pages, the kit's new pieces
+Both halves are at 0.6.3 (0.6.0 brought the legal pages, the kit's new pieces
 and the admin pages' fixes; 0.6.1 a sentence of the Privacy page - its
 translations `010`; 0.6.2 three more - `011`, which keeps a site's own
-words); a release that changes one half only says so in its CHANGELOG. The
+words - and the feedback form; 0.6.3 the family's footer, `@anotoki/lib/footer`,
+and its four words - translations `012`); a release that changes one half only says so in its CHANGELOG. The
 kit is imported a piece at a time, each from its
 own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
 smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages
@@ -55,8 +56,9 @@ points of their own (`@anotoki/lib/translations/admin`,
 (`@anotoki/lib/auth/screens`, loaded as they are shown) and the legal pages
 (`@anotoki/lib/legal/pages` - Terms, Privacy, Contact -, with their frame and
 the site's facts: `layouts/legal-layout`, `core/legal/legal-facts.ts`); the
-footer's links to them are `@anotoki/lib/legal` (`<anotoki-legal-links>`, in
-the first load); the pages' errors
+family's footer is `@anotoki/lib/footer` (`<anotoki-site-footer>`, in the first
+load, with the links to them, `@anotoki/lib/legal`'s `<anotoki-legal-links>`;
+its feedback dialog comes with the press, `@anotoki/lib/footer/feedback`); the pages' errors
 go to the error log through `@anotoki/lib/error-report` (`app.config.ts`).
 The package brings Manrope
 with it (`@fontsource-variable/manrope`, its dependency) and the theme's
@@ -335,7 +337,8 @@ signing in again), signing out over them, a language added hidden, an open
 survey with a text not translated yet, an author saving over a translator's
 save, a database behind the code (the family's page for everybody, bare - no
 top bar, no footer -, the Migrations page for the ADMIN who signs in from
-it), the site not set up or out of reach - bare too, with "Try again" - and
+it, in the admin panel's frame - its footer offering no Feedback until the
+update is applied), the site not set up or out of reach - bare too, with "Try again" - and
 visitors:
 the stand-in's "Sign-in required" switched off, surveys taken without signing
 in (in a second browser too), "Visitor N" / "Not signed in" in the results,
@@ -348,8 +351,12 @@ audit log, the backups (one made after a new sign-in, named by its maker,
 downloaded by its link, deleted) - and an EDITOR kept out of them; and Terms,
 Privacy and Contact - opened with nobody signed in and no trip to the IAM, at
 1280 and 390 px, light and dark, in English and Slovak, the anotoki account's
-Privacy page and account page the stand-in IAM's, the footer's links under the
-survey's pages and the card of a session that ended; Contact's feedback form
+Privacy page and account page the stand-in IAM's; the family's footer -
+"Version · What's new · Feedback", then Terms · Privacy · Contact - under them,
+under the survey's pages and the card of a session that ended, and under the
+admin panel in its English (each looked at up close, light in English and dark
+in Slovak), its What's new opening the survey's own list and its Feedback the
+family's form; Contact's feedback form
 sent by nobody signed in (and in the site's formal Slovak on a phone), then
 that message on the admin panel - counted beside System and on its card,
 opened, marked resolved, deleted after its question, audited. It takes about

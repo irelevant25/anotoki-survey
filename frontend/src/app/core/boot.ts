@@ -4,6 +4,7 @@ import { ThemeService } from '@anotoki/lib/shell';
 import { TranslationService } from '@anotoki/lib/translations';
 import { AuthService } from './auth/auth.service';
 import { VisitorKey } from './auth/visitor-key';
+import { Changelog } from './changelog/changelog.service';
 import { adoptVisitorDrafts } from './survey/drafts';
 
 /**
@@ -42,6 +43,12 @@ export const BOOTED = new InjectionToken<WritableSignal<boolean>>('the start has
  * the visitor's drafts into the person's slots at once - before the router
  * draws the first page, which reads them.
  *
+ * The survey's versions (public/changelog.json, core/changelog/) are asked for
+ * at the very start, beside all of it and never waited for: the family's
+ * footer under every page shows the newest as the version, and the answer has
+ * come long before the strings have, so the version is there when the first
+ * page is drawn - and a list that cannot be had keeps nothing from starting.
+ *
  * Called in an injection context - the app initializer, and the load error
  * page's "Try again", which starts the same way. Everything it needs is
  * injected before the first `await`: inject() does not work after one.
@@ -53,6 +60,8 @@ export async function boot(): Promise<void> {
   inject(VisitorKey);
   const i18n = inject(TranslationService);
   const booted = inject(BOOTED);
+  // Once a page load (Changelog.load() asks once, and again only after a failure); it never rejects.
+  void inject(Changelog).load();
 
   // Starting again (the load error page's "Try again"): the site waits for its strings again.
   booted.set(false);

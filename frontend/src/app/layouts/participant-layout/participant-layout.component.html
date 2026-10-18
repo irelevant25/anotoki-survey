@@ -20,5 +20,6 @@
     </main>
 </div>
 
-<!-- Terms · Privacy · Contact - for anybody, the card for nobody signed in too: the legal pages need no sign-in. -->
-<app-site-footer />
+<!-- The family's footer, for anybody - under the card for nobody signed in too: the version and What's new, Feedback (anybody's
+     here), and Terms · Privacy · Contact, which need no sign-in. -->
+<anotoki-site-footer [version]="changelog.current()" [whatsNew]="changelog.current() !== null" (whatsNew)="changelog.open()" feedback />

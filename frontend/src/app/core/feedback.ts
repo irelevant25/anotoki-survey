@@ -7,8 +7,9 @@ import { AuthService } from './auth/auth.service';
 
 /**
  * The feedback form - the anotoki family's (@anotoki/lib/feedback/form, loaded
- * with the first press: the Contact page opens it, and the family's footer
- * will) - set up for this site:
+ * with the first press: the family's footer opens it under every page and in
+ * the admin panel - its Feedback, `<anotoki-site-footer feedback>` - and so
+ * does the Contact page) - set up for this site:
  *
  * - in the language on the page (English in the admin panel), its words the
  *   library's keys (`anotoki.feedback.*`) from the database: an owner's

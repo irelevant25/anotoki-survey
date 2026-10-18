@@ -153,7 +153,7 @@ was open. The upload carries `vendor/anotoki/lib/php/migrations/`
 (the library's set) - `tools/build.php` puts it there, under the deny-all
 `.htaccess` of `vendor/`.
 
-The version that took anotoki-lib 0.4.1 (both halves; 0.6.2 now, below) takes the rest of what every
+The version that took anotoki-lib 0.4.1 (both halves; 0.6.3 now, below) takes the rest of what every
 anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
 are gone - `api/anotoki_iam.php` stays on the host after the upload, read by
 nothing: delete it over FTP; the browser keeps its session, under the same
@@ -227,25 +227,32 @@ then open `/privacy` signed out - its "anotoki account" links go to the IAM's
 own Privacy page and account page - and that it names the hosting company
 (WebSupport s.r.o., the owner's word of 2026-10-18: `core/legal/legal-facts.ts`).
 
-Version **0.4.0** (the owner's wish of 2026-10-18): **feedback** - the
-family's form, opened from the Contact page (`POST /api/feedback`, anybody's),
-and the admin panel's Feedback page on System, with the count of new messages
-beside the bar's System link; **What's new and the version**
-(`frontend/public/changelog.json`, shown by the family's footer once the site
-takes it); a `config/cloudflare.local.php` read cleanly but naming no usable
-secret failing closed too (*Visitors*, below); and the web root's `.htaccess`
+Version **0.4.0** (the owner's wishes of 2026-10-18), on anotoki-lib 0.6.3
+(both halves): **the family's footer** (`<anotoki-site-footer>`) under every
+page and the admin panel - "Version 0.4.0 · What's new · Feedback", then
+Terms · Privacy · Contact; **feedback** - the family's form, opened from the
+footer and the Contact page (`POST /api/feedback`, anybody's), and the admin
+panel's Feedback page on System, with the count of new messages beside the
+bar's System link; **What's new and the version**
+(`frontend/public/changelog.json`, shown by the footer); a
+`config/cloudflare.local.php` read cleanly but naming no usable secret
+failing closed too (*Visitors*, below); and the web root's `.htaccess`
 letting the host check run (*Where it runs*). It brings, in the order they
 run: the site's `014_feedback_words.sql` (the feedback form's words that
 speak to the reader, in this site's formal Slovak over the library's informal
 ones - only where they are still the library's word for word) and
 `015_whats_new_and_feedback.sql` (What's new's words and the Privacy page's
-"how long" of a feedback message). The table is there already (the library's
-`anotoki_admin/002_feedback.sql`, applied with 0.3). PHP keeps feedback's
-limits and the daily clean-up's stamp in `storage/cache/`
-(`anotoki-feedback-limits.json`: a day of keyed hashes, no address;
-`anotoki-feedback-prune.stamp`). **After the upload**: apply on the Migrations
-page, then send a message from `/contact` signed out and find it on System →
-Feedback - then mark it, or delete it.
+"how long" of a feedback message), then the library's
+`anotoki_translations/012_footer_words.sql` (the footer's four words - until
+it is applied the footer says the library's built-in ones). The table is
+there already (the library's `anotoki_admin/002_feedback.sql`, applied with
+0.3). PHP keeps feedback's limits and the daily clean-up's stamp in
+`storage/cache/` (`anotoki-feedback-limits.json`: a day of keyed hashes, no
+address; `anotoki-feedback-prune.stamp`). **After the upload**: apply on the
+Migrations page (until it is applied the admin panel's footer round that page
+offers no Feedback), then send a message signed out - from the footer's
+Feedback or `/contact` - and find it on System → Feedback - then mark it, or
+delete it; and open What's new from the footer.
 
 A **release** adds its entry at the top of `frontend/public/changelog.json` -
 what changed for people, in English and its whole formal-Slovak translation
@@ -510,7 +517,7 @@ SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 
 
 Everything is in the database, pictures and the site's reworded strings
 included. The site backs it up itself - the anotoki family's backups
-(anotoki-lib 0.6.2), on the admin panel's System → **Backups** page, for its
+(anotoki-lib 0.6.3), on the admin panel's System → **Backups** page, for its
 ADMIN: every table by COPY through PDO in one snapshot (no `pg_dump` on the
 host), each a file `storage/backups/<id>.anotoki-backup` (`ANOTOKI-BACKUP 1`,
 a JSON header, then a gzip'd tar of the manifest, the applied migrations' SQL

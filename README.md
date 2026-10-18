@@ -63,11 +63,12 @@ person by person.
   deletes an account, its name here becomes the IAM's placeholder.
 - **Feedback**: anybody - signed in or not - tells the people who look after
   the site about something that does not work, an idea or anything else,
-  through the anotoki family's form (the Contact page opens it), with their
-  name or without it; no mail is sent - the admin panel counts what is new.
+  through the anotoki family's form (Feedback at the foot of every page opens
+  it, and so does the Contact page), with their name or without it; no mail is
+  sent - the admin panel counts what is new.
 - **What's new**: the site's version and what each version changed for people,
-  in English and Slovak - shown by the family's footer, which the site takes
-  next.
+  in English and Slovak - at the foot of every page, in the anotoki family's
+  footer: "Version · What's new · Feedback", then Terms · Privacy · Contact.
 
 | Part | Folder | Stack |
 | --- | --- | --- |
@@ -111,22 +112,27 @@ hosting:
 
 ## Current state - 0.4
 
-**0.4** (2026-10-18; its notes for people are `frontend/public/changelog.json`'s
-newest entry): **feedback** - the anotoki family's form, which the Contact page
-opens for anybody, signed in or not (the person's account from their sign-in
-alone, never an address unless they write one), and the admin panel's
-Feedback page on System for the ADMIN, with the count of new messages beside
-the bar's System link - the owner asked for it after all; **What's new and the
-version** - the site's versions and what each changed, in English and formal
-Slovak, the newest the version - ready for the family's footer
-(`<anotoki-site-footer>`), which the site takes next, with its "Version · What's
-new · Send feedback"; the family's page shown while the site cannot run stands
-alone, with no top bar and no footer (it always did here; a test holds it now);
-a `config/cloudflare.local.php` read cleanly but naming no usable secret fails
+**0.4** (2026-10-18, on anotoki-lib 0.6.3; its notes for people are
+`frontend/public/changelog.json`'s newest entry): **the family's footer**
+(`<anotoki-site-footer>`, the build analyzer's - the owner's choice) under
+every page - the survey's, the legal pages, the admin panel's too (in its
+English) -: a top border, "Version 0.4.0 · What's new · Feedback", then
+Terms · Privacy · Contact; **feedback** - the anotoki family's form, which the
+footer's Feedback and the Contact page open for anybody, signed in or not
+(the person's account from their sign-in alone, never an address unless they
+write one), and the admin panel's Feedback page on System for the ADMIN, with
+the count of new messages beside the bar's System link - the owner asked for
+it after all; **What's new and the version** - the site's versions and what
+each changed, in English and formal Slovak, the newest the version the footer
+shows, its What's new opening the list; the family's page shown while the
+site cannot run stands alone, with no top bar and no footer (it always did
+here; a test holds it now, the admin panel's frame too); a
+`config/cloudflare.local.php` read cleanly but naming no usable secret fails
 closed too, and switching the secret off is deleting the file; and the host
 check may run on the host (Hosting checklist above). On the hosting it brings
-`014_feedback_words.sql` and `015_whats_new_and_feedback.sql`, applied on the
-Migrations page ([docs/operations.md](docs/operations.md)).
+`014_feedback_words.sql` and `015_whats_new_and_feedback.sql`, then the
+library's `anotoki_translations/012_footer_words.sql` (the footer's four
+words), applied on the Migrations page ([docs/operations.md](docs/operations.md)).
 
 **0.3** - the first real version: the surveys, answers and pictures live in PostgreSQL
 behind a PHP API, people sign in through the anotoki IAM (client `survey`),
@@ -152,7 +158,7 @@ wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (now 0.6.2, both halves:
+migrations are the shared library's, **anotoki-lib** (now 0.6.3, both halves:
 `anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and

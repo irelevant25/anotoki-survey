@@ -1,11 +1,15 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, RouterOutlet, provideRouter } from '@angular/router';
 import { FeedbackUnread, provideAnotokiAdmin } from '@anotoki/lib/admin';
+import { provideAnotokiLegal } from '@anotoki/lib/legal';
 import { SiteStatus } from '@anotoki/lib/migrations';
+import { TranslationService } from '@anotoki/lib/translations';
 import { AuthService } from '../../core/auth/auth.service';
+import { Changelog } from '../../core/changelog/changelog.service';
+import { surveyLegalConfig } from '../../core/legal/legal.config';
 import { provideTestTranslations } from '../../core/testing/test-translations';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 import { AdminLayoutComponent } from './admin-layout.component';
@@ -35,18 +39,25 @@ describe('AdminLayoutComponent', () => {
     signInFailure: () => null,
     signIn: vi.fn(async (_returnTo?: string, _prompt?: 'login') => true),
   };
+  /** The survey's versions as the footer reads them (core/changelog/): the newest is the version; What's new opens the site's dialog. */
+  const changelog = { current: signal<string | null>('0.4.0'), open: vi.fn(async () => undefined) };
 
   let fixture: ComponentFixture<AdminLayoutComponent>;
   let host: HTMLElement;
 
   const clean = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim();
   const text = (selector: string) => clean(host.querySelector(selector)?.textContent);
+  /** The family's footer's first row as it is read: each part's words, and the dots between them. */
+  const footerRow = () => Array.from(host.querySelectorAll('anotoki-site-footer .anotoki-site-footer__row > *')).map((part) => clean(part.textContent));
+  /** Terms · Privacy · Contact in the footer: [the words, where each goes]. */
+  const footerLinks = () => Array.from(host.querySelectorAll<HTMLAnchorElement>('anotoki-site-footer anotoki-legal-links a')).map((link) => [clean(link.textContent), link.getAttribute('href')]);
 
   async function layout(who: { signedIn: boolean; roles: string[] }, standing: 'ready' | 'update-pending' = 'ready'): Promise<void> {
     signedIn.set(who.signedIn);
     roles.set(who.roles);
     state.set(standing);
     auth.signIn.mockClear();
+    changelog.open.mockClear();
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
@@ -59,10 +70,15 @@ describe('AdminLayoutComponent', () => {
         provideAnotokiAdmin(() => ({ isAdmin: () => auth.isAdmin() })),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: SiteStatus, useValue: { state } },
+        { provide: SiteStatus, useValue: { state, blocked: computed(() => state() !== 'ready') } },
+        { provide: Changelog, useValue: changelog },
+        // The footer's links, wired as the app wires them (app.config.ts): their words in the language on the page.
+        provideAnotokiLegal(surveyLegalConfig),
       ],
     });
     TestBed.overrideComponent(AdminLayoutComponent, { remove: { imports: [TopBarComponent] }, add: { imports: [TopBarStubComponent] } });
+    // Where the page is, as the title strategy tells the words before the panel is drawn: the admin panel is English.
+    TestBed.inject(TranslationService).noteAddress('/admin/translations');
     fixture = TestBed.createComponent(AdminLayoutComponent);
     host = fixture.nativeElement;
     await fixture.whenStable();
@@ -170,5 +186,48 @@ describe('AdminLayoutComponent', () => {
     expect(host.querySelector('.page')).toBeNull();
     expect(text('app-admin-layout anotoki-empty-state .anotoki-empty-state__heading')).toBe('You are signed out');
     expect(router.url).toBe('/admin/translations');
+  });
+
+  it('puts the family’s footer under the panel, in its English whatever the reader’s language: the version, What’s new, Feedback, then Terms · Privacy · Contact', async () => {
+    await layout({ signedIn: true, roles: ['EDITOR'] });
+    const footer = host.querySelector('anotoki-site-footer');
+    expect(footer?.previousElementSibling?.tagName.toLowerCase()).toBe('main');
+    expect(footer?.querySelector(':scope > footer')).not.toBeNull();
+    expect(footerRow()).toEqual(['Version 0.4.0', '·', "What's new", '·', 'Feedback']);
+    expect(footerLinks()).toEqual([
+      ['Terms', '/terms'],
+      ['Privacy', '/privacy'],
+      ['Contact', '/contact'],
+    ]);
+    expect(host.querySelector('anotoki-site-footer [data-fan]')).toBeNull();
+
+    // What's new is the survey's own dialog, as on its pages.
+    host.querySelector<HTMLButtonElement>('anotoki-site-footer [data-whats-new]')!.click();
+    await fixture.whenStable();
+    expect(changelog.open).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers no Feedback while an update waits - the frame stands round the Migrations page then, and the server would refuse the message - and offers it again once the site runs', async () => {
+    await layout({ signedIn: true, roles: ['ADMIN'] }, 'update-pending');
+    expect(footerRow()).toEqual(['Version 0.4.0', '·', "What's new"]);
+    expect(host.querySelector('anotoki-site-footer [data-open-feedback]')).toBeNull();
+    expect(footerLinks().map(([words]) => words)).toEqual(['Terms', 'Privacy', 'Contact']);
+
+    state.set('ready');
+    await fixture.whenStable();
+    expect(footerRow()).toEqual(['Version 0.4.0', '·', "What's new", '·', 'Feedback']);
+    TestBed.inject(HttpTestingController).expectOne('/api/admin/feedback/unread').flush({ unread: 0 });
+  });
+
+  it('keeps the footer under both cards - signed out, and no role here', async () => {
+    await layout({ signedIn: false, roles: [] });
+    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('You are signed out');
+    expect(footerRow()).toEqual(['Version 0.4.0', '·', "What's new", '·', 'Feedback']);
+
+    signedIn.set(true);
+    await fixture.whenStable();
+    expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('The admin panel is for the people who write the surveys');
+    expect(footerRow()).toEqual(['Version 0.4.0', '·', "What's new", '·', 'Feedback']);
+    expect(footerLinks().map(([words]) => words)).toEqual(['Terms', 'Privacy', 'Contact']);
   });
 });

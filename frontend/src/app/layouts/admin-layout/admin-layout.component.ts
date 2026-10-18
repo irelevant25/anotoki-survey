@@ -1,17 +1,26 @@
 import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { FeedbackUnread } from '@anotoki/lib/admin';
+import { SiteFooterComponent } from '@anotoki/lib/footer';
 import { SiteStatus } from '@anotoki/lib/migrations';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
 import { IconComponent } from '@anotoki/lib/ui/icon';
 import { signInOrShowWhy } from '../../core/auth/auth.config';
 import { AuthService } from '../../core/auth/auth.service';
+import { Changelog } from '../../core/changelog/changelog.service';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 
 /**
  * The frame of the admin area: the top bar over the page - for the people who
- * write the surveys (EDITOR) and run the site (ADMIN). It has three states:
+ * write the surveys (EDITOR) and run the site (ADMIN) - and under it the
+ * anotoki family's footer, as under every page of every anotoki site (the
+ * owner, 2026-10-18): the version and What's new, Feedback and Terms ·
+ * Privacy · Contact, in English like the rest of the panel - under the cards
+ * below too. Feedback only while the site runs: while an update waits this
+ * frame stands round the Migrations page alone, for the ADMIN who applies it,
+ * and the server refuses a message then (503 update_pending), so the footer
+ * offers none. It has three states:
  *
  * - staff: the page;
  * - nobody signed in, with a Sign in button of its own (on a phone the top
@@ -39,20 +48,23 @@ import { TopBarComponent } from '../top-bar/top-bar.component';
  */
 @Component({
   selector: 'app-admin-layout',
-  imports: [RouterOutlet, RouterLink, ButtonComponent, EmptyStateComponent, IconComponent, TopBarComponent],
+  imports: [RouterOutlet, RouterLink, ButtonComponent, EmptyStateComponent, IconComponent, SiteFooterComponent, TopBarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './admin-layout.component.html',
   styleUrl: './admin-layout.component.scss',
 })
 export class AdminLayoutComponent {
   protected readonly auth = inject(AuthService);
+  /** The footer's version and What's new: the list boot() asked for - neither while there is none. */
+  protected readonly changelog = inject(Changelog);
+  /** Where the site stands (the family's SiteStatus): the count is asked, and the footer offers Feedback, only while it runs. */
+  protected readonly siteStatus = inject(SiteStatus);
   private readonly _router = inject(Router);
 
   constructor() {
     const unread = inject(FeedbackUnread);
-    const status = inject(SiteStatus);
     effect(() => {
-      if (this.auth.isAdmin() && status.state() === 'ready') {
+      if (this.auth.isAdmin() && this.siteStatus.state() === 'ready') {
         // Only who is here and where the site stands are followed - never what the count reads itself.
         untracked(() => void unread.refresh());
       }

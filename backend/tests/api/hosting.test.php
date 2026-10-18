@@ -79,6 +79,7 @@ test('the build: exactly what to upload - no settings, no tools, no composer fil
         'vendor/anotoki/lib/php/src/Feedback/Feedback.php', 'vendor/anotoki/lib/php/migrations/admin/002_feedback.sql',
         'vendor/anotoki/lib/php/migrations/translations/010_backups_where_words.sql',
         'vendor/anotoki/lib/php/migrations/translations/011_privacy_words_made_true.sql',
+        'vendor/anotoki/lib/php/migrations/translations/012_footer_words.sql',
         // The anotoki library's words: its code, its migration set and the words it ships - run and read on the host.
         'vendor/anotoki/lib/php/src/Translations/Translations.php', 'vendor/anotoki/lib/php/src/Translations/Http/TranslationsRoutes.php',
         'vendor/anotoki/lib/php/migrations/translations/001_languages_and_strings.sql', 'vendor/anotoki/lib/php/migrations/translations/002_library_words.sql',

@@ -9,4 +9,4 @@
     </main>
 </div>
 
-<app-site-footer />
+<anotoki-site-footer [version]="changelog.current()" [whatsNew]="changelog.current() !== null" (whatsNew)="changelog.open()" feedback />

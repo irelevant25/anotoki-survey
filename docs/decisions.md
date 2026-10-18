@@ -82,8 +82,8 @@ sites have one); after the deploy of 2026-10-18, wanting one footer on every
 site - "Version X · What's new · Send feedback", then Terms · Privacy ·
 Contact - they said: "The survey has no feedback, whats new and version (I
 know that it was what I said but maybe it could be nice to have it there)".
-So the survey has them, ready for the family's footer (`<anotoki-site-footer>`,
-anotoki-lib 0.6.3, which the site takes next):
+So the survey has them, shown by the family's footer (`<anotoki-site-footer>`,
+anotoki-lib 0.6.3, taken the same day - *One footer, the family's*, below):
 - **`frontend/public/changelog.json`**, newest first, in the other sites'
   shape - a version (MAJOR.MINOR.PATCH), its day, what it added, fixed and
   changed, each a sentence about something people notice - and beside each
@@ -93,14 +93,14 @@ anotoki-lib 0.6.3, which the site takes next):
   else, so its versions say what changed in their language too. A
   translation short of a sentence is no translation: the English, marked
   English (`changesIn()`, the same rule as a survey's own translations).
-- **One source for the version**: the newest entry's - what the footer will
-  show (`Changelog.current()`); `frontend/package.json`'s own version is held
+- **One source for the version**: the newest entry's - what the footer
+  shows (`Changelog.current()`); `frontend/package.json`'s own version is held
   to it by a spec, as Japanese Academy's is.
 - **What's new** is the kit's dialog (`ui/changelog-dialog`, loaded with the
   first press) - opened only when asked, never by itself after a new version
   as the build analyzer's is: so nothing about what a browser has seen is kept
   in it, and the Privacy page's list of what the site keeps in a browser
-  stays as it is. Until the footer comes nothing opens it.
+  stays as it is. The footer's What's new opens it.
 
 **The admin panel and the survey share one top bar - the anotoki family's.**
 The owner made every anotoki site (the IAM, the survey, Japanese, Piano, the
@@ -784,7 +784,9 @@ choices made here:
 - **The footer's Terms · Privacy · Contact** (the family's
   `<anotoki-legal-links>`, `layouts/site-footer`) are under the survey's pages
   - the card of a session that ended too - and under the legal pages; not in
-  the admin panel, which is English and a frame of its own.
+  the admin panel, which is English and a frame of its own (until 2026-10-18:
+  since then in the family's footer, the admin panel's too - *One footer, the
+  family's*, below).
 
 **The kit's new pieces where the site drew its own (anotoki-lib 0.6.0),
 others kept.** Taken: the kit's link card (`a[anotokiLinkCard]`) for the home
@@ -815,8 +817,9 @@ admin set, there on every database of the site already), its routes and its
 admin page. The choices made here:
 - **Anybody may send one**, a person signed in, a visitor, nobody - whether
   the IAM requires signing in here or not: the Contact page it is opened from
-  is anybody's (the family's footer will open it too), and a form that
-  refused somebody only after they had written their message would be a trap.
+  is anybody's (and so is the family's footer, which opens it under every
+  page), and a form that refused somebody only after they had written their
+  message would be a trap.
   The library's limits stand in front of it: 5 an hour and 20 a day from one
   sender, 300 a day from the visitors together and as many from the people
   signed in; the robots' field.
@@ -877,8 +880,43 @@ under the update as well." It already was so here: the bar and the footer live
 in the site's frames, which are routed, and the gate makes no route's page
 while the site cannot run (`<anotoki-site-gate>`'s template). Now
 `app.component.spec.ts` holds it, in each state - an update waiting, the
-database out of reach, not set up - through the real frames, as does the card
-saying the server could not be reached.
+database out of reach, not set up - through the real frames (the admin panel's
+too, since it has a footer), as does the card saying the server could not be
+reached. The one frame drawn while an update waits is the admin panel's round
+the Migrations page, for the ADMIN who applies it: those are the site's pages,
+not the family's page.
+
+**One footer, the family's - under every page and in the admin panel (the
+owner, 2026-10-18).** "I like the footer of builder the most. The order, texts
+and the top border." anotoki-lib 0.6.3 made it the family's
+(`<anotoki-site-footer>`), and the survey takes it in each frame - its pages,
+the legal pages and the admin panel, which had no footer before ("the footer
+in every admin panel"):
+- **Its parts**: the version (the changelog's newest entry, one source), What's
+  new (the survey's own dialog, opened on the footer's `(whatsNew)`), Feedback
+  (the family's form, which the footer opens itself), then Terms · Privacy ·
+  Contact; no fan clause. The survey's own footer (`layouts/site-footer`, the
+  legal links alone) went; it had no words of its own, so no migration was
+  needed - the footer's words are the library's (`anotoki_translations/012`),
+  their Slovak impersonal, beside this site's formal Slovak.
+- **Feedback for anybody, as the server takes anybody's**: the footer's form
+  sends the request the Contact page's does, so `feedbackSenderInterceptor`
+  marks it the person's while somebody is signed in and nobody's otherwise -
+  never a person's with no token, which the family's interceptor would keep
+  back ("Sign in to send a message"). So it stands under every frame, the
+  legal pages and the card of a session that ended included; on the sites
+  that take a person's feedback only it is offered only while it can be sent.
+  Not while an update waits: the admin panel's frame round the Migrations
+  page offers none then (the server answers 503 `update_pending`), as Japanese
+  Academy's footer does.
+- **The version is there when the first page is drawn**: `boot()` asks for
+  `changelog.json` at the very start and never waits for it; a list that
+  cannot be had leaves neither the version nor What's new.
+- **In the admin panel, English** like the rest of it (the kit's language
+  there), its What's new the same dialog in English.
+- **The first load** grew by about 16 kB raw, 4.5 kB sent (the footer, its
+  words and the changelog's service): 536.71 → 552.46 kB, and the build's
+  warning budget went from 550 to 575 kB, its reason in `angular.json`.
 
 **The host check may run here (2026-10-18).** The web root's `.htaccess` let a
 visitor run `setup.php` alone, so the family's host check

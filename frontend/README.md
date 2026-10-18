@@ -18,12 +18,14 @@ src/
                                      .rich, mark, the drag and drop
   styles/                            partials the components @use: fields (the fields the site draws itself),
                                      boot, result-card, sky, participant-frame (the participant and legal
-                                     layouts' frame: the light behind, the skip link, the column, the footer
-                                     at the foot)
+                                     layouts' frame: the light behind, the skip link, the column, the
+                                     family's footer at the foot)
   test-setup.ts                      the unit tests' shims for jsdom (dialog, popover, matchMedia), as the
                                      library's own tests have them
   app/
-    app.config.ts, app.routes.ts     providers, the boot (core/boot.ts) and the routes; the app's HttpClient
+    app.config.ts, app.routes.ts     providers, the boot (core/boot.ts - where the site stands, the theme,
+                                     the sign-in, the language; the changelog asked at once, never waited
+                                     for) and the routes; the app's HttpClient
                                      and its interceptors (SITE_INTERCEPTORS), and the family's error
                                      reporter (@anotoki/lib/error-report: the pages' errors, scrubbed, to
                                      the backend's error log through that HttpClient - app.config.spec.ts)
@@ -33,7 +35,7 @@ src/
                                      the site's ADMIN while an update waits; the router outlet is the gate's
                                      <ng-template anotokiSitePages>, made only while the gate shows the pages
                                      (so the family's page is bare: the top bar and the footer are the routed
-                                     layouts', none made then); the kit's toasts and confirm dialog (<anotoki-toast-host>,
+                                     layouts' - the admin panel's too -, none made then); the kit's toasts and confirm dialog (<anotoki-toast-host>,
                                      <anotoki-confirm-host>), the survey's lightbox
     boot/                            the card drawn when the server could not be reached as the site started
                                      (its status answered, the sign-in's settings not)
@@ -75,17 +77,17 @@ src/
                                      the family's admin tools - feedback, error log, audit log, backups -
                                      and People page, wired to this site: ADMIN from the token, "Sign in
                                      again" for a backup's proof, the People page's words and its Delete)
-      feedback.ts                    the family's feedback form (@anotoki/lib/feedback - the Contact page
-                                     opens it, its code loaded with the press): provideSiteFeedback() - the
+      feedback.ts                    the family's feedback form (@anotoki/lib/feedback - the footer's Feedback
+                                     and the Contact page open it, its code loaded with the press): provideSiteFeedback() - the
                                      language, the library's words in this site's formal Slovak, whether
                                      somebody is signed in; no address handed to it (the site keeps none) -
                                      and feedbackSenderInterceptor (in SITE_INTERCEPTORS): its message the
                                      person's while somebody is signed in, nobody's otherwise - never a
                                      person's with no token, which the family's interceptor keeps back
-      changelog/                     Changelog: public/changelog.json read once - the site's version (the
-                                     newest entry's, package.json's too) and What's new (open(): the dialog,
-                                     ui/changelog-dialog, loaded with the press). Nothing opens it yet: the
-                                     family's footer will
+      changelog/                     Changelog: public/changelog.json read once, as the site starts - the site's
+                                     version (the newest entry's, package.json's too: the footer's "Version")
+                                     and What's new (open(): the dialog, ui/changelog-dialog, loaded with the
+                                     press - the footer's What's new opens it)
       util/                          dates.ts (the admin panel's English dates), date-patterns.ts (the
                                      account's four date orders and two clocks), storage
       images/                        pictures made small in the browser
@@ -100,9 +102,11 @@ src/
                                      its brand, sections - System with the count of feedback nobody opened
                                      yet -, person and menu items, signing in and out),
                                      participant, admin, legal-layout (the frame of /terms, /privacy and
-                                     /contact - anybody's, no guard - and the facts' provider),
-                                     site-footer (Terms · Privacy · Contact: <anotoki-legal-links>, under
-                                     the participant and legal frames)
+                                     /contact - anybody's, no guard - and the facts' provider); each frame
+                                     ends with the family's footer (<anotoki-site-footer>, @anotoki/lib/footer:
+                                     "Version · What's new · Feedback", then Terms · Privacy · Contact - the
+                                     version and What's new the changelog's, Feedback the family's form; in
+                                     the admin panel English, and no Feedback while an update waits)
     pages/participant/               the open surveys, a survey to take, the visitor notice
     pages/admin/                     the surveys, the editor, the results (a visitor: "Visitor N",
                                      "Not signed in"; nobody's address - the site keeps none);
@@ -125,8 +129,8 @@ Components are three files (`.ts`, `.html`, `.scss`); colours come from the
 family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
 every page works at 390 px. The UI kit, the top bar, the theme, the site's
 words, signing in, the People page, the admin tools, the feedback form, the
-error reporter and the legal pages are the anotoki family's library
-(`@anotoki/lib`, 0.6.2 - the backend's half the same), configured in
+error reporter, the legal pages and the footer are the anotoki family's library
+(`@anotoki/lib`, 0.6.3 - the backend's half the same), configured in
 `app.config.ts`, `core/kit.ts`,
 `core/translations.ts`, `core/auth/auth.config.ts`,
 `core/admin/admin-tools.ts`, `core/feedback.ts` and `core/legal/` - never copied here; each kit piece

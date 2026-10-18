@@ -1,18 +1,21 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { SiteFooterComponent } from '@anotoki/lib/footer';
 import { ANOTOKI_LEGAL_CONFIG } from '@anotoki/lib/legal';
 import { TranslatePipe } from '@anotoki/lib/translations';
+import { Changelog } from '../../core/changelog/changelog.service';
 import { surveyLegalPagesConfig } from '../../core/legal/legal-facts';
-import { SiteFooterComponent } from '../site-footer/site-footer.component';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 
 /**
  * The legal pages' frame - Terms, Privacy and Contact, the anotoki family's
  * pages (@anotoki/lib/legal/pages, lazy routes in app.routes.ts): the frame
  * the survey's own pages have (the skip link, the top bar, the column - one
- * stylesheet, styles/_participant-frame.scss) and the footer's links - and the
- * survey's facts, which only these pages read, given to them here
- * (core/legal/legal-facts.ts), out of the first load.
+ * stylesheet, styles/_participant-frame.scss - and the anotoki family's
+ * footer, <anotoki-site-footer>: the version and What's new, Feedback,
+ * anybody's here, and Terms · Privacy · Contact) - and the survey's facts,
+ * which only these pages read, given to them here (core/legal/legal-facts.ts),
+ * out of the first load.
  *
  * Anybody may read them, signed in or not, whether the IAM requires signing in
  * here or not: what a site keeps is said before anybody signs in to it. So no
@@ -28,4 +31,7 @@ import { TopBarComponent } from '../top-bar/top-bar.component';
   templateUrl: './legal-layout.component.html',
   styleUrl: './legal-layout.component.scss',
 })
-export class LegalLayoutComponent {}
+export class LegalLayoutComponent {
+  /** The footer's version and What's new: the list boot() asked for - neither while there is none. */
+  protected readonly changelog = inject(Changelog);
+}

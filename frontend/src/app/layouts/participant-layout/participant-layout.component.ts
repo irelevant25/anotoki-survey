@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked
 import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
+import { SiteFooterComponent } from '@anotoki/lib/footer';
 import { TranslatePipe, TranslationService } from '@anotoki/lib/translations';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
@@ -10,16 +11,18 @@ import { ToastService } from '@anotoki/lib/ui/toast';
 import { signInOrShowWhy } from '../../core/auth/auth.config';
 import { AuthService } from '../../core/auth/auth.service';
 import { VisitorKey } from '../../core/auth/visitor-key';
-import { SiteFooterComponent } from '../site-footer/site-footer.component';
+import { Changelog } from '../../core/changelog/changelog.service';
 import { TopBarComponent } from '../top-bar/top-bar.component';
 
 /**
  * The frame of what people see: the top bar and the page below it - for
  * somebody signed in, or, while the site welcomes visitors (the IAM's
  * "Sign-in required" is off), for anybody. The editor's preview is for
- * somebody signed in whatever the switch. Under it, for anybody, the
- * footer's Terms · Privacy · Contact (layouts/site-footer): the legal pages
- * are open to all (layouts/legal-layout).
+ * somebody signed in whatever the switch. Under it, for anybody, the anotoki
+ * family's footer (<anotoki-site-footer>, @anotoki/lib/footer): the survey's
+ * version and What's new (core/changelog/), Feedback - the family's form,
+ * which anybody may send here (core/feedback.ts) - and Terms · Privacy ·
+ * Contact, for the legal pages are open to all (layouts/legal-layout).
  *
  * Whenever nobody may see the page here, it is taken away with no navigation,
  * and a card stands in its place: a session that ended with the page open
@@ -44,6 +47,8 @@ import { TopBarComponent } from '../top-bar/top-bar.component';
 })
 export class ParticipantLayoutComponent {
   protected readonly auth = inject(AuthService);
+  /** The footer's version and What's new: the list boot() asked for - neither while there is none. */
+  protected readonly changelog = inject(Changelog);
   private readonly _visitor = inject(VisitorKey);
   private readonly _i18n = inject(TranslationService);
   private readonly _toast = inject(ToastService);

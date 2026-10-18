@@ -9,6 +9,7 @@ import { ApiService } from './api/api.service';
 import { AuthService, SignInFailure } from './auth/auth.service';
 import { VisitorKey } from './auth/visitor-key';
 import { BOOTED, boot } from './boot';
+import { Changelog } from './changelog/changelog.service';
 import { VISITOR_SLOT, readDraft, writeDraft } from './survey/drafts';
 import { Person } from './survey/survey.model';
 import { provideTestTranslations } from './testing/test-translations';
@@ -50,6 +51,13 @@ describe('boot(): the whole start', () => {
       return standing;
     }),
   };
+  /** The survey's versions, for the footer's version and What's new (core/changelog/): here an answer that never comes. */
+  const changelog = {
+    load: vi.fn(() => {
+      order.push('changelog');
+      return new Promise<void>(() => undefined);
+    }),
+  };
 
   beforeEach(() => {
     order.length = 0;
@@ -59,11 +67,13 @@ describe('boot(): the whole start', () => {
     localStorage.clear();
     auth.init.mockClear();
     siteStatus.check.mockClear();
+    changelog.load.mockClear();
     TestBed.configureTestingModule({
       providers: [
         provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }),
         { provide: AuthService, useValue: auth },
         { provide: SiteStatus, useValue: siteStatus },
+        { provide: Changelog, useValue: changelog },
         // Made by the start itself, before anything is awaited: its effect is there for the first sign-in.
         {
           provide: VisitorKey,
@@ -85,8 +95,16 @@ describe('boot(): the whole start', () => {
 
   it('asks where the site stands first, then signs in, then settles the language - which needs to know who it is', async () => {
     await TestBed.runInInjectionContext(boot);
-    expect(order).toEqual(['visitor key', 'status: ready', 'auth', 'i18n']);
+    expect(order).toEqual(['visitor key', 'changelog', 'status: ready', 'auth', 'i18n']);
     expect(TestBed.inject(ToastService).toasts()).toEqual([]);
+  });
+
+  it('asks for the survey’s versions at the very start, beside everything else, and never waits for them: the start ends while they have not come', async () => {
+    await TestBed.runInInjectionContext(boot);
+    // Before the first await - the footer has its version when the first page is drawn - and never in the way.
+    expect(order.indexOf('changelog')).toBeLessThan(order.indexOf('status: ready'));
+    expect(changelog.load).toHaveBeenCalledTimes(1);
+    expect(TestBed.inject(BOOTED)()).toBe(true);
   });
 
   it('does not stop on a database update waiting, or on a site that cannot run: the sign-in and the strings come all the same, and the start ends', async () => {
@@ -95,7 +113,7 @@ describe('boot(): the whole start', () => {
       order.length = 0;
       standing = state;
       await TestBed.runInInjectionContext(boot);
-      expect(order).toEqual(['status: ' + state, 'auth', 'i18n']);
+      expect(order).toEqual(['changelog', 'status: ' + state, 'auth', 'i18n']);
       expect(TestBed.inject(BOOTED)()).toBe(true);
     }
   });
@@ -132,7 +150,7 @@ describe('boot(): the whole start', () => {
       order.push(readDraft('survey-a', '12') ? 'i18n, the draft adopted' : 'i18n, no draft yet');
     });
     await TestBed.runInInjectionContext(boot);
-    expect(order).toEqual(['visitor key', 'status: ready', 'auth', 'i18n, the draft adopted']);
+    expect(order).toEqual(['visitor key', 'changelog', 'status: ready', 'auth', 'i18n, the draft adopted']);
     expect(readDraft('survey-a', VISITOR_SLOT)).toBeNull();
   });
 

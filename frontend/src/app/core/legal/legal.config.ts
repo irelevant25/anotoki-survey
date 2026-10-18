@@ -5,10 +5,11 @@ import { TranslationService } from "@anotoki/lib/translations";
 /**
  * How the survey plugs into the anotoki family's legal pages (@anotoki/lib/legal,
  * anotoki-lib 0.6.0: Terms, Privacy and Contact on the lazy routes /terms,
- * /privacy and /contact - app.routes.ts - and the footer's links to them,
- * layouts/site-footer). provideAnotokiLegal() runs it in an injection context.
+ * /privacy and /contact - app.routes.ts - and the links to them in the family's
+ * footer, <anotoki-site-footer>, under every page and in the admin panel).
+ * provideAnotokiLegal() runs it in an injection context.
  *
- * - The language: the one on the page (the admin panel, English, shows no footer).
+ * - The language: the one on the page (English in the admin panel, the footer's links too).
  * - The words: the library's (`anotoki.legal.*`, `anotoki.legalLinks.*`) - the
  *   database's string of a library key, an owner's rewording on the
  *   Translations page, before the library's built-in English and Slovak. That

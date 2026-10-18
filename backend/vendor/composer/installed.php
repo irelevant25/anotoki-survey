@@ -3,7 +3,7 @@
         'name' => 'anotoki/survey',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'c96e55cae9aec2493a0fc67cd90ed2443a67f77e',
+        'reference' => '39ab45ccac77c2ce60e47be489b4e7835a13af6c',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -11,9 +11,9 @@
     ),
     'versions' => array(
         'anotoki/lib' => array(
-            'pretty_version' => 'v0.6.2',
-            'version' => '0.6.2.0',
-            'reference' => '4a5e86e05b8954166d3437594e66a56b7cd70bd5',
+            'pretty_version' => 'v0.6.3',
+            'version' => '0.6.3.0',
+            'reference' => '5023e5c9377f6edff36138dede110e61f8e8ca43',
             'type' => 'library',
             'install_path' => __DIR__ . '/../anotoki/lib',
             'aliases' => array(),
@@ -22,7 +22,7 @@
         'anotoki/survey' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'c96e55cae9aec2493a0fc67cd90ed2443a67f77e',
+            'reference' => '39ab45ccac77c2ce60e47be489b4e7835a13af6c',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

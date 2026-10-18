@@ -37,18 +37,21 @@ export const CHANGELOG_URL = 'changelog.json';
 /**
  * The survey's versions and what each changed (public/changelog.json). The
  * newest entry's version is the site's version - one source: what the family's
- * footer will show ("Version 0.4.0", `current()`), and frontend/package.json's
- * own version is held to it by a spec. What's new (`open()`) lists every
- * version in the kit's dialog (ui/changelog-dialog, loaded with the first
- * press: no first load carries it), in the reader's language.
+ * footer shows ("Version 0.4.0", `current()`) under every page and in the
+ * admin panel, and frontend/package.json's own version is held to it by a
+ * spec. What's new (`open()`) lists every version in the kit's dialog
+ * (ui/changelog-dialog, loaded with the first press: no first load carries
+ * it), in the reader's language.
  *
  * It opens when asked - by the What's new link of the family's footer
- * (<anotoki-site-footer>, anotoki-lib 0.6.3), which this site takes next: until
- * then nothing opens it - and never by itself: nothing about what a browser
- * has seen is kept, so nothing new is stored in it (the Privacy page lists
- * every item the site keeps there). The list is asked for once a page load,
- * when something first wants it; a list that cannot be had (a broken upload)
- * leaves no version and no What's new, and is asked for again next time.
+ * (<anotoki-site-footer>, anotoki-lib 0.6.3: its `(whatsNew)`, in each frame -
+ * layouts/participant-layout, legal-layout and admin-layout) - and never by
+ * itself: nothing about what a browser has seen is kept, so nothing new is
+ * stored in it (the Privacy page lists every item the site keeps there). The
+ * list is asked for once a page load, as the site starts (boot(), never waited
+ * for), so the footer has its version when the first page is drawn; a list
+ * that cannot be had (a broken upload) leaves no version and no What's new -
+ * the frames show neither -, and is asked for again next time.
  */
 @Injectable({ providedIn: 'root' })
 export class Changelog {

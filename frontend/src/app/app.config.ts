@@ -51,10 +51,11 @@ export const appConfig: ApplicationConfig = {
     provideSiteMigrations(),
     // The anotoki family's admin tools and People page, for the site's ADMIN - see core/admin/admin-tools.ts.
     provideSiteAdmin(),
-    // The anotoki family's feedback form (its code loaded with the first press: the Contact page's, the footer's
-    // later), in the site's words and formal Slovak, no address written in for anybody - see core/feedback.ts.
+    // The anotoki family's feedback form (its code loaded with the first press: the footer's Feedback, the Contact
+    // page's), in the site's words and formal Slovak, no address written in for anybody - see core/feedback.ts.
     provideSiteFeedback(),
     // The anotoki family's UI kit and top bar, wired to this site's words, icons, account and languages - see core/kit.ts.
+    // The family's footer (@anotoki/lib/footer, in each frame) reads its words through the kit too: no provider of its own.
     provideSiteKit(),
     // The anotoki family's legal pages - Terms, Privacy, Contact, on lazy routes open to anybody - and the footer's
     // links to them: the library's words around the survey's facts, every address the pages link to in the code

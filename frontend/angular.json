@@ -72,8 +72,9 @@
               "budgets": [
                 {
                   "type": "initial",
-                  // 550 kB, not 500: the family's sign-in in the first load (anotoki-lib 0.5.0 trimmed it, ~26 kB raw) and its error reporter (~4 kB raw): 517 kB.
-                  "maximumWarning": "550kB",
+                  // 575 kB, not 500: the family's sign-in in the first load (anotoki-lib 0.5.0 trimmed it, ~26 kB raw) and its error reporter (~4 kB raw): 517 kB;
+                  // the family's footer under every page (anotoki-lib 0.6.3, with its words) and the changelog it shows the version of (~16 kB raw): 552 kB.
+                  "maximumWarning": "575kB",
                   "maximumError": "1MB"
                 },
                 {

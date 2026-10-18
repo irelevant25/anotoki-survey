@@ -102,7 +102,7 @@ tools/                 build.php (the upload -> ../dist/, and its .htaccess: set
                        check - ../tools/host-check.php, uploaded by hand - the only PHP files a
                        visitor may run in the web root), translation_keys.php (the frontend's keys:
                        the library's KeyScanner, set up for this site)
-vendor/                Slim and its pieces, and anotoki/lib 0.6.2 (the family's library, from GitHub -
+vendor/                Slim and its pieces, and anotoki/lib 0.6.3 (the family's library, from GitHub -
                        ../DEV.md says how it is updated; its migration sets in php/migrations/, its
                        stand-in IAM for the tests in php/testing/) - committed: the hosting cannot
                        run Composer
