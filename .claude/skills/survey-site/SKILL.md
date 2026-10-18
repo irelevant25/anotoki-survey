@@ -1238,11 +1238,11 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   by the tests' template, which has seen it:
   `php tests/tools/testdb.php template --fresh` (not while tests are running -
   they copy the template). Never for a released migration: that one is not edited.
-- **A checkout with CRLF line endings** (Windows, `core.autocrlf`): Prettier
-  needs `--end-of-line crlf` to pass; `sed -i` strips the CRs - edit another
-  way. A string in a migration stays on one line (a line break inside it would
-  be a CRLF there), with `''` for an apostrophe and no `E''` or backslash
-  escapes: the statement splitter knows `''` and nothing else of a string.
+- **A checkout with CRLF line endings** (Windows, `core.autocrlf`): `sed -i`
+  strips the CRs - edit another way. A string in a migration stays on one line
+  (a line break inside it would be a CRLF there), with `''` for an apostrophe
+  and no `E''` or backslash escapes: the statement splitter knows `''` and
+  nothing else of a string.
 - **The sign-in's two screens are routes since anotoki-lib 0.5.0**:
   `@anotoki/lib/auth`'s `AuthCallbackComponent` and `SignInFailureComponent`
   load their screen as it is shown (`@anotoki/lib/auth/screens`, out of the
@@ -1294,8 +1294,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
    was edited after the template applied it). The PHP runner takes files:
    `php tests/run.php tests/unit/translations.test.php`.
 2. `cd frontend && npm test && npm run build`, and
-   `npx prettier --check "src/**/*.{ts,html,scss}"` (`--end-of-line crlf` on a
-   CRLF checkout).
+   `bun run format:check` at the root.
 3. Anything a page shows: the `check-in-browser` skill (and look at the
    screenshots, light and dark, 390 px - the Slovak ones too: a longer word
    that no longer fits, a key where a word should be - and the states a change

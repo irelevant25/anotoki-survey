@@ -451,7 +451,7 @@ php composer.phar update anotoki/lib --prefer-dist   # a new anotoki-lib release
 npm install && npm start                # ng serve on :4700
 npm test                                # Vitest
 npm run build                           # production -> dist/survey/browser/
-npx prettier --check "src/**/*.{ts,html,scss}"   # a checkout with CRLF line endings: add --end-of-line crlf
+cd .. && bun run format:check           # Prettier on every file of both halves, at the root (bun install there first)
 bun install && npm install              # after a new anotoki-lib tarball address in package.json: both lock files
 
 # The site in a browser, signed in through the stand-in IAM (from the root)

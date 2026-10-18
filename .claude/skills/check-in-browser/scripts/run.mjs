@@ -88,7 +88,7 @@ function findChrome() {
   ].filter(Boolean);
   const found = candidates.find((path) => existsSync(path));
   if (!found) {
-    throw new Error('No Chrome or Edge found: set CHROME to the browser\'s executable.');
+    throw new Error("No Chrome or Edge found: set CHROME to the browser's executable.");
   }
   return found;
 }
@@ -137,21 +137,40 @@ try {
   // The stand-in IAM's own key (the anotoki library's TestIam writes it into the folder the stand-in reads), and the
   // site's settings pointing at it.
   const iamDir = join(work, 'stand-in-iam');
-  run(php, ['-r', 'require "vendor/autoload.php"; \\Anotoki\\Lib\\Auth\\Testing\\TestIam::create($argv[1], $argv[2], "survey", "browser-check");', '--', iamDir, `http://127.0.0.1:${IAM}`], { cwd: backend });
+  run(php, ['-r', 'require "vendor/autoload.php"; \\Anotoki\\Lib\\Auth\\Testing\\TestIam::create($argv[1], $argv[2], "survey", "browser-check");', '--', iamDir, `http://127.0.0.1:${IAM}`], {
+    cwd: backend,
+  });
   run(php, ['tests/tools/testenv.php', join(work, 'config'), `--db=${DATABASE}`, `--issuer=http://127.0.0.1:${IAM}`], { cwd: backend });
 
   // Free ports only: a server that cannot have its port fails quietly, and the check would then drive whatever
   // answers there - another site's check, on a computer that runs several (they share 8590-8599).
-  for (const [name, port] of [['SITE', SITE], ['IAM', IAM], ['CHROME', CHROME_PORT]]) {
+  for (const [name, port] of [
+    ['SITE', SITE],
+    ['IAM', IAM],
+    ['CHROME', CHROME_PORT],
+  ]) {
     if (!(await portFree(port))) {
       throw new Error(`Port ${port} is taken (another site's check?): name a free one with SURVEY_CHECK_${name}_PORT.`);
     }
   }
-  start(php, ['-S', `127.0.0.1:${IAM}`, 'vendor/anotoki/lib/php/testing/stand-in-iam.php'], { cwd: backend, env: { ...process.env, STAND_IN_DIR: iamDir, STAND_IN_ISSUER: `http://127.0.0.1:${IAM}` } });
+  start(php, ['-S', `127.0.0.1:${IAM}`, 'vendor/anotoki/lib/php/testing/stand-in-iam.php'], {
+    cwd: backend,
+    env: { ...process.env, STAND_IN_DIR: iamDir, STAND_IN_ISSUER: `http://127.0.0.1:${IAM}` },
+  });
   start(php, ['-S', `127.0.0.1:${SITE}`, 'router.php'], { cwd: backend, env: { ...process.env, SURVEY_TEST_CONFIG: join(work, 'config') } });
   // --lang: the browser's own language decides which language the site starts in, so it is said here and
   // never left to the computer the check runs on. English; the flow asks for Slovak where it wants it.
-  start(findChrome(), ['--headless=new', '--lang=en-GB', `--remote-debugging-port=${CHROME_PORT}`, `--user-data-dir=${join(work, 'chrome')}`, '--no-first-run', '--no-default-browser-check', '--disable-gpu', '--window-size=1280,860', 'about:blank']);
+  start(findChrome(), [
+    '--headless=new',
+    '--lang=en-GB',
+    `--remote-debugging-port=${CHROME_PORT}`,
+    `--user-data-dir=${join(work, 'chrome')}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-gpu',
+    '--window-size=1280,860',
+    'about:blank',
+  ]);
   browserStarted = true;
 
   await waitForUrl(`http://127.0.0.1:${IAM}/.well-known/openid-configuration`, 'The stand-in IAM');
