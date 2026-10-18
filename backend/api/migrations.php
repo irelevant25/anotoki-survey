@@ -23,7 +23,7 @@ use Anotoki\Lib\Translations\Schema as TranslationsSchema;
  * natural order, each file in a transaction of its own with its row in the
  * `migrations` table (id, filename, applied_at - the table as it always was;
  * the library reads it as it is) - and around them the library's own sets
- * (vendor/anotoki/lib/php/migrations/), whose files are recorded as
+ * (vendor/anotoki/lib/backend/migrations/), whose files are recorded as
  * `<set>/NNN_name.sql`: anotoki_admin first (the audit log's table), then the
  * site's, then anotoki_translations (the words' tables where they are
  * missing, the library's words under `anotoki.`) and anotoki_people (where

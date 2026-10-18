@@ -28,7 +28,7 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib 0.6.3, its
+client `survey`, with the anotoki family's library (anotoki-lib 0.7.0, its
 `Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
@@ -300,7 +300,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib 0.6.3, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib 0.7.0, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -345,7 +345,7 @@ answer, every survey's author and every visitor lives in `users`):
 ## The admin tools
 
 The error log, the audit log, feedback and the backups are the anotoki
-family's (anotoki-lib 0.6.3, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
+family's (anotoki-lib 0.7.0, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
 `Feedback`, `Backups` - wired in `api/admin_tools.php`, their routes in
 `routes/admin.php` (feedback's form in `routes/feedback.php`); the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/feedback`, `/backups`, configured in

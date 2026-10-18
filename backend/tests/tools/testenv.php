@@ -16,9 +16,9 @@ declare(strict_types=1);
  *
  * and drop it afterwards: php tests/tools/testdb.php drop survey_test_manual.
  * The IAM is --issuer: the anotoki library's stand-in IAM,
- * vendor/anotoki/lib/php/testing/stand-in-iam.php (its header says how to run
- * it), never the real one; --jwks gives it a key set on disk instead of the
- * one it would download.
+ * vendor/anotoki/lib/backend/testing/stand-in-iam.php (its header says how
+ * to run it), never the real one; --jwks gives it a key set on disk instead
+ * of the one it would download.
  */
 
 if (PHP_SAPI !== 'cli') {

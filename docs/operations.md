@@ -149,11 +149,11 @@ language** from the Translations page (*The site's words and languages*,
 below), save whatever is typed and not saved on the two admin pages (a tab's
 drafts holding a Languages row typed before the upload are not read again,
 nor the strings typed with them), and after it reload every admin page that
-was open. The upload carries `vendor/anotoki/lib/php/migrations/`
+was open. The upload carries `vendor/anotoki/lib/backend/migrations/`
 (the library's set) - `tools/build.php` puts it there, under the deny-all
 `.htaccess` of `vendor/`.
 
-The version that took anotoki-lib 0.4.1 (both halves; 0.6.3 now, below) takes the rest of what every
+The version that took anotoki-lib 0.4.1 (both halves; 0.7.0 now, below) takes the rest of what every
 anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
 are gone - `api/anotoki_iam.php` stays on the host after the upload, read by
 nothing: delete it over FTP; the browser keeps its session, under the same
@@ -227,7 +227,7 @@ then open `/privacy` signed out - its "anotoki account" links go to the IAM's
 own Privacy page and account page - and that it names the hosting company
 (WebSupport s.r.o., the owner's word of 2026-10-18: `core/legal/legal-facts.ts`).
 
-Version **0.4.0** (the owner's wishes of 2026-10-18), on anotoki-lib 0.6.3
+Version **0.4.0** (the owner's wishes of 2026-10-18), on anotoki-lib 0.7.0
 (both halves): **the family's footer** (`<anotoki-site-footer>`) under every
 page and the admin panel - "Version 0.4.0 · What's new · Feedback", then
 Terms · Privacy · Contact; **feedback** - the family's form, opened from the
@@ -517,7 +517,7 @@ SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 
 
 Everything is in the database, pictures and the site's reworded strings
 included. The site backs it up itself - the anotoki family's backups
-(anotoki-lib 0.6.3), on the admin panel's System → **Backups** page, for its
+(anotoki-lib 0.7.0), on the admin panel's System → **Backups** page, for its
 ADMIN: every table by COPY through PDO in one snapshot (no `pg_dump` on the
 host), each a file `storage/backups/<id>.anotoki-backup` (`ANOTOKI-BACKUP 1`,
 a JSON header, then a gzip'd tar of the manifest, the applied migrations' SQL

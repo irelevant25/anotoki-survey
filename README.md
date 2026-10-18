@@ -112,7 +112,7 @@ hosting:
 
 ## Current state - 0.4
 
-**0.4** (2026-10-18, on anotoki-lib 0.6.3; its notes for people are
+**0.4** (2026-10-18, on anotoki-lib 0.7.0; its notes for people are
 `frontend/public/changelog.json`'s newest entry): **the family's footer**
 (`<anotoki-site-footer>`, the build analyzer's - the owner's choice) under
 every page - the survey's, the legal pages, the admin panel's too (in its
@@ -158,7 +158,7 @@ wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (now 0.6.3, both halves:
+migrations are the shared library's, **anotoki-lib** (now 0.7.0, both halves:
 `anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and
