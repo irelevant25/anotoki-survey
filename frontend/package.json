@@ -12,8 +12,7 @@
     "build": "ng build",
     "build:dev": "ng build --configuration development",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test --watch=false",
-    "format": "prettier --write \"src/**/*.{ts,html,scss}\""
+    "test": "ng test --watch=false"
   },
   "packageManager": "npm@10.9.2",
   "dependencies": {
@@ -37,7 +36,6 @@
     "@angular/cli": "^21.2.24",
     "@angular/compiler-cli": "^21.2.0",
     "jsdom": "^28.0.0",
-    "prettier": "^3.8.1",
     "typescript": "~5.9.2",
     "vitest": "^4.0.8"
   }

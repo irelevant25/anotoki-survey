@@ -147,7 +147,7 @@ npm install
 npm start          # ng serve on http://localhost:4700, /api and /setup.php proxied to :8500
 npm test           # Vitest, once
 npm run build      # production -> dist/survey/browser/
-npx prettier --check "src/**/*.{ts,html,scss}"   # a checkout with CRLF line endings: add --end-of-line crlf
+cd .. && bun run format:check   # Prettier on every file of both halves, at the root (bun install there first)
 ```
 
 ## Tests

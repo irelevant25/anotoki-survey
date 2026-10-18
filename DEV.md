@@ -268,7 +268,7 @@ php tests/run.php                  # every tests/unit and tests/api file, four a
 cd frontend
 npm test                           # the unit tests (Vitest): the rules, the checks, the results, the CSV, pictures, the languages
 npm run build                      # the production build
-npx prettier --check "src/**/*.{ts,html,scss}"   # on a checkout with CRLF line endings: --end-of-line crlf
+cd .. && bun run format:check      # Prettier on every file of both halves, at the root (bun install there first)
 ```
 
 The backend tests start the real router under PHP's built-in server (and the
@@ -429,5 +429,4 @@ remove that line.
 | `translations.test.php` fails on a key | The frontend uses a key no migration writes, or a migration writes one nothing uses any more. If the migration was edited just now, the tests' template still has the old one: `php tests/tools/testdb.php template --fresh`. |
 | `translations.test.php` fails with "is a plural family and is asked for as one string", "is asked for as a plural", or "a key is put together from '…', which core/i18n/dynamic-keys.ts does not declare" | The key is in the database, and the page would still show it as a key: ask for a family with `translatePlural` / `.plural()` and for one string with `translate` / `.t()`; declare the prefix and its tails in `dynamic-keys.ts`. |
 | The Languages page: a language just added is not in the chooser | It starts hidden: its row's switch offers it (or the form's "Offer it to readers right away", before adding). |
-| Prettier reports every file | The checkout has CRLF line endings (Windows, `core.autocrlf`): `npx prettier --check --end-of-line crlf "src/**/*.{ts,html,scss}"`. |
 | Port 4700 is busy | Another `ng serve` is still running (on Windows the child of `npx` can outlive its window). Find it with `netstat -ano \| findstr :4700` and end that process. |
