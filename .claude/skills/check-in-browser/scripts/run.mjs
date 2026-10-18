@@ -5,7 +5,7 @@
 // It builds the frontend (unless --no-build), makes a throwaway database
 // (survey_test_browser, from survey_test_template - `php tests/run.php` keeps
 // that current), starts the stand-in IAM on 8597 - the anotoki library's
-// (vendor/anotoki/lib/php/testing/stand-in-iam.php, its key made by the
+// (vendor/anotoki/lib/backend/testing/stand-in-iam.php, its key made by the
 // library's TestIam) - and the site on 8590 (the
 // built app and the API on one origin, as on the hosting), starts headless
 // Chrome with a profile of its own on 8591 - in English (--lang=en-GB), so the
@@ -153,7 +153,7 @@ try {
       throw new Error(`Port ${port} is taken (another site's check?): name a free one with SURVEY_CHECK_${name}_PORT.`);
     }
   }
-  start(php, ['-S', `127.0.0.1:${IAM}`, 'vendor/anotoki/lib/php/testing/stand-in-iam.php'], {
+  start(php, ['-S', `127.0.0.1:${IAM}`, 'vendor/anotoki/lib/backend/testing/stand-in-iam.php'], {
     cwd: backend,
     env: { ...process.env, STAND_IN_DIR: iamDir, STAND_IN_ISSUER: `http://127.0.0.1:${IAM}` },
   });

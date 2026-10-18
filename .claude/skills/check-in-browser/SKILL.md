@@ -226,7 +226,7 @@ launcher exits at once, and the browser it hands over to would outlive it).
    put them there (`php tests/tools/testdb.php template --fresh` after editing
    a migration that the template has already applied).
 3. The stand-in IAM - the anotoki library's,
-   `backend/vendor/anotoki/lib/php/testing/stand-in-iam.php` (built from this
+   `backend/vendor/anotoki/lib/backend/testing/stand-in-iam.php` (built from this
    site's own, which it replaced), with a key of its own the library's
    `TestIam` writes: it signs in whoever `POST /_test/state {user}` says, at
    once, with PKCE and refresh tokens like the real one; `{deny}` turns a
@@ -855,7 +855,7 @@ cd backend
 php tests/tools/testdb.php template
 php -r 'require "vendor/autoload.php"; Anotoki\Lib\Auth\Testing\TestIam::create("storage/manual-iam", "http://127.0.0.1:8597", "survey", "manual");'
 php tests/tools/testenv.php storage/manual --db=survey_test_manual --issuer=http://127.0.0.1:8597
-STAND_IN_DIR=storage/manual-iam STAND_IN_ISSUER=http://127.0.0.1:8597 php -S 127.0.0.1:8597 vendor/anotoki/lib/php/testing/stand-in-iam.php
+STAND_IN_DIR=storage/manual-iam STAND_IN_ISSUER=http://127.0.0.1:8597 php -S 127.0.0.1:8597 vendor/anotoki/lib/backend/testing/stand-in-iam.php
 SURVEY_TEST_CONFIG=storage/manual php -S 127.0.0.1:8590 router.php     # in another terminal
 # who signs in: curl -X POST -d '{"user":{"id":1,"username":"owner","roles":["MEMBER","ADMIN"]}}' http://127.0.0.1:8597/_test/state
 # with an account set to Slovak: ... -d '{"user":{"id":103,"username":"zuzana","roles":["MEMBER"],"locale":"sk"}}' ...

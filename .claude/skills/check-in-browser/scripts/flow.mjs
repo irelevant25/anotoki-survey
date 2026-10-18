@@ -1,6 +1,6 @@
 // The survey site end to end in headless Chrome (or Edge), signing in through
 // the anotoki library's stand-in IAM
-// (backend/vendor/anotoki/lib/php/testing/stand-in-iam.php) - never the real
+// (backend/vendor/anotoki/lib/backend/testing/stand-in-iam.php) - never the real
 // one. It expects an empty site: run.mjs makes one and starts everything; on its own:
 //
 //   node flow.mjs <debugging port> <site origin> <fake IAM origin> <png file> <shots folder>
