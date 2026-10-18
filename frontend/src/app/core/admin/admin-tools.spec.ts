@@ -64,11 +64,12 @@ describe('provideSiteAdmin(): the anotoki family’s admin tools and People page
 });
 
 describe('deleteQuestion(): what the People page asks before a person’s answers go', () => {
-  it('says what goes - their answers, counted - and what stays: the surveys they wrote, the account, the backups made before', () => {
+  it('says what goes - their answers, counted, and their feedback’s reply address and browser - and what stays: the feedback’s words, the surveys they wrote, the account, the backups made before', () => {
     const asked = deleteQuestion(person('3', 'zuzka', 2), false);
     expect(asked.title).toBe('Delete zuzka’s answers?');
     expect(asked.message).toBe(
       'Every answer they sent here goes - 2 surveys - and cannot be brought back; the results no longer count them. ' +
+        'Feedback they sent stays, without its reply address and browser. ' +
         'The surveys they wrote stay, and so does their anotoki account. The backups made before now still hold the answers until they are deleted.',
     );
     expect(asked.confirm).toBe('Delete their answers');

@@ -1,8 +1,8 @@
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { Router, type Routes, provideRouter } from '@angular/router';
 import { ANOTOKI_MIGRATIONS_CONFIG, SiteStatus, siteStatusInterceptor } from '@anotoki/lib/migrations';
 import { MigrationsPageComponent } from '@anotoki/lib/migrations/page';
 import { firstValueFrom } from 'rxjs';
@@ -11,8 +11,13 @@ import { AdminDates } from './core/admin/admin-dates.service';
 import { ANOTOKI_AUTH_CONFIG, AnotokiAuth, type AnotokiPreferences, personGuard } from '@anotoki/lib/auth';
 import { AuthService, BootStatus, SignInFailure } from './core/auth/auth.service';
 import { BOOTED } from './core/boot';
+import { VisitorKey } from './core/auth/visitor-key';
 import { provideSiteMigrations } from './core/migrations';
 import { provideTestTranslations } from './core/testing/test-translations';
+import { LegalLayoutComponent } from './layouts/legal-layout/legal-layout.component';
+import { ParticipantLayoutComponent } from './layouts/participant-layout/participant-layout.component';
+import { SiteFooterComponent } from './layouts/site-footer/site-footer.component';
+import { TopBarComponent } from './layouts/top-bar/top-bar.component';
 
 @Component({ selector: 'app-test-page', template: '<p class="test-page">A page of the site</p>' })
 class TestPageComponent {
@@ -23,6 +28,16 @@ class TestPageComponent {
     TestPageComponent.made++;
   }
 }
+
+/** The bar and the footer of the site's frames, standing in: their own specs draw them; here, only whether a frame draws them. */
+@Component({ selector: 'app-top-bar', changeDetection: ChangeDetectionStrategy.OnPush, template: '<header class="test-bar">The top bar</header>' })
+class TopBarStubComponent {
+  readonly area = input<'survey' | 'admin'>('survey');
+  readonly width = input<'wide' | 'narrow'>('wide');
+}
+
+@Component({ selector: 'app-site-footer', changeDetection: ChangeDetectionStrategy.OnPush, template: '<footer class="test-footer">Terms · Privacy · Contact</footer>' })
+class SiteFooterStubComponent {}
 
 /** What the Migrations page reads: one file applied, one waiting. */
 const MIGRATIONS = {
@@ -44,6 +59,7 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
     status,
     user: signal(null),
     signedIn: () => signedIn(),
+    visitorsWelcome: () => false,
     isAdmin: () => signedIn() && roles().includes('ADMIN'),
     signInFailure,
     preferences: () => preferences(),
@@ -75,30 +91,49 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
   const buttons = () => Array.from(host.querySelectorAll('anotoki-site-status button, anotoki-site-status a')).map(words);
 
   /** The site with the reader's language: the family's module wired as the app wires it (core/migrations.ts). */
-  function configure(language = 'en'): void {
+  function configure(language = 'en', routes?: Routes): void {
     TestBed.configureTestingModule({
       providers: [
         provideTestTranslations({}, language === 'en' ? {} : { language }),
         provideHttpClient(withInterceptors([siteStatusInterceptor])),
         provideHttpClientTesting(),
-        provideRouter([
-          {
-            path: 'admin',
-            canActivate: [personGuard],
-            children: [
-              { path: 'migrations', component: MigrationsPageComponent },
-              { path: '', component: TestPageComponent },
-            ],
-          },
-          { path: '**', component: TestPageComponent },
-        ]),
+        provideRouter(
+          routes ?? [
+            {
+              path: 'admin',
+              canActivate: [personGuard],
+              children: [
+                { path: 'migrations', component: MigrationsPageComponent },
+                { path: '', component: TestPageComponent },
+              ],
+            },
+            { path: '**', component: TestPageComponent },
+          ],
+        ),
         provideSiteMigrations(),
         { provide: AuthService, useValue: auth },
         { provide: AnotokiAuth, useValue: library },
         { provide: ANOTOKI_AUTH_CONFIG, useValue: { config: () => null } },
+        { provide: VisitorKey, useValue: { moved: signal(null), lost: signal(false) } },
       ],
     });
   }
+
+  /**
+   * The site's own frames, as app.routes.ts has them: the pages people take surveys on and the legal pages,
+   * each with the top bar above and the footer below - which only a frame draws.
+   */
+  function configureFramed(): void {
+    configure('en', [
+      { path: 'terms', component: LegalLayoutComponent, children: [{ path: '', component: TestPageComponent }] },
+      { path: '', component: ParticipantLayoutComponent, children: [{ path: '**', component: TestPageComponent }] },
+    ]);
+    TestBed.overrideComponent(ParticipantLayoutComponent, { remove: { imports: [TopBarComponent, SiteFooterComponent] }, add: { imports: [TopBarStubComponent, SiteFooterStubComponent] } });
+    TestBed.overrideComponent(LegalLayoutComponent, { remove: { imports: [TopBarComponent, SiteFooterComponent] }, add: { imports: [TopBarStubComponent, SiteFooterStubComponent] } });
+  }
+
+  /** A header or a footer anywhere on the page: the site's bar and footer, or any other. */
+  const frame = () => Array.from(host.querySelectorAll('app-top-bar, app-site-footer, anotoki-top-bar, anotoki-legal-links, header, footer')).map((element) => element.tagName.toLowerCase());
 
   /** What GET /api/site-status answers when the start asks. */
   async function standing(body: object): Promise<void> {
@@ -369,6 +404,38 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
       expect(page()).toBeNull();
       expect(heading()).toBe('The site is not available right now');
       expect(host.querySelector('a[href="/setup.php"]')).toBeNull();
+    });
+  });
+
+  describe('the family’s page stands alone - no top bar, no footer (the owner, 2026-10-18: "nor header nor footer", for they can be under the update as well)', () => {
+    it.each([
+      ['a database update waits', { state: 'update_pending', installed: true }, 'The site is being updated'],
+      ['the database is out of reach', { state: 'unavailable', installed: true }, 'The site is not available right now'],
+      ['the site is not set up', { state: 'not_set_up', installed: false }, 'This site is not set up yet'],
+    ])('while %s: on the pages people take surveys on and the legal pages alike, the page that says so and nothing around it', async (_while, body, said) => {
+      configureFramed();
+      await standing(body);
+      await start('ready', true);
+      for (const url of ['/', '/autumn-survey', '/terms']) {
+        await at(url);
+        expect(heading(), url).toBe(said);
+        expect(frame(), url).toEqual([]);
+      }
+      expect(TestPageComponent.made, 'and no page behind it').toBe(0);
+    });
+
+    it('nor the card saying the server could not be reached - and while the site runs, its frames draw the bar and the footer as ever', async () => {
+      configureFramed();
+      await standing({ state: 'ready', installed: true });
+      await start('error', true);
+      expect(loadError()).not.toBeNull();
+      expect(frame()).toEqual([]);
+
+      await now('ready', true);
+      for (const url of ['/', '/terms']) {
+        await at(url);
+        expect(frame(), url).toEqual(['app-top-bar', 'header', 'app-site-footer', 'footer']);
+      }
     });
   });
 

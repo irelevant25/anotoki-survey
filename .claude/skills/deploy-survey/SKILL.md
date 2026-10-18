@@ -120,6 +120,29 @@ the upload move any survey opened at the address `terms`, `privacy` or
 those addresses). After it, open `/privacy` signed out: the anotoki account's
 Privacy page and account page are the IAM's.
 
+**Version 0.4.0, still anotoki-lib 0.6.2**: feedback (the Contact page's form,
+the admin panel's Feedback page), the version and its What's new list, and two
+hardenings. It brings `014_feedback_words.sql` (the library's feedback words
+in formal Slovak, written only where the library's informal ones still stand:
+an owner's rewording stays) and `015_whats_new_and_feedback.sql` (the
+Privacy page's sentence on how long feedback is kept, What's new's words):
+Apply on the Migrations page. The feedback table is the library's
+`anotoki_admin/002`, applied since 0.4.1. **A `config/cloudflare.local.php`
+on the host must name its secret** - `['origin_secret' => '<a string>']`: one
+read cleanly with the secret blank, misspelt, or not a string - or a folder
+given its name - now fails closed like a broken one (every request from
+Cloudflare's ranges its edge, so
+visitors may be refused "too many" from everywhere; `[cloudflare] ... names
+no usable origin_secret` in PHP's error log once a day) - mend it, or delete
+it to switch the secret off. The family's host check now runs beside
+`setup.php` (the `.htaccess` lets both through): to check a host, write a long
+random token into `tools/host-check.php`, upload it to the web root, open
+`/host-check.php?token=<it>`, and delete it again (its page has a button for
+that; check over SFTP that it is gone). A release is `frontend/package.json`'s
+version and its entry first in `frontend/public/changelog.json`, English and
+formal Slovak (a spec holds the two versions together); `changelog.json` goes
+out with `no-cache`, as `index.html` does.
+
 ## 2. Upload
 
 For a version with a new migration that will be applied with the setup page
@@ -206,9 +229,14 @@ ADMIN only to the administrators the IAM had when it ran.
   `sign_in_available` - `true`; `visitor_days` - 30, or the `keep_days` of
   `config/visitors.local.php`.
 - As the owner (ADMIN): System in the admin panel's bar - People lists the
-  people who signed in; the error log, the audit log and the backups open
-  (the Apply's backup listed); `/storage/logs/`, `/storage/backups/` and
-  `/storage/anotoki-lib.key` are refused (403), not served.
+  people who signed in; Feedback, the error log, the audit log and the
+  backups open (the Apply's backup listed); `/storage/logs/`,
+  `/storage/backups/` and `/storage/anotoki-lib.key` are refused (403), not
+  served.
+- Signed out, Contact's "Send feedback" opens the form; a message sent shows
+  the thanks, and the admin panel counts it beside System until it is opened.
+  `https://survey.anotoki.eu/changelog.json` lists the release's version
+  first.
 - `https://survey.anotoki.eu/setup.php` does not show the installer.
 - `/config/database.local.php`, `/storage/`, `/vendor/composer/installed.json`,
   `/api/auth.php` are refused (403), not served.

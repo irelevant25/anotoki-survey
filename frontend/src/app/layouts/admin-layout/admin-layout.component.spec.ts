@@ -1,6 +1,10 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, RouterOutlet, provideRouter } from '@angular/router';
+import { FeedbackUnread, provideAnotokiAdmin } from '@anotoki/lib/admin';
+import { SiteStatus } from '@anotoki/lib/migrations';
 import { AuthService } from '../../core/auth/auth.service';
 import { provideTestTranslations } from '../../core/testing/test-translations';
 import { TopBarComponent } from '../top-bar/top-bar.component';
@@ -22,9 +26,12 @@ describe('AdminLayoutComponent', () => {
   // As AuthService has them: no roles for anybody who is not signed in.
   const signedIn = signal(true);
   const roles = signal<string[]>(['EDITOR']);
+  /** Where the site stands (the family's SiteStatus): an update waiting, or running. */
+  const state = signal<'ready' | 'update-pending'>('ready');
   const auth = {
     signedIn: () => signedIn(),
     isStaff: () => signedIn() && (roles().includes('ADMIN') || roles().includes('EDITOR')),
+    isAdmin: () => signedIn() && roles().includes('ADMIN'),
     signInFailure: () => null,
     signIn: vi.fn(async (_returnTo?: string, _prompt?: 'login') => true),
   };
@@ -35,9 +42,10 @@ describe('AdminLayoutComponent', () => {
   const clean = (text: string | null | undefined) => (text ?? '').replace(/\s+/g, ' ').trim();
   const text = (selector: string) => clean(host.querySelector(selector)?.textContent);
 
-  async function layout(who: { signedIn: boolean; roles: string[] }): Promise<void> {
+  async function layout(who: { signedIn: boolean; roles: string[] }, standing: 'ready' | 'update-pending' = 'ready'): Promise<void> {
     signedIn.set(who.signedIn);
     roles.set(who.roles);
+    state.set(standing);
     auth.signIn.mockClear();
     TestBed.configureTestingModule({
       providers: [
@@ -47,6 +55,11 @@ describe('AdminLayoutComponent', () => {
         ]),
         { provide: AuthService, useValue: auth },
         provideTestTranslations({}, { language: 'sk' }),
+        // How many feedback messages are new: the family's count, for the site's ADMIN (core/admin/admin-tools.ts).
+        provideAnotokiAdmin(() => ({ isAdmin: () => auth.isAdmin() })),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: SiteStatus, useValue: { state } },
       ],
     });
     TestBed.overrideComponent(AdminLayoutComponent, { remove: { imports: [TopBarComponent] }, add: { imports: [TopBarStubComponent] } });
@@ -54,6 +67,28 @@ describe('AdminLayoutComponent', () => {
     host = fixture.nativeElement;
     await fixture.whenStable();
   }
+
+  it('asks how many feedback messages are new for an ADMIN, as the panel opens - for nobody else, and never while an update waits', async () => {
+    await layout({ signedIn: true, roles: ['ADMIN'] });
+    const requests = TestBed.inject(HttpTestingController);
+    requests.expectOne('/api/admin/feedback/unread').flush({ unread: 3 });
+    await vi.waitFor(() => expect(TestBed.inject(FeedbackUnread).count()).toBe(3));
+    requests.verify();
+  });
+
+  it('asks nothing for an EDITOR, nor for an ADMIN while a database update waits - the Migrations page is the one page that works then', async () => {
+    await layout({ signedIn: true, roles: ['EDITOR'] });
+    TestBed.inject(HttpTestingController).verify();
+    TestBed.resetTestingModule();
+
+    await layout({ signedIn: true, roles: ['ADMIN'] }, 'update-pending');
+    const requests = TestBed.inject(HttpTestingController);
+    requests.verify();
+    // Applied: the site runs, and the count is asked.
+    state.set('ready');
+    await fixture.whenStable();
+    requests.expectOne('/api/admin/feedback/unread').flush({ unread: 0 });
+  });
 
   it('draws the page for staff - an editor, an administrator - and no card', async () => {
     await layout({ signedIn: true, roles: ['EDITOR'] });

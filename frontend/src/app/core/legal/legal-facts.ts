@@ -66,6 +66,16 @@ export function surveyLegalPagesConfig(): AnotokiLegalConfig {
  *   the counters of new visitors an hour by a keyed HMAC of the address
  *   (clientAddressKept()), deleted by the clean-up after their hour
  *   (visitorSweep());
+ * - feedback (the library's form and table, surveyFeedback() - the owner's
+ *   wish of 2026-10-18): what it keeps and what for in the library's words -
+ *   the message, its page, language and browser, the account unless sent
+ *   without a name, a reply address only if the sender writes one (the form
+ *   here writes none in: core/feedback.ts); how long in the site's
+ *   (`legal.feedback.kept`, migration 015): spam 30 days and resolved 365 -
+ *   the library's keeping, surveyFeedback() sets none of its own - each at the
+ *   next clean-up, at most daily after a message comes or the Feedback page is
+ *   opened (Feedback::pruneIfDue()); a deleted account's messages lose the
+ *   reply address and the browser (peopleForgetFeedback(), api/people.php);
  * - the error log: the library's words and its 30 days (surveyErrorLog() sets
  *   no `days`);
  * - the audit log: editors' and administrators' changes, by the token's
@@ -86,8 +96,8 @@ export function surveyLegalPagesConfig(): AnotokiLegalConfig {
  *   the owner on 2026-10-18: the servers, the database and the mail) and
  *   Cloudflare.
  *
- * No feedback (the owner's decision for this site): the Contact page gives the
- * address alone. Every address the pages link to is the code's - the anotoki
+ * The Contact page offers the feedback form first, then the address for
+ * everything else. Every address the pages link to is the code's - the anotoki
  * account's pages from the IAM's address the site signs in with (GET
  * /api/auth/config), the operator and Cloudflare in the library -, never a
  * string's: a rewording on the Translations page can never change where a link
@@ -112,6 +122,9 @@ export function surveyLegalFacts(i18n: TranslationService, anotoki: AnotokiAuth,
       why: i18n.t('legal.visitors.why'),
       kept: i18n.plural('legal.visitors.kept', visitorDays ?? VISITOR_DAYS_DEFAULT),
     },
+    // The form and the Contact page's way to it: what and what for in the library's words; how long in the site's,
+    // which say when the clean-up runs - the library's own words do not.
+    feedback: { kept: i18n.t('legal.feedback.kept') },
     // The editors' changes too, and what the site does there by itself (the daily backup) - never an address.
     auditLog: { what: i18n.t('legal.auditLog.what') },
     // Kept by count, not by age: a daily copy is made on a day the site is used, so the 14 newest may span more days.

@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, untracked } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { FeedbackUnread } from '@anotoki/lib/admin';
+import { SiteStatus } from '@anotoki/lib/migrations';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
 import { IconComponent } from '@anotoki/lib/ui/icon';
@@ -27,6 +29,13 @@ import { TopBarComponent } from '../top-bar/top-bar.component';
  *
  * In the last two the route under the layout is still the active one, with no
  * page drawn: a guard on it is asked with no page (unsavedChangesGuard).
+ *
+ * For an ADMIN, how many feedback messages nobody opened yet - the bar's System
+ * link and the System page's Feedback say it (the family's FeedbackUnread; the
+ * Feedback page keeps it in step): asked as the panel opens, and again when an
+ * ADMIN signs in here - never while the site cannot run (an update waiting:
+ * the Migrations page is the one page that works then). No mail is sent for a
+ * message: this is how the ADMIN hears of one.
  */
 @Component({
   selector: 'app-admin-layout',
@@ -38,6 +47,17 @@ import { TopBarComponent } from '../top-bar/top-bar.component';
 export class AdminLayoutComponent {
   protected readonly auth = inject(AuthService);
   private readonly _router = inject(Router);
+
+  constructor() {
+    const unread = inject(FeedbackUnread);
+    const status = inject(SiteStatus);
+    effect(() => {
+      if (this.auth.isAdmin() && status.state() === 'ready') {
+        // Only who is here and where the site stands are followed - never what the count reads itself.
+        untracked(() => void unread.refresh());
+      }
+    });
+  }
 
   /** To the IAM and back to this page - its pages in the language the person reads here, not the admin area's English; the screen that says why if it cannot start. */
   protected signIn(): void {

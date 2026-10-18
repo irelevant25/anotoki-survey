@@ -254,11 +254,14 @@ AddType text/javascript .js .mjs
 </IfModule>
 
 # The only PHP a visitor may run here: the setup page, while it is still here
-# (it deletes itself when it is done). api/.htaccess lets api/index.php run.
+# (it deletes itself when it is done), and the host check (tools/host-check.php,
+# never part of a build: uploaded by hand, opened with its own token, and
+# deleted again - while it is not here, this lets nothing run). api/.htaccess
+# lets api/index.php run.
 <FilesMatch "\.(php|phtml|phar)$">
     Require all denied
 </FilesMatch>
-<FilesMatch "^setup\.php$">
+<FilesMatch "^(setup|host-check)\.php$">
     Require all granted
 </FilesMatch>
 
@@ -274,10 +277,11 @@ AddType text/javascript .js .mjs
     Header always set Referrer-Policy "same-origin"
     Header always set Content-Security-Policy "$csp"
 
-    # The app's shell and the theme's early script change with every version
-    # and have no hash in their names: asked again each time (the network in
-    # front of the site keeps the hashed bundles, which never change).
-    <FilesMatch "^(index\.html|theme-boot\.js)$">
+    # The app's shell, the theme's early script and the list of versions (the
+    # version the pages show) change with every version and have no hash in
+    # their names: asked again each time (the network in front of the site
+    # keeps the hashed bundles, which never change).
+    <FilesMatch "^(index\.html|theme-boot\.js|changelog\.json)$">
         Header set Cache-Control "no-cache"
     </FilesMatch>
 </IfModule>

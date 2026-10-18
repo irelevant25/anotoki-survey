@@ -1,6 +1,6 @@
 {
   "name": "anotoki-survey",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "anotoki survey's frontend: Angular 21 (standalone, zoneless, signals) - the survey people take, the editor, and the results, on the PHP API in ../backend.",
   "private": true,
   "engines": {

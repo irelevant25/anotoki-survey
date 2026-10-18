@@ -7,12 +7,12 @@ import { MIGRATIONS_PATH } from './migrations';
  * The library's words whose Slovak speaks to the reader - informally (ty), as
  * the other anotoki sites do - said this site's way: formally (Vy, with its
  * capital; docs/decisions.md). The database has the same words (migrations
- * 010 and 012 - the sign-in's callback page and failure screen - and an
- * administrator may reword them on the Translations page); these are for the
- * moments it cannot be read - the family's page while the site cannot run, a
- * first visit whose strings did not come - when the library would otherwise
- * say its own built-in Slovak. Held to the database's by
- * backend/tests/unit/translations.test.php.
+ * 010, 012 - the sign-in's callback page and failure screen - and 014 - the
+ * feedback form's -, and an administrator may reword them on the Translations
+ * page); these are for the moments it cannot be read - the family's page while
+ * the site cannot run, a first visit whose strings did not come - when the
+ * library would otherwise say its own built-in Slovak. Held to the database's
+ * by backend/tests/unit/translations.test.php.
  */
 export const FORMAL_SLOVAK: Readonly<Record<string, string>> = {
   'anotoki.ui.copyFailed': 'Kopírovanie nefungovalo. Označte text a skopírujte ho ručne.',
@@ -28,6 +28,22 @@ export const FORMAL_SLOVAK: Readonly<Record<string, string>> = {
   'anotoki.signIn.storageUnavailable':
     'Tento prehliadač nedovolil stránke zapamätať si prebiehajúce prihlásenie. Povoľte tejto stránke ukladať údaje (súbory cookie a údaje stránok) a potom sa prihláste znova.',
   'anotoki.signIn.unavailable': 'Prihlásenie teraz nie je dostupné. Skúste to, prosím, znova o pár minút.',
+  'anotoki.feedback.title': 'Pošlite nám spätnú väzbu',
+  'anotoki.feedback.lead': 'Niečo nefunguje, máte nápad alebo otázku? Napíšte nám – čítame každú správu.',
+  'anotoki.feedback.message': 'Vaša správa',
+  'anotoki.feedback.email': 'Vaša e-mailová adresa',
+  'anotoki.feedback.emailHint': 'Len ak chcete odpoveď. Na nič iné ju nepoužijeme.',
+  'anotoki.feedback.anonymousHint': 'Nepôjde s ňou ani Váš účet, ani Vaša adresa.',
+  'anotoki.feedback.thanksText': 'Vaša správa je na ceste k nám.',
+  'anotoki.feedback.messageRequired': 'Najprv napíšte správu.',
+  'anotoki.feedback.subjectRequired': 'Doplňte, prosím, predmet.',
+  'anotoki.feedback.tooManyHour': 'Ďakujeme – no to je veľa správ za krátky čas. Skúste to, prosím, znova o hodinu.',
+  'anotoki.feedback.tooManyDay': 'Ďakujeme – no dnes prišlo veľa správ. Skúste to, prosím, znova zajtra.',
+  'anotoki.feedback.unavailable': 'Správy teraz nemôžete poslať. Skúste to, prosím, znova o pár minút.',
+  'anotoki.feedback.signInRequired': 'Na poslanie správy sa, prosím, prihláste.',
+  'anotoki.feedback.failed': 'Správu sa nepodarilo poslať. Skúste to, prosím, znova – Váš text tu stále je.',
+  'anotoki.feedback.network': 'Stránka nie je dostupná. Skontrolujte pripojenie a skúste to znova.',
+  'anotoki.feedback.honeypot': 'Toto pole nechajte prázdne',
 };
 
 /** The library's words this site says its own way, by language: what `libraryWords` is given. */

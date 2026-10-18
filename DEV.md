@@ -182,8 +182,9 @@ the host behind Cloudflare - a computer of yours needs none.
 | `/admin/surveys/{id}/responses/{id}` | one person's answers on a page of its own |
 | `/admin/translations` | the site's own words: every key, a column a language |
 | `/admin/languages` | the languages: add, rename, reorder, offer or hide, delete (ADMIN) |
+| `/admin/system` | an ADMIN's System pages: `/admin/people`, `/admin/feedback` (what people sent through the feedback form; the count of new ones beside the bar's System link), `/admin/errors`, `/admin/audit`, `/admin/backups`, `/admin/migrations` |
 | `/auth/callback` | where the IAM sends the browser back after signing in |
-| `/terms`, `/privacy`, `/contact` | the legal pages - the anotoki family's, with this site's facts - for anybody, signed in or not; Terms · Privacy · Contact at the foot of every page people take surveys on |
+| `/terms`, `/privacy`, `/contact` | the legal pages - the anotoki family's, with this site's facts - for anybody, signed in or not; Contact opens the feedback form; Terms · Privacy · Contact at the foot of every page people take surveys on |
 
 `?lang=sk` on any address of the site reads it in that language for the tab
 (and is taken out of the address); the chooser in the top bar remembers a
@@ -332,9 +333,10 @@ English and in formal Slovak), a save of strings that
 fails, a session ending over boxes typed and not saved (they are back after
 signing in again), signing out over them, a language added hidden, an open
 survey with a text not translated yet, an author saving over a translator's
-save, a database behind the code (the family's page for everybody, the
-Migrations page for the ADMIN who signs in from it), the site not set up or
-out of reach - with "Try again" - and visitors:
+save, a database behind the code (the family's page for everybody, bare - no
+top bar, no footer -, the Migrations page for the ADMIN who signs in from
+it), the site not set up or out of reach - bare too, with "Try again" - and
+visitors:
 the stand-in's "Sign-in required" switched off, surveys taken without signing
 in (in a second browser too), "Visitor N" / "Not signed in" in the results,
 a sign-in that moves the answers and the draft into the account, and the
@@ -347,7 +349,11 @@ downloaded by its link, deleted) - and an EDITOR kept out of them; and Terms,
 Privacy and Contact - opened with nobody signed in and no trip to the IAM, at
 1280 and 390 px, light and dark, in English and Slovak, the anotoki account's
 Privacy page and account page the stand-in IAM's, the footer's links under the
-survey's pages and the card of a session that ended. It takes about eight minutes after the build.
+survey's pages and the card of a session that ended; Contact's feedback form
+sent by nobody signed in (and in the site's formal Slovak on a phone), then
+that message on the admin panel - counted beside System and on its card,
+opened, marked resolved, deleted after its question, audited. It takes about
+eight minutes after the build.
 `CHROME=` names the browser (Edge where Chrome is not installed) and `PHP=`
 a PHP 8.2+ where `php` is an older one.
 

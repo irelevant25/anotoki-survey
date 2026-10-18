@@ -60,11 +60,13 @@ declare(strict_types=1);
  *       return ['origin_secret' => '<a long random value, 32 characters or more>'];
  *
  *   With it, CF-Connecting-IP is believed only on a request that carries that
- *   secret (originSecret()); without it - or with a value that is not a string
- *   with something in it - from Cloudflare's ranges alone, as before. A file
- *   that is there but cannot be read cleanly fails closed: a secret no request
- *   carries, every request from Cloudflare's ranges its edge (originSecretFile()).
- *   The secret is never printed or logged.
+ *   secret (originSecret()); without it, from Cloudflare's ranges alone, as
+ *   before. Anything there that holds no usable secret - a file that cannot be
+ *   read cleanly, one read cleanly that names none (blank, not an array, a
+ *   misspelt key, a value that is not a string), a folder in its place - fails
+ *   closed: a secret no request carries, every request from Cloudflare's ranges
+ *   its edge (originSecretFile()). Switching the secret off is deleting the
+ *   file. The secret is never printed or logged.
  *
  * The tests run against throwaway databases with settings of their own:
  * SURVEY_TEST_CONFIG names a folder holding the same two files, and it is only
@@ -306,8 +308,8 @@ function visitorSettingRangeOk(mixed $range): bool
  * The secret the owner's Cloudflare zone adds to every request through it
  * (X-Anotoki-Origin, the library's ClientAddress::ORIGIN_HEADER: a Transform
  * Rule - the owner's decision of 2026-10-13), from config/cloudflare.local.php;
- * null without one, and one no request carries for a file that cannot be read
- * cleanly (originSecretFile()). Cloudflare's published ranges are every Cloudflare
+ * null without one, and one no request carries for anything there that holds no
+ * usable secret (originSecretFile()). Cloudflare's published ranges are every Cloudflare
  * customer's, not the owner's zone alone: anybody's Worker can reach the host
  * from them and write the CF-Connecting-IP it likes, a new one for every
  * request. With the secret that header is believed only on a request that
@@ -321,38 +323,53 @@ function originSecret(): ?string
 }
 
 /**
- * What config/cloudflare.local.php says - the IAM's rule, case for case (its
- * iamOriginSecret(), ../anotoki-iam/backend/config/cloudflare.php; the owner's
- * decision of 2026-10-13, docs/decisions.md):
+ * What config/cloudflare.local.php says. A file that is there means a secret -
+ * its owner put it there by hand to have one - so anything short of a usable
+ * one fails closed (the owner's "do as you think is the best" of 2026-10-18,
+ * docs/decisions.md - tighter than the IAM's rule of 2026-10-13, which read a
+ * file naming no secret as none; every anotoki site takes this one):
  *
- *   - no file: null, no secret - CF-Connecting-IP from Cloudflare's ranges
- *     alone, which is how the site worked before the file;
+ *   - nothing there: null, no secret - CF-Connecting-IP from Cloudflare's
+ *     ranges alone, which is how the site worked before the file. Deleting the
+ *     file is the one way to switch the secret off;
+ *   - a folder in its place (an FTP program's new folder with the file's name):
+ *     something is there, but no file to read - a secret no request carries;
  *   - a file read cleanly whose origin_secret is a string with something in it:
  *     that string, trimmed (a header's value never starts or ends with a space);
- *   - a file read cleanly that names no secret - blank, missing, no string, no
- *     array returned: null, no secret, as the IAM reads it;
+ *   - a file read cleanly that names no usable secret - an empty value or only
+ *     spaces, no array returned (a forgotten `return`, null, a bare string), a
+ *     misspelt key, a value that is not a string (a number, a list): a secret
+ *     no request carries (originSecretNobodyCarries()), so every request from
+ *     Cloudflare's ranges counts as the edge it came from until the file holds
+ *     one. Read as "no secret", as before, a typo in the key's name would have
+ *     believed the CF-Connecting-IP of anybody's Worker on those ranges again,
+ *     and said so only in a log line;
  *   - a file that is there but cannot be read cleanly - it does not start with
  *     <?php (a byte-order mark or a line before it, no <?php line: never
  *     compiled), it prints anything (text after its closing tag), PHP cannot
- *     parse or run it, or may not open it: a secret no request
- *     carries (originSecretNobodyCarries()), so every request from Cloudflare's
- *     ranges counts as the edge it came from until the file is mended. Its
- *     owner meant a secret, and believing CF-Connecting-IP from Cloudflare's
- *     ranges alone - from anybody's Worker there - would be the looser reading:
- *     a slip of the editor never switches the check off. The site keeps
- *     running all the same: the file is optional, never a reason to be "not
- *     set up".
+ *     parse or run it, or may not open it: the same, a secret no request
+ *     carries, until the file is mended.
  *
- * Each fault is said in PHP's error log at most once a day (settingsSaid()),
- * by the kind of error and its line, that it does not start with <?php, or
- * the bytes the file printed - never its text: a parse error's message can
- * quote the file, and the secret is never printed or logged.
+ * Its owner meant a secret, and believing CF-Connecting-IP from Cloudflare's
+ * ranges alone - from anybody's Worker there - would be the looser reading: a
+ * slip of the editor never switches the check off. The site keeps running all
+ * the same: the file is optional, never a reason to be "not set up". Each
+ * fault is said in PHP's error log at most once a day (settingsSaid()), by the
+ * kind of error and its line, that it does not start with <?php, the bytes the
+ * file printed, that it names no usable origin_secret, or that it is no file -
+ * never its text: a parse error's message can quote the file, and the secret
+ * is never printed or logged.
  */
 function originSecretFile(): ?string
 {
     $file = localConfigFile('cloudflare');
-    if (!is_file($file)) {
+    if (!file_exists($file)) {
         return null;
+    }
+    if (!is_file($file)) {
+        settingsSaid('cloudflare', 'config/cloudflare.local.php is no file (a folder in its place?): no request carries its secret, so every request from Cloudflare\'s ranges counts as the edge it came from until a file there names one - or nothing is there, which switches the secret off.');
+
+        return originSecretNobodyCarries();
     }
 
     $read = settingsFileReadCleanly($file);
@@ -365,9 +382,9 @@ function originSecretFile(): ?string
     $values = $read['value'];
     $secret = is_array($values) ? ($values['origin_secret'] ?? null) : null;
     if (!is_string($secret) || trim($secret) === '') {
-        settingsSaid('cloudflare', 'config/cloudflare.local.php holds no origin_secret (a string with something in it): CF-Connecting-IP is believed from Cloudflare\'s ranges alone.');
+        settingsSaid('cloudflare', 'config/cloudflare.local.php names no usable origin_secret (a string with something in it): no request carries its secret, so every request from Cloudflare\'s ranges counts as the edge it came from until the file holds one - or is deleted, which switches the secret off.');
 
-        return null;
+        return originSecretNobodyCarries();
     }
 
     return trim($secret);
@@ -376,7 +393,7 @@ function originSecretFile(): ?string
 /**
  * A secret no request can carry: 256 random bits, made once a process and
  * never printed, logged or stored, so no X-Anotoki-Origin matches it - what a
- * cloudflare.local.php that cannot be read cleanly stands for.
+ * cloudflare.local.php without a usable secret stands for.
  */
 function originSecretNobodyCarries(): string
 {

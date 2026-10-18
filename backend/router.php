@@ -98,8 +98,8 @@ $inside = $file !== false && str_starts_with($file, $dist . DIRECTORY_SEPARATOR)
 $hidden = $inside && (preg_match('~\.(php|phtml|phar)$~i', $file) || preg_match('~[\\\\/]\.~', substr($file, strlen($dist))));
 
 if ($inside && !$hidden && is_file($file)) {
-    // The app's shell changes with every build; the hashed bundles never do.
-    $fresh = in_array(basename($file), ['index.html', 'theme-boot.js'], true);
+    // The app's shell and the list of versions change with every build; the hashed bundles never do.
+    $fresh = in_array(basename($file), ['index.html', 'theme-boot.js', 'changelog.json'], true);
 
     return routerSend(200, routerContentType($file), (string) file_get_contents($file), $fresh ? ['Cache-Control: no-cache'] : []);
 }

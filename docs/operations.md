@@ -19,9 +19,16 @@ Things the hosting does that matter here:
   after a rewrite: no route may be named like a folder under the web root's
   `api/` (`routes`, `meddleware`) - and no folder there is ever named
   `translations` or `languages`, which are routes.
-- Cloudflare caches static files by extension for hours: `index.html` and
-  `theme-boot.js` go out with `no-cache`; a picture's address ends in its
-  extension and never changes, so caching it is right.
+- Cloudflare caches static files by extension for hours: `index.html`,
+  `theme-boot.js` and `changelog.json` (the list of versions - its newest is
+  the version the pages show) go out with `no-cache`; a picture's address ends
+  in its extension and never changes, so caching it is right.
+- The web root's `.htaccess` lets a visitor run two PHP files alone, each only
+  while it is there: `setup.php` (it deletes itself once a real host is
+  installed) and the family's host check, `host-check.php` (`tools/` in the
+  repository, never in a build: upload it with a long token written into it,
+  open `/host-check.php?token=…`, delete it again - the README's Hosting
+  checklist). Every other PHP file there answers 403; `api/` has its own.
 - Whatever compresses an answer marks its `ETag`: Cloudflare weakens it
   (`W/"…"`), and an Apache that compresses JSON itself appends to it
   (`"…-gzip"`, mod_deflate - not something an `.htaccess` can switch off). The
@@ -160,7 +167,7 @@ ADMIN's, on the admin panel's System page; PHP must be able to write
 `storage/logs/` and `storage/backups/` (it makes them). It brings, in the
 order they run: the library's `anotoki_admin/001_audit_log.sql` and
 `002_feedback.sql` (the audit log's table; the feedback's, which this site
-does not use), the site's `011_people.sql` (`users.anonymized_at`, and
+used from 0.4.0 on), the site's `011_people.sql` (`users.anonymized_at`, and
 **`users.email` dropped** - the owner's decision; its gate proves every other
 column of every row the same as before) and `012_sign_in_words.sql` (the
 site's four sign-in strings moved under the library's keys,
@@ -219,6 +226,32 @@ move such a survey first. **After the upload**: apply on the Migrations page,
 then open `/privacy` signed out - its "anotoki account" links go to the IAM's
 own Privacy page and account page - and that it names the hosting company
 (WebSupport s.r.o., the owner's word of 2026-10-18: `core/legal/legal-facts.ts`).
+
+Version **0.4.0** (the owner's wish of 2026-10-18): **feedback** - the
+family's form, opened from the Contact page (`POST /api/feedback`, anybody's),
+and the admin panel's Feedback page on System, with the count of new messages
+beside the bar's System link; **What's new and the version**
+(`frontend/public/changelog.json`, shown by the family's footer once the site
+takes it); a `config/cloudflare.local.php` read cleanly but naming no usable
+secret failing closed too (*Visitors*, below); and the web root's `.htaccess`
+letting the host check run (*Where it runs*). It brings, in the order they
+run: the site's `014_feedback_words.sql` (the feedback form's words that
+speak to the reader, in this site's formal Slovak over the library's informal
+ones - only where they are still the library's word for word) and
+`015_whats_new_and_feedback.sql` (What's new's words and the Privacy page's
+"how long" of a feedback message). The table is there already (the library's
+`anotoki_admin/002_feedback.sql`, applied with 0.3). PHP keeps feedback's
+limits and the daily clean-up's stamp in `storage/cache/`
+(`anotoki-feedback-limits.json`: a day of keyed hashes, no address;
+`anotoki-feedback-prune.stamp`). **After the upload**: apply on the Migrations
+page, then send a message from `/contact` signed out and find it on System →
+Feedback - then mark it, or delete it.
+
+A **release** adds its entry at the top of `frontend/public/changelog.json` -
+what changed for people, in English and its whole formal-Slovak translation
+(`translations.sk`) - and sets `frontend/package.json`'s version (and the two
+in `package-lock.json`) to it: the newest entry is the version the footer
+shows, and a spec holds the three together.
 
 ## The site's words and languages
 
@@ -436,24 +469,26 @@ same value in two places, a long random value of 32 characters or more:
 
 Set the rule first - a site without the file pays the header no heed - then
 the file: the other way round, every visitor counts as their edge until the
-rule is there; changing the secret, likewise. Without the file, or with one
-read cleanly whose value is not a string with something in it, the site
-believes `CF-Connecting-IP` from Cloudflare's ranges alone, as before
-(`[cloudflare] config/cloudflare.local.php holds no origin_secret ...`). A file
-that cannot be read cleanly **fails closed** (since anotoki-lib 0.6.1's pass,
-the IAM's rule): saved with a byte-order mark, without its `<?php` line or
-with a line before it - never compiled, so not even a `declare(strict_types=1)`
-after such a start stops the site -, with text after its closing tag - what
-it prints is caught and goes nowhere -, or one PHP cannot parse, run or open.
+rule is there; changing the secret, likewise. Without the file the site
+believes `CF-Connecting-IP` from Cloudflare's ranges alone, as before - **to
+switch the secret off, delete the file** (then the rule, if you like). A file
+that is there without a usable secret **fails closed**: one read cleanly
+that names none - an empty value, a misspelt key, a value that is not a
+string, a forgotten `return` (since 2026-10-18: before, that was "no
+secret") -, a folder given the file's name, and one that cannot be read cleanly (since anotoki-lib 0.6.1's
+pass): saved with a byte-order mark, without its `<?php` line or with a line
+before it - never compiled, so not even a `declare(strict_types=1)` after
+such a start stops the site -, with text after its closing tag - what it
+prints is caught and goes nowhere -, or one PHP cannot parse, run or open.
 The site keeps running, but believes no `CF-Connecting-IP`: every visitor
 counts as the Cloudflare edge they came through (they share its limits - 30
 new visitors an hour by default) until the file is mended; PHP's error log
 says so at most once a day, by the fault alone (`[cloudflare]
-config/cloudflare.local.php does not start with <?php (...)` or `could not be
-read (ParseError on line 2)`, then `: no request carries its secret ...`),
-never its contents. Visitors refused as "too many"
-all at once, from everywhere, are that sign. The secret is never printed or
-logged; keep a copy off the server, as of the other settings.
+config/cloudflare.local.php names no usable origin_secret ...`, `does not start
+with <?php (...)` or `could not be read (ParseError on line 2)`, then `: no
+request carries its secret ...`), never its contents. Visitors refused as "too
+many" all at once, from everywhere, are that sign. The secret is never printed
+or logged; keep a copy off the server, as of the other settings.
 
 **The clean-up** needs no cron: after an answer, at most once an hour (and
 after every new visitor), it ends a batch of visitors unseen for `keep_days`

@@ -18,10 +18,12 @@ declare(strict_types=1);
  *   routes/surveys.php   the surveys for the people taking them, and their answers - signed
  *                        in, or as a visitor while the IAM says sign-in is not required
  *   routes/visitor.php   POST /api/visitor/move: at sign-in, a visitor's answers into the account
+ *   routes/feedback.php  POST /api/feedback: a message through the library's feedback form -
+ *                        anybody's, the sender from the token alone
  *   routes/admin.php     /api/admin/...: the surveys, the results, the pictures (EDITOR, ADMIN);
  *                        the languages and the site's own strings - the library's routes, behind
  *                        the same roles (deleting a language: ADMIN); the migrations, the people,
- *                        the error log, the audit log, the backups (ADMIN) - the library's
+ *                        the error log, the audit log, feedback, the backups (ADMIN) - the library's
  *
  * The middleware, outermost first: the error log's outer half (what is
  * answered with a status worth seeing) -> security headers -> the error
@@ -87,6 +89,7 @@ function buildSurveyApp(): \Slim\App
     require __DIR__ . '/routes/public.php';
     require __DIR__ . '/routes/surveys.php';
     require __DIR__ . '/routes/visitor.php';
+    require __DIR__ . '/routes/feedback.php';
     require __DIR__ . '/routes/admin.php';
 
     // Added in this order, so they run the other way round.

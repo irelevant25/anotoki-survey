@@ -12,15 +12,19 @@ export const PEOPLE_PATH = '/admin/people';
 
 /**
  * The admin tools this site takes from the anotoki family's library
- * (anotoki-lib 0.5.0): the error log, the audit log and the backups
- * (@anotoki/lib/admin and its pages), and the People page
- * (@anotoki/lib/people) - each page an entry point of its own on a lazy route
- * of the admin panel (admin.routes.ts), for the site's ADMIN alone, as the
- * server's routes are: anybody else is told whose the page is, and nothing is
- * asked of the server. No feedback (the owner's decision for this site) and
- * no file explorer (the pictures live in the database, and are in every
- * backup).
+ * (anotoki-lib 0.5.0; feedback since 0.6.2): the error log, the audit log,
+ * feedback and the backups (@anotoki/lib/admin and its pages), and the People
+ * page (@anotoki/lib/people) - each page an entry point of its own on a lazy
+ * route of the admin panel (admin.routes.ts), for the site's ADMIN alone, as
+ * the server's routes are: anybody else is told whose the page is, and nothing
+ * is asked of the server. No file explorer (the pictures live in the
+ * database, and are in every backup).
  *
+ * - Feedback: what people sent through the form (core/feedback.ts), the
+ *   library's kinds and no places of the site; how many nobody opened yet is
+ *   the family's FeedbackUnread - beside the bar's System link and on the
+ *   System page's card, asked as the admin panel opens (admin layout) and as
+ *   the System page does: no mail is sent for a message.
  * - Who is ADMIN is the token's say (AuthService, the IAM's roles here).
  * - A backup is made, downloaded, deleted or restored only after a sign-in of
  *   the last ten minutes (the server reads the token's auth_time): its
@@ -32,10 +36,11 @@ export const PEOPLE_PATH = '/admin/people';
  * - The People page in this site's words: whom it keeps (everybody who signed
  *   in - their name from the anotoki account, no address), how many surveys
  *   each answered and wrote (the server's columns), the visitors in one line,
- *   and Delete - every answer of theirs, after the page's question alone (the
- *   owner's decision: no proof of a recent sign-in; the server audits it).
- *   Nobody is linked from the logs: the People page has no page of its own
- *   for a person.
+ *   and Delete - every answer of theirs, and the reply address and browser of
+ *   the feedback they sent (the library's delete does both), after the page's
+ *   question alone (the owner's decision: no proof of a recent sign-in; the
+ *   server audits it). Nobody is linked from the logs: the People page has no
+ *   page of its own for a person.
  */
 export function provideSiteAdmin(): EnvironmentProviders {
   return makeEnvironmentProviders([
@@ -58,7 +63,7 @@ export function provideSiteAdmin(): EnvironmentProviders {
       return {
         isAdmin: () => auth.isAdmin(),
         me,
-        lead: 'Everybody who has signed in here, the most recently seen first: how many surveys each answered and wrote. The name is their anotoki account’s; the site keeps no address.',
+        lead: 'Everybody who has signed in here, the most recently seen first: how many surveys each answered and wrote. The name is their anotoki account’s; their record here holds no address.',
         formatDate: (iso: string) => dates.formatDateTime(iso),
         delete: {
           label: 'Delete their answers',
@@ -86,6 +91,7 @@ export function deleteQuestion(person: PeoplePerson, isMe: boolean): PeopleDelet
     title: `Delete ${name}’s answers?`,
     message:
       `Every answer they sent here goes - ${answered} ${answered === 1 ? 'survey' : 'surveys'} - and cannot be brought back; the results no longer count them. ` +
+      'Feedback they sent stays, without its reply address and browser. ' +
       'The surveys they wrote stay, and so does their anotoki account. The backups made before now still hold the answers until they are deleted.' +
       (isMe ? ' This is you.' : ''),
     confirm: 'Delete their answers',

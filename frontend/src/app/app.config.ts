@@ -9,6 +9,7 @@ import { routes } from "./app.routes";
 import { provideSiteAdmin } from "./core/admin/admin-tools";
 import { provideSiteAuth } from "./core/auth/auth.config";
 import { boot } from "./core/boot";
+import { feedbackSenderInterceptor, provideSiteFeedback } from "./core/feedback";
 import { provideSiteKit } from "./core/kit";
 import { surveyLegalConfig } from "./core/legal/legal.config";
 import { provideSiteMigrations } from "./core/migrations";
@@ -20,10 +21,12 @@ import { provideSiteTranslations } from "./core/translations";
  * the error reporter's alike. The site's status first: it hears the answer
  * every other interceptor is done with (a 503 saying the site is not set up, or
  * an update waits), and the page that says so stands instead of the site. Then
- * who a request of the site's API is: the anotoki family's (@anotoki/lib/auth) -
- * see core/auth/auth.config.ts.
+ * whom the feedback form's message is for - the person signed in, or nobody,
+ * never a person with no token to send (core/feedback.ts) - and who a request
+ * of the site's API is: the anotoki family's (@anotoki/lib/auth) - see
+ * core/auth/auth.config.ts.
  */
-export const SITE_INTERCEPTORS: HttpInterceptorFn[] = [siteStatusInterceptor, anotokiAuthInterceptor];
+export const SITE_INTERCEPTORS: HttpInterceptorFn[] = [siteStatusInterceptor, feedbackSenderInterceptor, anotokiAuthInterceptor];
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -48,6 +51,9 @@ export const appConfig: ApplicationConfig = {
     provideSiteMigrations(),
     // The anotoki family's admin tools and People page, for the site's ADMIN - see core/admin/admin-tools.ts.
     provideSiteAdmin(),
+    // The anotoki family's feedback form (its code loaded with the first press: the Contact page's, the footer's
+    // later), in the site's words and formal Slovak, no address written in for anybody - see core/feedback.ts.
+    provideSiteFeedback(),
     // The anotoki family's UI kit and top bar, wired to this site's words, icons, account and languages - see core/kit.ts.
     provideSiteKit(),
     // The anotoki family's legal pages - Terms, Privacy, Contact, on lazy routes open to anybody - and the footer's

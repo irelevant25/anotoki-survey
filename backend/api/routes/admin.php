@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Anotoki\Lib\Audit\Http\AuditRoutes;
 use Anotoki\Lib\Backups\Http\BackupsRoutes;
 use Anotoki\Lib\ErrorLog\Http\ErrorLogRoutes;
+use Anotoki\Lib\Feedback\Http\FeedbackRoutes;
 use Anotoki\Lib\Migrations\Http\MigrationsRoutes;
 use Anotoki\Lib\Migrations\Migrator;
 use Anotoki\Lib\People\Http\PeopleRoutes;
@@ -18,16 +19,17 @@ use Slim\Routing\RouteCollectorProxy;
  * The admin area: EDITOR or ADMIN for everything, ADMIN alone for what cannot
  * be undone (deleting a survey, somebody's answers, or a language), for the
  * database's migrations and for the admin tools (the people, the error log,
- * the audit log, the backups). Who is asking is the anotoki library's
+ * the audit log, feedback, the backups). Who is asking is the anotoki library's
  * Identify (api/auth.php: the token, never a visitor's key) in front of every
  * group; the roles are the token's alone (requireStaff(), requireAdmin(),
  * api/meddleware/auth.php) - nothing read of the database to decide them.
  * Every change here is written into the audit log (api/admin_tools.php): a
  * survey made, opened, closed or deleted, answers deleted, the site's words
  * saved or imported, a language added, changed or deleted, a person's answers
- * deleted, the scrub run, a backup made, downloaded, deleted or restored, the
- * error log cleared, migrations applied. (A survey's every save is not: its
- * revision says that.)
+ * deleted, the scrub run, a feedback message's status changed or the message
+ * deleted, a backup made, downloaded, deleted or restored, the error log
+ * cleared, migrations applied. (A survey's every save is not: its revision
+ * says that.)
  *
  *   GET    /api/admin/surveys                     {surveys: [summary]}
  *   POST   /api/admin/surveys                     {survey} -> 201 {survey}: a new draft (a copy is made in the browser)
@@ -89,6 +91,13 @@ use Slim\Routing\RouteCollectorProxy;
  *                         /{fingerprint}, DELETE ?before= - open while a migration waits
  *   /api/admin/audit      the audit log (AuditRoutes): GET ?actor=&action=&target_type=&target_id=&from=&to=&page=,
  *                         GET /facets
+ *   /api/admin/feedback   what people sent through the feedback form (FeedbackRoutes, api/admin_tools.php):
+ *                         GET ?kind=&status=&section=&search=&page= (25 a page, newest first, each sender by
+ *                         name), GET /facets, GET /unread (the admin bar's count), GET /{id} (a new one
+ *                         opened is read), PUT /{id}/status {status: new|read|resolved|spam} (audited
+ *                         feedback.status_changed), DELETE /{id} (audited feedback.deleted inside the
+ *                         delete's own transaction - a restore deletes it again by it; none while the
+ *                         audit log's table waits); closed while an update waits, like the rest
  *   /api/admin/backups    the backups (BackupsRoutes): GET (each backup's maker by name), GET /proof, POST,
  *                         GET|DELETE /{id}, POST /{id}/ticket, GET /{id}/preview, POST /{id}/restore - making,
  *                         downloading, deleting and restoring after a sign-in of the last ten minutes (403
@@ -235,6 +244,12 @@ ErrorLogRoutes::admin($app, '/api/admin/errors', $errorLog, surveyAdminContext()
     ->add(requireAdmin())->add($identify);
 
 AuditRoutes::admin($app, '/api/admin/audit', surveyAudit(), surveyAdminContext(), peopleNames(...))
+    ->add(requireAdmin())->add($identify);
+
+// What people told the site (the form's route is routes/feedback.php): each sender named from the people here
+// (surveyAdminContext()'s names), a status change and a delete written into the audit log - the delete inside its
+// own transaction (the library's AuditLog), so a restore deletes the message again.
+FeedbackRoutes::admin($app, '/api/admin/feedback', surveyFeedback(), surveyAdminContext(), surveyAudit())
     ->add(requireAdmin())->add($identify);
 
 BackupsRoutes::admin($app, '/api/admin/backups', surveyBackups(), surveyAdminContext())

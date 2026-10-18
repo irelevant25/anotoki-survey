@@ -7,8 +7,10 @@
 // too: made, listed with their maker's name, downloaded by a single-use link,
 // restored - only one made here, sealed - and deleted, each after a sign-in of
 // the last ten minutes; daily after an answer, and before every Apply; inside
-// a restore, the answers a person had deleted since the backup deleted again,
-// and after it the scrub of the IAM's deleted accounts at once - a restore that
+// a restore, the answers a person had deleted since the backup deleted again -
+// and the feedback messages deleted since (feedback's own routes are
+// tests/api/feedback.test.php's) -, and after it the scrub of the IAM's
+// deleted accounts at once - a restore that
 // could not finish that says so, and the next request tries again). A backup
 // that fails is written in the site's error log. The site's ADMIN's alone -
 // but the pages' errors, which anybody's page sends; the error log and the
@@ -400,6 +402,24 @@ test('a restore never brings back what a person had deleted: their answers delet
     assert_same($nina, (string) dbValue('SELECT id FROM responses WHERE user_id = ?', [NINA]), 'Nina\'s answers are back: the database as the backup had it');
     $entries = array_values(array_filter(audit_entries(), static fn(array $entry): bool => $entry[0] === 'person.data_deleted' && $entry[2] === 'user' && $entry[3] === (string) PAT));
     assert_same([['person.data_deleted', OWNER, 'user', (string) PAT]], $entries, 'the audit log is never restored - and the delete done again writes no entry of its own');
+});
+
+test('a restore never brings back a feedback message deleted since the backup: it goes again inside the restore, by its audit entry - one only marked since comes back as the backup had it', function (): void {
+    foreach (['Delete me after the backup.', 'Resolve me after the backup.'] as $text) {
+        $sent = call($GLOBALS['app']['base'], 'POST', '/api/feedback', ['kind' => 'idea', 'message' => $text, 'website' => '']);
+        assert_same(201, $sent['status'], test_show($sent['body']));
+    }
+    $ids = array_column(dbAll("SELECT id, message FROM anotoki_feedback WHERE message LIKE '% after the backup.' ORDER BY id"), 'id', 'message');
+    $backup = backup_made('Two feedback messages in it');
+
+    assert_same(200, as_user(OWNER, 'DELETE', '/api/admin/feedback/' . $ids['Delete me after the backup.'])['status']);
+    assert_same(200, as_user(OWNER, 'PUT', '/api/admin/feedback/' . $ids['Resolve me after the backup.'] . '/status', ['status' => 'resolved'])['status']);
+
+    $restored = restored($backup);
+    assert_same([$backup['id'], null], [$restored['restored'], $restored['after_restore_error']], test_show($restored));
+    $after = array_column(dbAll("SELECT message, status FROM anotoki_feedback WHERE message LIKE '% after the backup.'"), 'status', 'message');
+    assert_false(array_key_exists('Delete me after the backup.', $after), 'deleted again before anybody saw it (the library\'s People::replay(), wired through surveyBackups())');
+    assert_same('new', $after['Resolve me after the backup.'] ?? null, 'the other as the backup had it: a status changed is no delete');
 });
 
 // anotoki-lib 0.5.0 failed this - its restore set every sequence to GREATEST(backup + 1, now + 1), and visitor_ids

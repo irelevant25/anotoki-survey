@@ -28,7 +28,7 @@ Security and correctness first:
   requires sign-in is `authLoginRequired()` - the library's `SignInRule`, failing closed -
   never a fetch of the site's own) (the pictures are the one exception, on purpose: an `<img>`
   sends none, and their addresses are random UUIDs); the admin group has `ROLES_STAFF`; deletes,
-  the migrations and the System's routes (people, error log, audit log, backups) are ADMIN's alone
+  the migrations and the System's routes (people, feedback, error log, audit log, backups) are ADMIN's alone
   (an EDITOR reading any of them is a finding); a backup is made, downloaded, deleted or restored
   only after a sign-in of the last ten minutes, and its download link is single-use; every admin
   change is audited by the token's person. **No person's address is kept** (011): a new column or
@@ -44,7 +44,10 @@ Security and correctness first:
   (`ClientAddress::of()` without it, an `AdminContext` without `originSecret:`), or the secret
   printed or logged is a finding - and so is a `cloudflare.local.php` that cannot be read cleanly
   (it does not start with `<?php`, it prints, PHP cannot parse, run or open it) read as "no secret" instead of failing closed (a
-  secret no request carries: `originSecretFile()`, the IAM's rule), or one that stops the site.
+  secret no request carries: `originSecretFile()`, the IAM's rule), or one that stops the site;
+  and one read cleanly that names no usable secret (blank, not an array, a misspelt key, a value
+  that is not a string with something in it), or a folder in its place, read as "no secret" - only
+  a deleted file switches the secret off (the decision of 2026-10-18).
   **The legal pages' facts** (`core/legal/legal-facts.ts`, `legal.*`): a statement the code does not
   keep, a change to what the site keeps without its fact, or an address in a string (an
   administrator could reword where a link goes) is a finding.
@@ -53,7 +56,13 @@ Security and correctness first:
   `surveyAudited()` or a helper on the site's connection there is a finding: in a restore it waits
   on the restore's locks) and takes a null request. `POST /api/client-errors` is
   nobody's on purpose (the library caps and redacts it): a visitor's key read there, or a route
-  of the site's own that writes what a browser sends into a log, is a finding. **Visitors**: a visitor key makes somebody a visitor only on
+  of the site's own that writes what a browser sends into a log, is a finding. **Feedback** is the
+  library's (`FeedbackRoutes`, `api/routes/feedback.php`): `POST /api/feedback` is anybody's on
+  purpose, under the site's `Identify` (a bad token is 401, never nobody) - the sender's id from
+  the token alone, never a visitor's key; the form is never handed the person's address (the site
+  keeps none: `provideSiteFeedback()` gives no `email`); a People delete forgets the person on
+  their messages (`peopleForgetFeedback()`, a hook like the others); what it keeps and for how long
+  is `legal.feedback.kept`, true of the library's pruning. **Visitors**: a visitor key makes somebody a visitor only on
   the three survey routes (`surveyIdentify(..., visitors: true)`), and only after "no Bearer header" and "the IAM says
   sign-in is not required" - in that order; the one other reader of `X-Visitor-Key` is
   `POST /api/visitor/move`, which needs a verified token as well (`RequirePerson`) and only hands
@@ -178,7 +187,8 @@ Security and correctness first:
   allowed: the optional `visitors.local.php` only tunes it, and a bad value there - or a
   file that cannot be read cleanly or returns no array (`visitorSettingsFile()`) - is logged and
   ignored, never fatal; the optional `cloudflare.local.php` has no default - no secret
-  without it, a secret no request carries with one that cannot be read cleanly - and
+  without it, a secret no request carries with one that cannot be read cleanly or names no
+  usable `origin_secret` - and
   `setup.php` neither writes nor reads it); every `*.local.php` read through
   `settingsFileReadCleanly()` - a plain `require` of one (whatever it prints goes out ahead
   of the answer: the password, from a database file without its `<?php` line), one required
@@ -187,7 +197,9 @@ Security and correctness first:
   IAM file not read cleanly answered with anything but "not set up", or a fault logged with
   the file's text or what PHP said, is a finding; `tools/build.php`
   still leaves out settings, tests, tools, the command-line scripts
-  (`migration.php`, `translations.php`) and composer files; no new route
+  (`migration.php`, `translations.php`) and composer files; its `.htaccess`
+  runs no PHP file in the web root but `setup.php` and `host-check.php` (their
+  `FilesMatch` after the one refusing PHP - a wider pattern is a finding); no new route
   named like a folder under the web root's `api/`.
 
 Then the house style:

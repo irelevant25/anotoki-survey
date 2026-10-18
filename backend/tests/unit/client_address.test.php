@@ -181,7 +181,7 @@ test('the origin secret: from a Cloudflare address, CF-Connecting-IP only on a r
     assert_same('203.0.113.1', surveyAdminContext()->clientKey(request_from(EDGE, $visitor)));
 });
 
-test('config/cloudflare.local.php read cleanly: its value trimmed; one that names no secret - empty, spaces, no string, another key, no array - is none, as the IAM reads it: logged once a day by the file\'s name, never a value, and the site is set up all the same', function (): void {
+test('config/cloudflare.local.php read cleanly: its value trimmed; one that names no usable secret - empty, spaces, a misspelt key, no string, no array - or a folder in its place fails closed (2026-10-18): a secret no request carries, a forged CF-Connecting-IP from Cloudflare\'s ranges never believed - the file\'s own value in X-Anotoki-Origin neither; logged once a day, never a value; the site set up all the same; deleting the file is what switches the secret off', function (): void {
     with_cloudflare_file(null, function (): void {
         assert_same(null, originSecret(), 'no file: no secret');
     });
@@ -190,42 +190,87 @@ test('config/cloudflare.local.php read cleanly: its value trimmed; one that name
         assert_same('203.0.113.7', clientAddress(request_from(EDGE, ['CF-Connecting-IP' => '203.0.113.7', 'X-Anotoki-Origin' => ORIGIN_SECRET]), VISITOR_DEFAULTS), 'and so it matches the header');
     });
 
+    // Each holds the secret somewhere a slip put it - never where the site reads it. Read as "no secret" (the rule
+    // before 2026-10-18), every one of them believed anybody's Worker on Cloudflare's ranges about who it is.
     foreach ([
         'an empty value' => "<?php return ['origin_secret' => ''];\n",
         'only spaces' => "<?php return ['origin_secret' => '   '];\n",
-        'a number' => "<?php return ['origin_secret' => 123456789012345678];\n",
-        'a list' => "<?php return ['origin_secret' => ['a', 'b']];\n",
+        'a misspelt key' => "<?php return ['orgin_secret' => '" . ORIGIN_SECRET . "'];\n",
+        'the key in capitals' => "<?php return ['ORIGIN_SECRET' => '" . ORIGIN_SECRET . "'];\n",
         'another key' => "<?php return ['secret' => '" . ORIGIN_SECRET . "'];\n",
+        'a number' => "<?php return ['origin_secret' => 123456789012345678];\n",
+        'a list' => "<?php return ['origin_secret' => ['" . ORIGIN_SECRET . "']];\n",
+        'true' => "<?php return ['origin_secret' => true];\n",
+        'an empty array' => "<?php return [];\n",
         'no array returned' => "<?php return '" . ORIGIN_SECRET . "';\n",
         'nothing returned' => "<?php ['origin_secret' => '" . ORIGIN_SECRET . "'];\n",
         'null returned' => "<?php return null;\n",
     ] as $case => $contents) {
         [$log] = logged_while(static function () use ($case, $contents): void {
             with_cloudflare_file($contents, function () use ($case): void {
+                $level = ob_get_level();
                 ob_start();
                 try {
-                    assert_same(null, originSecret(), "$case: no secret");
-                    assert_same(null, settingsProblem(), "$case: the site is set up all the same");
-                    assert_same('203.0.113.1', clientAddress(request_from(EDGE, ['CF-Connecting-IP' => '203.0.113.1']), VISITOR_DEFAULTS), "$case: CF-Connecting-IP from Cloudflare's ranges alone, as with no file");
-                    localSettings(true);
-                    assert_same(null, originSecret(), "$case: read again, the same");
+                    fails_closed($case);
                 } finally {
                     $printed = (string) ob_get_clean();
                 }
                 assert_same('', $printed, "$case: nothing of the file printed");
+                assert_same($level, ob_get_level(), "$case: no buffer left open");
             });
         });
-        assert_same(1, lines_saying($log, '[cloudflare] config/cloudflare.local.php holds no origin_secret'), "$case: said once, read twice - " . $log);
+        assert_same(1, lines_saying($log, '[cloudflare] config/cloudflare.local.php names no usable origin_secret'), "$case: said once, read twice - " . $log);
+        assert_true(str_contains($log, 'no request carries its secret, so every request from Cloudflare\'s ranges counts as the edge it came from until the file holds one - or is deleted, which switches the secret off.'), "$case: and that it fails closed, and how to switch it off - " . $log);
         assert_false(str_contains($log, ORIGIN_SECRET), "$case: the log never holds the value");
+    }
+
+    // A folder in the file's place - an FTP program's "new folder" given the file's name: something is there, and
+    // nothing to read. Taken for "no file" (as is_file() alone would), it believed anybody's Worker again.
+    $folder = test_temp_dir('cloudflare-folder');
+    test_write_config($folder, ['name' => dbName()] + machineDatabaseSettings(), ['issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => test_temp_dir('cache'), 'application_file' => test_application_file()]);
+    mkdir("$folder/cloudflare.local.php");
+    putenv("SURVEY_TEST_CONFIG=$folder");
+    try {
+        [$log] = logged_while(static function (): void {
+            localSettings(true);
+            fails_closed('a folder in its place');
+        });
+        assert_same(1, lines_saying($log, '[cloudflare] config/cloudflare.local.php is no file (a folder in its place?): no request carries its secret'), 'a folder: said once, read twice - ' . $log);
+        rmdir("$folder/cloudflare.local.php");
+        localSettings(true);
+        assert_same(null, originSecret(), 'the folder gone - nothing there: no secret');
+    } finally {
+        putenv('SURVEY_TEST_CONFIG=' . $GLOBALS['TEST_CONFIG_DIR']);
+        localSettings(true);
+    }
+
+    // Switching the secret off is deleting the file: Cloudflare's ranges alone again, the next reading.
+    $dir = test_temp_dir('cloudflare-switched-off');
+    test_write_config($dir, ['name' => dbName()] + machineDatabaseSettings(), ['issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => test_temp_dir('cache'), 'application_file' => test_application_file()]);
+    file_put_contents("$dir/cloudflare.local.php", "<?php return ['origin_secret' => ''];\n");
+    putenv("SURVEY_TEST_CONFIG=$dir");
+    try {
+        logged_while(static function (): void {
+            localSettings(true);
+            assert_same(EDGE, clientAddress(request_from(EDGE, ['CF-Connecting-IP' => '203.0.113.1']), VISITOR_DEFAULTS), 'an emptied value: the edge - an empty value switches nothing off');
+        });
+        unlink("$dir/cloudflare.local.php");
+        localSettings(true);
+        assert_same(null, originSecret(), 'the file deleted: no secret');
+        assert_same('203.0.113.1', clientAddress(request_from(EDGE, ['CF-Connecting-IP' => '203.0.113.1']), VISITOR_DEFAULTS), 'and CF-Connecting-IP from Cloudflare\'s ranges alone, as before the file');
+    } finally {
+        putenv('SURVEY_TEST_CONFIG=' . $GLOBALS['TEST_CONFIG_DIR']);
+        localSettings(true);
     }
 });
 
 /**
- * A cloudflare.local.php that is there but cannot be read cleanly fails closed,
- * as the IAM's does: its secret is one no request carries - not the file's (it
- * was never read), never none - so a request from Cloudflare's ranges is the
- * edge it came from, without X-Anotoki-Origin and with the very value the file
- * holds; from anywhere else, the connection, as ever.
+ * A cloudflare.local.php that is there but holds no usable secret - it cannot be
+ * read cleanly, or it names none - fails closed: its secret is one no request
+ * carries - not the file's (never read, or not where the site reads it), never
+ * none - so a request from Cloudflare's ranges is the edge it came from, without
+ * X-Anotoki-Origin and with the very value the file holds; from anywhere else,
+ * the connection, as ever.
  */
 function fails_closed(string $case): void
 {

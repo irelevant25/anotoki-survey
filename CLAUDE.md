@@ -40,7 +40,10 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   and `iam.local.php` (gitignored), written by `backend/setup.php` - on this
   computer (no token, a nonce, re-runnable) and on the host (token, lock,
   self-delete). Never print the database password; never copy it anywhere git
-  would publish. **Every `*.local.php` is read cleanly or not at all**
+  would publish. The web root's `.htaccess` (`tools/build.php`) lets a visitor
+  run two PHP files alone, each while it is there: `setup.php` and the host
+  check (`tools/host-check.php`: never in a build, uploaded by hand with a
+  token in it, deleted again). **Every `*.local.php` is read cleanly or not at all**
   (`settingsFileReadCleanly()`, `config/config.php`; `docs/decisions.md`,
   2026-10-18 - never a plain `require` of one): a file that does not start
   with `<?php` - a byte-order mark, a blank line or a space before it, or no
@@ -78,7 +81,10 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   `<ng-template anotokiSitePages>` so that no page is made behind it; the
   guards send nobody to the IAM then):
   "being updated" for everybody - a quiet Sign in while nobody is signed in -
-  and the way to the Migrations page for the site's ADMIN. Applying takes one
+  and the way to the Migrations page for the site's ADMIN. **It stands alone:
+  no top bar, no footer** (the owner, 2026-10-18 - they live in the routed
+  frames, which the gate does not make; `app.component.spec.ts` holds it in
+  every state). Applying takes one
   lock (`DATABASE_UPDATE_LOCK`) shared with `setup.php`, `migration.php`, the
   tests' template and the backups; the Apply and `migration.php` make a backup
   of the database first (none can be made: nothing is applied).
@@ -105,18 +111,21 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   never printed or logged) and believes `CF-Connecting-IP` only on a request
   that carries it; any other request from Cloudflare counts as its edge -
   coarser, never looser. Without the file, Cloudflare's ranges alone, as
-  before; read cleanly with no secret in it (blank, missing, not an array),
-  the same. **A file that is there but cannot be read cleanly fails closed**
-  (the IAM's rule, case for case: `originSecretFile()`,
-  `settingsFileReadCleanly()`; `docs/decisions.md`, 2026-10-14) - it does
-  not start with `<?php` (no `<?php` line, a byte-order mark or a line before
-  it: never compiled), it prints (text after its closing tag), PHP cannot
-  parse or run it, or may not open it: a secret no request carries
-  (`originSecretNobodyCarries()`), so every request from Cloudflare's ranges
-  counts as its edge until the file is mended - never "no secret", which
-  would believe anybody's Worker there. The site keeps running (the file is
-  optional); the fault is logged at most once a day (`settingsSaid()`), by
-  its kind, its start or its byte count, never its text. An IPv6 address
+  before - **deleting the file is the one way to switch the secret off**.
+  **A file that is there without a usable secret fails closed**
+  (`originSecretFile()`, `settingsFileReadCleanly()`; `docs/decisions.md`,
+  2026-10-14 and 2026-10-18 - the owner's "do as you think is the best",
+  tighter than the IAM's rule, the family's next): read cleanly but naming
+  none - blank, not an array, a misspelt key, a value that is not a string -,
+  a folder in its place, or not read cleanly at all - it does not start with `<?php` (no `<?php`
+  line, a byte-order mark or a line before it: never compiled), it prints
+  (text after its closing tag), PHP cannot parse or run it, or may not open
+  it: a secret no request carries (`originSecretNobodyCarries()`), so every
+  request from Cloudflare's ranges counts as its edge until the file is
+  mended - never "no secret", which would believe anybody's Worker there. The
+  site keeps running (the file is optional); the fault is logged at most once
+  a day (`settingsSaid()`), by its kind, its start, its byte count, that it
+  names no usable `origin_secret` or that it is no file, never its text. An IPv6 address
   counts by its /64. The visitors' limits and the library's error log read by
   the same proxies and the same secret (`surveyAdminContext()`). **No address is kept in the
   clear**: a visitors' counter goes by a keyed HMAC of it
@@ -156,18 +165,46 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   guard: what the site keeps is said before anybody signs in to it, and
   nothing of a survey is on them or asked of the API. Their facts are the
   survey's (`core/legal/legal-facts.ts`, given by their frame and out of the
-  first load; the words `legal.*`, migration 013) and must stay true of the
-  code: a change to what the site keeps, or for how long, its cookies or
-  browser storage, changes those strings (by a migration) and
+  first load; the words `legal.*`, migrations 013 and 015) and must stay true
+  of the code: a change to what the site keeps, or for how long, its cookies
+  or browser storage, changes those strings (by a migration) and
   `SURVEY_LEGAL_UPDATED`. Every address they link to is the code's - the
   anotoki account's Privacy page and account page from the IAM's address the
   site signs in with (`AnotokiAuth.issuer()`, `accountUrl()`) -, never a
-  string an administrator could reword. No feedback here: Contact gives the
-  family's address alone. The footer's Terms · Privacy · Contact
-  (`layouts/site-footer`, the family's `<anotoki-legal-links>`) is under the
-  survey's pages and the legal pages, not in the admin panel; the three paths
-  are among the addresses no survey may have (`RESERVED_SLUGS` ↔
-  `SURVEY_RESERVED_SLUGS`).
+  string an administrator could reword. Contact opens the feedback form
+  first (below), then gives the family's address. The footer's Terms ·
+  Privacy · Contact (`layouts/site-footer`, the family's
+  `<anotoki-legal-links>`) is under the survey's pages and the legal pages,
+  not in the admin panel - until the family's footer (`<anotoki-site-footer>`,
+  anotoki-lib 0.6.3) takes its place: no footer of the site's own is built
+  meanwhile; the three paths are among the addresses no survey may have
+  (`RESERVED_SLUGS` ↔ `SURVEY_RESERVED_SLUGS`).
+- **Feedback is the family's library's** (anotoki-lib 0.6.2's Feedback; the
+  owner's wish of 2026-10-18, `docs/decisions.md`): the form
+  (`@anotoki/lib/feedback/form`, loaded with the first press - the Contact
+  page opens it, the family's footer will; `core/feedback.ts`), its route
+  `POST /api/feedback` (`routes/feedback.php`) and the admin page
+  (`/admin/feedback`, `@anotoki/lib/admin/feedback`, an ADMIN's System page;
+  `/api/admin/feedback`), the library's table (`anotoki_feedback`, its admin
+  set). **Anybody may send** - a person, a visitor (as nobody: their key is
+  never read there), nobody - whether sign-in is required or not; who sent it
+  is the token's alone (`Identify` in front: a bad token is 401
+  `invalid_token`, never quietly nobody; `RecordPerson` keeps the row the
+  page names them by), nothing of where it came from is kept, and **no
+  address is written in** (the IAM is the only holder of anybody's address: a
+  reply address only when the sender types one). The library's limits (5 an
+  hour, 20 a day a sender - a person by account, anybody else by an HMAC of
+  the address bucket -, 300 a day from the visitors and as many from the
+  people) and keeping (spam 30 days, resolved 365, at a clean-up at most
+  daily after a message or the page is opened - `legal.feedback.kept` says
+  so). An account the IAM deletes leaves its messages' words without their
+  reply address and browser (`peopleForgetFeedback()`, the scrub's hook; the
+  People page's Delete does the same, the library's). Its words are the
+  library's (`anotoki.feedback.*`), formal in Slovak where they speak to the
+  reader (migration 014 and `FORMAL_SLOVAK`). The count nobody opened yet
+  stands beside the bar's System link and on the System page's card (the
+  family's `FeedbackUnread`, asked by the admin layout and the System page,
+  never while the site cannot run): no mail is sent for a message.
 - **Who a request is is decided when it is issued** (frontend, the library's
   `anotokiAuthInterceptor`): `ApiService` marks the surveys' requests
   `issuedAs('caller')` - whoever the page is shown to then; the interceptor
@@ -218,7 +255,8 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **The admin tools are the library's, for the site's ADMIN alone**
   (`api/admin_tools.php`, the System page `/admin/system`): the error log
   (files under `storage/logs`, redacted - the pages' own errors too, below),
-  the audit log (`anotoki_audit_log`, its set `anotoki_admin`) and the
+  the audit log (`anotoki_audit_log`, its set `anotoki_admin`), feedback
+  (above) and the
   backups (`storage/backups`, every table by COPY - the pictures too - daily
   after an answer, before every update, by hand; made, downloaded, deleted or
   restored only after a sign-in of the last ten minutes; each listed with its
@@ -229,13 +267,14 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   in the error log). A restore does not bring back what a person had deleted
   on the People page: inside its transaction every People Delete made since
   the backup is done again (the library's `People::restoreHooks()`, by the
-  audit log's `person.data_deleted`, which is never restored) - but for the
+  audit log's `person.data_deleted`, which is never restored), and so is every
+  feedback message deleted since (its `feedback.deleted`) - but for the
   answers a visitor's browser moved into the account after the backup, which
   that backup holds under the visitor's id (`docs/decisions.md`, an open
   question for the owner); once it committed the
   scrub runs again, and one it cannot finish is the restore's
-  `after_restore_error` - the next request runs it again. No feedback and no
-  file explorer (the owner's decision). Who acts is the token's person.
+  `after_restore_error` - the next request runs it again. No file explorer
+  (the owner's decision). Who acts is the token's person.
 - **The pages' own errors go to the error log** (anotoki-lib 0.5.0; the
   owner's decision of 2026-10-11 for every site): the browser's reporter
   (`provideAnotokiErrorReport()`, `app.config.ts`) posts each - scrubbed, at
@@ -317,8 +356,9 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **The top bar is the anotoki family's** - the library's `<anotoki-top-bar>`
   (`@anotoki/lib/shell`), told by the site's thin wrapper `layouts/top-bar`
   what is this site's: its brand, its sections (System - the people, the
-  logs, the backups, the migrations - for an ADMIN; Migrations alone while an
-  update waits), the person and their role, "Your anotoki account" and the
+  feedback, the logs, the backups, the migrations - for an ADMIN, with the
+  count of new feedback beside it; Migrations alone while an update waits),
+  the person and their role, "Your anotoki account" and the
   way into the admin panel or back, signing in and out (saved first, asked
   when something would be lost). One row - brand, links, language, theme, the
   person's menu; up to 760 px (`PHONE_BAR_MAX`, its `phoneMax`) one menu
@@ -368,8 +408,17 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   rewording shows too; while the database cannot be read, this site's
   formal Slovak (`FORMAL_SLOVAK`) - never the kit's built-in ty. The
   Migrations page is English, as the admin panel is.
-- **No changelog** on this site (the owner's decision); the version is
-  `frontend/package.json`'s.
+- **What's new and the version** (the owner's wish of 2026-10-18 - before it,
+  no changelog): `frontend/public/changelog.json`, newest first, the other
+  sites' shape (version, day, what was added, fixed, changed - for people)
+  with each version's whole formal-Slovak translation beside it
+  (`translations.sk`); the newest entry is the site's version, one source
+  (`Changelog.current()`, `core/changelog/`), and `frontend/package.json`'s
+  (and `package-lock.json`'s) is held to it by a spec - a release adds its
+  entry first and moves both. What's new is the kit's dialog
+  (`ui/changelog-dialog`, lazy), opened only when asked - by the family's
+  footer, once the site takes it - never by itself, so nothing about it is
+  kept in a browser.
 
 ## Commands
 

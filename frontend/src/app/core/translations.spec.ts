@@ -96,10 +96,11 @@ describe('The site’s words through the family’s translations module (core/tr
 
   it('says the library’s words that speak to the reader formally in Slovak - never the library’s informal ty', () => {
     expect(config().libraryWords).toEqual({ sk: FORMAL_SLOVAK });
-    // Every library word, the kit's and each module's (the sign-in's too).
+    // Every library word, the kit's and each module's (the sign-in's and the feedback form's too).
     const informal: Readonly<Record<string, string>> = LIBRARY_WORDS.sk;
     for (const [key, words] of Object.entries(FORMAL_SLOVAK)) {
-      expect(words, key).toMatch(/Vaša|Váš|Vás|Skúste|Označte|Povoľte/);
+      expect(words, key).toMatch(/Vaša|Váš|Vás|Skúste|Označte|Povoľte|Pošlite|[Nn]apíšte|chcete|Doplňte|nemôžete|prihláste|Skontrolujte|nechajte/);
+      expect(words, `${key}: no ty anywhere in it`).not.toMatch(/(^|[^\p{L}])(ty|teba|tebe|ťa|ti|tvoj\p{L}*|máš|chceš|nemôžeš|pošli|napíš|doplň|skús|prihlás|skontroluj|nechaj)(?!\p{L})/iu);
       expect(Object.hasOwn(informal, key), `${key} is one of the library's words`).toBe(true);
       expect(words, key).not.toBe(informal[key]);
     }

@@ -76,8 +76,31 @@ without a login; this site is for people signed in - who answered is the
 point of it. Locally it signs in through a local IAM, and the tests and the
 browser check through a stand-in.
 
-**No changelog.** The owner decided the survey site needs none (the other
-anotoki sites have one); the version is in `frontend/package.json`.
+**What's new and the version - after all (the owner, 2026-10-18).** The
+owner first decided the survey site needs no changelog (the other anotoki
+sites have one); after the deploy of 2026-10-18, wanting one footer on every
+site - "Version X · What's new · Send feedback", then Terms · Privacy ·
+Contact - they said: "The survey has no feedback, whats new and version (I
+know that it was what I said but maybe it could be nice to have it there)".
+So the survey has them, ready for the family's footer (`<anotoki-site-footer>`,
+anotoki-lib 0.6.3, which the site takes next):
+- **`frontend/public/changelog.json`**, newest first, in the other sites'
+  shape - a version (MAJOR.MINOR.PATCH), its day, what it added, fixed and
+  changed, each a sentence about something people notice - and beside each
+  version **its whole formal-Slovak translation** (`translations.sk`): the
+  other sites write their changelog in English alone and mark it so on a
+  Slovak page; the survey's Slovak readers are addressed formally everywhere
+  else, so its versions say what changed in their language too. A
+  translation short of a sentence is no translation: the English, marked
+  English (`changesIn()`, the same rule as a survey's own translations).
+- **One source for the version**: the newest entry's - what the footer will
+  show (`Changelog.current()`); `frontend/package.json`'s own version is held
+  to it by a spec, as Japanese Academy's is.
+- **What's new** is the kit's dialog (`ui/changelog-dialog`, loaded with the
+  first press) - opened only when asked, never by itself after a new version
+  as the build analyzer's is: so nothing about what a browser has seen is kept
+  in it, and the Privacy page's list of what the site keeps in a browser
+  stays as it is. Until the footer comes nothing opens it.
 
 **The admin panel and the survey share one top bar - the anotoki family's.**
 The owner made every anotoki site (the IAM, the survey, Japanese, Piano, the
@@ -483,7 +506,8 @@ site did on its own into the library, and each site onto it. The survey takes:
 - **The admin tools** - the error log, the audit log, the backups - **for the
   site's ADMIN alone** (the owner's decision for every site: an EDITOR writes
   surveys, and reads none of them). **No feedback form** here (the owner's
-  decision) and **no file explorer** (the pictures live in the database, and
+  decision then - until 2026-10-18: *Feedback, after all*, below) and **no
+  file explorer** (the pictures live in the database, and
   are in every backup). Reached from one link of the admin panel's bar,
   System, and its page - the bar holds four sections at its narrowest desktop
   width, and a link a tool would overflow it.
@@ -643,7 +667,9 @@ Cloudflare's ranges counts as its edge until the file is mended. Reading it
 as "no secret", as before, would believe the `CF-Connecting-IP` of anybody's
 Worker on those ranges: a slip of the editor must never switch the check off.
 A file read cleanly that names no secret - empty, spaces, not a string, no
-array returned - stays "no secret", as the IAM reads it. The site keeps
+array returned - stays "no secret", as the IAM reads it (until 2026-10-18: it
+fails closed too - *A cloudflare.local.php without a usable secret*, below).
+The site keeps
 running either way (the file is optional, never a reason to be "not set
 up"). What the file prints is caught and goes nowhere
 (`settingsFileReadCleanly()`, every buffer it opened drained); its fault is
@@ -752,7 +778,9 @@ choices made here:
   from the library - never from a string an administrator rewords on the
   Translations page (the library's 0.6.0 review); the backend's test holds
   every `legal.*` string free of an address, and its Slovak formal.
-- **No feedback form**: Contact gives the family's address alone.
+- **No feedback form**: Contact gives the family's address alone (until
+  2026-10-18: Contact opens the feedback form first - *Feedback, after all*,
+  below).
 - **The footer's Terms · Privacy · Contact** (the family's
   `<anotoki-legal-links>`, `layouts/site-footer`) are under the survey's pages
   - the card of a session that ended too - and under the legal pages; not in
@@ -777,6 +805,88 @@ list of steps); the picture row (pictures uploaded at once, ordered and
 described - the kit's file picker holds files for a form and uploads none);
 the common answers' chips (a list of answers, no control); the closing day's
 `<input type="date">` (the browser's own, ISO by this site's rule).
+
+**Feedback, after all - the anotoki library's (the owner, 2026-10-18).** "The
+survey has no feedback, whats new and version (I know that it was what I said
+but maybe it could be nice to have it there)" - so the survey takes the
+family's feedback, as the other sites have it: the library's form
+(`@anotoki/lib/feedback/form`), its table (`anotoki_feedback`, the library's
+admin set, there on every database of the site already), its routes and its
+admin page. The choices made here:
+- **Anybody may send one**, a person signed in, a visitor, nobody - whether
+  the IAM requires signing in here or not: the Contact page it is opened from
+  is anybody's (the family's footer will open it too), and a form that
+  refused somebody only after they had written their message would be a trap.
+  The library's limits stand in front of it: 5 an hour and 20 a day from one
+  sender, 300 a day from the visitors together and as many from the people
+  signed in; the robots' field.
+- **Who sent it is the token's alone** (the library's `Identify` in front of
+  `POST /api/feedback`, as on every route that asks who: a token that does
+  not check out is 401 `invalid_token`, never quietly nobody - the account
+  would be lost from the message unasked), the person's row kept
+  (`RecordPerson`) so the Feedback page names them; a visitor's key is never
+  read there - a visitor sends as nobody.
+- **No address written in.** The other sites write the account's address into
+  the form as the reply address (the owner's choice of 2026-10-11: theirs to
+  clear); this site keeps no address - the IAM is the only holder of
+  anybody's (*People*, above) - so its form writes none in, and a reply
+  address is kept only when the sender types one. Writing it in is one line
+  (`email:` in `core/feedback.ts`), should the owner want the family's way
+  here too.
+- **Kept**, the library's numbers: spam 30 days, resolved 365, the rest until
+  an ADMIN deletes it - each at the next clean-up, which runs at most once a
+  day after a message comes in or the Feedback page is opened. The Privacy
+  page says so in the site's words (`legal.feedback.kept`, migration 015):
+  the library's own sentence says neither when, nor that it waits for one.
+  When the IAM deletes an account, its messages keep their words and lose the
+  reply address and the browser's name (the scrub's hook,
+  `peopleForgetFeedback()`); so does the People page's Delete (the library's).
+  A restore never brings back a message deleted since its backup (the
+  library's replay of `feedback.deleted`).
+- **The Feedback page is an ADMIN's**, like the other System pages, with the
+  count of messages nobody opened beside the bar's System link and on the
+  System page's card (no mail is sent for one). Its words are the library's,
+  in formal Slovak where they speak to the reader (migration 014,
+  `FORMAL_SLOVAK`), with the library's kinds and no places of the site to
+  choose from.
+
+**A `cloudflare.local.php` without a usable secret fails closed (2026-10-18,
+the owner's "do as you think is the best").** The rule of 2026-10-14 failed
+closed only on a file that cannot be read cleanly; one read cleanly that named
+no secret - blank, not an array, a misspelt key, a value that is not a string -
+was "no secret", as the IAM reads it, and believed `CF-Connecting-IP` from
+Cloudflare's ranges alone: a typo in the key's name switched the check off,
+said only in a log line. Asked, the owner left it to us. A file that is there
+means its owner put it there by hand to have a secret, so every such file now
+stands for a secret no request carries (`originSecretNobodyCarries()`) - every
+request from Cloudflare's ranges its edge, coarser, never looser - and so does
+a folder given the file's name (something is there; read as "no file" it
+would have believed anybody's Worker again); the one way to switch the secret
+off is deleting the file. The site keeps running; the fault is logged once a
+day by what it is ("names no usable origin_secret", "is no file"), never a
+value. The family's sites take the same rule (the build analyzer at the same
+time, the others with the family's footer).
+`tests/unit/client_address.test.php` holds each case and the off switch,
+`tests/api/visitors.test.php` the attack it stops: a misspelt key, and a Worker
+writing a new `CF-Connecting-IP` each time - the file's own secret in
+`X-Anotoki-Origin` or not - is one sender, the edge.
+
+**The family's page stands alone: no top bar, no footer (the owner,
+2026-10-18).** "I prefer nor header nor footer to be there because they can be
+under the update as well." It already was so here: the bar and the footer live
+in the site's frames, which are routed, and the gate makes no route's page
+while the site cannot run (`<anotoki-site-gate>`'s template). Now
+`app.component.spec.ts` holds it, in each state - an update waiting, the
+database out of reach, not set up - through the real frames, as does the card
+saying the server could not be reached.
+
+**The host check may run here (2026-10-18).** The web root's `.htaccess` let a
+visitor run `setup.php` alone, so the family's host check
+(`tools/host-check.php`) answered 403 on this site's host. It may run too now,
+by its exact name - inert while the file is not there: it is never part of a
+build, is uploaded by hand with a token written into it, answers 404 without
+that token, and is deleted again. `tests/api/hosting.test.php` reads the
+`.htaccess` as Apache reads it.
 
 ## Languages
 

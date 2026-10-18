@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, Type } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { ApplicationRef, ChangeDetectionStrategy, Component, Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { AnotokiAuth } from '@anotoki/lib/auth';
@@ -7,6 +9,7 @@ import { ANOTOKI_LEGAL_CONFIG, provideAnotokiLegal } from '@anotoki/lib/legal';
 import { ContactPageComponent, PrivacyPageComponent, TermsPageComponent } from '@anotoki/lib/legal/pages';
 import { TranslationService } from '@anotoki/lib/translations';
 import { AuthService } from '../auth/auth.service';
+import { provideSiteFeedback } from '../feedback';
 import { provideTestTranslations } from '../testing/test-translations';
 import { SIGN_IN_HINT_COOKIE, SURVEY_LEGAL_UPDATED, surveyLegalFacts, surveyLegalPagesConfig } from './legal-facts';
 import { surveyLegalConfig } from './legal.config';
@@ -15,7 +18,16 @@ import { surveyLegalConfig } from './legal.config';
 const IAM = 'https://iam.anotoki.example';
 
 /** Every address a legal page of the survey's may link to: the anotoki account's pages, its own Contact page, the family's address and operator, the authority, Cloudflare. */
-const ADDRESSES = [`${IAM}/account`, `${IAM}/privacy`, '/contact', 'mailto:support@anotoki.eu', 'https://codehero.sk', 'https://dataprotection.gov.sk/', 'https://www.websupport.sk', 'https://www.cloudflare.com/privacypolicy/'];
+const ADDRESSES = [
+  `${IAM}/account`,
+  `${IAM}/privacy`,
+  '/contact',
+  'mailto:support@anotoki.eu',
+  'https://codehero.sk',
+  'https://dataprotection.gov.sk/',
+  'https://www.websupport.sk',
+  'https://www.cloudflare.com/privacypolicy/',
+];
 
 /**
  * The survey's own strings the facts name, as stand-ins: the words themselves are migration 013's (and the
@@ -41,6 +53,7 @@ const WORDS: Record<string, string> = {
   'legal.visitors.kept.one': 'The key ends {count} day after the last visit.',
   'legal.visitors.kept.few': 'The key ends {count} days after the last visit.',
   'legal.visitors.kept.other': 'The key ends {count} days after the last visit.',
+  'legal.feedback.kept': 'Until it is dealt with, then 30 or 365 days, at the next clean-up.',
   'legal.auditLog.what': 'The editors’ and administrators’ changes.',
   'legal.backups.what': 'A copy on each day the site is used.',
   'legal.backups.kept': 'The 14 newest daily copies.',
@@ -100,8 +113,12 @@ describe('the legal pages, as the survey fills them in', () => {
         provideRouter([]),
         language === 'en' ? provideTestTranslations({ ...WORDS, ...values }) : provideTestTranslations({ ...WORDS, ...values }, { language: 'sk', english: WORDS }),
         provideAnotokiLegal(surveyLegalConfig),
+        // The Contact page's form: the site's (core/feedback.ts), sent through the app's HttpClient.
+        provideSiteFeedback(),
+        provideHttpClient(),
+        provideHttpClientTesting(),
         ...provideTestAnotokiAuth({ config: { config: () => ({ issuer: IAM, client_id: 'survey', login_required: true, sign_in_available: true }) } }),
-        { provide: AuthService, useValue: { visitorDays: () => visitorDays } },
+        { provide: AuthService, useValue: { visitorDays: () => visitorDays, person: () => null, preferences: () => null } },
       ],
     });
     await TestBed.inject(AnotokiAuth).init();
@@ -132,7 +149,7 @@ describe('the legal pages, as the survey fills them in', () => {
     expect(() => config.facts()).toThrow(/frame/);
   });
 
-  it('the facts: three parts of its own, the visitors for the days the server keeps them, its audit log and plain backups in its words, no feedback, its cookies and storage by name, the hosting company and Cloudflare', async () => {
+  it('the facts: three parts of its own, the visitors for the days the server keeps them, feedback kept as the site says, its audit log and plain backups in its words, its cookies and storage by name, the hosting company and Cloudflare', async () => {
     await configure();
     const facts = surveyLegalFacts(TestBed.inject(TranslationService), TestBed.inject(AnotokiAuth), 14);
     expect(facts.site).toBe('anotoki survey');
@@ -142,7 +159,8 @@ describe('the legal pages, as the survey fills them in', () => {
     expect(facts.account).toEqual({ deleteUrl: `${IAM}/account`, privacyUrl: `${IAM}/privacy` });
     expect(facts.data.map((part) => part.name)).toEqual(['Your record', 'Your answers', 'Writing surveys']);
     expect(facts.visitors).toEqual({ what: WORDS['legal.visitors.what'], why: WORDS['legal.visitors.why'], kept: 'The key ends 14 days after the last visit.' });
-    expect(facts.feedback).toBeUndefined();
+    // What and what for: the library's words; how long: the site's, which say when the clean-up runs.
+    expect(facts.feedback).toEqual({ kept: WORDS['legal.feedback.kept'] });
     expect(facts.errorLog).toBeUndefined();
     expect(facts.analytics).toBeUndefined();
     expect(facts.auditLog).toEqual({ what: WORDS['legal.auditLog.what'] });
@@ -168,7 +186,20 @@ describe('the legal pages, as the survey fills them in', () => {
     const host = await draw(PrivacyFrameComponent);
 
     expect(host.querySelector('h1')?.textContent?.trim()).toBe('Privacy policy');
-    expect(Array.from(host.querySelectorAll('[data-kept]')).map((part) => part.getAttribute('data-kept'))).toEqual(['data-0', 'data-1', 'data-2', 'visitors', 'error-log', 'audit-log', 'backups']);
+    expect(Array.from(host.querySelectorAll('[data-kept]')).map((part) => part.getAttribute('data-kept'))).toEqual([
+      'data-0',
+      'data-1',
+      'data-2',
+      'visitors',
+      'feedback',
+      'error-log',
+      'audit-log',
+      'backups',
+    ]);
+    // Feedback: the library's words of what and what for - a reply address only if the sender leaves one -, the site's of how long.
+    expect(host.querySelector('[data-kept="feedback"] h3')?.textContent?.trim()).toBe('Feedback');
+    expect(host.querySelector('[data-kept="feedback"]')?.textContent).toContain('a reply address only if the sender leaves one');
+    expect(texts(host, '[data-duration="feedback"] dd')).toEqual([WORDS['legal.feedback.kept']]);
     // The survey's words, then the library's sentence for plain backups: on the server, out of public reach.
     const backups = texts(host, '[data-kept="backups"] .anotoki-legal-page__text')[0] ?? '';
     expect([backups.startsWith(`${WORDS['legal.backups.what']} `), backups.includes('out of public reach'), backups.includes('encrypted')]).toEqual([true, true, false]);
@@ -205,14 +236,27 @@ describe('the legal pages, as the survey fills them in', () => {
     expect(host.querySelector('[data-fan]')).toBeNull();
   });
 
-  it('Contact: the address alone - the survey takes no feedback - and the anotoki account’s page to delete the account', async () => {
+  it('Contact: the feedback form first - its button opens the family’s form in the kit’s dialog, nobody signed in - then the address for everything else, and the anotoki account’s page to delete the account', async () => {
     await configure();
     const host = await draw(ContactFrameComponent);
-    expect(host.querySelector('[data-open-feedback]')).toBeNull();
-    expect(host.querySelector('[data-section="email"] h2')?.textContent?.trim()).toBe('By e-mail');
+    expect(host.querySelector('[data-section="feedback"] h2')?.textContent?.trim()).toBe('Found a bug or have an idea?');
+    expect(host.querySelector('[data-section="feedback"]')?.textContent).toContain('it goes straight to the people who look after anotoki survey');
+    expect(host.querySelector('[data-section="email"] h2')?.textContent?.trim()).toBe('Everything else');
     expect(host.querySelector('[data-section="email"] a')?.getAttribute('href')).toBe('mailto:support@anotoki.eu');
     expect(host.querySelector('[data-account-page]')?.getAttribute('href')).toBe(`${IAM}/account`);
     expect(host.querySelector('[data-section="delete"]')?.textContent).toContain('anotoki survey then keeps what you did here without your name');
+
+    const open = host.querySelector<HTMLButtonElement>('[data-open-feedback]')!;
+    expect(open.textContent?.trim()).toBe('Send feedback');
+    open.click();
+    await vi.waitFor(async () => {
+      await TestBed.inject(ApplicationRef).whenStable();
+      expect(document.querySelector('[data-feedback-dialog] anotoki-feedback-form [data-message]')).not.toBeNull();
+    });
+    // Nobody is signed in: no "without my name", no address written in.
+    expect(document.querySelector('[data-feedback-dialog] [data-anonymous]')).toBeNull();
+    expect(document.querySelector<HTMLInputElement>('[data-feedback-dialog] [data-email] input')?.value).toBe('');
+    TestBed.inject(HttpTestingController).verify();
   });
 
   it('in Slovak: the library’s words - which address nobody - around the survey’s, and the days a plural of the language', async () => {

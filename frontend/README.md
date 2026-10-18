@@ -31,8 +31,9 @@ src/
                                      the site cannot run - not set up, a database update waiting, out of
                                      reach - the family's page stands instead, and the Migrations page for
                                      the site's ADMIN while an update waits; the router outlet is the gate's
-                                     <ng-template anotokiSitePages>, made only while the gate shows the pages;
-                                     the kit's toasts and confirm dialog (<anotoki-toast-host>,
+                                     <ng-template anotokiSitePages>, made only while the gate shows the pages
+                                     (so the family's page is bare: the top bar and the footer are the routed
+                                     layouts', none made then); the kit's toasts and confirm dialog (<anotoki-toast-host>,
                                      <anotoki-confirm-host>), the survey's lightbox
     boot/                            the card drawn when the server could not be reached as the site started
                                      (its status answered, the sign-in's settings not)
@@ -71,20 +72,33 @@ src/
       survey/                        the model and every rule (the twin of backend/api/survey_rules.php)
       admin/                         AdminStore (the editor's saving), AdminDates (the admin panel's dates
                                      in the account's order and clock), admin-tools.ts (provideSiteAdmin():
-                                     the family's admin tools - error log, audit log, backups - and People
-                                     page, wired to this site: ADMIN from the token, "Sign in again" for a
-                                     backup's proof, the People page's words and its Delete)
+                                     the family's admin tools - feedback, error log, audit log, backups -
+                                     and People page, wired to this site: ADMIN from the token, "Sign in
+                                     again" for a backup's proof, the People page's words and its Delete)
+      feedback.ts                    the family's feedback form (@anotoki/lib/feedback - the Contact page
+                                     opens it, its code loaded with the press): provideSiteFeedback() - the
+                                     language, the library's words in this site's formal Slovak, whether
+                                     somebody is signed in; no address handed to it (the site keeps none) -
+                                     and feedbackSenderInterceptor (in SITE_INTERCEPTORS): its message the
+                                     person's while somebody is signed in, nobody's otherwise - never a
+                                     person's with no token, which the family's interceptor keeps back
+      changelog/                     Changelog: public/changelog.json read once - the site's version (the
+                                     newest entry's, package.json's too) and What's new (open(): the dialog,
+                                     ui/changelog-dialog, loaded with the press). Nothing opens it yet: the
+                                     family's footer will
       util/                          dates.ts (the admin panel's English dates), date-patterns.ts (the
                                      account's four date orders and two clocks), storage
       images/                        pictures made small in the browser
       legal/                         the family's legal pages (@anotoki/lib/legal) wired to this site:
                                      legal.config.ts (provideAnotokiLegal() in app.config.ts - the
                                      language, the database's words of the library's keys) and
-                                     legal-facts.ts (what the site keeps, its cookies and storage, who else
+                                     legal-facts.ts (what the site keeps - feedback, and for how long,
+                                     among it -, its cookies and storage, who else
                                      handles data, the anotoki account's pages from the IAM's address -
                                      every address in code; given by the legal pages' frame)
     layouts/                         top-bar (the site's wrapper over the family's bar, <anotoki-top-bar>:
-                                     its brand, sections, person and menu items, signing in and out),
+                                     its brand, sections - System with the count of feedback nobody opened
+                                     yet -, person and menu items, signing in and out),
                                      participant, admin, legal-layout (the frame of /terms, /privacy and
                                      /contact - anybody's, no guard - and the facts' provider),
                                      site-footer (Terms · Privacy · Contact: <anotoki-legal-links>, under
@@ -95,12 +109,14 @@ src/
                                      Translations and Languages are the family's pages
                                      (@anotoki/lib/translations/admin, a lazy entry point); the System page
                                      (system/, ADMIN) and the family's pages it leads to, each a lazy entry
-                                     point - People (@anotoki/lib/people/page), the error log, the audit log,
-                                     the backups (@anotoki/lib/admin/errors, /audit, /backups) and
-                                     Migrations (<anotoki-migrations-page>) - admin.routes.ts
+                                     point - People (@anotoki/lib/people/page), Feedback, the error log, the
+                                     audit log, the backups (@anotoki/lib/admin/feedback, /errors, /audit,
+                                     /backups) and Migrations (<anotoki-migrations-page>) - admin.routes.ts
     ui/                              the survey's own pieces: the rich text editor, the lightbox, the
-                                     picture and the strip of pictures (the rest is the family's kit)
-public/                              the mark, the favicon
+                                     picture and the strip of pictures, What's new (changelog-dialog) - the
+                                     rest is the family's kit
+public/                              the mark, the favicon, changelog.json (the versions, newest first, in
+                                     English and formal Slovak - the newest is package.json's version)
 proxy.conf.json                      /api and /setup.php to the backend on :8500
 .nvmrc                               the Node version
 ```
@@ -108,12 +124,12 @@ proxy.conf.json                      /api and /setup.php to the backend on :8500
 Components are three files (`.ts`, `.html`, `.scss`); colours come from the
 family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
 every page works at 390 px. The UI kit, the top bar, the theme, the site's
-words, signing in, the People page, the admin tools, the error reporter and
-the legal pages are the anotoki family's library (`@anotoki/lib`, 0.6.2 - the
-backend's half the same), configured in
+words, signing in, the People page, the admin tools, the feedback form, the
+error reporter and the legal pages are the anotoki family's library
+(`@anotoki/lib`, 0.6.2 - the backend's half the same), configured in
 `app.config.ts`, `core/kit.ts`,
 `core/translations.ts`, `core/auth/auth.config.ts`,
-`core/admin/admin-tools.ts` and `core/legal/` - never copied here; each kit piece
+`core/admin/admin-tools.ts`, `core/feedback.ts` and `core/legal/` - never copied here; each kit piece
 is imported from its own entry point (`@anotoki/lib/ui/button`, ...), never
 from the `@anotoki/lib/ui` barrel. What the site says to somebody taking a
 survey is a key (`'home.title' | translate`) whose strings are in the

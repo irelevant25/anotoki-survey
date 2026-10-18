@@ -34,10 +34,13 @@ backend/
                            POST /api/client-errors - a page's error into the error log, the family's
                            ErrorLogRoutes::client: nobody's, capped by the library),
                            surveys.php (people - the library's RequireCaller), visitor.php (POST
-                           /api/visitor/move: token and key), admin.php (/api/admin/..., EDITOR/ADMIN:
-                           surveys, answers, pictures, languages, strings; ADMIN: the migrations, the
-                           people, the error log, the audit log, the backups - the family's routes,
-                           behind requireAdmin(), judged from the token)
+                           /api/visitor/move: token and key), feedback.php (POST /api/feedback - the
+                           family's FeedbackRoutes::public: anybody's, sign-in required or not, behind
+                           $identify - no visitor's key read - and RecordPerson), admin.php
+                           (/api/admin/..., EDITOR/ADMIN: surveys, answers, pictures, languages,
+                           strings; ADMIN: the migrations, the people, feedback, the error log, the
+                           audit log, the backups - the family's routes, behind requireAdmin(),
+                           judged from the token)
   api/meddleware/          security.php, auth.php (requireStaff / requireAdmin - the library's
                            RequireRole in this site's words, the token's roles alone, nothing asked
                            of the database -, requireFor - one method of a group -,
@@ -59,17 +62,22 @@ backend/
                            page's columns (answered, written), the visitors' line, peopleDelete()
                            (every answer of a person's - the library's hook, the page's and a
                            restore's: inside the library's transaction, on the $pdo it is given
-                           alone, a null request in a restore), peopleNames() (the audit log's and
-                           the backups' names)
-  api/admin_tools.php      the error log, the audit log, the backups (Anotoki\Lib\ErrorLog, Audit,
-                           Backups): surveyAdminContext() (the token's person, the proof - a sign-in
+                           alone, a null request in a restore), peopleForgetFeedback() (a hook too:
+                           the person's id, reply address and browser off their feedback - the
+                           library's Feedback::forgetPeopleOn() on that $pdo), peopleNames() (the
+                           audit log's and the backups' names)
+  api/admin_tools.php      the error log, the audit log, the backups, feedback (Anotoki\Lib\ErrorLog,
+                           Audit, Backups, Feedback): surveyAdminContext() (the token's person, the proof - a sign-in
                            of the last ten minutes -, whose address a request is - the visitors'
                            trusted proxies and header, Cloudflare's by default, and the origin
                            secret -, the people's
                            names, this site's error body), surveyAudit() / surveyAudited(),
                            surveyErrorLog(), surveyBackups() (storage/backups, sealed; the
                            migrations' lock; a restore's hooks - People::restoreHooks(): the People
-                           deletes since the backup done again inside it, the scrub after it)
+                           deletes since the backup done again inside it, the scrub after it),
+                           surveyFeedback() (the library's Feedback: its limits and prune stamp in
+                           storage/cache, the prune after the answer) and surveyFeedbackSender() (the
+                           token's id alone - never an address)
   api/visitors.php         visitors (the switch off): visitorFind / visitorMake (in the answers'
                            transaction, after the limits - counters that are rows) / visitorHold /
                            visitorSweep (+ visitorSweepSoon: after the answer, hourly) /
@@ -124,11 +132,14 @@ backend/
                            fatal error nothing catches, every request a 500), what one prints caught;
                            a database or IAM file not read cleanly leaves the site not set up;
                            cloudflare.local.php (optional, by hand, the same in every anotoki site:
-                           originSecret() / originSecretFile() - a string with something in it, else
-                           none; a file that cannot be read cleanly - it does not start with <?php,
-                           it prints, PHP cannot parse, run or open it - FAILS CLOSED, the IAM's
-                           rule: a secret no request carries, originSecretNobodyCarries(), the site
-                           running all the same); settingsSaid() logs a fault once a day by its
+                           originSecret() / originSecretFile() - no file, no secret; a file that
+                           cannot be read cleanly - it does not start with <?php, it prints, PHP
+                           cannot parse, run or open it - or that names no usable origin_secret
+                           (blank, not an array, a misspelt key, not a string with something in it),
+                           or a folder in its place, FAILS CLOSED: a secret no request carries,
+                           originSecretNobodyCarries(),
+                           the site running all the same; switching the secret off is deleting the
+                           file); settingsSaid() logs a fault once a day by its
                            kind, its start or its bytes, never its contents;
                            SURVEY_TEST_CONFIG for the tests
   migrations/survey/       the schema - and the site's strings (002 the tables and the two languages,
@@ -143,13 +154,19 @@ backend/
                            of every row proven unchanged; 012 the site's sign-in strings moved under
                            anotoki.signIn.*, formal Slovak for the two the library says informally;
                            013 the legal pages' facts - legal.*, English and formal Slovak, no address
-                           in any - and the three tabs' titles)
+                           in any - and the three tabs' titles; 014 the library's feedback words
+                           (anotoki.feedback.*) in formal Slovak - written where none stand or the
+                           library's informal ones do, an owner's rewording kept; 015 the feedback's
+                           fact, legal.feedback.kept, and What's new's six words, whatsNew.*)
   setup.php                the installer (this computer: nonce, re-runnable; a host: token, lock, self-delete)
   router.php               php -S behaving like the hosting's Apache (+ the built app)
   translations.php         command line only, never uploaded - the library's TranslationsCommand:
                            --status (the frontend's keys against the database), --export / --import a
                            language as flat JSON
-  tools/build.php          the upload -> ../dist/ (an allow-list: a new file beside setup.php is left out)
+  tools/build.php          the upload -> ../dist/ (an allow-list: a new file beside setup.php is left out);
+                           its .htaccess runs two PHP files in the web root, setup.php and the
+                           family's host check (../tools/host-check.php, never in a build, uploaded by
+                           hand), and caches neither index.html, theme-boot.js nor changelog.json
   tools/translation_keys.php   surveyKeyScanner(): the library's KeyScanner set up for this site - the
                            keys the frontend uses, and a fail for a key asked for the wrong way, one put
                            together from an undeclared prefix, innerHTML given a string; the library's
@@ -157,7 +174,8 @@ backend/
   tests/                   run.php, lib.php, unit/, api/, tools/ (testdb, testenv); the IAM is the
                            library's TestIam (and its stand-in, vendor/anotoki/lib/php/testing)
 frontend/src/app/
-  app.config.ts            the providers; SITE_INTERCEPTORS (the site's status, then who a request is);
+  app.config.ts            the providers; SITE_INTERCEPTORS (the site's status, whom the feedback form's
+                           message is for, then who a request is);
                            provideAnotokiErrorReport() - the family's reporter, the app's ErrorHandler:
                            the pages' errors, scrubbed, to POST /api/client-errors through that
                            HttpClient (a person's with the token, a visitor's without the key -
@@ -202,6 +220,17 @@ frontend/src/app/
                            Migrations page, the account's dates) and People page
                            (provideAnotokiPeople: me, the lead, Delete their answers with its
                            question - deleteQuestion() -, visitorsLine())
+  core/feedback.ts         provideSiteFeedback(): the family's feedback form (@anotoki/lib/feedback,
+                           its form @anotoki/lib/feedback/form loaded with the press) - the language
+                           on the page, the library's words through libraryWord() (formal Slovak),
+                           signedIn; no email: the site keeps nobody's address, so none is filled in.
+                           feedbackSenderInterceptor (SITE_INTERCEPTORS, before the family's): POST
+                           /api/feedback issued as the person's while somebody is signed in, else
+                           nobody's (app.config.spec.ts)
+  core/changelog/          Changelog (changelog.json read once - public/changelog.json, each release's
+                           entry first, English and formal Slovak in it -, entries, current, open():
+                           the What's new dialog, ui/changelog-dialog, loaded with the press). Nothing
+                           opens it yet: the family's footer will (the owner's plan of 2026-10-18)
   core/api/api.service.ts  one method a route; the surveys' marked issuedAs('caller') as they are made,
                            the move issuedAs('person') + CARRIES_VISITOR_KEY (the library's);
                            ApiError {status, code, message, body, retryAfter} - toApiError() reads
@@ -231,6 +260,7 @@ frontend/src/app/
                            app.config.ts - the language on the page, libraryWord() for the library's
                            keys, no facts), legal-facts.ts (surveyLegalFacts() - the site's name,
                            what it is, its three parts, the visitors - their days from visitor_days -,
+                           feedback - how long, legal.feedback.kept, true of the library's pruning -,
                            the audit log and backups in its words, every cookie and stored item by
                            the code's own names, the hosting company and Cloudflare; the anotoki
                            account's pages from AnotokiAuth.issuer() / accountUrl() - never a string;
@@ -269,7 +299,9 @@ frontend/src/app/
                            visitor's)
   layouts/                 top-bar (the site's wrapper over the family's <anotoki-top-bar>: the brand,
                            the links - SURVEY_LINKS / ADMIN_LINKS (System for an ADMIN, lit on each
-                           System page), UPDATE_LINKS (Migrations alone while an update waits) -, the
+                           System page, with the count of feedback nobody opened yet - the library's
+                           FeedbackUnread, asked by the admin layout as it opens), UPDATE_LINKS
+                           (Migrations alone while an update waits) -, the
                            person (name; the token's address, shown, never kept) and their role, the
                            menu's items, signIn / signOut -
                            saved first, asked when something would be lost - the drafts of the
@@ -304,13 +336,18 @@ frontend/src/app/
                            /admin/languages are the family's pages (@anotoki/lib/translations/admin,
                            a lazy entry point, canDeactivate anotokiUnsavedChangesGuard -
                            admin.routes.ts); system/ (ADMIN: the way to the System pages,
-                           SYSTEM_PAGES in system-pages.ts) and the family's pages it leads to, each a
-                           lazy entry point: /admin/people (@anotoki/lib/people/page), /admin/errors,
-                           /admin/audit, /admin/backups (@anotoki/lib/admin/*), /admin/migrations
+                           SYSTEM_PAGES in system-pages.ts, Feedback's card with its "N new") and the
+                           family's pages it leads to, each a lazy entry point: /admin/people
+                           (@anotoki/lib/people/page), /admin/feedback, /admin/errors, /admin/audit,
+                           /admin/backups (@anotoki/lib/admin/*), /admin/migrations
                            (<anotoki-migrations-page>: Pending in the order the files run, Applied
                            with each file's SQL, Missing, Apply pending)
   ui/                      the survey's own pieces: rich-text-editor (TipTap), lightbox, survey-image,
-                           image-strip - the rest is the family's kit (@anotoki/lib/ui/<piece>, /shell)
+                           image-strip, changelog-dialog (What's new: each release's added / changed /
+                           fixed, in the language on the page, English where an entry has no
+                           Slovak) - the rest is the family's kit (@anotoki/lib/ui/<piece>, /shell)
+frontend/public/           changelog.json: the releases, the newest first - its first entry's version
+                           is package.json's (the one version; changelog.service.spec.ts holds them)
 frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles: root, fonts, base,
                            utilities, tables) and the survey's own tokens; styles/_fields.scss: the
                            look of the fields a page draws itself, @use'd into that page's styles;
@@ -358,9 +395,9 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   (the library's `Person`): MEMBER - every account's - is an ordinary person and
   nothing asks for it; `ROLES_STAFF` = ADMIN, EDITOR for `/api/admin`;
   ADMIN alone for the three deletes (a survey, somebody's answers, a
-  language), the migrations and the System pages - the people, the error log,
-  the audit log, the backups (the owner's decision: an EDITOR reads none of
-  them). The frontend hides; the server refuses. **No address is kept**: a
+  language), the migrations and the System pages - the people, feedback, the
+  error log, the audit log, the backups (the owner's decision: an EDITOR reads
+  none of them). The frontend hides; the server refuses. **No address is kept**: a
   person is the IAM's id and name (`users`, recorded from the token by the
   library's `RecordPerson`); a new column with a person's data needs a place
   in the scrub of the IAM's deleted accounts (`api/people.php`). Nor a
@@ -381,10 +418,14 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   secret is never printed or logged. A file that is there but cannot be read
   cleanly **fails closed** - the IAM's rule, case for case: a secret no
   request carries, every request from Cloudflare's ranges its edge, never "no
-  secret" (which would believe anybody's Worker); read cleanly with no secret
-  in it, no secret. Its fault is logged once a day by its kind and line, its
-  start (one that does not start with `<?php` is never compiled) or its byte
-  count, never its text; the site keeps running.
+  secret" (which would believe anybody's Worker); and so does one read cleanly
+  that names no usable secret - blank, not an array, a misspelt key, a value
+  that is not a string with something in it - and a folder in its place (stricter than the IAM since
+  2026-10-18, the owner's "do as you think is the best": a file that is there
+  meant a secret). Switching the secret off is deleting the file. Its fault is
+  logged once a day by its kind and line, its start (one that does not start
+  with `<?php` is never compiled) or its byte count, never its text; the site
+  keeps running.
 - **The legal pages' facts are the code's** (`core/legal/legal-facts.ts`,
   the words `legal.*`): a change to what the site keeps or for how long, to a
   cookie or a stored item's name, to who else handles data, changes them -
@@ -393,6 +434,25 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   day. Every address the pages link to stays in the code (the anotoki
   account's pages from the IAM's address the site signs in with), never in a
   string an administrator rewords.
+- **Feedback is the family's, and anybody's** (anotoki-lib 0.6.2's Feedback,
+  `api/routes/feedback.php`, `core/feedback.ts`): the Contact page opens the
+  form for anybody - signed in, a visitor, nobody - whether sign-in is
+  required or not; the sender is the token's id alone (a bad token 401, a
+  visitor's key never read: a visitor sends as nobody), the reply address only
+  what the sender typed (the form is handed none: the site keeps nobody's
+  address), no network address kept with a message; no mail is sent - the
+  admin panel counts what is new (`FeedbackUnread`, beside System and on its
+  card). The library keeps and prunes it (spam 30 days after it was marked,
+  resolved 365, at most once a day after a message comes or the list is
+  opened) - `legal.feedback.kept` says so, and changes with it. A People
+  delete forgets the person on their messages (`peopleForgetFeedback()`).
+- **One version, and What's new** (`frontend/public/changelog.json`,
+  `core/changelog/`): the newest entry's version is the site's -
+  `frontend/package.json`'s, held to it by a spec - and every release adds its
+  entry first: what changed for people, in English and whole in formal Slovak
+  (`translations.sk`), no address. What's new is the kit's dialog over it,
+  opened only when asked - by the family's footer, when the site takes it -
+  never by itself, so nothing about what a browser has seen is stored.
 - **A person's Delete is done again by a restore** (anotoki-lib 0.5.0): the
   hook (`peopleDelete()`) runs inside the library's transaction and begins
   none, writes on the `$pdo` it is given and nothing else - never `db()`, nor
@@ -426,7 +486,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   family's page ("being updated"; a quiet Sign in), the guards let pages
   through and send nobody to the IAM, and the outlet is the gate's
   `<ng-template anotokiSitePages>`, made only while the gate shows the pages - never an outlet
-  given to it as it is. The library is never edited here: a change it
+  given to it as it is. So the family's page - and the load error card - is
+  bare: the top bar and the footer belong to the routed layouts, none of which
+  is made then (the owner's wish of 2026-10-18; `app.component.spec.ts` draws
+  the real frames and counts them, the browser check `framesDrawn()`). The library is never edited here: a change it
   needs is a new release (its repository, `irelevant25/anotoki-lib`), taken in
   by DEV.md's steps.
 - **Both sides say the same**: `answer-rules.ts` ↔ `answerProblem()` /
@@ -564,7 +627,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   get the site's checks (`routes/admin.php`: `requireStaff()`, and
   `requireFor('DELETE', requireAdmin())` on the languages) and the pages
   `admin.allows` (`core/translations.ts`) - never the library's to decide.
-  The System's routes (people, error log, audit log, backups) are ADMIN's:
+  The System's routes (people, feedback, error log, audit log, backups) are ADMIN's:
   the site's `requireAdmin()`, and the library's groups check the token's
   ADMIN again themselves.
 - **Saving**: every editor change through `AdminStore.updateSurvey()` (or
@@ -607,7 +670,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   the library's checks as it is (`surveyTranslations()->storedRefusals()`).
   The library's keys (`anotoki.*`) are its own migration set's to write; a
   migration of this site touches one only to keep this site's words in it
-  (as 010 does), and never writes over an owner's rewording.
+  (as 010 and 014 do), and never writes over an owner's rewording.
 - **Angular**: three files per component, OnPush, signals, `inject()`,
   inputs for route and query parameters, colours from the family's
   `--anotoki-*` tokens and the survey's own in `styles.scss`, 390 px.
@@ -1132,6 +1195,23 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   browser check's `sql()`) make a database "behind" by taking rows out of its
   `migrations` table; a failure part way through a file is a trigger that
   raises (`tests/api/migrations.test.php`).
+- **A request that does not say whom it is for is a person's**: the family's
+  interceptor decides it by `AnotokiAuth.caller()`, which is "person" whenever
+  the sign-in is set up - signed in or not - and a person's request with no
+  token is never sent (a local 401 `sign_in_required`, and the page follows a
+  session that ended). The feedback form, a library component, says nothing, so
+  everybody not signed in read "Sign in to send a message" on the Contact page
+  (the browser check found it; the form's unit test had a plain HttpClient):
+  `feedbackSenderInterceptor` issues it as the person's or nobody's. A new
+  request of anybody's - a library's or the site's - says whom it is for
+  (`issuedAs()`, `ISSUED_AS`), and its spec goes through `SITE_INTERCEPTORS`.
+- **A file held back holds back every file after it, the library's sets
+  too**: the sets run in one order (`anotoki_admin`, `survey`,
+  `anotoki_translations`, `anotoki_people`), so a test that wants a database
+  as it was before a site file (`tests/unit/feedback_words.test.php`'s
+  `before_014`: the library's words there, the site's file not yet) applies
+  the site's set up to it and then the library's sets apart - held back in one
+  run, the library's files never came, and the test found nothing to keep.
 - **A migration edited while it is still being written** is not applied again
   by the tests' template, which has seen it:
   `php tests/tools/testdb.php template --fresh` (not while tests are running -
@@ -1205,7 +1285,11 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
          restore does it again);
    - [ ] no route trusts anything but the token for who and what role (the
          library's `Identify` in front of its group); the System's routes
-         ADMIN's alone; every admin change audited; no person's address kept;
+         ADMIN's alone; every admin change audited; no person's address kept -
+         nor handed to the feedback form;
+   - [ ] a release: its entry first in `public/changelog.json` (English, whole
+         formal Slovak) and the same version in `package.json`; a change to
+         what the site keeps or for how long, its `legal.*` fact;
    - [ ] the two sides of every rule still agree, sentences included;
    - [ ] new input is checked for type, length and count on the server;
    - [ ] HTML from users only through `richTextClean()`;

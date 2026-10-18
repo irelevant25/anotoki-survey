@@ -24,16 +24,22 @@ use Anotoki\Lib\Translations\Placeholders;
 /**
  * The library's words whose Slovak speaks to the reader - informally (ty), as
  * the other anotoki sites do. This site speaks formally (Vy), so it takes each
- * of them over in its own words (migrations 010 and 012), and the pages keep
- * the same words for the time they have no strings (FORMAL_SLOVAK,
- * core/translations.ts). (The feedback form's words speak to the reader too,
- * but this site has no feedback form: they are the library's, unread.)
+ * of them over in its own words (migrations 010, 012 and 014 - the kit's, the
+ * sign-in's, the feedback form's), and the pages keep the same words for the
+ * time they have no strings (FORMAL_SLOVAK, core/translations.ts).
  */
 const ADDRESSING_THE_READER = [
     'anotoki.ui.copyFailed', 'anotoki.topbar.menuButton', 'anotoki.topbar.menu', 'anotoki.topbar.account',
     'anotoki.language.notLoaded', 'anotoki.language.notSaved', 'anotoki.theme.notSaved', 'anotoki.siteStatus.unavailableText',
     'anotoki.signIn.signingIn', 'anotoki.signIn.expired', 'anotoki.signIn.storageUnavailable', 'anotoki.signIn.unavailable',
+    'anotoki.feedback.title', 'anotoki.feedback.lead', 'anotoki.feedback.message', 'anotoki.feedback.email',
+    'anotoki.feedback.emailHint', 'anotoki.feedback.anonymousHint', 'anotoki.feedback.thanksText', 'anotoki.feedback.messageRequired',
+    'anotoki.feedback.subjectRequired', 'anotoki.feedback.tooManyHour', 'anotoki.feedback.tooManyDay', 'anotoki.feedback.unavailable',
+    'anotoki.feedback.signInRequired', 'anotoki.feedback.failed', 'anotoki.feedback.network', 'anotoki.feedback.honeypot',
 ];
+
+/** Slovak that speaks to the reader informally (ty and its verbs): never this site's. */
+const INFORMAL_SLOVAK = '/\b(ty|teba|tebe|ťa|ti|tvoj[a-záéíóúý]*|máš|chceš|môžeš|nemôžeš|pošli|napíš|doplň|skús|prihlás|skontroluj|nechaj|označ|povoľ)\b/iu';
 
 /** Where the pages keep the formal Slovak of the library's words, for the time they have no strings. */
 const FRONTEND_FORMAL_WORDS = '/core/translations.ts';
@@ -294,7 +300,8 @@ test('the library\'s words are all here, each in both languages - and its Slovak
     foreach (ADDRESSING_THE_READER as $key) {
         assert_true(isset($slovak[$key]), "$key has its Slovak");
         assert_true($slovak[$key] !== (LibraryWords::all()[$key]['sk'] ?? null), "$key is not the library's informal Slovak: " . $slovak[$key]);
-        assert_match('/Vaša|Váš|Vás|Skúste|Označte|Povoľte/u', $slovak[$key], "$key speaks formally: " . $slovak[$key]);
+        assert_match('/Vaša|Váš|Vás|Skúste|Označte|Povoľte|Pošlite|[Nn]apíšte|chcete|Doplňte|nemôžete|prihláste|Skontrolujte|nechajte/u', $slovak[$key], "$key speaks formally: " . $slovak[$key]);
+        assert_no_match(INFORMAL_SLOVAK, $slovak[$key], "$key: no ty anywhere in it: " . $slovak[$key]);
     }
     // Where the library's Slovak does not speak to anybody, the site's own words stand - or the library's.
     assert_same('Ponuka', strings_of('sk', ['anotoki.topbar.phoneMenu'])['anotoki.topbar.phoneMenu'] ?? null);
@@ -337,7 +344,7 @@ test('a string migration\'s gate checks exactly the keys the migration writes, a
         assert_same([], array_values(array_diff($library, LibraryWords::keys())), "$file: keys under anotoki. that the library does not ship");
         $taking[] = $file;
     }
-    assert_same(['010_strings_through_the_library.sql', '012_sign_in_words.sql'], $taking, 'the migrations that take the library\'s words over: the kit\'s, then signing in\'s');
+    assert_same(['010_strings_through_the_library.sql', '012_sign_in_words.sql', '014_feedback_words.sql'], $taking, 'the migrations that take the library\'s words over: the kit\'s, signing in\'s, then the feedback form\'s');
 });
 
 test('010 knows the library\'s own words as its 002 writes them - what it replaces where the library\'s files ran first', function (): void {
@@ -368,11 +375,13 @@ test('012 knows the library\'s own words of signing in as its 003 writes them - 
     assert_same(['Prihlasujeme Vás…', 'Signing in…'], [strings_of('sk', $signingIn)[$signingIn[0]] ?? null, strings_of('en', $signingIn)[$signingIn[0]] ?? null], 'the callback page says what this site said');
 });
 
-test('the legal pages\' facts (013) hold no address - where a link goes is the code\'s, never a string an administrator rewords - and their Slovak speaks to the reader formally', function (): void {
+test('the legal pages\' facts (013, and 015\'s feedback) hold no address - where a link goes is the code\'s, never a string an administrator rewords - and their Slovak speaks to the reader formally', function (): void {
     test_db();
     $rows = dbAll("SELECT key_name, language_code, value FROM translations WHERE key_name LIKE 'legal.%' ORDER BY key_name COLLATE \"C\", language_code");
     $keys = array_values(array_unique(array_column($rows, 'key_name')));
-    assert_same(in_order(migration_keys('013_legal_pages.sql')['keys']), in_order(array_merge($keys, ['title.contact', 'title.privacy', 'title.terms'])), 'the facts 013 writes, and the three tabs\' titles');
+    $facts015 = array_values(array_filter(migration_keys('015_whats_new_and_feedback.sql')['keys'], static fn(string $key): bool => str_starts_with($key, 'legal.')));
+    assert_same(['legal.feedback.kept'], $facts015, '015 writes one fact: how long a feedback message stays');
+    assert_same(in_order(array_merge(migration_keys('013_legal_pages.sql')['keys'], $facts015)), in_order(array_merge($keys, ['title.contact', 'title.privacy', 'title.terms'])), 'the facts 013 and 015 write, and the three tabs\' titles');
     foreach ($rows as ['key_name' => $key, 'language_code' => $code, 'value' => $value]) {
         assert_false((bool) preg_match('~https?:|://|www\.|@~i', $value), "$key ($code) holds no address: $value");
         if ($code === 'sk') {

@@ -81,12 +81,17 @@
 // the visitor's answers and draft into the account (the person's own answers
 // win), and switched on again a visitor is sent to sign in and keeps the key;
 // the ADMIN's System pages (People - the scrub of an account the IAM deleted,
-// a person's answers deleted after its question -, the error log, the audit
-// log, the backups - made after a new sign-in, downloaded by their link,
-// deleted) and an EDITOR kept out of them;
+// a person's answers deleted after its question -, Feedback, the error log,
+// the audit log, the backups - made after a new sign-in, downloaded by their
+// link, deleted) and an EDITOR kept out of them; Terms, Privacy and Contact
+// (the family's legal pages, anybody's) and the footer's links to them -
+// Contact's feedback form sent by nobody signed in, and in formal Slovak on a
+// phone -, then that message on the admin panel: counted beside System and on
+// its card, opened, marked resolved, deleted after its question, audited;
 // and the pages drawn instead of the site - not set up (the setup page offered
 // only to a site never installed), out of reach (the family's page, and the
-// site's own card when only the sign-in cannot be had) - name the tab by the
+// site's own card when only the sign-in cannot be had) - bare, as the family's
+// page is while an update waits (no top bar, no footer), name the tab by the
 // site, never by a key, and "Try again" opens the page that was asked for.
 //
 // Prints ok/FAIL per check and every page error. A console warning is a
@@ -2406,6 +2411,12 @@ const setupLink = () => js("[...document.querySelectorAll('a')].filter((a) => (a
 /** The family's page drawn instead of the site (<anotoki-site-status>): its heading, and what there is to press on it. */
 const statusHeading = () => text('anotoki-site-status h1');
 const statusActions = async () => (await texts('anotoki-site-status button, anotoki-site-status a')).join(' | ');
+/**
+ * The site's frames counted - the top bar, the footer (its legal links, the family's), the layouts that hold them:
+ * a page drawn instead of the site is bare, none of them (the gate makes no routed frame while it shows its page).
+ */
+const framesDrawn = () =>
+  js("document.querySelectorAll('app-top-bar, anotoki-top-bar, anotoki-shell, app-site-footer, anotoki-legal-links, app-participant-layout, app-admin-layout, app-legal-layout, header, footer').length");
 /** What nobody but the site's ADMIN may read there: the server's words, an error, a code, the setup page, the migrations - and no toast. */
 const quiet = async () =>
   !/error|503|update_pending|not_set_up|setup|migration/i.test((await text('anotoki-site-status')) ?? '') && (await js("document.querySelectorAll('anotoki-toast-host .anotoki-toast-host__toast').length")) === 0;
@@ -2447,15 +2458,16 @@ async function signInThere(user, words) {
 await viewport(390);
 const visitorTrips = await signedOutBehind('/?lang=sk');
 expect(
-  'an update waiting, nobody signed in, in Slovak: "being updated" in their language, nobody sent to the IAM - no error, nothing to press but a quiet Sign in',
+  'an update waiting, nobody signed in, in Slovak: "being updated" in their language, bare - no top bar, no footer -, nobody sent to the IAM - no error, nothing to press but a quiet Sign in',
   visitorTrips === 0 &&
     (await statusHeading()) === 'Stránku práve aktualizujeme' &&
     (await text('anotoki-site-status p')) === 'O pár minút bude späť. Táto stránka sa obnoví sama.' &&
     (await statusActions()) === 'Prihlásiť sa' &&
+    (await framesDrawn()) === 0 &&
     (await migrationsLink()) === 0 &&
     (await setupLink()) === 0 &&
     (await quiet()),
-  `IAM trips ${visitorTrips} / ${await statusHeading()} / [${await statusActions()}]`,
+  `IAM trips ${visitorTrips} / ${await statusHeading()} / [${await statusActions()}] / frames ${await framesDrawn()}`,
 );
 await expectNoKeys('an update waiting, nobody signed in, in Slovak');
 await expectNoSideways('an update waiting, 390 px');
@@ -2480,9 +2492,9 @@ expect('"Sign-in required" on again', await signInRequired(true));
 const patFrom = requested.length;
 const patPressed = await signInThere(PAT, 'Prihlásiť sa');
 expect(
-  'its quiet Sign in: through the IAM and back to the same address - signed in now, the same page, nothing to press',
-  patPressed === true && (await js('location.pathname')) === '/' && (await statusHeading()) === 'Stránku práve aktualizujeme' && (await statusActions()) === '' && (await quiet()),
-  `${patPressed} / ${await js('location.pathname')} / ${await statusHeading()} / [${await statusActions()}]`,
+  'its quiet Sign in: through the IAM and back to the same address - signed in now, the same page, bare, nothing to press',
+  patPressed === true && (await js('location.pathname')) === '/' && (await statusHeading()) === 'Stránku práve aktualizujeme' && (await statusActions()) === '' && (await framesDrawn()) === 0 && (await quiet()),
+  `${patPressed} / ${await js('location.pathname')} / ${await statusHeading()} / [${await statusActions()}] / frames ${await framesDrawn()}`,
 );
 await screenshots('sk-390-behind-participant');
 await viewport(1280);
@@ -2508,8 +2520,9 @@ expect(
     (await statusHeading()) === 'The site is being updated' &&
     !(await js("!!document.querySelector('anotoki-migrations-page')")) &&
     (await migrationsLink()) === 0 &&
+    (await framesDrawn()) === 0 &&
     (await quiet()),
-  `${edithTrips} / ${await js('location.pathname')} / ${await statusHeading()} / [${await statusActions()}]`,
+  `${edithTrips} / ${await js('location.pathname')} / ${await statusHeading()} / [${await statusActions()}] / frames ${await framesDrawn()}`,
 );
 await screenshot('en-1280-behind-editor');
 
@@ -2547,14 +2560,15 @@ await go('/?lang=sk');
 await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
 await sleep(500);
 expect(
-  'the ADMIN anywhere else, on a Slovak page: "A database update is waiting", in English, and "Open Migrations" - nothing of the page',
+  'the ADMIN anywhere else, on a Slovak page: "A database update is waiting", in English, and "Open Migrations" - nothing of the page, no top bar, no footer',
   (await statusHeading()) === 'A database update is waiting' &&
     (await js("document.querySelector('anotoki-site-status section')?.getAttribute('lang')")) === 'en' &&
     (await text('anotoki-site-status p')) === 'This site is closed to everybody else until the update is applied. Back the database up first.' &&
     (await statusActions()) === 'Open Migrations' &&
     (await migrationsLink()) === 1 &&
+    (await framesDrawn()) === 0 &&
     !(await js("!!document.querySelector('app-survey-home')")),
-  `${await statusHeading()} / [${await statusActions()}]`,
+  `${await statusHeading()} / [${await statusActions()}] / frames ${await framesDrawn()}`,
 );
 await expectNoSideways('an update waiting, the ADMIN, 390 px');
 await screenshots('sk-390-behind-admin');
@@ -2917,9 +2931,18 @@ await go('/admin/people');
 await waitFor(page, "!!document.querySelector('anotoki-people-page')", 15000);
 await sleep(500);
 expect('... and at the People page\'s: "People are for administrators.", nothing asked of the server', (await text('anotoki-people-page')) === 'People are for administrators.' && !requested.slice(-8).some((request) => request.includes('/api/admin/people')), await text('anotoki-people-page'));
+since = requested.length;
+await go('/admin/feedback');
+await waitFor(page, "!!document.querySelector('anotoki-feedback-page')", 15000);
+await sleep(500);
+expect(
+  '... and at the Feedback page\'s: whose it is, nothing asked of the server - not even how many messages are new',
+  (await text('anotoki-feedback-page')) === 'Feedback is for the administrators of the survey site.' && !requested.slice(since).some((request) => request.includes('/api/admin/feedback')),
+  `${await text('anotoki-feedback-page')} / ${requested.slice(since).filter((request) => request.includes('/api/admin/')).join(', ')}`,
+);
 const editorToken = await heldToken();
-const editorAnswers = await Promise.all(['/api/admin/people', '/api/admin/errors', '/api/admin/audit', '/api/admin/backups'].map(async (path) => `${path} ${(await fetch(origin + path, { headers: { Authorization: `Bearer ${editorToken}` } })).status}`));
-expect('... and the API refuses an EDITOR every one of them', same(editorAnswers, ['/api/admin/people 403', '/api/admin/errors 403', '/api/admin/audit 403', '/api/admin/backups 403']), editorAnswers.join(', '));
+const editorAnswers = await Promise.all(['/api/admin/people', '/api/admin/feedback', '/api/admin/errors', '/api/admin/audit', '/api/admin/backups'].map(async (path) => `${path} ${(await fetch(origin + path, { headers: { Authorization: `Bearer ${editorToken}` } })).status}`));
+expect('... and the API refuses an EDITOR every one of them', same(editorAnswers, ['/api/admin/people 403', '/api/admin/feedback 403', '/api/admin/errors 403', '/api/admin/audit 403', '/api/admin/backups 403']), editorAnswers.join(', '));
 
 // The owner: the System page, from the bar.
 await signInAs(OWNER);
@@ -2928,8 +2951,8 @@ await waitFor(page, "!!document.querySelector('app-surveys-list')", 15000);
 expect('the System link in the bar', (await clickText('app-top-bar .anotoki-top-bar__nav a', 'System')) === true);
 await waitFor(page, "location.pathname === '/admin/system' && !!document.querySelector('app-system a.item')", 15000);
 expect(
-  'the System page: the way to the people, the error log, the audit log, the backups and the migrations - System lit in the bar',
-  same(await systemLinks(), ['People /admin/people', 'Error log /admin/errors', 'Audit log /admin/audit', 'Backups /admin/backups', 'Migrations /admin/migrations']) &&
+  'the System page: the way to the people, feedback, the error log, the audit log, the backups and the migrations - System lit in the bar (no feedback yet: no count beside it)',
+  same(await systemLinks(), ['People /admin/people', 'Feedback /admin/feedback', 'Error log /admin/errors', 'Audit log /admin/audit', 'Backups /admin/backups', 'Migrations /admin/migrations']) &&
     same(await barRow(), ['anotoki-brand', 'links: Surveys Translations Languages System (page)', 'anotoki-theme-toggle', 'person']) &&
     (await js('document.title')) === 'System · Admin panel · anotoki survey',
   `${JSON.stringify(await systemLinks())} / ${JSON.stringify(await barRow())} / ${await js('document.title')}`,
@@ -3178,30 +3201,92 @@ for (const code of ['en', 'sk']) {
     }
   }
 }
-// What the pages link to: the anotoki account's - at the IAM the site signs in with -, the family's address; no feedback here.
+// What the pages link to: the anotoki account's - at the IAM the site signs in with -, the family's address.
 await viewport(1280);
 await go('/privacy?lang=en');
 await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textContent ?? '').trim() === 'Privacy policy'`, 15000);
 expect(
-  "Privacy: the anotoki account's own Privacy page and account page are the IAM's, the site's parts in order, its storage by name, the hosting company and Cloudflare",
+  "Privacy: the anotoki account's own Privacy page and account page are the IAM's, the site's parts in order - feedback among them -, its storage by name, the hosting company and Cloudflare",
   (await js("document.querySelector('[data-account-privacy]')?.getAttribute('href')")) === `${iam}/privacy` &&
     (await js("document.querySelector('[data-account-page]')?.getAttribute('href')")) === `${iam}/account` &&
-    same(await js("[...document.querySelectorAll('[data-kept]')].map((part) => part.getAttribute('data-kept'))"), ['data-0', 'data-1', 'data-2', 'visitors', 'error-log', 'audit-log', 'backups']) &&
+    same(await js("[...document.querySelectorAll('[data-kept]')].map((part) => part.getAttribute('data-kept'))"), ['data-0', 'data-1', 'data-2', 'visitors', 'feedback', 'error-log', 'audit-log', 'backups']) &&
     (await texts('[data-stored] code')).includes('anotoki-survey:visitor') &&
-    same(await texts('[data-recipient] .anotoki-legal-page__item-name'), ['The hosting company (to be named)', 'Cloudflare, Inc.']),
-  `${await js("document.querySelector('[data-account-privacy]')?.getAttribute('href')")} / ${await js("document.querySelector('[data-account-page]')?.getAttribute('href')")} / ${JSON.stringify(await texts('[data-stored] code'))}`,
+    same(await texts('[data-recipient] .anotoki-legal-page__item-name'), ['WebSupport s.r.o.', 'Cloudflare, Inc.']),
+  `${await js("document.querySelector('[data-account-privacy]')?.getAttribute('href')")} / ${await js("document.querySelector('[data-account-page]')?.getAttribute('href')")} / ${JSON.stringify(await js("[...document.querySelectorAll('[data-kept]')].map((part) => part.getAttribute('data-kept'))"))} / ${JSON.stringify(await texts('[data-recipient] .anotoki-legal-page__item-name'))}`,
+);
+expect(
+  'Privacy: what a feedback message keeps in the library\'s words - a reply address only if the sender leaves one - and how long in the site\'s: at the next clean-up after 30 or 365 days',
+  ((await text('[data-kept="feedback"]')) ?? '').includes('a reply address only if the sender leaves one') && ((await text('[data-duration="feedback"] dd')) ?? '').startsWith('Until it is dealt with. A message marked as spam goes 30 days after that, a resolved one 365 days after - at the next clean-up'),
+  await text('[data-duration="feedback"] dd'),
 );
 const visitorDays = (await (await fetch(`${origin}/api/auth/config`)).json()).visitor_days;
 expect("Privacy: a visitor's key ends the days after the last visit the server says (GET /api/auth/config's visitor_days)", ((await text('[data-duration="visitors"] dd')) ?? '').startsWith(`${visitorDays} days after your last visit`), `${visitorDays}: ${await text('[data-duration="visitors"] dd')}`);
 await go('/contact?lang=en');
 await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textContent ?? '').trim() === 'Contact'`, 15000);
 expect(
-  'Contact: the address alone - no feedback form here - and the anotoki account to delete the account',
-  !(await js("!!document.querySelector('[data-open-feedback]')")) &&
+  'Contact: the feedback form first ("Found a bug or have an idea?"), then the address for everything else, and the anotoki account to delete the account',
+  (await text('[data-section="feedback"] h2')) === 'Found a bug or have an idea?' &&
+    (await text('[data-open-feedback]')) === 'Send feedback' &&
+    (await text('[data-section="email"] h2')) === 'Everything else' &&
     (await js("document.querySelector('[data-section=\"email\"] a')?.getAttribute('href')")) === 'mailto:support@anotoki.eu' &&
     (await js("document.querySelector('[data-account-page]')?.getAttribute('href')")) === `${iam}/account`,
-  `${await js("document.querySelector('[data-section=\"email\"] a')?.getAttribute('href')")} / ${await js("document.querySelector('[data-account-page]')?.getAttribute('href')")}`,
+  `${await text('[data-section="feedback"] h2')} / ${await js("document.querySelector('[data-section=\"email\"] a')?.getAttribute('href')")} / ${await js("document.querySelector('[data-account-page]')?.getAttribute('href')")}`,
 );
+// Its button opens the family's form (@anotoki/lib/feedback/form, its code loaded with the press) in the kit's dialog -
+// for nobody signed in too, the IAM requiring a sign-in and told to turn one down: no "without my name" (no name to
+// leave out), no address written in. Sent: the thanks in place - POST /api/feedback, with no trip to the IAM.
+const FEEDBACK_SENT = 'The browser check: the Next button could be bigger on a phone.';
+since = requested.length;
+expect('"Send feedback"', (await clickText('[data-open-feedback]', 'Send feedback')) === true);
+await waitFor(page, "!!document.querySelector('[data-feedback-dialog] anotoki-feedback-form [data-message] textarea')", 15000);
+await sleep(400);
+expect(
+  'the feedback form, in the kit\'s dialog: the kinds, the subject, the message, an address left empty - no "without my name" for nobody',
+  (await text('[data-feedback-dialog] .anotoki-dialog__title')) === 'Send feedback' &&
+    same(await texts('[data-feedback-dialog] [data-kind] label'), ['Something does not work', 'An idea', 'Something else']) &&
+    !(await js("!!document.querySelector('[data-feedback-dialog] [data-anonymous]')")) &&
+    (await js("document.querySelector('[data-feedback-dialog] [data-email] input')?.value")) === '',
+  `${await text('[data-feedback-dialog] .anotoki-dialog__title')} / ${JSON.stringify(await texts('[data-feedback-dialog] [data-kind] label'))} / email "${await js("document.querySelector('[data-feedback-dialog] [data-email] input')?.value")}"`,
+);
+await expectNoKeys('the feedback form');
+await screenshots('en-1280-contact-feedback-form', false);
+await fill('[data-feedback-dialog] [data-message] textarea', FEEDBACK_SENT);
+await js("document.querySelector('[data-feedback-dialog] [data-send]').click(); true");
+await waitFor(page, "!!document.querySelector('[data-feedback-dialog] [data-thanks]')", 15000).catch(() => null);
+await sleep(400);
+trip = requested.slice(since);
+expect(
+  '... sent, by nobody: the thanks in place - POST /api/feedback, no trip to the IAM',
+  (await text('[data-feedback-dialog] [data-thanks] .anotoki-feedback-form__thanks-title')) === 'Thank you!' && trip.includes('POST /api/feedback') && !trip.some((line) => line.startsWith('GET /api/oidc/authorize')),
+  `${await text('[data-feedback-dialog] [data-thanks]')} / ${trip.filter((line) => line.includes('/api/')).join(', ')}`,
+);
+await screenshot('en-1280-contact-feedback-sent');
+// The Contact page's dialog closes by its own X (the form there has no Cancel or Close of its own).
+await js("document.querySelector('[data-feedback-dialog] .anotoki-dialog__close').click(); true");
+await sleep(500);
+expect('... closed, the focus back on "Send feedback"', !(await js("!!document.querySelector('[data-feedback-dialog]')")) && (await js("document.activeElement?.hasAttribute('data-open-feedback') ?? false")), await js("document.activeElement?.outerHTML?.slice(0, 80) ?? null"));
+// In Slovak, on a phone: the form in this site's formal Slovak - never the library's ty.
+await viewport(390);
+await go('/contact?lang=sk');
+await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textContent ?? '').trim() === 'Kontakt'`, 15000);
+await clickText('[data-open-feedback]', 'Poslať spätnú väzbu');
+await waitFor(page, "!!document.querySelector('[data-feedback-dialog] anotoki-feedback-form [data-message] textarea')", 15000);
+await sleep(400);
+expect(
+  'the feedback form in Slovak: formal - "Niečo nefunguje, máte nápad alebo otázku? Napíšte nám", "Vaša správa" - never the library\'s ty',
+  (await text('[data-feedback-dialog] .anotoki-feedback-form__lead')) === 'Niečo nefunguje, máte nápad alebo otázku? Napíšte nám – čítame každú správu.' &&
+    ((await text('[data-feedback-dialog] [data-message] label')) ?? '').startsWith('Vaša správa') &&
+    ((await text('[data-feedback-dialog] [data-email] label')) ?? '').startsWith('Vaša e-mailová adresa') &&
+    // A word's ends by letters, not by \b, which takes "š" for no letter and finds "napíš" in "Napíšte".
+    !/(^|[^\p{L}])(máš|napíš|pošli|tvoj|tvoja|chceš|skús)(?![\p{L}])/iu.test((await text('[data-feedback-dialog]')) ?? ''),
+  `${await text('[data-feedback-dialog] .anotoki-feedback-form__lead')} / ${await text('[data-feedback-dialog] [data-message] label')} / ${await text('[data-feedback-dialog] [data-email] label')}`,
+);
+await expectNoKeys('the feedback form, in Slovak');
+await expectNoSideways('the feedback form, 390 px');
+await screenshots('sk-390-contact-feedback-form', false);
+await js("document.querySelector('[data-feedback-dialog] .anotoki-dialog__close').click(); true");
+await sleep(300);
+await viewport(1280);
 // The footer under the survey's own pages: signed in, and on the card of a session that ended there.
 await setIam({ user: OWNER, deny: false });
 await go('/?lang=en');
@@ -3215,12 +3300,103 @@ await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textCo
 expect('... and Privacy opens from it, nobody signed in', (await legalHeading()) === 'Privacy policy' && (await js('location.pathname')) === '/privacy', `${await legalHeading()} / ${await js('location.pathname')}`);
 await signInAs(OWNER);
 
+// ═══ Feedback, on the admin panel ══════════════════════════════════════════
+// The message nobody sent from the Contact page: no mail goes out, so the admin panel says it - how many messages
+// nobody opened yet beside the bar's System link (the family's FeedbackUnread, asked as the panel opens) and on the
+// System page's card. The Feedback page (the family's, @anotoki/lib/admin/feedback) lists it - nobody's, from
+// /contact; opened, it is read; marked resolved and deleted after its question, each in the audit log.
+await go('/admin');
+await waitFor(page, "!!document.querySelector('app-surveys-list')", 15000);
+await waitFor(page, "!!document.querySelector('app-top-bar .anotoki-top-bar__nav a[href=\"/admin/system\"] .anotoki-top-bar__badge')", 15000).catch(() => null);
+/** The count beside System in the bar, as seen and as heard. */
+const systemCount = () => js("(() => { const link = document.querySelector('app-top-bar .anotoki-top-bar__nav a[href=\"/admin/system\"]'); return link ? [link.querySelector('.anotoki-top-bar__badge')?.textContent.trim() ?? null, link.querySelector('.anotoki-visually-hidden')?.textContent.trim() ?? null] : null; })()");
+expect('the bar: beside System, how many feedback messages nobody opened yet - "1", heard as "1 new feedback message"', same(await systemCount(), ['1', ', 1 new feedback message']), JSON.stringify(await systemCount()));
+for (const width of [761, 960, 961]) {
+  await viewport(width);
+  await sleep(400);
+  await expectBar(`the admin panel with the count beside System, ${width} px`);
+  await screenshot(`admin-${width}-bar-feedback-count`);
+}
+await viewport(390);
+await sleep(400);
+await expectBar('the admin panel with the count beside System, 390 px');
+await screenshots('admin-390-bar-feedback-count', false);
+await viewport(1280);
+await clickText('app-top-bar .anotoki-top-bar__nav a', 'System');
+await waitFor(page, "location.pathname === '/admin/system' && !!document.querySelector('app-system a.item')", 15000);
+await waitFor(page, "!!document.querySelector('app-system a.item[href=\"/admin/feedback\"] anotoki-badge')", 15000).catch(() => null);
+expect("the System page: Feedback's card says \"1 new\"", (await text('app-system a.item[href="/admin/feedback"] anotoki-badge')) === '1 new', await text('app-system a.item[href="/admin/feedback"]'));
+await screenshots('admin-system-feedback-count-1280', false);
+expect('the Feedback card', (await clickText('app-system a.item[href="/admin/feedback"]', 'Feedback')) === true);
+await waitFor(page, "location.pathname === '/admin/feedback' && !!document.querySelector('anotoki-feedback-page [data-messages] [data-message]')", 15000);
+await sleep(500);
+const feedbackItems = await texts('anotoki-feedback-page [data-messages] [data-message]');
+expect(
+  'the Feedback page: the message nobody sent - new, its words, from nobody ("Anonymous"), on /contact - "1 new" above the list, and the tab says the page',
+  feedbackItems.length === 1 &&
+    feedbackItems[0].startsWith('New') &&
+    feedbackItems[0].includes(FEEDBACK_SENT) &&
+    feedbackItems[0].includes('From Anonymous · on /contact') &&
+    (await text('anotoki-feedback-page [data-counts]')) === '1 new' &&
+    (await js('document.title')) === 'Feedback · Admin panel · anotoki survey',
+  `${JSON.stringify(feedbackItems)} / ${await text('anotoki-feedback-page [data-counts]')} / ${await js('document.title')}`,
+);
+await expectNoKeys('the Feedback page');
+await screenshots('admin-feedback-1280', false);
+await js("document.querySelector('anotoki-feedback-page [data-messages] [data-message]').click(); true");
+await waitFor(page, "!!document.querySelector('anotoki-feedback-page [data-viewer] dialog[open] [data-words]')", 15000);
+await sleep(600);
+/** The opened message's facts, each "name: value" - its <dt> and <dd> (Angular leaves no space between them). */
+const feedbackFacts = () =>
+  js("[...document.querySelectorAll('anotoki-feedback-page [data-viewer] [data-facts] > div')].map((fact) => (fact.querySelector('dt')?.textContent.trim() ?? '') + ': ' + (fact.querySelector('dd')?.textContent.replace(/\\s+/g, ' ').trim() ?? ''))");
+const openedFacts = await feedbackFacts();
+expect(
+  'opened: its words whole, from nobody ("Anonymous"), its page and language - no address, for none was written - and it is read now: nothing new beside System',
+  (await text('anotoki-feedback-page [data-viewer] [data-words]')) === FEEDBACK_SENT &&
+    openedFacts.includes('From: Anonymous') &&
+    openedFacts.includes('Page: /contact') &&
+    openedFacts.includes('Language: en') &&
+    !openedFacts.some((fact) => fact.startsWith('Answer at')) &&
+    (await systemCount())?.[0] === null,
+  `${JSON.stringify(openedFacts)} / ${JSON.stringify(await systemCount())}`,
+);
+await screenshot('admin-feedback-open-1280');
+await clickText('anotoki-feedback-page [data-viewer] [data-mark] button', 'Resolved');
+await waitFor(page, "(document.querySelector('anotoki-feedback-page [data-happened]')?.textContent ?? '').trim() !== ''", 15000).catch(() => null);
+await sleep(500);
+const lastMarked = (await feedbackFacts()).find((fact) => fact.startsWith('Last marked: ')) ?? '';
+expect(
+  'marked resolved: said in the page, and by whom',
+  (await text('anotoki-feedback-page [data-happened]')) === `"${FEEDBACK_SENT}" is resolved now.` && lastMarked.endsWith(`by ${OWNER.username}`),
+  `${await text('anotoki-feedback-page [data-happened]')} / ${lastMarked}`,
+);
+await js("document.querySelector('anotoki-feedback-page [data-viewer] [data-delete]').click(); true");
+await waitFor(page, "!!document.querySelector('anotoki-feedback-page [data-question] dialog[open]')", 15000);
+await sleep(300);
+await js("document.querySelector('anotoki-feedback-page [data-question] [data-question-yes]').click(); true");
+await waitFor(page, "!!document.querySelector('anotoki-feedback-page [data-empty]')", 15000).catch(() => null);
+await sleep(400);
+expect('deleted after its question: no feedback left', (await text('anotoki-feedback-page [data-empty] .anotoki-empty-state__heading')) === 'No feedback yet', await text('anotoki-feedback-page'));
+// The audit log's action filter is a prefix: "feedback." is every feedback entry.
+const feedbackAudit = (await (await asOwner('GET', '/api/admin/audit?action=feedback.')).json()).items ?? [];
+expect(
+  '... and the audit log has the mark and the delete, by the owner',
+  same(feedbackAudit.map((entry) => entry.action).sort(), ['feedback.deleted', 'feedback.status_changed']) && feedbackAudit.every((entry) => Number(entry.actor_id) === OWNER.id),
+  JSON.stringify(feedbackAudit.map((entry) => [entry.action, entry.actor_id])),
+);
+await viewport(390);
+await sleep(400);
+await expectNoSideways('the Feedback page, 390 px');
+await screenshots('admin-feedback-390');
+await viewport(1280);
+
 // ═══ The pages drawn instead of the site ═══════════════════════════════════
 // A browser that has never been here - nothing stored, so no strings kept from an earlier visit - and a site that
 // is not set up: every request answered as the backend's gate answers it (the family's, @anotoki/lib). Never
 // installed: the family's page "This site is not set up yet", with the way to the setup page; set up once on a real
 // host (storage/installed.lock) and its settings gone since: never the setup page again - "not available right
-// now", asking again by itself. The tab is named by the site, never by a key, whichever page was asked for.
+// now", asking again by itself. The tab is named by the site, never by a key, whichever page was asked for. Each such
+// page is bare - no top bar, no footer - as the family's page is while an update waits.
 await viewport(390);
 await js('localStorage.clear(); sessionStorage.clear(); true');
 /** The backend of a site that is not set up, as its gate answers: the status, and every other address. */
@@ -3246,12 +3422,13 @@ for (const [path, what] of [
   await sleep(900);
   const title = await js('document.title');
   expect(
-    `not set up and never installed, nothing stored, ${what}: the family's page says so in English, with the way to the setup page - and the tab is named by the site, not a key`,
+    `not set up and never installed, nothing stored, ${what}: the family's page says so in English, bare - no top bar, no footer -, with the way to the setup page - and the tab is named by the site, not a key`,
     (await text('anotoki-site-status h1')) === 'This site is not set up yet' &&
       (await js("document.querySelector('anotoki-site-status a')?.getAttribute('href')")) === '/setup.php' &&
+      (await framesDrawn()) === 0 &&
       titled(title) &&
       (await pageLanguage()) === 'en',
-    `${await text('anotoki-site-status h1')} / [${await statusActions()}] / tab: ${title} / ${await pageLanguage()}`,
+    `${await text('anotoki-site-status h1')} / [${await statusActions()}] / frames ${await framesDrawn()} / tab: ${title} / ${await pageLanguage()}`,
   );
   await expectNoKeys(`not set up, ${what}`);
   if (path === '/') {
@@ -3264,9 +3441,9 @@ await go('/');
 await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
 await sleep(900);
 expect(
-  'not set up, but installed once: "not available right now", asking again by itself - and never the way to the setup page',
-  (await text('anotoki-site-status h1')) === 'The site is not available right now' && (await statusActions()) === 'Try again' && (await setupLink()) === 0 && titled(await js('document.title')),
-  `${await text('anotoki-site-status h1')} / [${await statusActions()}] / tab: ${await js('document.title')}`,
+  'not set up, but installed once: "not available right now", bare, asking again by itself - and never the way to the setup page',
+  (await text('anotoki-site-status h1')) === 'The site is not available right now' && (await statusActions()) === 'Try again' && (await setupLink()) === 0 && (await framesDrawn()) === 0 && titled(await js('document.title')),
+  `${await text('anotoki-site-status h1')} / [${await statusActions()}] / frames ${await framesDrawn()} / tab: ${await js('document.title')}`,
 );
 await expectNoKeys('not set up, installed once');
 await screenshots('en-390-not-available');
@@ -3280,9 +3457,13 @@ await go('/admin/languages');
 await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
 await sleep(900);
 expect(
-  'out of reach, nothing stored: "not available right now" in English, at the address asked for - and the tab is not a key',
-  (await text('anotoki-site-status h1')) === 'The site is not available right now' && (await statusActions()) === 'Try again' && (await js('location.pathname')) === '/admin/languages' && titled(await js('document.title')),
-  `${await text('anotoki-site-status h1')} / ${await js('location.pathname')} / tab: ${await js('document.title')}`,
+  'out of reach, nothing stored: "not available right now" in English, bare, at the address asked for - and the tab is not a key',
+  (await text('anotoki-site-status h1')) === 'The site is not available right now' &&
+    (await statusActions()) === 'Try again' &&
+    (await js('location.pathname')) === '/admin/languages' &&
+    (await framesDrawn()) === 0 &&
+    titled(await js('document.title')),
+  `${await text('anotoki-site-status h1')} / ${await js('location.pathname')} / frames ${await framesDrawn()} / tab: ${await js('document.title')}`,
 );
 await expectNoKeys('out of reach');
 await expectNoSideways('out of reach, 390 px');
@@ -3301,9 +3482,12 @@ await go('/admin/languages');
 await waitFor(page, "!!document.querySelector('app-load-error h1')", 15000);
 await sleep(900);
 expect(
-  "the status answering, the sign-in's settings not: the site's own card, in English, and the tab is not a key",
-  (await text('app-load-error h1')) === 'The survey site cannot be reached' && !(await js("!!document.querySelector('anotoki-site-status')")) && !/\w\.\w/.test(await js('document.title')),
-  `${await text('app-load-error h1')} / tab: ${await js('document.title')}`,
+  "the status answering, the sign-in's settings not: the site's own card, in English, bare, and the tab is not a key",
+  (await text('app-load-error h1')) === 'The survey site cannot be reached' &&
+    !(await js("!!document.querySelector('anotoki-site-status')")) &&
+    (await framesDrawn()) === 0 &&
+    !/\w\.\w/.test(await js('document.title')),
+  `${await text('app-load-error h1')} / frames ${await framesDrawn()} / tab: ${await js('document.title')}`,
 );
 await expectNoKeys('the sign-in out of reach');
 await screenshots('en-390-load-error');

@@ -95,7 +95,7 @@ so nobody was signed out by the move):
 | --- | --- |
 | `MEMBER` | every account holds it (the IAM gives it to everyone): an ordinary person - take surveys, once each, while open. No check here asks for it; a token without it (an older one) is the same |
 | `EDITOR` | the admin panel: write and translate surveys, open and close them, preview, read every answer, export; reword the site's strings, add and hide languages |
-| `ADMIN` | all of that, and delete surveys, answers and languages; see and apply the database's migrations (the Migrations page); the System pages - the people, the error log, the audit log, the backups |
+| `ADMIN` | all of that, and delete surveys, answers and languages; see and apply the database's migrations (the Migrations page); the System pages - the people, feedback, the error log, the audit log, the backups |
 
 The frontend hides what a role may not do (`AuthService.isStaff`, `isAdmin`);
 the backend decides (`requireStaff()`, `requireAdmin()` in
@@ -166,12 +166,15 @@ Migrations page, the System pages and the move are a verified token's alone.
   `X-Anotoki-Origin`, which the owner's zone adds to every request through it:
   anybody's Cloudflare Worker can connect from Cloudflare's ranges, and any
   other request from them counts as its edge. A `cloudflare.local.php` that is
-  there but cannot be read cleanly (it does not start with `<?php`, it prints,
-  PHP cannot parse or run it, or may not open it) fails closed, the IAM's
-  rule: a secret no request carries,
-  every request from Cloudflare's ranges its edge, the site running all the
-  same and the fault said once a day (`originSecretFile()`,
-  `config/config.php`); one read cleanly that names no secret is no secret. An address's counter goes by a keyed HMAC of
+  there without a usable secret fails closed - one that cannot be read
+  cleanly (it does not start with `<?php`, it prints, PHP cannot parse or run
+  it, or may not open it), and since 2026-10-18 one read cleanly that names
+  none (blank, not an array, a misspelt key, a value that is not a string) and
+  a folder in its place: a
+  secret no request carries, every request from Cloudflare's ranges its edge,
+  the site running all the same and the fault said once a day
+  (`originSecretFile()`, `config/config.php`). Deleting the file is the one
+  way to switch the secret off. An address's counter goes by a keyed HMAC of
   it (`clientAddressKept()`, under a key derived from the installation's
   `storage/anotoki-lib.key`) - a stable pseudonym of the address while that
   key lasts, not a secret (whoever holds the key can try every IPv4 address
@@ -341,10 +344,11 @@ answer, every survey's author and every visitor lives in `users`):
 
 ## The admin tools
 
-The error log, the audit log and the backups are the anotoki family's
-(anotoki-lib 0.6.2, both halves: `Anotoki\Lib\ErrorLog`, `Audit`, `Backups` - wired in
-`api/admin_tools.php`, their routes in `routes/admin.php`; the pages
-`@anotoki/lib/admin/errors`, `/audit`, `/backups`, configured in
+The error log, the audit log, feedback and the backups are the anotoki
+family's (anotoki-lib 0.6.2, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
+`Feedback`, `Backups` - wired in `api/admin_tools.php`, their routes in
+`routes/admin.php` (feedback's form in `routes/feedback.php`); the pages
+`@anotoki/lib/admin/errors`, `/audit`, `/feedback`, `/backups`, configured in
 `core/admin/admin-tools.ts`), for the site's ADMIN alone (the owner's
 decision): ADMIN from the token, both sides; an EDITOR is told whose the pages
 are, and the API refuses. The admin panel's System page (`/admin/system`, the
@@ -354,8 +358,44 @@ Since anotoki-lib 0.6.0 no refusal or answer of theirs carries a failure's own
 words: a backup's, a restore's or its after-work's failure is a fixed sentence
 of the library's ("... The error log says why."), the failure itself in the
 error log (`onError`).
-No feedback form and no file explorer (the owner's decision: the pictures live
-in the database, and are in every backup).
+No file explorer (the owner's decision: the pictures live in the database,
+and are in every backup).
+
+- **Feedback** (the owner's wish of 2026-10-18; before it, none) - the
+  library's form (`@anotoki/lib/feedback/form`, its code loaded with the first
+  press; set up in `core/feedback.ts`) opened from the Contact page (and,
+  once the site takes it, the family's footer), sending `POST /api/feedback`
+  for anybody - a person, a visitor, nobody, whether sign-in is required or
+  not. Who sent it is the token's alone (`Identify` in front, `RecordPerson`
+  after it), the person's id and nothing else - none at all for a message
+  sent "without my name"; a visitor's key is never read there. In the browser
+  the message says whom it is for as it is issued (`feedbackSenderInterceptor`,
+  before the family's interceptor): the person's while somebody is signed in,
+  nobody's otherwise - left unsaid, it would be a person's with no token
+  whenever the sign-in is set up, which the family's interceptor never sends.
+  No address is
+  written into the form: a reply address is kept only when the sender types
+  one (the IAM is the only holder of anybody's address). The table is the
+  library's (`anotoki_feedback`, its admin set): the message, its kind and
+  subject, the page as a path, the language, the browser's name, the
+  account, the reply address - never where it came from; the limits are
+  counted apart, a day of keyed hashes in `storage/cache/anotoki-feedback-limits.json`
+  (5 an hour and 20 a day a sender, 300 a day from the visitors and as many
+  from the people signed in). Spam goes 30 days after it was marked, a
+  resolved message 365 days after - at a clean-up run at most once a day
+  after a message comes in or the Feedback page is opened (the stamp
+  `storage/cache/anotoki-feedback-prune.stamp`). The scrub of the IAM's
+  deleted accounts takes the reply address and the browser out of their
+  messages (`peopleForgetFeedback()`, the People's hook), as the People page's
+  Delete does; a status change and a delete are audited, a delete inside its
+  own transaction, so a restore deletes the message again. The Feedback page
+  (`/admin/feedback`) is an ADMIN's; how many messages nobody opened yet
+  stands beside the bar's System link and on the System page's card (the
+  library's `FeedbackUnread`, asked as the admin panel opens and as the System
+  page does - never while the site cannot run): no mail is sent for one. The
+  form's words are the library's (`anotoki.feedback.*`), in this site's
+  formal Slovak where they speak to the reader (migration 014,
+  `FORMAL_SLOVAK`).
 
 - **The error log** - files, `storage/logs/errors-YYYY-MM-DD.jsonl` (UTC days,
   30 kept, 64 MB in all): an exception answered 5xx, an answer of 404, 405,
@@ -565,11 +605,37 @@ are the library's, the facts this site's.
 - **Words and language**: the root configuration (`core/legal/legal.config.ts`,
   `provideAnotokiLegal()` in `app.config.ts`) gives the language on the page
   and the database's string of each library key (`libraryWord()`): an owner's
-  rewording on the Translations page shows. No feedback form: Contact gives
-  the family's address alone, and the IAM's account page to delete the account.
+  rewording on the Translations page shows. Contact opens the feedback form
+  first (*The admin tools*, above), then gives the family's address for
+  everything else, and the IAM's account page to delete the account; Privacy
+  lists the feedback - what it keeps and what for in the library's words, how
+  long in the site's (`legal.feedback.kept`, migration 015).
 - **The footer** (`layouts/site-footer`, the family's `<anotoki-legal-links>`):
   Terms · Privacy · Contact under the survey's pages - the card of a session
-  that ended too - and under the legal pages; not in the admin panel.
+  that ended too - and under the legal pages; not in the admin panel. The
+  family's footer (`<anotoki-site-footer>`, anotoki-lib 0.6.3) takes its place
+  next, with the version and What's new (*What's new and the version*, below)
+  and Send feedback.
+
+## What's new and the version
+
+The owner's wish of 2026-10-18 (before it, no changelog): `frontend/public/changelog.json`
+lists the survey's versions, newest first, in the other anotoki sites' shape -
+`{version, date, changes: {added?, fixed?, updated?}}`, each sentence about
+something people notice - with each version's formal-Slovak translation
+beside it (`translations.sk`). `Changelog` (`core/changelog/changelog.service.ts`)
+asks for it once a page load, when something first wants it (never the API:
+the file is shipped beside `index.html`); the newest entry is the site's
+version (`current()`) - one source, `frontend/package.json`'s held to it by a
+spec. What's new (`Changelog.open()`) is the kit's dialog
+(`ui/changelog-dialog`, loaded with the first press): every version, newest
+first, its day in the account's date order, its lists under the site's words
+(`whatsNew.*`, migration 015) - in the reader's language where the version's
+translation is whole (`changesIn()`), in English otherwise, marked
+`lang="en"`. It opens only when asked - the family's footer's link, once the
+site takes it; until then nothing opens it - and never by itself, so the
+browser keeps nothing of it. A list that cannot be had (a broken upload)
+leaves no version and no What's new.
 
 ## The account's preferences
 
@@ -722,7 +788,9 @@ family's page instead (`app.component.html` gives it the outlet as the
 template marked `<ng-template anotokiSitePages>`, which the gate makes only
 while it shows the pages - anotoki-lib 0.2.0; an outlet given as it is would
 be made anyway and put the page in place out of sight, where it would run, and
-an unmarked template is not the pages at all): to somebody taking surveys,
+an unmarked template is not the pages at all) - standing alone, with no top bar
+and no footer, which live in the routed frames the gate does not make (the
+owner's wish of 2026-10-18; `app.component.spec.ts`): to somebody taking surveys,
 or an EDITOR, "The site is being
 updated" in their language - no error, no code, nothing to press but a quiet
 Sign in while nobody is signed in - which asks again by itself and reloads once

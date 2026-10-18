@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Anotoki\Lib\Admin\Schema as AdminSchema;
+use Anotoki\Lib\Feedback\Feedback;
 use Anotoki\Lib\People\People;
 use Anotoki\Lib\People\PeopleColumn;
 use Anotoki\Lib\People\PeopleTable;
@@ -25,12 +27,15 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *     PeopleUpkeep, api/index.php - or the People page's Check now): their
  *     name becomes the IAM's placeholder, deleted-{id}, and anonymized_at the
  *     IAM's time; everything else stays, nobody's now - their answers too (the
- *     owner's "keep everything"). No hook: no copy of a name lives anywhere
- *     else here, and no address at all (migration 011).
+ *     owner's "keep everything"). One hook (peopleForgetFeedback()): the
+ *     feedback messages they sent lose the reply address they wrote and their
+ *     browser's name, their words staying - no other copy of a name lives
+ *     here, and no other address at all (migration 011).
  *   - Listed on the admin panel's People page (the library's PeopleRoutes,
  *     /api/admin/people, ADMIN alone - routes/admin.php): with how many surveys
  *     each answered and wrote here, the visitors in one line, where the scrub
- *     stands, and Delete - every answer of theirs, after the page's question.
+ *     stands, and Delete - every answer of theirs, after the page's question
+ *     (and, by the library, their feedback's reply address and browser).
  *   - Done again by a restore: a backup made before a Delete still holds the
  *     answers, so a restore deletes them again inside its own transaction, by
  *     the audit log's person.data_deleted (the library's People::replay(), the
@@ -38,7 +43,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *     the IAM deleted since (People::afterRestore()).
  */
 
-/** The site's people for the library: users, its name and times, the connection, the IAM. */
+/** The site's people for the library: users, its name and times, the connection, the IAM, the scrub's hook. */
 function surveyPeople(): People
 {
     static $made = [];
@@ -49,7 +54,23 @@ function surveyPeople(): People
         new PeopleTable(table: 'users', name: 'preferred_username', firstSeen: 'first_seen_at', lastSeen: 'last_seen_at'),
         static fn(): PDO => db(),
         $iam,
+        hooks: [peopleForgetFeedback(...)],
     );
+}
+
+/**
+ * The scrub's hook, for each account the IAM deleted - inside the account's
+ * transaction and on the scrub's connection, whether the person had a row here
+ * or not: the feedback messages they sent (anotoki_feedback, the library's
+ * table) lose the reply address they wrote and their browser's name; the words
+ * stay, nobody's now. Idempotent, and nothing before the table is there. The
+ * People page's Delete does the same itself (the library's People::delete()).
+ */
+function peopleForgetFeedback(PDO $pdo, int $sub, ?array $former): void
+{
+    if (AdminSchema::has($pdo, AdminSchema::FEEDBACK_TABLE)) {
+        Feedback::forgetPeopleOn($pdo, [$sub]);
+    }
 }
 
 /**

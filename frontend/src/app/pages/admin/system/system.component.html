@@ -1,5 +1,7 @@
 <div class="page">
-    <anotoki-page-header heading="System" lead="What keeps the site running: the people who signed in, what failed, who changed what, the backups and the database's updates." />
+    <anotoki-page-header
+        heading="System"
+        lead="What keeps the site running: the people who signed in, what they told the site, what failed, who changed what, the backups and the database's updates." />
 
     @if (auth.isAdmin()) {
         <ul class="list">
@@ -8,7 +10,12 @@
                     <a anotokiLinkCard class="item" [routerLink]="page.path">
                         <span class="icon" aria-hidden="true"><anotoki-icon [name]="page.icon" [size]="20" /></span>
                         <span class="words">
-                            <span class="label">{{ page.label }}</span>
+                            <span class="name">
+                                <span class="label">{{ page.label }}</span>
+                                @if (page.badge === "feedback" && unreadFeedback() > 0) {
+                                    <anotoki-badge tone="primary" class="count">{{ unreadFeedback() }} new</anotoki-badge>
+                                }
+                            </span>
                             <span class="text">{{ page.text }}</span>
                         </span>
                         <anotoki-icon class="arrow" name="chevronRight" [size]="18" />
@@ -21,7 +28,7 @@
             <anotoki-empty-state
                 icon="lock"
                 heading="These pages are for the site's administrators"
-                text="The people, the logs, the backups and the database's updates are an administrator's. Your role here is editor.">
+                text="The people, the feedback, the logs, the backups and the database's updates are an administrator's. Your role here is editor.">
                 <a anotokiButton variant="primary" routerLink="/admin">See the surveys</a>
             </anotoki-empty-state>
         </div>

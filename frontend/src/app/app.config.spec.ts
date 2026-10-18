@@ -1,11 +1,12 @@
-import { provideHttpClient, withInterceptors } from "@angular/common/http";
+import { HttpClient, provideHttpClient, withInterceptors } from "@angular/common/http";
 import { HttpTestingController, type TestRequest, provideHttpClientTesting } from "@angular/common/http/testing";
 import { ErrorHandler } from "@angular/core";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
-import { AnotokiAuth } from "@anotoki/lib/auth";
+import { AnotokiAuth, ISSUED_AS } from "@anotoki/lib/auth";
 import { type TestAnotokiAuthOptions, provideTestAnotokiAuth, testAnotokiAuth } from "@anotoki/lib/auth/testing";
 import { ANOTOKI_ERROR_REPORT, AnotokiErrorReporter, provideAnotokiErrorReport } from "@anotoki/lib/error-report";
+import { firstValueFrom } from "rxjs";
 import { SITE_INTERCEPTORS, appConfig } from "./app.config";
 import { siteAuthConfig } from "./core/auth/auth.config";
 import { AuthService } from "./core/auth/auth.service";
@@ -81,5 +82,83 @@ describe("app.config.ts: the browser's errors, into the site's error log", () =>
     expect((report.request.body as { message: string }).message).toBe("The step would not draw");
     report.flush(null, { status: 204, statusText: "No Content" });
     http.verify();
+  });
+});
+
+/**
+ * The feedback form's message (POST /api/feedback, the family's form - core/feedback.ts) through the app's own
+ * HttpClient and its interceptors: the person's while somebody is signed in, nobody's otherwise - never a person's
+ * with no token to send, which the family's interceptor keeps back (the Contact page is anybody's, and so is its form).
+ */
+describe("app.config.ts: the feedback form's message, whoever sends it", () => {
+  const MESSAGE = { kind: "bug", message: "The Next button does nothing on step 2.", page: "/contact", language: "en", website: "" };
+
+  async function setUp(options: TestAnotokiAuthOptions): Promise<HttpTestingController> {
+    TestBed.configureTestingModule({
+      providers: [
+        provideHttpClient(withInterceptors(SITE_INTERCEPTORS)),
+        provideHttpClientTesting(),
+        provideRouter([]),
+        provideTestTranslations(),
+        provideSiteMigrations(),
+        { provide: AuthService, useValue: { isAdmin: () => false, signedIn: () => options.user != null, preferences: () => null } },
+        ...provideTestAnotokiAuth({ ...options, config: { api: siteAuthConfig().api } }, testAnotokiAuth()),
+      ],
+    });
+    await TestBed.inject(AnotokiAuth).init();
+    return TestBed.inject(HttpTestingController);
+  }
+
+  /** The message as the form sends it - no context of its own - and what it answered. */
+  function send(): Promise<unknown> {
+    return firstValueFrom(TestBed.inject(HttpClient).post("/api/feedback", MESSAGE));
+  }
+
+  it("nobody signed in, the site requiring a sign-in: it leaves, with neither a token nor a key - where the family's interceptor alone would keep it back as a person's", async () => {
+    const http = await setUp({ user: null });
+    const auth = TestBed.inject(AnotokiAuth);
+    expect(auth.caller(), "a request that does not say whom it is for is a person's here").toBe("person");
+    const refused = vi.spyOn(auth, "refused");
+
+    const answered = send();
+    const sent = await vi.waitFor(() => http.expectOne("/api/feedback"));
+    expect(sent.request.headers.has("Authorization")).toBe(false);
+    expect(sent.request.headers.has("X-Visitor-Key")).toBe(false);
+    expect(sent.request.context.get(ISSUED_AS)).toBe("nobody");
+    expect(sent.request.body).toEqual(MESSAGE);
+    sent.flush({ ok: true }, { status: 201, statusText: "Created" });
+    await expect(answered).resolves.toEqual({ ok: true });
+    expect(refused, "no session followed: there was none").not.toHaveBeenCalled();
+    http.verify();
+  });
+
+  it("a person signed in: with their token - the Feedback page names them", async () => {
+    const http = await setUp({ user: { sub: "101", preferred_username: "pat" }, roles: ["MEMBER"] });
+
+    const answered = send();
+    const sent = await vi.waitFor(() => http.expectOne("/api/feedback"));
+    expect(sent.request.headers.get("Authorization")).toMatch(/^Bearer \S+$/);
+    expect(sent.request.headers.has("X-Visitor-Key")).toBe(false);
+    sent.flush({ ok: true }, { status: 201, statusText: "Created" });
+    await expect(answered).resolves.toEqual({ ok: true });
+    http.verify();
+  });
+
+  it("a visitor: neither the visitor's key nor a token - the server never reads a key there", async () => {
+    const key = "k".repeat(43);
+    const http = await setUp({ user: null, loginRequired: false, visitors: { current: () => key, remember: () => undefined, forget: () => undefined } });
+    expect(TestBed.inject(AnotokiAuth).caller()).toBe("visitor");
+
+    const answered = send();
+    const sent = await vi.waitFor(() => http.expectOne("/api/feedback"));
+    expect(sent.request.headers.has("X-Visitor-Key")).toBe(false);
+    expect(sent.request.headers.has("Authorization")).toBe(false);
+    sent.flush({ ok: true }, { status: 201, statusText: "Created" });
+    await expect(answered).resolves.toEqual({ ok: true });
+    http.verify();
+  });
+
+  it("is in the app's interceptors before the family's, which reads what it says", () => {
+    expect(SITE_INTERCEPTORS.map((interceptor) => interceptor.name)).toEqual(["siteStatusInterceptor", "feedbackSenderInterceptor", "anotokiAuthInterceptor"]);
   });
 });

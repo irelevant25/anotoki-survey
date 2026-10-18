@@ -53,12 +53,12 @@ function surveyMigrationSet(): MigrationSet
  * README's order:
  *
  *   anotoki_admin          the admin tools' tables (the audit log; feedback, which this site
- *                          does not take, has its table there too): first, as the library asks -
- *                          nothing of the site's builds on it, and it never meets a table of the site's
+ *                          takes since 2026-10-18): first, as the library asks - nothing of the
+ *                          site's builds on it, and it never meets a table of the site's
  *   survey                 the site's own
  *   anotoki_translations   the words: after the site's own, whose early migrations made the words'
- *                          tables themselves (002), and whose 010 and 012 move the site's own words
- *                          under the library's keys before the library writes its own there
+ *                          tables themselves (002), and whose 010, 012 and 014 write the site's own
+ *                          words under the library's keys before the library writes its own there
  *   anotoki_people         where the scrub of the IAM's deleted accounts stands: after the site's
  *                          011, which gives users the column the scrub writes
  *

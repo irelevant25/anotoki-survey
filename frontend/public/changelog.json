@@ -1,0 +1,64 @@
+[
+  {
+    "version": "0.4.0",
+    "date": "2026-10-18",
+    "changes": {
+      "added": [
+        "Terms, Privacy and Contact, at the foot of the pages: the rules of using the survey site, what it keeps about you and your answers and for how long, and how to reach us - anybody may read them, signed in or not",
+        "Send feedback: tell the people who look after the survey site about something that does not work, an idea or anything else - with your name, or without it. The Contact page opens the form",
+        "The version of the survey site, and What's new - this list of what each version changed"
+      ],
+      "updated": [
+        "On the home page, each open survey is one card: press anywhere on it to open the survey",
+        "In the results, the answers that narrow the page are chips, each with a button that takes it away"
+      ]
+    },
+    "translations": {
+      "sk": {
+        "added": [
+          "Podmienky, Súkromie a Kontakt v spodnej časti stránok: pravidlá používania stránky s prieskumami, čo si o Vás a Vašich odpovediach uchováva a ako dlho, a ako nás zastihnúť – prečítať si ich môže ktokoľvek, prihlásený aj neprihlásený",
+          "Spätná väzba: povedzte tým, ktorí sa o stránku s prieskumami starajú, čo nefunguje, aký máte nápad alebo čokoľvek iné – s Vaším menom alebo bez neho. Formulár otvoríte na stránke Kontakt",
+          "Verzia stránky s prieskumami a Čo je nové – tento zoznam toho, čo zmenila každá verzia"
+        ],
+        "updated": [
+          "Na úvodnej stránke je každý otvorený prieskum jednou kartou: prieskum otvoríte stlačením kdekoľvek na nej",
+          "Vo výsledkoch sú odpovede, ktoré zužujú stránku, štítky – každý s tlačidlom, ktoré ho odstráni"
+        ]
+      }
+    }
+  },
+  {
+    "version": "0.3.0",
+    "date": "2026-09-29",
+    "changes": {
+      "added": [
+        "Surveys in steps: a welcome, the questions with the step you are on always in view, and a thank-you - each survey answered once, with your anotoki account",
+        "Questions with one choice, several choices or your own words, an \"Other\" with a field of its own, and pictures that open large",
+        "A survey you have begun waits in your browser, so you can carry on later",
+        "The pages in English and Slovak - choose the language at the top of the page - and a survey written in both is shown in yours",
+        "Where the site allows it, you can take surveys without signing in: this browser keeps your answers, and they move into your anotoki account when you sign in",
+        "Signed in, the theme, how dates are written and the language follow your anotoki account, the same on every anotoki site",
+        "For the people who write surveys: the editor - the steps and questions as people will meet them, a preview, and translations side by side - and results that open from a number to the people behind it",
+        "The anotoki family's look: the same top bar, font, buttons and dialogs as the other anotoki sites; on a phone, one menu button holds the sections and your menu",
+        "While the survey site is being updated, the page says so in your language instead of showing an error, and comes back by itself when the update is done",
+        "When signing in does not work, a page says why in your language, with Try again and Back"
+      ]
+    },
+    "translations": {
+      "sk": {
+        "added": [
+          "Prieskumy v krokoch: privítanie, otázky s krokom, na ktorom ste, stále na očiach, a poďakovanie – každý prieskum vyplníte raz, so svojím účtom anotoki",
+          "Otázky s jednou voľbou, s viacerými voľbami alebo s vlastnými slovami, možnosť „Iné“ s vlastným políčkom a obrázky, ktoré sa otvoria vo veľkom",
+          "Rozpracovaný prieskum na Vás počká v prehliadači, aby ste v ňom mohli pokračovať neskôr",
+          "Stránky v angličtine a slovenčine – jazyk si vyberiete v hornej časti stránky – a prieskum napísaný v oboch jazykoch sa zobrazí vo Vašom",
+          "Kde to stránka dovolí, môžete prieskumy vypĺňať aj bez prihlásenia: Vaše odpovede si zapamätá tento prehliadač a po prihlásení sa presunú do Vášho účtu anotoki",
+          "Po prihlásení sa vzhľad, zápis dátumov a jazyk riadia Vaším účtom anotoki – rovnako na každej stránke anotoki",
+          "Pre tých, ktorí prieskumy píšu: editor – kroky a otázky tak, ako ich ľudia uvidia, náhľad a preklady vedľa seba – a výsledky, ktoré sa otvárajú od čísla až k ľuďom za ním",
+          "Vzhľad rodiny anotoki: rovnaký horný panel, písmo, tlačidlá a dialógy ako na ostatných stránkach anotoki; na telefóne drží časti stránky aj Vašu ponuku jedno tlačidlo ponuky",
+          "Kým sa stránka s prieskumami aktualizuje, povie to vo Vašom jazyku namiesto chyby a po dokončení sa sama vráti",
+          "Keď prihlásenie nefunguje, stránka vo Vašom jazyku povie prečo, s tlačidlami Skúsiť znova a Späť"
+        ]
+      }
+    }
+  }
+]

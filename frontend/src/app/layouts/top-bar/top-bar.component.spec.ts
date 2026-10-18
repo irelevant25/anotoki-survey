@@ -1,6 +1,9 @@
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { FeedbackUnread } from '@anotoki/lib/admin';
 import { SiteStatus } from '@anotoki/lib/migrations';
 import { TranslationService } from '@anotoki/lib/translations';
 import { LocalizationDrafts } from '@anotoki/lib/translations/admin';
@@ -191,6 +194,9 @@ describe('TopBarComponent', () => {
         provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }),
         provideSiteShell(),
         provideRouter([{ path: '**', component: PageComponent }]),
+        // The count of new feedback beside System asks the server (the family's FeedbackUnread) - set by hand here.
+        provideHttpClient(),
+        provideHttpClientTesting(),
         { provide: AuthService, useValue: auth },
         { provide: AdminStore, useValue: store },
         { provide: SiteStatus, useValue: siteStatus },
@@ -225,6 +231,27 @@ describe('TopBarComponent', () => {
     expect(links().map(described)).toEqual(['Prieskumy / [page] [here]']);
     await at('/genshin-6-1');
     expect(links().map(described)).toEqual(['Prieskumy /']);
+  });
+
+  it('beside System, an ADMIN reads how many feedback messages nobody opened yet - seen as a number, heard in English as what it counts; nothing for none', async () => {
+    TestBed.inject(TranslationService).noteAddress('/admin');
+    await draw('admin');
+    await at('/admin/feedback');
+    const system = () => links().find((link) => link.getAttribute('href') === '/admin/system')!;
+    expect(system().querySelector('.anotoki-top-bar__badge')).toBeNull();
+
+    TestBed.inject(FeedbackUnread).set(2);
+    await fixture.whenStable();
+    expect(system().querySelector('.anotoki-top-bar__badge')?.textContent?.trim()).toBe('2');
+    expect(words(system().querySelector('.anotoki-visually-hidden'))).toBe(', 2 new feedback messages');
+    expect(system().classList.contains('anotoki-top-bar__link--active'), 'the Feedback page is one of System’s').toBe(true);
+
+    TestBed.inject(FeedbackUnread).set(1);
+    await fixture.whenStable();
+    expect(words(system().querySelector('.anotoki-visually-hidden'))).toBe(', 1 new feedback message');
+    TestBed.inject(FeedbackUnread).set(0);
+    await fixture.whenStable();
+    expect(system().querySelector('.anotoki-top-bar__badge')).toBeNull();
   });
 
   it('in the admin area: Surveys, Translations, Languages, System - a survey’s editor is in Surveys, each System page in System, without being its page', async () => {

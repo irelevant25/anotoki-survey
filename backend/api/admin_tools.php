@@ -8,16 +8,33 @@ use Anotoki\Lib\Auth\Http\Identify;
 use Anotoki\Lib\Backups\Backups;
 use Anotoki\Lib\Backups\Copy;
 use Anotoki\Lib\ErrorLog\ErrorLog;
+use Anotoki\Lib\Feedback\Feedback;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\App;
 
 /**
  * The admin tools this site takes from the anotoki family's library
- * (anotoki-lib 0.5.1): the error log, the audit log and the backups - for the
- * site's ADMIN alone (the owner's decision: EDITORs see none of them), each an
- * admin page of the library's (routes/admin.php, the frontend's admin.routes.ts).
- * No feedback (the owner's decision for this site) and no file explorer (the
+ * (anotoki-lib 0.5.1, feedback since 0.6.2): the error log, the audit log,
+ * feedback and the backups - for the site's ADMIN alone (the owner's decision:
+ * EDITORs see none of them), each an admin page of the library's
+ * (routes/admin.php, the frontend's admin.routes.ts). No file explorer (the
  * pictures live in the database, and are in every backup).
+ *
+ *   feedback        the library's table anotoki_feedback (its set anotoki_admin, 002): what people
+ *                   tell the site through the library's form (the Contact page opens it; the family's
+ *                   footer will too) - the owner's wish of 2026-10-18, which ended "no feedback" here.
+ *                   Anybody may send one (routes/feedback.php): a person's id from the token alone,
+ *                   never the body, unless they send it without their name; a reply address only if
+ *                   they write one (the form fills none in: the IAM is the only holder of anybody's
+ *                   address - docs/decisions.md); the page as a path, its language, the browser's name;
+ *                   nothing of where it came from. 5 an hour and 20 a day from one sender (a person by
+ *                   their account, anybody else by an HMAC of their address bucket, in a file of
+ *                   storage/cache that keeps a day of them), 300 a day from the visitors and as many
+ *                   from the people signed in. Kept: spam 30 days, resolved 365, the rest until
+ *                   somebody deletes it - pruned at most once a day, after a message is sent or the
+ *                   Feedback page is opened (Feedback::pruneIfDue()). An account the IAM deletes keeps
+ *                   its messages' words, never their reply address or browser (the people's scrub,
+ *                   api/people.php). No mail is sent: the admin panel counts what is new.
  *
  *   the error log   storage/logs/errors-YYYY-MM-DD.jsonl (UTC days, 30 kept, 64 MB in all): what
  *                   failed - an exception answered 5xx (with the chain of what caused it), an answer
@@ -123,6 +140,39 @@ function surveyAudit(): AuditLog
 function surveyAudited(Request $request, string $action, ?string $targetType = null, int|string|null $targetId = null, array $details = []): void
 {
     surveyAudit()->record($request, Identify::person($request)?->sub, $action, $targetType, $targetId, $details);
+}
+
+/**
+ * Feedback: the form's messages and the admin page's list - the library's,
+ * on the site's own connection, with the library's kinds (bug, idea, other),
+ * limits and keeping (spam 30 days, resolved 365 - the Privacy page says so,
+ * migration 015) and no places of the site to choose from. The limits are
+ * counted in the settings folder's storage, the prune runs after the answer
+ * (afterAnswerAdd()). One for each settings folder (the tests use more than one).
+ */
+function surveyFeedback(): Feedback
+{
+    static $made = [];
+
+    $storage = storageDir();
+
+    return $made[$storage] ??= new Feedback(static fn(): PDO => db(), [
+        'storage' => $storage,
+        'defer' => afterAnswerAdd(...),
+    ]);
+}
+
+/**
+ * Who sent a feedback message: the person of a verified token (Identify, in
+ * front of the route) - their id, nothing else; null for nobody, and for a
+ * visitor, whose key is never read there. The reply address is only the one
+ * the form sent.
+ */
+function surveyFeedbackSender(Request $request): ?array
+{
+    $person = Identify::person($request);
+
+    return $person === null ? null : ['id' => $person->sub];
 }
 
 /**

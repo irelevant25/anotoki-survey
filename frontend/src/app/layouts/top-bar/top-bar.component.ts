@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, Injector, computed, inject, input, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
+import { FeedbackUnread } from '@anotoki/lib/admin';
 import { SiteStatus } from '@anotoki/lib/migrations';
 import { TopBarComponent as AnotokiTopBarComponent, type TopBarBrand, type TopBarLink, type TopBarMenuItem, type TopBarPerson } from '@anotoki/lib/shell';
 import { TranslationService } from '@anotoki/lib/translations';
@@ -26,6 +27,8 @@ export interface BarLink {
   path: string;
   /** Address beginnings that belong to the section too (the editor of a survey is under Surveys). */
   under: readonly string[];
+  /** A count beside it: the feedback messages nobody opened yet (System, where the Feedback page is). */
+  badge?: 'feedback';
 }
 
 /** Where people take surveys: the one section, the list of open surveys. */
@@ -35,7 +38,7 @@ export const ADMIN_LINKS: readonly BarLink[] = [
   { key: 'topbar.surveys', path: '/admin', under: ['/admin/surveys/'] },
   { key: 'topbar.translations', path: '/admin/translations', under: [] },
   { key: 'topbar.languages', path: '/admin/languages', under: [] },
-  { key: null, label: 'System', path: SYSTEM_PATH, under: SYSTEM_PATHS, adminOnly: true },
+  { key: null, label: 'System', path: SYSTEM_PATH, under: SYSTEM_PATHS, adminOnly: true, badge: 'feedback' },
 ];
 
 /** While the database waits for a migration: the Migrations page alone - the one page of the site that works then (an ADMIN's). */
@@ -80,7 +83,10 @@ export const NARROW_BAR_MAX = 960;
  * it came after the bar's keys, and no reader ever sees it in another
  * language. While a database update waits the Migrations link is the only one
  * an ADMIN's bar shows in the admin panel (SiteStatus, @anotoki/lib/migrations):
- * the Migrations page is the one page of the site that works then.
+ * the Migrations page is the one page of the site that works then. Beside
+ * System, an ADMIN reads how many feedback messages nobody opened yet (the
+ * family's FeedbackUnread, asked by the admin layout; "System, 2 new feedback
+ * messages" to a screen reader) - no mail is sent for one.
  */
 @Component({
   selector: 'app-top-bar',
@@ -102,6 +108,7 @@ export class TopBarComponent {
   private readonly _injector = inject(Injector);
   private readonly _confirm = inject(ConfirmService);
   private readonly _router = inject(Router);
+  private readonly _unread = inject(FeedbackUnread);
   private readonly _bar = viewChild.required(AnotokiTopBarComponent);
 
   protected readonly phoneMax = PHONE_BAR_MAX;
@@ -127,8 +134,20 @@ export class TopBarComponent {
     return ADMIN_LINKS.filter((link) => !link.adminOnly || this._auth.isAdmin());
   });
   protected readonly links = computed<TopBarLink[]>(() =>
-    this._sections().map((link) => ({ id: link.path, label: link.key ? this._i18n.t(link.key) : (link.label ?? link.path), path: link.path, under: link.under })),
+    this._sections().map((link) => ({
+      id: link.path,
+      label: link.key ? this._i18n.t(link.key) : (link.label ?? link.path),
+      path: link.path,
+      under: link.under,
+      ...(link.badge === 'feedback' ? this._feedbackBadge() : {}),
+    })),
   );
+
+  /** The feedback messages nobody opened yet, beside System - in English, as the admin panel is; nothing for none. */
+  private readonly _feedbackBadge = computed<Pick<TopBarLink, 'badge' | 'badgeLabel'>>(() => {
+    const count = this._unread.count() ?? 0;
+    return count > 0 ? { badge: count, badgeLabel: `${count} new feedback ${count === 1 ? 'message' : 'messages'}` } : {};
+  });
 
   protected readonly person = computed<TopBarPerson | null>(() => {
     const me = this._auth.person();

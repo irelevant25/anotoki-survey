@@ -53,10 +53,13 @@ Working conventions:
   browser's `trim()`).
 - Signing in, the people and the admin tools are the anotoki family's library's
   (anotoki-lib 0.6.2, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
-  module, the error log - the pages' errors too, `@anotoki/lib/error-report` -,
-  the audit log, the backups) - wired in
+  module, feedback - the form the Contact page opens, `POST /api/feedback`,
+  the Feedback page -, the error log - the pages' errors too,
+  `@anotoki/lib/error-report` -, the audit log, the backups) - wired in
   `api/auth.php`, `api/people.php`, `api/admin_tools.php`,
-  `core/auth/auth.config.ts`, `core/admin/admin-tools.ts`; never copied or
+  `api/routes/feedback.php`, `core/auth/auth.config.ts`,
+  `core/admin/admin-tools.ts`, `core/feedback.ts` (no address handed to the
+  form: the site keeps none); never copied or
   edited here. Who a request is comes only from the verified token (the
   library's `Identify` in front of each route group); roles through
   `RequirePerson`, `requireStaff()`, `requireAdmin()` (deletes, the
@@ -79,9 +82,10 @@ Working conventions:
   line, a `declare(strict_types=1)` is a fatal error nothing catches - every
   request a 500), what one prints is caught; a database or IAM file not read
   cleanly leaves the site not set up, a visitors one means the defaults, and
-  a `config/cloudflare.local.php` that cannot be read cleanly fails closed
-  (`originSecretFile()`); each fault is said once a day, never the file's
-  text or what PHP said.
+  a `config/cloudflare.local.php` that cannot be read cleanly - or names no
+  usable `origin_secret`, or is a folder - fails closed (`originSecretFile()`: a secret no
+  request carries; switching it off is deleting the file); each fault is said
+  once a day, never the file's text or what PHP said.
   Queries use `?` parameters; identifiers come from literals.
 - User HTML only through `richTextClean()`. Pictures are checked by their
   bytes; never SVG.
@@ -93,6 +97,9 @@ Working conventions:
   never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come
   from the database there (`forKit()`), and its class names are its own
   (`.anotoki-<piece>__<part>`) - in a spec too.
+- The site's version is `frontend/package.json`'s, and a release has its entry
+  first in `frontend/public/changelog.json`, in English and formal Slovak
+  (`core/changelog/`; What's new opens from the family's footer once it comes).
 - Tests and experiments use throwaway `survey_test_` databases
   (`backend/tests/tools/`), never `anotoki_survey`; the browser check
   (`check-in-browser` skill) signs in through the library's stand-in IAM, never the real one.

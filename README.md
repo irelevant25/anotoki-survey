@@ -54,12 +54,20 @@ person by person.
   **EDITOR**s write and translate surveys, open and close them, read the
   answers and reword the site's strings; **ADMIN**s also delete surveys,
   answers and languages, and have the site's System pages: the people who
-  signed in (and deleting a person's answers), the error log, the audit log of
-  what was done in the admin panel, the backups of the database, and its
-  updates. The roles are given in the IAM's admin panel; everybody else takes
-  surveys. The site keeps a person's name and anotoki id - never their address
-  (the IAM keeps it) - and when the IAM deletes an account, its name here
-  becomes the IAM's placeholder.
+  signed in (and deleting a person's answers), what people sent through the
+  feedback form, the error log, the audit log of what was done in the admin
+  panel, the backups of the database, and its updates. The roles are given in
+  the IAM's admin panel; everybody else takes surveys. The site keeps a
+  person's name and anotoki id - never their address (the IAM keeps it), but
+  a reply address somebody writes into a feedback message - and when the IAM
+  deletes an account, its name here becomes the IAM's placeholder.
+- **Feedback**: anybody - signed in or not - tells the people who look after
+  the site about something that does not work, an idea or anything else,
+  through the anotoki family's form (the Contact page opens it), with their
+  name or without it; no mail is sent - the admin panel counts what is new.
+- **What's new**: the site's version and what each version changed for people,
+  in English and Slovak - shown by the family's footer, which the site takes
+  next.
 
 | Part | Folder | Stack |
 | --- | --- | --- |
@@ -73,9 +81,12 @@ What the host and Cloudflare need for this site - check it before the first uplo
 hosting:
 
 - **PHP 8.2 or newer** with `pdo_pgsql`, `openssl`, `dom`, `mbstring`, `json` and `zlib` (the backups); `curl` or `allow_url_fopen` to ask the IAM. `tools/host-check.php` checks all of it on the host: write a long
-  random value into its `HOST_CHECK_TOKEN`, upload it beside `index.html`, open
-  `https://<the site>/host-check.php?token=<that value>`, and delete it afterwards (the page has a button for
-  it). It is never part of a build.
+  random value (32+ characters) into its `HOST_CHECK_TOKEN`, upload it into the web root beside `index.html`,
+  open `https://<the site>/host-check.php?token=<that value>` (`&format=json` for
+  the same as JSON), and delete it afterwards (the page has a button for it; check over SFTP that it is
+  gone). It is never part of a build. The web root's `.htaccess` lets a visitor run it and `setup.php` alone,
+  each only while it is there - before 0.4 it refused the host check too (403), so on a host still running
+  an older upload, upload this version first.
 - **Cloudflare** (the zone's settings, the same for every anotoki site):
   - SSL/TLS **Full (strict)**: the connection from Cloudflare to the host is https - the site's secure cookies
     need it end to end (the host check says which it is).
@@ -88,17 +99,36 @@ hosting:
     (`return ['origin_secret' => '...'];`, put there by hand; a long random value, 32+ characters). With it the
     site believes `CF-Connecting-IP` only on a request that carries the secret - anybody's Cloudflare Worker
     can connect from Cloudflare's ranges; without the file it believes `CF-Connecting-IP` from Cloudflare's
-    ranges alone. Set the rule first, then the file. A file that cannot be read cleanly - saved with a
-    byte-order mark, without its `<?php` line, or with a typo PHP cannot read - fails closed: the site keeps
-    running, believes no `CF-Connecting-IP` (every visitor counts as the Cloudflare edge they came through,
-    sharing its limits) and says so once a day in PHP's error log until the file is mended.
+    ranges alone. Set the rule first, then the file; to switch the secret off, **delete the file** (an empty
+    value switches nothing off). A file without a usable secret - an empty value, a misspelt key, a value
+    that is not a string, saved with a byte-order mark, without its `<?php` line, or with a typo PHP cannot
+    read; a folder in its place too - fails closed: the site keeps running, believes no `CF-Connecting-IP` (every visitor counts as the
+    Cloudflare edge they came through, sharing its limits) and says so once a day in PHP's error log until
+    the file is mended.
 - **After an upload**: the private folders (`storage/`, `config/`) answer 403 in a browser; the host check's
   "Who connects" says Cloudflare, not a proxy of the host's (behind one, every visitor would share one
   address); pending database updates are applied on the admin panel's Migrations page.
 
-## Current state - 0.3
+## Current state - 0.4
 
-The first real version: the surveys, answers and pictures live in PostgreSQL
+**0.4** (2026-10-18; its notes for people are `frontend/public/changelog.json`'s
+newest entry): **feedback** - the anotoki family's form, which the Contact page
+opens for anybody, signed in or not (the person's account from their sign-in
+alone, never an address unless they write one), and the admin panel's
+Feedback page on System for the ADMIN, with the count of new messages beside
+the bar's System link - the owner asked for it after all; **What's new and the
+version** - the site's versions and what each changed, in English and formal
+Slovak, the newest the version - ready for the family's footer
+(`<anotoki-site-footer>`), which the site takes next, with its "Version · What's
+new · Send feedback"; the family's page shown while the site cannot run stands
+alone, with no top bar and no footer (it always did here; a test holds it now);
+a `config/cloudflare.local.php` read cleanly but naming no usable secret fails
+closed too, and switching the secret off is deleting the file; and the host
+check may run on the host (Hosting checklist above). On the hosting it brings
+`014_feedback_words.sql` and `015_whats_new_and_feedback.sql`, applied on the
+Migrations page ([docs/operations.md](docs/operations.md)).
+
+**0.3** - the first real version: the surveys, answers and pictures live in PostgreSQL
 behind a PHP API, people sign in through the anotoki IAM (client `survey`),
 and the site is deployable to the FTP-only hosting like every anotoki site.
 Before it, 0.1 and 0.2 were a prototype in the browser, to settle how taking a
@@ -169,8 +199,8 @@ for the ADMIN (how many surveys each answered and wrote, the visitors, and
 deleting a person's answers); and the **admin tools** - the family's error
 log, audit log and backups (the whole database by COPY, the pictures too:
 daily, before every update, and by hand after a recent sign-in) - for the
-site's ADMIN alone, on the admin panel's System page. No feedback form and no
-file explorer here (the owner's decision).
+site's ADMIN alone, on the admin panel's System page. No feedback form (until
+0.4) and no file explorer here (the owner's decision).
 
 And with anotoki-lib 0.5.0: a restore no longer brings back the answers a
 person had deleted on the People page since the backup - they are deleted
@@ -192,7 +222,7 @@ their answers and of visitors, what it keeps in the browser, and for how
 long), open to anybody, signed in or not, in English and formal Slovak - and
 Terms · Privacy · Contact at the foot of the pages people take surveys on;
 the anotoki account's own Privacy page and account page are the IAM's, linked
-from there. No feedback form: Contact gives the family's address. The kit's
+from there. No feedback form then: Contact gave the family's address. The kit's
 new pieces where the site drew its own: the home page's and the System page's
 cards that are one link, the results' filters as removable chips. And every
 `config/*.local.php` is read cleanly or not at all: one saved with a
@@ -202,7 +232,7 @@ with a 500 - so a database or IAM file leaves the site not set up, a visitors
 file means the defaults, and a `config/cloudflare.local.php` that cannot be
 read cleanly fails closed (Hosting checklist above).
 
-On the hosting this version brings new migrations (up to
+On the hosting that version brought new migrations (up to
 `013_legal_pages.sql`, and the library's own sets around them -
 `anotoki_admin` first, `anotoki_translations` and `anotoki_people` after; 012
 moves the site's sign-in words under the library's keys first, an owner's
@@ -213,7 +243,7 @@ in from the family's page and applies them on the Migrations page (or the
 setup page does), then makes a backup by hand - the first one sealed -
 [docs/operations.md](docs/operations.md).
 No survey may have the addresses `terms`, `privacy` or `contact` any more:
-one opened at such an address before this version is reached no more there
+one opened at such an address before that version is reached no more there
 (the legal page answers) - move it in the editor.
 
 ## Trying it out
