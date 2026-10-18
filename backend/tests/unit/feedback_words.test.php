@@ -54,10 +54,14 @@ function server_pdo(string $name): PDO
  */
 function before_014(PDO $pdo): void
 {
-    $site = new Migrator($pdo, [surveyMigrationSet()], [
-        'lock' => DATABASE_UPDATE_LOCK,
-        'ready' => static fn(MigrationSet $set, string $name): bool => strcmp($name, '014') < 0,
-    ]);
+    $site = new Migrator(
+        $pdo,
+        [surveyMigrationSet()],
+        [
+            'lock' => DATABASE_UPDATE_LOCK,
+            'ready' => static fn(MigrationSet $set, string $name): bool => strcmp($name, '014') < 0,
+        ],
+    );
     $result = $site->apply();
     assert_same(null, $result['failed'], (string) $result['error']);
     $library = (new Migrator($pdo, [TranslationsSchema::migrationSet()], ['lock' => DATABASE_UPDATE_LOCK]))->apply();
@@ -69,7 +73,10 @@ function before_014(PDO $pdo): void
 function feedback_words(PDO $pdo): array
 {
     $words = [];
-    foreach ($pdo->query("SELECT key_name || ' ' || language_code AS cell, value, updated_by FROM translations WHERE key_name LIKE 'anotoki.feedback.%' ORDER BY 1")->fetchAll(PDO::FETCH_ASSOC) as $row) {
+    foreach (
+        $pdo->query("SELECT key_name || ' ' || language_code AS cell, value, updated_by FROM translations WHERE key_name LIKE 'anotoki.feedback.%' ORDER BY 1")->fetchAll(PDO::FETCH_ASSOC)
+        as $row
+    ) {
         $words[$row['cell']] = [$row['value'], $row['updated_by'] === null ? null : (int) $row['updated_by']];
     }
 
@@ -115,56 +122,64 @@ function migration_keys_of_014(): array
     return $keys[1];
 }
 
-test('a new database: 014 runs before the library\'s words of the form, and writes these sixteen with the library\'s English and this site\'s Slovak - the library\'s file then gives them its descriptions, and the other words their strings', function (): void {
-    $pdo = server_pdo(test_empty_db('new'));
-    $result = surveyMigrator($pdo)->apply();
-    assert_same(null, $result['failed'], (string) $result['error']);
-    $order = array_map(static fn(array $file): string => $file['set'] . '/' . $file['name'], $result['applied']);
-    assert_true(array_search('survey/' . FILE_014, $order, true) < array_search('anotoki_translations/004_feedback_words.sql', $order, true), '014 before the library\'s words of the form');
+test(
+    'a new database: 014 runs before the library\'s words of the form, and writes these sixteen with the library\'s English and this site\'s Slovak - the library\'s file then gives them its descriptions, and the other words their strings',
+    function (): void {
+        $pdo = server_pdo(test_empty_db('new'));
+        $result = surveyMigrator($pdo)->apply();
+        assert_same(null, $result['failed'], (string) $result['error']);
+        $order = array_map(static fn(array $file): string => $file['set'] . '/' . $file['name'], $result['applied']);
+        assert_true(array_search('survey/' . FILE_014, $order, true) < array_search('anotoki_translations/004_feedback_words.sql', $order, true), '014 before the library\'s words of the form');
 
-    $words = feedback_words($pdo);
-    foreach (FORMAL as $key => $slovak) {
-        assert_same([$slovak, null], $words["$key sk"] ?? null, "$key: this site's formal Slovak");
-        assert_same([LibraryWords::all()[$key]['en'], null], $words["$key en"] ?? null, "$key: the library's English");
-    }
-    foreach (['send', 'kind', 'kindBug', 'subject', 'tooLong'] as $name) {
-        foreach (['en', 'sk'] as $code) {
-            assert_same([LibraryWords::all()["anotoki.feedback.$name"][$code], null], $words["anotoki.feedback.$name $code"] ?? null, "$name ($code): speaks to nobody - the library's own");
+        $words = feedback_words($pdo);
+        foreach (FORMAL as $key => $slovak) {
+            assert_same([$slovak, null], $words["$key sk"] ?? null, "$key: this site's formal Slovak");
+            assert_same([LibraryWords::all()[$key]['en'], null], $words["$key en"] ?? null, "$key: the library's English");
         }
-    }
-    $descriptions = $pdo->query("SELECT name, description FROM translation_keys WHERE name LIKE 'anotoki.feedback.%'")->fetchAll(PDO::FETCH_KEY_PAIR);
-    foreach ($descriptions as $key => $description) {
-        assert_same(LibraryWords::all()[$key]['description'], $description, "$key: the library's description");
-    }
-    $pdo = null;
-});
+        foreach (['send', 'kind', 'kindBug', 'subject', 'tooLong'] as $name) {
+            foreach (['en', 'sk'] as $code) {
+                assert_same([LibraryWords::all()["anotoki.feedback.$name"][$code], null], $words["anotoki.feedback.$name $code"] ?? null, "$name ($code): speaks to nobody - the library's own");
+            }
+        }
+        $descriptions = $pdo->query("SELECT name, description FROM translation_keys WHERE name LIKE 'anotoki.feedback.%'")->fetchAll(PDO::FETCH_KEY_PAIR);
+        foreach ($descriptions as $key => $description) {
+            assert_same(LibraryWords::all()[$key]['description'], $description, "$key: the library's description");
+        }
+        $pdo = null;
+    },
+);
 
-test('an installed site - the library\'s words of the form there long since: its informal Slovak gives way to this site\'s formal one, an owner\'s rewording stays, the English is the library\'s', function (): void {
-    $pdo = server_pdo(test_empty_db('installed'));
-    before_014($pdo);
-    $before = feedback_words($pdo);
-    assert_same(LibraryWords::all()['anotoki.feedback.title']['sk'], $before['anotoki.feedback.title sk'][0] ?? null, 'the library\'s informal words, for now');
-    // The owner rewords one of them on the Translations page before 014 comes.
-    $pdo->exec('INSERT INTO users (id, preferred_username) VALUES (' . OWNER . ", 'owner')");
-    $pdo->exec("UPDATE translations SET value = 'Napíšte nám, prosím.', updated_by = " . OWNER . ", updated_at = '" . REWORDED_AT . "' WHERE key_name = 'anotoki.feedback.lead' AND language_code = 'sk'");
+test(
+    'an installed site - the library\'s words of the form there long since: its informal Slovak gives way to this site\'s formal one, an owner\'s rewording stays, the English is the library\'s',
+    function (): void {
+        $pdo = server_pdo(test_empty_db('installed'));
+        before_014($pdo);
+        $before = feedback_words($pdo);
+        assert_same(LibraryWords::all()['anotoki.feedback.title']['sk'], $before['anotoki.feedback.title sk'][0] ?? null, 'the library\'s informal words, for now');
+        // The owner rewords one of them on the Translations page before 014 comes.
+        $pdo->exec('INSERT INTO users (id, preferred_username) VALUES (' . OWNER . ", 'owner')");
+        $pdo->exec(
+            "UPDATE translations SET value = 'Napíšte nám, prosím.', updated_by = " . OWNER . ", updated_at = '" . REWORDED_AT . "' WHERE key_name = 'anotoki.feedback.lead' AND language_code = 'sk'",
+        );
 
-    $result = surveyMigrator($pdo)->apply();
-    assert_same(null, $result['failed'], (string) $result['error']);
-    $words = feedback_words($pdo);
-    foreach (FORMAL as $key => $slovak) {
-        if ($key === 'anotoki.feedback.lead') {
-            assert_same(['Napíšte nám, prosím.', OWNER], $words["$key sk"], 'the owner\'s rewording, theirs still');
-            continue;
+        $result = surveyMigrator($pdo)->apply();
+        assert_same(null, $result['failed'], (string) $result['error']);
+        $words = feedback_words($pdo);
+        foreach (FORMAL as $key => $slovak) {
+            if ($key === 'anotoki.feedback.lead') {
+                assert_same(['Napíšte nám, prosím.', OWNER], $words["$key sk"], 'the owner\'s rewording, theirs still');
+                continue;
+            }
+            assert_same([$slovak, null], $words["$key sk"], "$key: the formal Slovak over the library's informal");
         }
-        assert_same([$slovak, null], $words["$key sk"], "$key: the formal Slovak over the library's informal");
-    }
-    foreach ($before as $cell => $string) {
-        if (!str_ends_with($cell, ' sk') || !array_key_exists(explode(' ', $cell)[0], FORMAL)) {
-            assert_same($string, $words[$cell], "$cell: untouched - the English, and the words that speak to nobody");
+        foreach ($before as $cell => $string) {
+            if (!str_ends_with($cell, ' sk') || !array_key_exists(explode(' ', $cell)[0], FORMAL)) {
+                assert_same($string, $words[$cell], "$cell: untouched - the English, and the words that speak to nobody");
+            }
         }
-    }
-    $pdo = null;
-});
+        $pdo = null;
+    },
+);
 
 test('014\'s gate: the library\'s informal Slovak left behind fails the file loudly, nothing of it kept - and the next Apply goes through', function (): void {
     $pdo = server_pdo(test_empty_db('gate'));
@@ -172,7 +187,9 @@ test('014\'s gate: the library\'s informal Slovak left behind fails the file lou
     $before = feedback_words($pdo);
     // Something in the way of one word: its update does nothing.
     $pdo->exec("CREATE FUNCTION survey_test_swallow() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RETURN NULL; END \$\$");
-    $pdo->exec("CREATE TRIGGER survey_test_swallow BEFORE UPDATE ON translations FOR EACH ROW WHEN (OLD.key_name = 'anotoki.feedback.failed' AND OLD.language_code = 'sk') EXECUTE FUNCTION survey_test_swallow()");
+    $pdo->exec(
+        "CREATE TRIGGER survey_test_swallow BEFORE UPDATE ON translations FOR EACH ROW WHEN (OLD.key_name = 'anotoki.feedback.failed' AND OLD.language_code = 'sk') EXECUTE FUNCTION survey_test_swallow()",
+    );
 
     $result = surveyMigrator($pdo)->apply();
     assert_same(['set' => 'survey', 'name' => FILE_014], $result['failed'], (string) $result['error']);

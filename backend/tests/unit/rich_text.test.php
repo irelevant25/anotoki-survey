@@ -8,14 +8,17 @@ declare(strict_types=1);
 require __DIR__ . '/../lib.php'; // before the app loads: a throwaway database and settings
 
 test('the editor\'s own HTML comes back exactly as it went in', function (): void {
-    foreach ([
-        '<p>Plain</p>',
-        '<p><strong>Bold</strong>, <em>italic</em>, <u>under</u>, <s>struck</s> and <mark>marked</mark>.</p>',
-        '<h2>Welcome</h2><h3>Smaller</h3><p>Text&nbsp;with a non-breaking space &amp; an ampersand, 1 &lt; 2 &gt; 0, "quotes"</p>',
-        '<ul><li><p>One</p></li><li><p>Two</p></li></ul><ol start="3"><li><p>Three</p></li></ol>',
-        '<p>A <a target="_blank" rel="noopener noreferrer" href="https://anotoki.eu/?a=1&amp;b=2">link</a> and <a target="_blank" rel="noopener noreferrer" href="mailto:hello@anotoki.eu">mail</a></p>',
-        '<p>Line<br>break</p><p></p><p>Ščťžýáíéúô · 日本語 · 🎉</p>',
-    ] as $html) {
+    foreach (
+        [
+            '<p>Plain</p>',
+            '<p><strong>Bold</strong>, <em>italic</em>, <u>under</u>, <s>struck</s> and <mark>marked</mark>.</p>',
+            '<h2>Welcome</h2><h3>Smaller</h3><p>Text&nbsp;with a non-breaking space &amp; an ampersand, 1 &lt; 2 &gt; 0, "quotes"</p>',
+            '<ul><li><p>One</p></li><li><p>Two</p></li></ul><ol start="3"><li><p>Three</p></li></ol>',
+            '<p>A <a target="_blank" rel="noopener noreferrer" href="https://anotoki.eu/?a=1&amp;b=2">link</a> and <a target="_blank" rel="noopener noreferrer" href="mailto:hello@anotoki.eu">mail</a></p>',
+            '<p>Line<br>break</p><p></p><p>Ščťžýáíéúô · 日本語 · 🎉</p>',
+        ]
+        as $html
+    ) {
         assert_same($html, richTextClean($html, 'the text'));
     }
 });

@@ -125,11 +125,7 @@ function surveyMigrator(PDO $pdo, bool $backupFirst = false): Migrator
  */
 function surveySiteState(): SiteState
 {
-    return new SiteState(
-        static fn(): ?string => settingsProblem(),
-        static fn(): bool => is_file(storageDir() . '/installed.lock'),
-        static fn(): Migrator => surveyMigrator(db()),
-    );
+    return new SiteState(static fn(): ?string => settingsProblem(), static fn(): bool => is_file(storageDir() . '/installed.lock'), static fn(): Migrator => surveyMigrator(db()));
 }
 
 /**
@@ -154,12 +150,5 @@ function surveySiteState(): SiteState
  */
 function siteOpenWhileUpdating(): array
 {
-    return [
-        AuthRoutes::openPath(),
-        TranslationsRoutes::openPath(),
-        '/api/health',
-        '~^/api/admin/migrations(/file|/apply)?$~D',
-        ...ErrorLogRoutes::openPaths(),
-        ...BackupsRoutes::openPaths(),
-    ];
+    return [AuthRoutes::openPath(), TranslationsRoutes::openPath(), '/api/health', '~^/api/admin/migrations(/file|/apply)?$~D', ...ErrorLogRoutes::openPaths(), ...BackupsRoutes::openPaths()];
 }

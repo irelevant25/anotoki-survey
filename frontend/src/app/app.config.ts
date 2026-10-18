@@ -1,20 +1,20 @@
-import { HttpInterceptorFn, provideHttpClient, withFetch, withInterceptors } from "@angular/common/http";
-import { ApplicationConfig, provideAppInitializer, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from "@angular/core";
-import { TitleStrategy, provideRouter, withComponentInputBinding, withInMemoryScrolling } from "@angular/router";
-import { anotokiAuthInterceptor } from "@anotoki/lib/auth";
-import { provideAnotokiErrorReport } from "@anotoki/lib/error-report";
-import { provideAnotokiLegal } from "@anotoki/lib/legal";
-import { siteStatusInterceptor } from "@anotoki/lib/migrations";
-import { routes } from "./app.routes";
-import { provideSiteAdmin } from "./core/admin/admin-tools";
-import { provideSiteAuth } from "./core/auth/auth.config";
-import { boot } from "./core/boot";
-import { feedbackSenderInterceptor, provideSiteFeedback } from "./core/feedback";
-import { provideSiteKit } from "./core/kit";
-import { surveyLegalConfig } from "./core/legal/legal.config";
-import { provideSiteMigrations } from "./core/migrations";
-import { SurveyTitleStrategy } from "./core/title.strategy";
-import { provideSiteTranslations } from "./core/translations";
+import { HttpInterceptorFn, provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
+import { ApplicationConfig, provideAppInitializer, provideBrowserGlobalErrorListeners, provideZonelessChangeDetection } from '@angular/core';
+import { TitleStrategy, provideRouter, withComponentInputBinding, withInMemoryScrolling } from '@angular/router';
+import { anotokiAuthInterceptor } from '@anotoki/lib/auth';
+import { provideAnotokiErrorReport } from '@anotoki/lib/error-report';
+import { provideAnotokiLegal } from '@anotoki/lib/legal';
+import { siteStatusInterceptor } from '@anotoki/lib/migrations';
+import { routes } from './app.routes';
+import { provideSiteAdmin } from './core/admin/admin-tools';
+import { provideSiteAuth } from './core/auth/auth.config';
+import { boot } from './core/boot';
+import { feedbackSenderInterceptor, provideSiteFeedback } from './core/feedback';
+import { provideSiteKit } from './core/kit';
+import { surveyLegalConfig } from './core/legal/legal.config';
+import { provideSiteMigrations } from './core/migrations';
+import { SurveyTitleStrategy } from './core/title.strategy';
+import { provideSiteTranslations } from './core/translations';
 
 /**
  * What every request of the app's HttpClient goes through - the pages' own and
@@ -35,7 +35,7 @@ export const appConfig: ApplicationConfig = {
     provideZonelessChangeDetection(),
     // Route parameters, query parameters (the results page's drill-down) and
     // route data arrive as component inputs, so pages read them as signals.
-    provideRouter(routes, withComponentInputBinding(), withInMemoryScrolling({ scrollPositionRestoration: "enabled", anchorScrolling: "enabled" })),
+    provideRouter(routes, withComponentInputBinding(), withInMemoryScrolling({ scrollPositionRestoration: 'enabled', anchorScrolling: 'enabled' })),
     provideHttpClient(withFetch(), withInterceptors(SITE_INTERCEPTORS)),
     // The browser's errors in the site's error log (the anotoki family's reporter, anotoki-lib 0.5.0; the owner's
     // decision of 2026-10-11): the app's ErrorHandler - every error still to the console - sends each one, scrubbed,

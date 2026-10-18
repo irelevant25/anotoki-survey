@@ -64,33 +64,40 @@ function setupPage(string $heading, string $body, string $tone = 'plain', bool $
     $accents = ['plain' => '#1f5fbf', 'good' => '#177f4d', 'bad' => '#c62f3b'];
     $accent = isset($accents[$tone]) ? $accents[$tone] : $accents['plain'];
 
-    echo '<!doctype html><html lang="en"><head><meta charset="utf-8">'
-        . '<meta name="viewport" content="width=device-width, initial-scale=1">'
-        . '<meta name="robots" content="noindex, nofollow"><title>Setup · anotoki survey</title><style>'
-        . ':root{color-scheme:light dark;--bg:#f3f6fb;--card:#fff;--ink:#0f1b33;--muted:#5b6880;--line:#dde4ef;--accent:' . $accent . ';--good:#177f4d;--bad:#c62f3b}'
-        . '@media (prefers-color-scheme:dark){:root{--bg:#070d1c;--card:#0e1830;--ink:#e8eefb;--muted:#9aa8c4;--line:#22325a;--good:#4cc38a;--bad:#ff6b75}}'
-        . '*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;'
-        . 'display:flex;min-height:100vh;align-items:flex-start;justify-content:center;padding:24px 16px}'
-        . '.card{background:var(--card);border:1px solid var(--line);border-radius:12px;max-width:600px;width:100%;padding:24px 26px}'
-        . 'h1{font-size:1.3rem;margin:0 0 6px;display:flex;align-items:center;gap:9px}'
-        . 'h1::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;background:var(--accent)}'
-        . 'h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:24px 0 2px}'
-        . 'p,li{color:var(--muted)}label{display:block;margin:12px 0 5px;font-weight:600;font-size:.9rem}'
-        . '.row{display:flex;gap:12px;flex-wrap:wrap}.row>div{flex:1;min-width:140px}'
-        . 'input[type=text],input[type=password]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font:inherit}'
-        . 'input:focus{outline:2px solid var(--accent);outline-offset:1px}'
-        . 'button{font:600 .95rem system-ui,sans-serif;border-radius:8px;cursor:pointer;padding:9px 14px}'
-        . 'button.primary{margin-top:24px;width:100%;padding:11px;border:0;background:var(--accent);color:#fff;font-size:1rem}'
-        . 'button.test{margin-top:12px;background:transparent;color:var(--ink);border:1px solid var(--line)}'
-        . '.test-result{display:block;margin-top:6px;font-size:.9rem;min-height:1.2em}.test-result.ok{color:var(--good)}.test-result.bad{color:var(--bad)}'
-        . 'code{background:rgba(127,127,127,.15);padding:1px 6px;border-radius:5px;font-size:.85em;word-break:break-all}'
-        . '.err{border:1px solid var(--bad);color:var(--bad);border-radius:8px;padding:9px 12px;margin:12px 0}'
-        . '.note{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:12px 0;color:var(--ink)}'
-        . '.ok{color:var(--good)}.small{font-size:.85rem;margin:4px 0 0}a{color:var(--accent)}'
-        . '.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.actions a{font-weight:600}'
-        . '</style></head><body><main class="card"><h1>' . $heading . '</h1>' . $body . '</main>'
-        . ($withScript ? '<script src="setup.php?asset=js"></script>' : '') . '</body></html>';
-    exit;
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8">' .
+        '<meta name="viewport" content="width=device-width, initial-scale=1">' .
+        '<meta name="robots" content="noindex, nofollow"><title>Setup · anotoki survey</title><style>' .
+        ':root{color-scheme:light dark;--bg:#f3f6fb;--card:#fff;--ink:#0f1b33;--muted:#5b6880;--line:#dde4ef;--accent:' .
+        $accent .
+        ';--good:#177f4d;--bad:#c62f3b}' .
+        '@media (prefers-color-scheme:dark){:root{--bg:#070d1c;--card:#0e1830;--ink:#e8eefb;--muted:#9aa8c4;--line:#22325a;--good:#4cc38a;--bad:#ff6b75}}' .
+        '*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;' .
+        'display:flex;min-height:100vh;align-items:flex-start;justify-content:center;padding:24px 16px}' .
+        '.card{background:var(--card);border:1px solid var(--line);border-radius:12px;max-width:600px;width:100%;padding:24px 26px}' .
+        'h1{font-size:1.3rem;margin:0 0 6px;display:flex;align-items:center;gap:9px}' .
+        'h1::before{content:"";flex:none;width:10px;height:10px;border-radius:50%;background:var(--accent)}' .
+        'h2{font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:24px 0 2px}' .
+        'p,li{color:var(--muted)}label{display:block;margin:12px 0 5px;font-weight:600;font-size:.9rem}' .
+        '.row{display:flex;gap:12px;flex-wrap:wrap}.row>div{flex:1;min-width:140px}' .
+        'input[type=text],input[type=password]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);font:inherit}' .
+        'input:focus{outline:2px solid var(--accent);outline-offset:1px}' .
+        'button{font:600 .95rem system-ui,sans-serif;border-radius:8px;cursor:pointer;padding:9px 14px}' .
+        'button.primary{margin-top:24px;width:100%;padding:11px;border:0;background:var(--accent);color:#fff;font-size:1rem}' .
+        'button.test{margin-top:12px;background:transparent;color:var(--ink);border:1px solid var(--line)}' .
+        '.test-result{display:block;margin-top:6px;font-size:.9rem;min-height:1.2em}.test-result.ok{color:var(--good)}.test-result.bad{color:var(--bad)}' .
+        'code{background:rgba(127,127,127,.15);padding:1px 6px;border-radius:5px;font-size:.85em;word-break:break-all}' .
+        '.err{border:1px solid var(--bad);color:var(--bad);border-radius:8px;padding:9px 12px;margin:12px 0}' .
+        '.note{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:12px 0;color:var(--ink)}' .
+        '.ok{color:var(--good)}.small{font-size:.85rem;margin:4px 0 0}a{color:var(--accent)}' .
+        '.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}.actions a{font-weight:600}' .
+        '</style></head><body><main class="card"><h1>' .
+        $heading .
+        '</h1>' .
+        $body .
+        '</main>' .
+        ($withScript ? '<script src="setup.php?asset=js"></script>' : '') .
+        '</body></html>';
+    exit();
 }
 
 /** A Test answer, and the end of this request. */
@@ -99,7 +106,7 @@ function setupJson(bool $ok, string $message, int $status = 200): void
     http_response_code($status);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['ok' => $ok, 'message' => $message], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
+    exit();
 }
 
 // ── The page's own script, as a file: the live site allows no inline script ──
@@ -108,49 +115,61 @@ if (($_GET['asset'] ?? '') === 'js') {
     header('Content-Type: text/javascript; charset=utf-8');
     header('Cache-Control: no-cache');
     echo <<<'JS'
-// setup.php's Test buttons: the fields so far, to setup.php?test=..., and the
-// answer beside the button. Nothing is saved.
-document.querySelectorAll('button[data-test]').forEach((button) => {
-  button.addEventListener('click', async () => {
-    const out = document.getElementById(button.dataset.result);
-    out.textContent = 'Testing…';
-    out.className = 'test-result';
-    button.disabled = true;
-    try {
-      const response = await fetch('setup.php?test=' + encodeURIComponent(button.dataset.test), {
-        method: 'POST', body: new FormData(button.form), credentials: 'same-origin',
+    // setup.php's Test buttons: the fields so far, to setup.php?test=..., and the
+    // answer beside the button. Nothing is saved.
+    document.querySelectorAll('button[data-test]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const out = document.getElementById(button.dataset.result);
+        out.textContent = 'Testing…';
+        out.className = 'test-result';
+        button.disabled = true;
+        try {
+          const response = await fetch('setup.php?test=' + encodeURIComponent(button.dataset.test), {
+            method: 'POST', body: new FormData(button.form), credentials: 'same-origin',
+          });
+          const answer = await response.json();
+          out.textContent = answer.message;
+          out.className = 'test-result ' + (answer.ok ? 'ok' : 'bad');
+        } catch (error) {
+          out.textContent = 'The test got no answer from this server.';
+          out.className = 'test-result bad';
+        } finally {
+          button.disabled = false;
+        }
       });
-      const answer = await response.json();
-      out.textContent = answer.message;
-      out.className = 'test-result ' + (answer.ok ? 'ok' : 'bad');
-    } catch (error) {
-      out.textContent = 'The test got no answer from this server.';
-      out.className = 'test-result bad';
-    } finally {
-      button.disabled = false;
-    }
-  });
-});
-JS;
-    exit;
+    });
+    JS;
+    exit();
 }
 
 // ── What PHP needs ──────────────────────────────────────────────────────────
 
 if (PHP_VERSION_ID < 80200) {
-    setupPage('PHP is too old', '<p>The survey site needs PHP 8.2 or newer. This server runs PHP ' . h(PHP_VERSION)
-        . '. Choose a newer PHP (in the hosting panel, on a host), then reload this page.</p>', 'bad');
+    setupPage(
+        'PHP is too old',
+        '<p>The survey site needs PHP 8.2 or newer. This server runs PHP ' . h(PHP_VERSION) . '. Choose a newer PHP (in the hosting panel, on a host), then reload this page.</p>',
+        'bad',
+    );
 }
-$missing = array_values(array_filter(['pdo_pgsql', 'openssl', 'dom', 'mbstring'], static function (string $extension): bool {
-    return !extension_loaded($extension);
-}));
+$missing = array_values(
+    array_filter(['pdo_pgsql', 'openssl', 'dom', 'mbstring'], static function (string $extension): bool {
+        return !extension_loaded($extension);
+    }),
+);
 if ($missing) {
-    setupPage('PHP is missing something', '<p>This PHP has no <code>' . h(implode('</code>, <code>', $missing))
-        . '</code> extension. Turn it on (the PHP settings of the hosting panel, or php.ini), then reload this page.</p>', 'bad');
+    setupPage(
+        'PHP is missing something',
+        '<p>This PHP has no <code>' . h(implode('</code>, <code>', $missing)) . '</code> extension. Turn it on (the PHP settings of the hosting panel, or php.ini), then reload this page.</p>',
+        'bad',
+    );
 }
 if (!is_file(__DIR__ . '/api/bootstrap.php') || !is_file(__DIR__ . '/vendor/autoload.php') || !is_file(__DIR__ . '/config/config.php')) {
-    setupPage('The upload is not complete', '<p>Beside <code>setup.php</code> there must be <code>api/</code>, <code>config/</code>, '
-        . '<code>migrations/</code>, <code>storage/</code> and <code>vendor/</code>. Upload the whole build (<code>php tools/build.php</code> makes it), then reload.</p>', 'bad');
+    setupPage(
+        'The upload is not complete',
+        '<p>Beside <code>setup.php</code> there must be <code>api/</code>, <code>config/</code>, ' .
+            '<code>migrations/</code>, <code>storage/</code> and <code>vendor/</code>. Upload the whole build (<code>php tools/build.php</code> makes it), then reload.</p>',
+        'bad',
+    );
 }
 
 require_once __DIR__ . '/api/bootstrap.php';
@@ -171,12 +190,16 @@ if (!$local && is_file($lockFile)) {
     if ($test !== '') {
         setupJson(false, 'This site is set up already.', 403);
     }
-    setupPage('Already set up', '<p>This site is set up. <code>storage/installed.lock</code> stops the setup from running again.</p>'
-        . ($gone
-            ? '<p class="ok">The setup page has deleted itself.</p>'
-            : '<p class="err">Delete <code>setup.php</code> and <code>storage/setup-token.php</code> by hand: the host did not let the setup page do it.</p>')
-        . '<p class="small">A new version with a database update: an administrator applies it on the Migrations page of the site\'s admin panel. '
-        . 'To run the setup again on purpose: delete the lock, upload setup.php again, and open it.</p>', 'good');
+    setupPage(
+        'Already set up',
+        '<p>This site is set up. <code>storage/installed.lock</code> stops the setup from running again.</p>' .
+            ($gone
+                ? '<p class="ok">The setup page has deleted itself.</p>'
+                : '<p class="err">Delete <code>setup.php</code> and <code>storage/setup-token.php</code> by hand: the host did not let the setup page do it.</p>') .
+            '<p class="small">A new version with a database update: an administrator applies it on the Migrations page of the site\'s admin panel. ' .
+            'To run the setup again on purpose: delete the lock, upload setup.php again, and open it.</p>',
+        'good',
+    );
 }
 
 /**
@@ -197,7 +220,7 @@ function setupToken(string $tokenFile): ?string
         return null;
     }
     $values = require $tokenFile;
-    $token = is_array($values) ? ($values['token'] ?? null) : null;
+    $token = is_array($values) ? $values['token'] ?? null : null;
 
     return is_string($token) && strlen($token) >= 32 ? $token : null;
 }
@@ -211,23 +234,27 @@ if ($local) {
     // Double submit: the nonce is in a cookie only this origin can read, and
     // the form must carry the same value. SameSite=Strict keeps the cookie off
     // requests another site starts.
-    $nonce = is_string($_COOKIE[SETUP_NONCE_COOKIE] ?? null) && preg_match('/^[0-9a-f]{32}$/D', $_COOKIE[SETUP_NONCE_COOKIE])
-        ? $_COOKIE[SETUP_NONCE_COOKIE]
-        : bin2hex(random_bytes(16));
+    $nonce = is_string($_COOKIE[SETUP_NONCE_COOKIE] ?? null) && preg_match('/^[0-9a-f]{32}$/D', $_COOKIE[SETUP_NONCE_COOKIE]) ? $_COOKIE[SETUP_NONCE_COOKIE] : bin2hex(random_bytes(16));
     setcookie(SETUP_NONCE_COOKIE, $nonce, ['path' => '/', 'httponly' => true, 'samesite' => 'Strict']);
 } elseif (setupToken($tokenFile) === null) {
     try {
         if (!is_dir($storage) && !@mkdir($storage, 0700, true) && !is_dir($storage)) {
             throw new RuntimeException('no storage folder');
         }
-        writePrivateFile($tokenFile, "<?php\n// The survey site's setup token: type it into /setup.php. It is deleted when the setup is done.\n\nreturn "
-            . var_export(['token' => bin2hex(random_bytes(24))], true) . ";\n");
+        writePrivateFile(
+            $tokenFile,
+            "<?php\n// The survey site's setup token: type it into /setup.php. It is deleted when the setup is done.\n\nreturn " . var_export(['token' => bin2hex(random_bytes(24))], true) . ";\n",
+        );
     } catch (Throwable $e) {
         if ($test !== '') {
             setupJson(false, 'The setup could not write its token into storage/.', 500);
         }
-        setupPage('Cannot write to storage/', '<p>The setup could not write <code>storage/setup-token.php</code>: the web server may not write into '
-            . '<code>storage/</code>.</p><p class="small">Give that folder write permission in your FTP program, then reload this page.</p>', 'bad');
+        setupPage(
+            'Cannot write to storage/',
+            '<p>The setup could not write <code>storage/setup-token.php</code>: the web server may not write into ' .
+                '<code>storage/</code>.</p><p class="small">Give that folder write permission in your FTP program, then reload this page.</p>',
+            'bad',
+        );
     }
 }
 if (!$local) {
@@ -377,8 +404,13 @@ function setupTestDatabase(array $db): array
         $tables = (int) $pdo->query("SELECT count(*) FROM information_schema.tables WHERE table_schema = current_schema() AND table_type = 'BASE TABLE'")->fetchColumn();
         $pending = count(surveyMigrator($pdo)->applicable());
 
-        return [true, 'Connected to the database "' . $db['name'] . '": '
-            . ($tables === 0 ? 'it is empty - Save makes the tables.' : ($pending > 0 ? "$pending update(s) to apply - Save applies them." : 'it is up to date.'))];
+        return [
+            true,
+            'Connected to the database "' .
+            $db['name'] .
+            '": ' .
+            ($tables === 0 ? 'it is empty - Save makes the tables.' : ($pending > 0 ? "$pending update(s) to apply - Save applies them." : 'it is up to date.')),
+        ];
     } catch (PDOException $e) {
         $first = $e->getMessage();
     }
@@ -491,7 +523,9 @@ if ($method === 'POST') {
             // A connection of its own, and the lock an administrator's Apply and php migration.php take too (api/migrations.php).
             $migrated = surveyMigrator(dbConnect($db))->apply();
             if ($migrated['busy']) {
-                throw new RuntimeException('Another database update is running (an administrator\'s Apply on the Migrations page, or php migration.php). Nothing was saved. Wait a moment, then press Save again.');
+                throw new RuntimeException(
+                    'Another database update is running (an administrator\'s Apply on the Migrations page, or php migration.php). Nothing was saved. Wait a moment, then press Save again.',
+                );
             }
             if ($migrated['failed'] !== null) {
                 // The site's own files by their names, the anotoki library's with their set (anotoki_translations/...).
@@ -515,32 +549,58 @@ if ($method === 'POST') {
             $log = [
                 'Saved the database connection and the IAM in config/database.local.php and config/iam.local.php.',
                 // The site's own files by their names, the anotoki library's with their set (anotoki_admin/...).
-                $migrated['applied'] ? 'Made the tables (' . implode(', ', array_map(static function (array $file): string {
-                    return ($file['set'] === 'survey' ? '' : $file['set'] . '/') . $file['name'];
-                }, $migrated['applied'])) . ').' : 'The tables were up to date.',
-                'People sign in through the IAM at ' . $form['issuer'] . ', where this site is "' . $form['client_id'] . '". '
-                    . 'Who may write surveys (EDITOR) and administer them (ADMIN) is set there, in the admin panel.',
+                $migrated['applied']
+                    ? 'Made the tables (' .
+                        implode(
+                            ', ',
+                            array_map(static function (array $file): string {
+                                return ($file['set'] === 'survey' ? '' : $file['set'] . '/') . $file['name'];
+                            }, $migrated['applied']),
+                        ) .
+                        ').'
+                    : 'The tables were up to date.',
+                'People sign in through the IAM at ' .
+                $form['issuer'] .
+                ', where this site is "' .
+                $form['client_id'] .
+                '". ' .
+                'Who may write surveys (EDITOR) and administer them (ADMIN) is set there, in the admin panel.',
             ];
-            $steps = '<ul>' . implode('', array_map(static function (string $line): string {
-                return '<li>' . h($line) . '</li>';
-            }, $log)) . '</ul>';
+            $steps =
+                '<ul>' .
+                implode(
+                    '',
+                    array_map(static function (string $line): string {
+                        return '<li>' . h($line) . '</li>';
+                    }, $log),
+                ) .
+                '</ul>';
 
             if ($local) {
-                setupPage('Saved', $steps
-                    . '<div class="actions"><a href="/">Open the survey site</a><a href="setup.php">Back to the setup</a></div>'
-                    . '<p class="small">This page stays: open it again any time to change the settings or apply a database update.</p>', 'good');
+                setupPage(
+                    'Saved',
+                    $steps .
+                        '<div class="actions"><a href="/">Open the survey site</a><a href="setup.php">Back to the setup</a></div>' .
+                        '<p class="small">This page stays: open it again any time to change the settings or apply a database update.</p>',
+                    'good',
+                );
             }
 
             // A real host: the lock first, so the setup refuses to run again even if deleting it fails.
             $locked = @file_put_contents($lockFile, jsonText(['installedAt' => isoNow()]) . "\n") !== false;
             $gone = setupCleanUp($tokenFile);
 
-            setupPage('Installed', $steps
-                . ($locked && $gone
-                    ? '<p class="ok">The setup page has deleted itself.</p>'
-                    : '<p class="err">Delete <code>setup.php</code> and <code>storage/setup-token.php</code> by hand now'
-                        . ($locked ? '' : ' - and <code>storage/installed.lock</code> could not be written, so the setup would run again') . '.</p>')
-                . '<p>Open the site and sign in with your anotoki account.</p>', 'good');
+            setupPage(
+                'Installed',
+                $steps .
+                    ($locked && $gone
+                        ? '<p class="ok">The setup page has deleted itself.</p>'
+                        : '<p class="err">Delete <code>setup.php</code> and <code>storage/setup-token.php</code> by hand now' .
+                            ($locked ? '' : ' - and <code>storage/installed.lock</code> could not be written, so the setup would run again') .
+                            '.</p>') .
+                    '<p>Open the site and sign in with your anotoki account.</p>',
+                'good',
+            );
         } catch (Throwable $e) {
             $errors[] = 'The setup stopped: ' . $e->getMessage();
         }
@@ -550,49 +610,83 @@ if ($method === 'POST') {
 // ── The form ────────────────────────────────────────────────────────────────
 
 $field = static function (string $name, string $label, string $type = 'text', string $extra = '') use ($form): string {
-    return '<label for="' . $name . '">' . $label . '</label><input id="' . $name . '" name="' . $name . '" type="' . $type . '"'
-        . ($type === 'text' ? ' value="' . h($form[$name] ?? '') . '"' : '') . ' ' . $extra . '>';
+    return '<label for="' .
+        $name .
+        '">' .
+        $label .
+        '</label><input id="' .
+        $name .
+        '" name="' .
+        $name .
+        '" type="' .
+        $type .
+        '"' .
+        ($type === 'text' ? ' value="' . h($form[$name] ?? '') . '"' : '') .
+        ' ' .
+        $extra .
+        '>';
 };
 $testButton = static function (string $test, string $label): string {
-    return '<button class="test" type="button" data-test="' . $test . '" data-result="test-' . $test . '">' . $label . '</button>'
-        . '<span class="test-result" id="test-' . $test . '" role="status"></span>';
+    return '<button class="test" type="button" data-test="' .
+        $test .
+        '" data-result="test-' .
+        $test .
+        '">' .
+        $label .
+        '</button>' .
+        '<span class="test-result" id="test-' .
+        $test .
+        '" role="status"></span>';
 };
 
 $passwordSaved = isset($savedDb['password']) && is_string($savedDb['password']) && $savedDb['password'] !== '';
-$status = $saved['problem'] === null
-    ? '<div class="note">This copy is set up' . ($local ? '' : ' already') . '. Saving again keeps every survey and answer, and applies any database update.</div>'
-    : ($saved['database'] !== null || $saved['iam'] !== null
-        ? '<div class="err">The saved settings are not complete' . ($local ? ': ' . h((string) $saved['problem']) : '.') . '</div>'
-        : '');
+$status =
+    $saved['problem'] === null
+        ? '<div class="note">This copy is set up' . ($local ? '' : ' already') . '. Saving again keeps every survey and answer, and applies any database update.</div>'
+        : ($saved['database'] !== null || $saved['iam'] !== null
+            ? '<div class="err">The saved settings are not complete' . ($local ? ': ' . h((string) $saved['problem']) : '.') . '</div>'
+            : '');
 
 $intro = $local
     ? '<p>This sets the survey site up on this computer: the database, and the IAM people sign in through. You can come back to it any time.</p>'
-    : '<p>This sets the site up: the database connection, sign-in through the anotoki IAM, and the tables. Do it once.</p>'
-        . '<div class="note">A token was written to <code>storage/setup-token.php</code> on the server. Open that file with your FTP program, '
-        . 'copy the token, and paste it below. That is how the setup knows it is you.</div>';
+    : '<p>This sets the site up: the database connection, sign-in through the anotoki IAM, and the tables. Do it once.</p>' .
+        '<div class="note">A token was written to <code>storage/setup-token.php</code> on the server. Open that file with your FTP program, ' .
+        'copy the token, and paste it below. That is how the setup knows it is you.</div>';
 
 setupPage(
     $local ? 'Set up the survey site' : 'Install the survey site',
-    $intro . $status
-    . implode('', array_map(static function (string $error): string {
-        return '<div class="err">' . h($error) . '</div>';
-    }, $errors))
-    . '<form method="post" action="setup.php" autocomplete="off">'
-    . ($local ? '<input type="hidden" name="nonce" value="' . h((string) $nonce) . '">' : $field('token', 'Setup token', 'password', 'required'))
-    . '<h2>Database (PostgreSQL)</h2>'
-    . '<div class="row"><div>' . $field('db_host', 'Server', 'text', 'required') . '</div><div>'
-    . $field('db_port', 'Port', 'text', 'required inputmode="numeric"') . '</div></div>'
-    . $field('db_name', 'Database name', 'text', 'required')
-    . '<div class="row"><div>' . $field('db_user', 'User', 'text', 'required') . '</div><div>'
-    . $field('db_password', 'Password', 'password', $passwordSaved ? 'placeholder="saved - leave empty to keep it"' : '') . '</div></div>'
-    . $testButton('database', 'Test the database')
-    . '<h2>Sign-in: the anotoki IAM</h2>'
-    . $field('issuer', 'IAM address', 'text', 'required')
-    . '<p class="small">http://localhost:4300 on a development machine; https://iam.anotoki.eu for the live site.</p>'
-    . $field('client_id', 'Client id of this site in the IAM', 'text', 'required')
-    . $testButton('iam', 'Test the IAM')
-    . '<button class="primary" type="submit">' . ($local ? 'Save' : 'Install') . '</button>'
-    . '</form>',
+    $intro .
+        $status .
+        implode(
+            '',
+            array_map(static function (string $error): string {
+                return '<div class="err">' . h($error) . '</div>';
+            }, $errors),
+        ) .
+        '<form method="post" action="setup.php" autocomplete="off">' .
+        ($local ? '<input type="hidden" name="nonce" value="' . h((string) $nonce) . '">' : $field('token', 'Setup token', 'password', 'required')) .
+        '<h2>Database (PostgreSQL)</h2>' .
+        '<div class="row"><div>' .
+        $field('db_host', 'Server', 'text', 'required') .
+        '</div><div>' .
+        $field('db_port', 'Port', 'text', 'required inputmode="numeric"') .
+        '</div></div>' .
+        $field('db_name', 'Database name', 'text', 'required') .
+        '<div class="row"><div>' .
+        $field('db_user', 'User', 'text', 'required') .
+        '</div><div>' .
+        $field('db_password', 'Password', 'password', $passwordSaved ? 'placeholder="saved - leave empty to keep it"' : '') .
+        '</div></div>' .
+        $testButton('database', 'Test the database') .
+        '<h2>Sign-in: the anotoki IAM</h2>' .
+        $field('issuer', 'IAM address', 'text', 'required') .
+        '<p class="small">http://localhost:4300 on a development machine; https://iam.anotoki.eu for the live site.</p>' .
+        $field('client_id', 'Client id of this site in the IAM', 'text', 'required') .
+        $testButton('iam', 'Test the IAM') .
+        '<button class="primary" type="submit">' .
+        ($local ? 'Save' : 'Install') .
+        '</button>' .
+        '</form>',
     'plain',
-    true
+    true,
 );

@@ -33,7 +33,7 @@ use Anotoki\Lib\Translations\Translations;
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
-    exit;
+    exit();
 }
 
 require_once __DIR__ . '/api/bootstrap.php';
@@ -52,7 +52,7 @@ $command = new TranslationsCommand(
     // What waits: the site's own files by their names, the library's with their set.
     pending: static fn(): array => array_map(
         static fn(array $file): string => $file['set'] === surveyMigrationSet()->name ? $file['name'] : $file['set'] . '/' . $file['name'],
-        surveyMigrator(db())->applicable()
+        surveyMigrator(db())->applicable(),
     ),
     title: 'survey' . ($problem === null ? ' (' . dbName() . ')' : '') . ": the site's own strings",
 );

@@ -58,13 +58,7 @@ const ROLES_STAFF = [ROLE_ADMIN, ROLE_EDITOR];
 final class SiteUser
 {
     /** @param string[] $roles */
-    public function __construct(
-        public readonly int $id,
-        public readonly ?string $name,
-        public readonly array $roles,
-        public readonly bool $visitor = false,
-    ) {
-    }
+    public function __construct(public readonly int $id, public readonly ?string $name, public readonly array $roles, public readonly bool $visitor = false) {}
 
     /** The token's person: the IAM's id, the name its token carries (trimmed as the browser trims, at most 200 characters), the roles. */
     public static function of(Person $person): self
@@ -197,14 +191,7 @@ function authConfigExtra(): array
  */
 function surveyIdentify(ResponseFactoryInterface $responses, bool $visitors = false): Identify
 {
-    return new Identify(
-        new AccessTokens(surveyIam()),
-        surveySignInRule(),
-        $responses,
-        visitor: $visitors ? visitorFound(...) : null,
-        responder: respondRefusal(...),
-        realm: 'survey',
-    );
+    return new Identify(new AccessTokens(surveyIam()), surveySignInRule(), $responses, visitor: $visitors ? visitorFound(...) : null, responder: respondRefusal(...), realm: 'survey');
 }
 
 /**
@@ -258,8 +245,15 @@ function isLocalHostName(string $host): bool
  * IAM's setup.)
  */
 const FORWARDING_HEADERS = [
-    'HTTP_FORWARDED', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED_HOST', 'HTTP_X_FORWARDED_PROTO',
-    'HTTP_X_REAL_IP', 'HTTP_CLIENT_IP', 'HTTP_TRUE_CLIENT_IP', 'HTTP_CF_CONNECTING_IP', 'HTTP_X_CLUSTER_CLIENT_IP',
+    'HTTP_FORWARDED',
+    'HTTP_X_FORWARDED_FOR',
+    'HTTP_X_FORWARDED_HOST',
+    'HTTP_X_FORWARDED_PROTO',
+    'HTTP_X_REAL_IP',
+    'HTTP_CLIENT_IP',
+    'HTTP_TRUE_CLIENT_IP',
+    'HTTP_CF_CONNECTING_IP',
+    'HTTP_X_CLUSTER_CLIENT_IP',
 ];
 
 /** Did a proxy relay this request? $server is $_SERVER (or a PSR-7 request's server params). */

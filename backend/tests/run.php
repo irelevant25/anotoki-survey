@@ -59,7 +59,7 @@ $run = static function (int $i) use (&$running, $queue, $env, $root, $tmp, $null
         [0 => ['file', $null, 'r'], 1 => ['file', $out, 'w'], 2 => ['redirect', 1]],
         $pipes,
         $root,
-        ['SURVEY_TEST_DB' => 'survey_test_' . getmypid() . "_$i"] + $env
+        ['SURVEY_TEST_DB' => 'survey_test_' . getmypid() . "_$i"] + $env,
     );
     $running[$i] = [$process, $out];
 };

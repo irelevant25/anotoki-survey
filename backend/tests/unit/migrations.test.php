@@ -17,11 +17,16 @@ function server_pdo(string $name): PDO
     return dbConnect(machineDatabaseSettings(), $name);
 }
 
-
 /** `php migration.php` with $arguments, for the settings in $config: [exit code, what it printed]. */
 function migration_cli(string $config, array $arguments = []): array
 {
-    $process = proc_open(array_merge([PHP_BINARY, TEST_BACKEND . '/migration.php'], $arguments), [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, TEST_BACKEND, ['SURVEY_TEST_CONFIG' => $config] + getenv());
+    $process = proc_open(
+        array_merge([PHP_BINARY, TEST_BACKEND . '/migration.php'], $arguments),
+        [1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
+        $pipes,
+        TEST_BACKEND,
+        ['SURVEY_TEST_CONFIG' => $config] + getenv(),
+    );
     $out = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
 
     return [proc_close($process), $out];
@@ -30,11 +35,15 @@ function migration_cli(string $config, array $arguments = []): array
 test('an empty database gets every migration, recorded once - in the table the site has always had', function (): void {
     $entries = migration_entries();
     $sets = array_values(array_unique(array_column($entries, 'set')));
-    assert_same(['anotoki_admin', 'survey', 'anotoki_translations', 'anotoki_people'], $sets, 'the sets in the order they run: the library\'s admin set first, the site\'s, then the library\'s words and people');
+    assert_same(
+        ['anotoki_admin', 'survey', 'anotoki_translations', 'anotoki_people'],
+        $sets,
+        'the sets in the order they run: the library\'s admin set first, the site\'s, then the library\'s words and people',
+    );
     assert_same(
         [['set' => 'anotoki_admin', 'name' => '001_audit_log.sql'], ['set' => 'anotoki_admin', 'name' => '002_feedback.sql'], ['set' => 'survey', 'name' => '001_initial_schema.sql']],
         array_slice($entries, 0, 3),
-        'the files, in the order they run'
+        'the files, in the order they run',
     );
     $survey = array_keys(array_filter($entries, static fn(array $entry): bool => $entry['set'] === 'survey'));
     assert_same(range($survey[0], $survey[count($survey) - 1]), $survey, 'the site\'s own one after the other');
@@ -50,17 +59,36 @@ test('an empty database gets every migration, recorded once - in the table the s
     assert_same(['applied' => $entries, 'failed' => null, 'error' => null, 'busy' => false, 'note' => null], $result);
     assert_same([], $migrator->applicable());
     assert_same(['applied' => [], 'failed' => null, 'error' => null, 'busy' => false, 'note' => null], $migrator->apply(), 'a second run applies nothing');
-    foreach (['users', 'surveys', 'responses', 'images', 'survey_images', 'languages', 'translation_keys', 'translations',
-        'anotoki_audit_log', 'anotoki_feedback', 'anotoki_people_sync', 'anotoki_people_anonymized'] as $table) {
+    foreach (
+        [
+            'users',
+            'surveys',
+            'responses',
+            'images',
+            'survey_images',
+            'languages',
+            'translation_keys',
+            'translations',
+            'anotoki_audit_log',
+            'anotoki_feedback',
+            'anotoki_people_sync',
+            'anotoki_people_anonymized',
+        ]
+        as $table
+    ) {
         assert_true((bool) $pdo->query("SELECT to_regclass('$table') IS NOT NULL")->fetchColumn(), "the table $table");
     }
 
     // The bookkeeping table is the one every database of the site already has - never another shape.
     assert_same(
         [['id', 'integer'], ['filename', 'character varying'], ['applied_at', 'timestamp without time zone']],
-        $pdo->query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'migrations' ORDER BY ordinal_position")->fetchAll(PDO::FETCH_NUM)
+        $pdo->query("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'migrations' ORDER BY ordinal_position")->fetchAll(PDO::FETCH_NUM),
     );
-    assert_same(array_map('migration_record', $entries), $pdo->query('SELECT filename FROM migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN), 'one row a file, in the order they ran - the library\'s with its set');
+    assert_same(
+        array_map('migration_record', $entries),
+        $pdo->query('SELECT filename FROM migrations ORDER BY id')->fetchAll(PDO::FETCH_COLUMN),
+        'one row a file, in the order they ran - the library\'s with its set',
+    );
     $status = $migrator->status();
     assert_same([['anotoki_admin', 'survey', 'anotoki_translations', 'anotoki_people'], [], []], [$status['sets'], $status['pending'], $status['missing']]);
     foreach ($status['applied'] as $row) {
@@ -97,7 +125,9 @@ test('php migration.php builds a database from nothing - made, every file applie
 
     // Behind by its last file: the dry run names it and applies nothing; the run applies it.
     $last = end($files);
-    server_pdo($name)->prepare('DELETE FROM migrations WHERE filename = ?')->execute([$last]);
+    server_pdo($name)
+        ->prepare('DELETE FROM migrations WHERE filename = ?')
+        ->execute([$last]);
     [$code, $out] = migration_cli($config, ['--dry-run']);
     assert_same(0, $code, $out);
     assert_match('/would apply ' . preg_quote($last, '/') . '/', $out);
@@ -117,8 +147,8 @@ test('the database itself keeps the rules: one answer per person, one live surve
     assert_throws(static fn() => dbExec("INSERT INTO surveys (slug, title, status, content) VALUES ('same', 'C', 'closed', ?::jsonb)", [$content]), '/surveys_live_slug/');
     assert_throws(static fn() => dbExec("INSERT INTO surveys (slug, title, status, content) VALUES ('x', 'D', 'published', ?::jsonb)", [$content]), '/check/i');
 
-    dbExec("INSERT INTO responses (survey_id, user_id, started_at) VALUES (?, 1, now())", [$a]);
-    assert_throws(static fn() => dbExec("INSERT INTO responses (survey_id, user_id, started_at) VALUES (?, 1, now())", [$a]), '/duplicate key/');
+    dbExec('INSERT INTO responses (survey_id, user_id, started_at) VALUES (?, 1, now())', [$a]);
+    assert_throws(static fn() => dbExec('INSERT INTO responses (survey_id, user_id, started_at) VALUES (?, 1, now())', [$a]), '/duplicate key/');
     assert_throws(static fn() => dbExec("INSERT INTO responses (survey_id, user_id, gender, started_at) VALUES (?, 1, 'other', now())", [$a]), '/check/i');
 
     // The language a survey was read in: a language the site has, or none - and none again when that language goes.
@@ -145,7 +175,7 @@ test('the database keeps the visitors\' rules: a negative id, nameless, never de
     assert_throws(static fn() => dbExec('INSERT INTO users (id, visitor_key_hash) VALUES (-52, ?)', [$hash]), '/users_visitor_key_hash_unique/');
     assert_throws(static fn() => dbExec('INSERT INTO users (id, visitor_key_hash) VALUES (52, ?)', [hash('sha256', 'b')]), '/users_visitor_check/');
     assert_throws(static fn() => dbExec("INSERT INTO users (id, preferred_username) VALUES (-53, 'somebody')"), '/users_visitor_check/');
-    assert_throws(static fn() => dbExec("INSERT INTO users (id, anonymized_at) VALUES (-54, now())"), '/users_visitor_check/');
+    assert_throws(static fn() => dbExec('INSERT INTO users (id, anonymized_at) VALUES (-54, now())'), '/users_visitor_check/');
     assert_throws(static fn() => dbExec('INSERT INTO users (id) VALUES (0)'), '/users_visitor_check/');
     assert_throws(static fn() => dbExec('INSERT INTO users (id, visitor_key_hash) VALUES (-55, ?)', [strtoupper(hash('sha256', 'c'))]), '/users_visitor_check/');
     assert_throws(static fn() => dbExec("INSERT INTO users (id, visitor_key_hash) VALUES (-56, 'the key itself')"), '/users_visitor_check/');
@@ -156,14 +186,10 @@ test('the database keeps the visitors\' rules: a negative id, nameless, never de
 // The library tests its splitter through and through; this holds it to what the site's own files are
 // written with - a failure is named by its statement, so a wrong split would name the wrong one.
 test('a SQL file splits into statements, never inside a string, a comment or a $$ block - with Windows line endings too', function (): void {
-    $sql = "-- a comment; with a semicolon\nCREATE TABLE a (x text DEFAULT 'semi;colon');\n/* block; */ SELECT 1;\n"
-        . "DO \$\$ BEGIN IF 1 <> 1 THEN RAISE EXCEPTION 'no;'; END IF; END \$\$;\nSELECT 'it''s';";
-    $statements = [
-        "CREATE TABLE a (x text DEFAULT 'semi;colon')",
-        'SELECT 1',
-        "DO \$\$ BEGIN IF 1 <> 1 THEN RAISE EXCEPTION 'no;'; END IF; END \$\$",
-        "SELECT 'it''s'",
-    ];
+    $sql =
+        "-- a comment; with a semicolon\nCREATE TABLE a (x text DEFAULT 'semi;colon');\n/* block; */ SELECT 1;\n" .
+        "DO \$\$ BEGIN IF 1 <> 1 THEN RAISE EXCEPTION 'no;'; END IF; END \$\$;\nSELECT 'it''s';";
+    $statements = ["CREATE TABLE a (x text DEFAULT 'semi;colon')", 'SELECT 1', "DO \$\$ BEGIN IF 1 <> 1 THEN RAISE EXCEPTION 'no;'; END IF; END \$\$", "SELECT 'it''s'"];
     assert_same($statements, \Anotoki\Lib\Migrations\Splitter::split($sql));
     assert_same($statements, \Anotoki\Lib\Migrations\Splitter::split(str_replace("\n", "\r\n", $sql)), 'a checkout with CRLF line endings');
 });

@@ -21,15 +21,62 @@ declare(strict_types=1);
 
 /** Elements kept, and the attributes each may keep. */
 const RICH_TEXT_ELEMENTS = [
-    'p' => [], 'br' => [], 'strong' => [], 'b' => [], 'em' => [], 'i' => [], 'u' => [], 's' => [], 'mark' => [],
-    'a' => ['href'], 'ul' => [], 'ol' => ['start'], 'li' => [], 'h2' => [], 'h3' => [],
+    'p' => [],
+    'br' => [],
+    'strong' => [],
+    'b' => [],
+    'em' => [],
+    'i' => [],
+    'u' => [],
+    's' => [],
+    'mark' => [],
+    'a' => ['href'],
+    'ul' => [],
+    'ol' => ['start'],
+    'li' => [],
+    'h2' => [],
+    'h3' => [],
 ];
 
 /** Elements dropped together with everything inside them: what they hold is not text to read. */
 const RICH_TEXT_DROPPED = [
-    'script', 'style', 'template', 'iframe', 'frame', 'frameset', 'object', 'embed', 'applet', 'svg', 'math', 'noscript',
-    'noembed', 'noframes', 'textarea', 'select', 'option', 'button', 'input', 'form', 'head', 'title', 'meta', 'link',
-    'base', 'img', 'picture', 'video', 'audio', 'source', 'track', 'canvas', 'map', 'area', 'dialog', 'xmp', 'plaintext',
+    'script',
+    'style',
+    'template',
+    'iframe',
+    'frame',
+    'frameset',
+    'object',
+    'embed',
+    'applet',
+    'svg',
+    'math',
+    'noscript',
+    'noembed',
+    'noframes',
+    'textarea',
+    'select',
+    'option',
+    'button',
+    'input',
+    'form',
+    'head',
+    'title',
+    'meta',
+    'link',
+    'base',
+    'img',
+    'picture',
+    'video',
+    'audio',
+    'source',
+    'track',
+    'canvas',
+    'map',
+    'area',
+    'dialog',
+    'xmp',
+    'plaintext',
 ];
 
 /** The longest text taken, in bytes of HTML: a page of writing is a few kB. */
@@ -73,10 +120,7 @@ function richTextClean(mixed $html, string $what): string
     try {
         // The encoding hint makes libxml read UTF-8 (it assumes Latin-1
         // otherwise); the wrapper is the one element the walk starts from.
-        $document->loadHTML(
-            '<?xml encoding="UTF-8"?><div id="rich-text-root">' . $html . '</div>',
-            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING
-        );
+        $document->loadHTML('<?xml encoding="UTF-8"?><div id="rich-text-root">' . $html . '</div>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD | LIBXML_NONET | LIBXML_NOERROR | LIBXML_NOWARNING);
     } finally {
         libxml_clear_errors();
         libxml_use_internal_errors($errors);
@@ -114,7 +158,7 @@ function richTextNode(DOMNode $node): string
     if ($node instanceof DOMText) {
         return richTextEscape(textWithoutControls($node->data), false);
     }
-    if (!$node instanceof DOMElement) {
+    if (!($node instanceof DOMElement)) {
         // Comments, processing instructions, doctype: nothing a reader sees.
         return '';
     }

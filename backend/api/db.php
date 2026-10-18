@@ -40,12 +40,7 @@ function dbConnect(array $settings, ?string $name = null, bool $persistent = fal
 /** The PDO address of one database of the configured server ($name, or the site's own). */
 function dbDsn(array $settings, ?string $name = null): string
 {
-    return sprintf(
-        'pgsql:host=%s;port=%d;dbname=%s;connect_timeout=5;application_name=anotoki-survey',
-        $settings['host'],
-        (int) $settings['port'],
-        $name ?? $settings['name']
-    );
+    return sprintf('pgsql:host=%s;port=%d;dbname=%s;connect_timeout=5;application_name=anotoki-survey', $settings['host'], (int) $settings['port'], $name ?? $settings['name']);
 }
 
 /**

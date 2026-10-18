@@ -129,10 +129,10 @@ function surveyAudit(): AuditLog
     return $made[$pending] ??= new AuditLog(static fn(): PDO => db(), [
         'pendingFile' => $pending,
         // A name typed into the page's actor filter: the people of that name here.
-        'actorIds' => static fn(string $name): array => array_map('intval', array_column(
-            dbAll("SELECT id FROM users WHERE id > 0 AND strpos(lower(preferred_username), lower(?)) > 0 LIMIT 50", [$name]),
-            'id'
-        )),
+        'actorIds' => static fn(string $name): array => array_map(
+            'intval',
+            array_column(dbAll('SELECT id FROM users WHERE id > 0 AND strpos(lower(preferred_username), lower(?)) > 0 LIMIT 50', [$name]), 'id'),
+        ),
     ]);
 }
 

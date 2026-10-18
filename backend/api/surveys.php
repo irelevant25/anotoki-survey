@@ -113,12 +113,16 @@ function surveyNotFound(): ApiError
 function surveysOpen(?int $userId): array
 {
     $rows = dbAll(
-        'SELECT ' . SURVEY_COLUMNS . ', r.submitted_at AS answered_at
+        'SELECT ' .
+            SURVEY_COLUMNS .
+            ', r.submitted_at AS answered_at
            FROM surveys s
            LEFT JOIN responses r ON r.survey_id = s.id AND r.user_id = ?
-          WHERE ' . SURVEY_TAKING_ANSWERS_SQL . '
+          WHERE ' .
+            SURVEY_TAKING_ANSWERS_SQL .
+            '
           ORDER BY s.opened_at DESC NULLS LAST, s.created_at DESC',
-        [$userId]
+        [$userId],
     );
     $offered = $rows === [] ? [] : languagesOffered();
 
@@ -140,11 +144,13 @@ function surveyForParticipant(string $slug, ?int $userId): array
         throw surveyNotFound();
     }
     $row = dbOne(
-        'SELECT ' . SURVEY_COLUMNS . ', r.submitted_at AS answered_at
+        'SELECT ' .
+            SURVEY_COLUMNS .
+            ', r.submitted_at AS answered_at
            FROM surveys s
            LEFT JOIN responses r ON r.survey_id = s.id AND r.user_id = ?
           WHERE s.slug = ? AND s.status <> \'draft\'',
-        [$userId, $slug]
+        [$userId, $slug],
     );
     if ($row === null) {
         throw surveyNotFound();
@@ -167,24 +173,27 @@ function surveySummaries(): array
                 (SELECT count(*) FROM jsonb_array_elements(s.content->'steps') AS step, jsonb_array_elements(step->'questions') AS question) AS questions,
                 (SELECT count(*) FROM responses r WHERE r.survey_id = s.id) AS responses
            FROM surveys s
-          ORDER BY s.updated_at DESC"
+          ORDER BY s.updated_at DESC",
     );
 
-    return array_map(static fn(array $row): array => [
-        'id' => $row['id'],
-        'slug' => $row['slug'],
-        'title' => $row['title'],
-        'status' => $row['status'],
-        'closesOn' => $row['closes_on'],
-        'createdAt' => isoTime($row['created_at']),
-        'updatedAt' => isoTime($row['updated_at']),
-        'openedAt' => isoTime($row['opened_at']),
-        'closedAt' => isoTime($row['closed_at']),
-        'revision' => (int) $row['revision'],
-        'steps' => (int) $row['steps'],
-        'questions' => (int) $row['questions'],
-        'responses' => (int) $row['responses'],
-    ], $rows);
+    return array_map(
+        static fn(array $row): array => [
+            'id' => $row['id'],
+            'slug' => $row['slug'],
+            'title' => $row['title'],
+            'status' => $row['status'],
+            'closesOn' => $row['closes_on'],
+            'createdAt' => isoTime($row['created_at']),
+            'updatedAt' => isoTime($row['updated_at']),
+            'openedAt' => isoTime($row['opened_at']),
+            'closedAt' => isoTime($row['closed_at']),
+            'revision' => (int) $row['revision'],
+            'steps' => (int) $row['steps'],
+            'questions' => (int) $row['questions'],
+            'responses' => (int) $row['responses'],
+        ],
+        $rows,
+    );
 }
 
 function surveyRow(string $id, bool $lock = false): ?array
@@ -222,11 +231,14 @@ function surveyContentWithImages(array $survey): array
     }
 
     $fill = static function (array $images) use ($meta): array {
-        return array_map(static fn(array $image): array => $image + [
-            'width' => $meta[$image['id']]['width'],
-            'height' => $meta[$image['id']]['height'],
-            'src' => imageSrc($image['id'], $meta[$image['id']]['type']),
-        ], $images);
+        return array_map(
+            static fn(array $image): array => $image + [
+                'width' => $meta[$image['id']]['width'],
+                'height' => $meta[$image['id']]['height'],
+                'src' => imageSrc($image['id'], $meta[$image['id']]['type']),
+            ],
+            $images,
+        );
     };
 
     $content = $survey['content'];
@@ -308,10 +320,14 @@ function surveyCreate(SiteUser $user, mixed $body): array
     $row = dbTx(static function () use ($user, $survey): array {
         surveyLanguagesLock($survey['content']);
         $content = surveyContentWithImages($survey);
-        $id = (string) dbValue(
-            'INSERT INTO surveys (slug, title, closes_on, content, created_by, updated_by) VALUES (?, ?, ?, ?::jsonb, ?, ?) RETURNING id',
-            [$survey['slug'], $survey['title'], $survey['closesOn'], surveyContentJson($content), $user->id, $user->id]
-        );
+        $id = (string) dbValue('INSERT INTO surveys (slug, title, closes_on, content, created_by, updated_by) VALUES (?, ?, ?, ?::jsonb, ?, ?) RETURNING id', [
+            $survey['slug'],
+            $survey['title'],
+            $survey['closesOn'],
+            surveyContentJson($content),
+            $user->id,
+            $user->id,
+        ]);
         surveyImagesRecord($id, $survey['imageIds']);
 
         return surveyRow($id);
@@ -363,10 +379,14 @@ function surveySave(SiteUser $user, string $id, mixed $revision, mixed $body): a
 
         $content = surveyContentWithImages($survey);
         try {
-            dbExec(
-                'UPDATE surveys SET slug = ?, title = ?, closes_on = ?, content = ?::jsonb, revision = revision + 1, updated_at = now(), updated_by = ? WHERE id = ?',
-                [$survey['slug'], $survey['title'], $survey['closesOn'], surveyContentJson($content), $user->id, $id]
-            );
+            dbExec('UPDATE surveys SET slug = ?, title = ?, closes_on = ?, content = ?::jsonb, revision = revision + 1, updated_at = now(), updated_by = ? WHERE id = ?', [
+                $survey['slug'],
+                $survey['title'],
+                $survey['closesOn'],
+                surveyContentJson($content),
+                $user->id,
+                $id,
+            ]);
         } catch (PDOException $e) {
             if (dbIsUniqueViolation($e, 'surveys_live_slug')) {
                 throw surveySlugTaken($survey['slug']);
@@ -412,10 +432,7 @@ function surveySetStatus(SiteUser $user, string $id, mixed $body): array
             if ($current['status'] === 'draft') {
                 throw new ApiError(409, 'not_open', 'The survey has not been opened, so there is nothing to close.');
             }
-            dbExec(
-                "UPDATE surveys SET status = 'closed', closed_at = COALESCE(closed_at, now()), revision = revision + 1, updated_at = now(), updated_by = ? WHERE id = ?",
-                [$user->id, $id]
-            );
+            dbExec("UPDATE surveys SET status = 'closed', closed_at = COALESCE(closed_at, now()), revision = revision + 1, updated_at = now(), updated_by = ? WHERE id = ?", [$user->id, $id]);
 
             return surveyRow($id);
         }
@@ -428,9 +445,10 @@ function surveySetStatus(SiteUser $user, string $id, mixed $body): array
 
         try {
             dbExec(
-                "UPDATE surveys SET status = 'open', opened_at = COALESCE(opened_at, now()), closed_at = NULL, closes_on = " . ($setClosesOn ? '?' : 'closes_on')
-                    . ', revision = revision + 1, updated_at = now(), updated_by = ? WHERE id = ?',
-                $setClosesOn ? [$closesOn, $user->id, $id] : [$user->id, $id]
+                "UPDATE surveys SET status = 'open', opened_at = COALESCE(opened_at, now()), closed_at = NULL, closes_on = " .
+                    ($setClosesOn ? '?' : 'closes_on') .
+                    ', revision = revision + 1, updated_at = now(), updated_by = ? WHERE id = ?',
+                $setClosesOn ? [$closesOn, $user->id, $id] : [$user->id, $id],
             );
         } catch (PDOException $e) {
             if (dbIsUniqueViolation($e, 'surveys_live_slug')) {

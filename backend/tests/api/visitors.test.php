@@ -19,9 +19,9 @@ declare(strict_types=1);
 
 require __DIR__ . '/../lib.php'; // before the app loads: a throwaway database and settings
 
-const OWNER = 1;       // ADMIN
-const PAT = 101;       // takes surveys, signed in
-const QUINN = 102;     // takes surveys, signed in
+const OWNER = 1; // ADMIN
+const PAT = 101; // takes surveys, signed in
+const QUINN = 102; // takes surveys, signed in
 
 const KEY_PATTERN = '/^[A-Za-z0-9_-]{43}$/D';
 
@@ -60,7 +60,7 @@ function as_user(int $user, string $method, string $url, mixed $body = null, arr
 function nobody(string $method, string $url, mixed $body = null, ?string $ip = null, array $headers = []): array
 {
     static $n = 0;
-    $ip ??= '198.51.100.' . (++$n % 250 + 1);
+    $ip ??= '198.51.100.' . ((++$n % 250) + 1);
 
     return call($GLOBALS['app']['base'], $method, $url, $body, array_merge($headers, ["CF-Connecting-IP: $ip"]));
 }
@@ -74,22 +74,42 @@ function as_visitor(string $key, string $method, string $url, mixed $body = null
 /** An open survey at /$slug with one question that must be answered, made as an editor makes one. */
 function make_survey(string $slug): string
 {
-    $made = as_user(OWNER, 'POST', '/api/admin/surveys', ['survey' => [
-        'id' => 'ignored', 'slug' => $slug, 'title' => ucfirst($slug), 'status' => 'open',
-        'intro' => '<p>Hello.</p>', 'thanks' => '<p>Thank you!</p>', 'askAboutYou' => false, 'closesOn' => null,
-        'language' => 'en', 'translations' => new stdClass(),
-        'steps' => [[
-            'id' => 'step-1', 'title' => 'One',
-            'questions' => [[
-                'id' => 'q-element', 'type' => 'single', 'text' => '<p>Your favourite element?</p>', 'images' => [], 'required' => true,
-                'options' => [
-                    ['id' => 'o-anemo', 'label' => 'Anemo', 'other' => false, 'images' => []],
-                    ['id' => 'o-geo', 'label' => 'Geo', 'other' => false, 'images' => []],
+    $made = as_user(OWNER, 'POST', '/api/admin/surveys', [
+        'survey' => [
+            'id' => 'ignored',
+            'slug' => $slug,
+            'title' => ucfirst($slug),
+            'status' => 'open',
+            'intro' => '<p>Hello.</p>',
+            'thanks' => '<p>Thank you!</p>',
+            'askAboutYou' => false,
+            'closesOn' => null,
+            'language' => 'en',
+            'translations' => new stdClass(),
+            'steps' => [
+                [
+                    'id' => 'step-1',
+                    'title' => 'One',
+                    'questions' => [
+                        [
+                            'id' => 'q-element',
+                            'type' => 'single',
+                            'text' => '<p>Your favourite element?</p>',
+                            'images' => [],
+                            'required' => true,
+                            'options' => [['id' => 'o-anemo', 'label' => 'Anemo', 'other' => false, 'images' => []], ['id' => 'o-geo', 'label' => 'Geo', 'other' => false, 'images' => []]],
+                            'layout' => 'list',
+                            'minChoices' => null,
+                            'maxChoices' => null,
+                            'multiline' => true,
+                            'maxLength' => null,
+                            'placeholder' => '',
+                        ],
+                    ],
                 ],
-                'layout' => 'list', 'minChoices' => null, 'maxChoices' => null, 'multiline' => true, 'maxLength' => null, 'placeholder' => '',
-            ]],
-        ]],
-    ]]);
+            ],
+        ],
+    ]);
     if ($made['status'] !== 201) {
         throw new RuntimeException('could not make the survey: ' . $made['raw']);
     }
@@ -293,7 +313,11 @@ test('keys: one that is nobody\'s, or no key at all, is visitor_unknown; switche
         $none = nobody($method, $url, $body);
         assert_same([401, 'sign_in_required'], [$none['status'], $none['body']['code'] ?? null], "$route, nobody");
     }
-    assert_same([$before, 1, 1], [dbValue('SELECT last_seen_at FROM users WHERE id < 0'), (int) dbValue('SELECT count(*) FROM responses'), (int) dbValue('SELECT count(*) FROM users WHERE id < 0')], 'not seen, nothing kept, nobody made');
+    assert_same(
+        [$before, 1, 1],
+        [dbValue('SELECT last_seen_at FROM users WHERE id < 0'), (int) dbValue('SELECT count(*) FROM responses'), (int) dbValue('SELECT count(*) FROM users WHERE id < 0')],
+        'not seen, nothing kept, nobody made',
+    );
     assert_same(200, as_user(PAT, 'GET', '/api/surveys')['status'], 'a person, as ever');
 
     switch_to(false);
@@ -328,7 +352,11 @@ test('a Bearer header is that person or a refusal, never the key; another scheme
     $person = as_visitor($key, 'GET', '/api/surveys', null, bearer(test_token(PAT, ['MEMBER'])));
     assert_same(null, answered_at($person, 'first'), 'a good token: the person, the key not read');
     $sent = as_visitor($key, 'POST', '/api/surveys/first/responses', answers(), bearer(test_token(PAT, ['MEMBER'])));
-    assert_same([201, PAT, null], [$sent['status'], (int) dbValue('SELECT user_id FROM responses WHERE id = ?', [$sent['body']['id']]), $sent['headers']['x-visitor-key'] ?? null], 'the person\'s answers');
+    assert_same(
+        [201, PAT, null],
+        [$sent['status'], (int) dbValue('SELECT user_id FROM responses WHERE id = ?', [$sent['body']['id']]), $sent['headers']['x-visitor-key'] ?? null],
+        'the person\'s answers',
+    );
 });
 
 test('a key opens nothing but the surveys: not the admin panel, not the move without a token', function (): void {
@@ -506,7 +534,11 @@ test('the clean-up: unseen for keep_days, a visitor ends and its answers stay as
     assert_same(1, (int) dbValue('SELECT count(*) FROM responses WHERE user_id = ?', [$endedId]), 'its answers stay');
     assert_same(null, dbValue('SELECT id FROM users WHERE id = ?', [$emptyId]), 'unseen for 31 days, no answers: gone');
     assert_same(hash('sha256', $recent), dbValue('SELECT visitor_key_hash FROM users WHERE id = ?', [$recentId]), '29 days: untouched');
-    assert_same(hash('sha256', $answersDeleted), dbValue('SELECT visitor_key_hash FROM users WHERE id = ?', [$answersDeletedId]), 'a visitor still coming back stays, though an ADMIN deleted its answers');
+    assert_same(
+        hash('sha256', $answersDeleted),
+        dbValue('SELECT visitor_key_hash FROM users WHERE id = ?', [$answersDeletedId]),
+        'a visitor still coming back stays, though an ADMIN deleted its answers',
+    );
     assert_same(PAT, (int) dbValue('SELECT id FROM users WHERE id = ?', [PAT]), 'a person is never touched');
     assert_same([false, true], [array_key_exists('visitors:new:old', counters()), array_key_exists('visitors:new:now', counters())], 'the counters whose hour is over are gone, the others stay');
     assert_match('/\[visitors\] unseen for a long time: 1 ended \(their answers stay\), 1 with no answers deleted/', server_log());
@@ -683,121 +715,143 @@ test('the error log reads where a request comes from by these same settings: beh
     assert_same(204, $report('203.0.113.71', 'Another visitor\'s')['status'], 'another visitor behind the same proxy: a budget of their own');
 });
 
-test('with the origin secret, a Worker writing a new CF-Connecting-IP every time is one sender - the edge - in the visitors\' limit and the pages\' reports alike; through the zone, each visitor their own', function (): void {
-    fresh();
-    // A server of its own with a config/cloudflare.local.php: the proxy this file trusts (127.0.0.1, the tests)
-    // stands for an edge of Cloudflare's, which carries anybody's requests - the owner's zone's alone with the secret.
-    $secret = 'origin-' . bin2hex(random_bytes(20));
-    $app = start_app(test_iam(['application_file' => $GLOBALS['switch']]), [], VISITOR_SETTINGS, ['origin_secret' => $secret]);
-    touch($app['config'] . '/storage/visitors-swept'); // no clean-up in this test, as fresh() says for the other server
-    try {
-        $answer = static fn(string $ip, array $headers = []): array => call($app['base'], 'POST', '/api/surveys/first/responses', answers(), array_merge(["CF-Connecting-IP: $ip"], $headers));
-        for ($i = 1; $i <= 3; $i++) {
-            $made = $answer("203.0.113.8$i");
-            assert_same(201, $made['status'], "made-up visitor $i: " . $made['raw']);
-        }
-        $fourth = $answer('203.0.113.89');
-        assert_same([429, 'too_many_visitors'], [$fourth['status'], $fourth['body']['code'] ?? null], 'the fourth, from an address never seen: the edge\'s limit is spent');
-        $wrong = $answer('203.0.113.90', ['X-Anotoki-Origin: not the secret']);
-        assert_same([429, 'too_many_visitors'], [$wrong['status'], $wrong['body']['code'] ?? null], 'a wrong secret: the edge too');
-        assert_same(3, counters()[address_counter('127.0.0.1', $app)] ?? null, 'counted as the edge: ' . test_show(counters()));
-        foreach (['203.0.113.81', '203.0.113.89', '203.0.113.90'] as $claimed) {
-            assert_false(isset(counters()[address_counter($claimed, $app)]), "never as $claimed, the address it claimed");
-        }
-        $real = $answer('203.0.113.91', ["X-Anotoki-Origin: $secret"]);
-        assert_same(201, $real['status'], 'through the owner\'s zone: the visitor it names - ' . $real['raw']);
-        assert_same(1, counters()[address_counter('203.0.113.91', $app)] ?? null, 'counted as that visitor');
+test(
+    'with the origin secret, a Worker writing a new CF-Connecting-IP every time is one sender - the edge - in the visitors\' limit and the pages\' reports alike; through the zone, each visitor their own',
+    function (): void {
+        fresh();
+        // A server of its own with a config/cloudflare.local.php: the proxy this file trusts (127.0.0.1, the tests)
+        // stands for an edge of Cloudflare's, which carries anybody's requests - the owner's zone's alone with the secret.
+        $secret = 'origin-' . bin2hex(random_bytes(20));
+        $app = start_app(test_iam(['application_file' => $GLOBALS['switch']]), [], VISITOR_SETTINGS, ['origin_secret' => $secret]);
+        touch($app['config'] . '/storage/visitors-swept'); // no clean-up in this test, as fresh() says for the other server
+        try {
+            $answer = static fn(string $ip, array $headers = []): array => call($app['base'], 'POST', '/api/surveys/first/responses', answers(), array_merge(["CF-Connecting-IP: $ip"], $headers));
+            for ($i = 1; $i <= 3; $i++) {
+                $made = $answer("203.0.113.8$i");
+                assert_same(201, $made['status'], "made-up visitor $i: " . $made['raw']);
+            }
+            $fourth = $answer('203.0.113.89');
+            assert_same([429, 'too_many_visitors'], [$fourth['status'], $fourth['body']['code'] ?? null], 'the fourth, from an address never seen: the edge\'s limit is spent');
+            $wrong = $answer('203.0.113.90', ['X-Anotoki-Origin: not the secret']);
+            assert_same([429, 'too_many_visitors'], [$wrong['status'], $wrong['body']['code'] ?? null], 'a wrong secret: the edge too');
+            assert_same(3, counters()[address_counter('127.0.0.1', $app)] ?? null, 'counted as the edge: ' . test_show(counters()));
+            foreach (['203.0.113.81', '203.0.113.89', '203.0.113.90'] as $claimed) {
+                assert_false(isset(counters()[address_counter($claimed, $app)]), "never as $claimed, the address it claimed");
+            }
+            $real = $answer('203.0.113.91', ["X-Anotoki-Origin: $secret"]);
+            assert_same(201, $real['status'], 'through the owner\'s zone: the visitor it names - ' . $real['raw']);
+            assert_same(1, counters()[address_counter('203.0.113.91', $app)] ?? null, 'counted as that visitor');
 
-        // The pages' own errors: the library's limit (20 an hour a sender), by surveyAdminContext()'s reading.
-        $report = static fn(string $ip, array $headers = []): array => call($app['base'], 'POST', '/api/client-errors', ['message' => "A page's error from $ip"], array_merge(["CF-Connecting-IP: $ip"], $headers));
-        for ($i = 1; $i <= 20; $i++) {
-            assert_same(204, $report("198.51.100.$i")['status'], "report $i, from a made-up visitor");
+            // The pages' own errors: the library's limit (20 an hour a sender), by surveyAdminContext()'s reading.
+            $report = static fn(string $ip, array $headers = []): array => call(
+                $app['base'],
+                'POST',
+                '/api/client-errors',
+                ['message' => "A page's error from $ip"],
+                array_merge(["CF-Connecting-IP: $ip"], $headers),
+            );
+            for ($i = 1; $i <= 20; $i++) {
+                assert_same(204, $report("198.51.100.$i")['status'], "report $i, from a made-up visitor");
+            }
+            $over = $report('198.51.100.21');
+            assert_same([429, 'too_many'], [$over['status'], $over['body']['code'] ?? null], 'the 21st, from an address never seen: the edge\'s budget is spent');
+            assert_same(204, $report('198.51.100.22', ["X-Anotoki-Origin: $secret"])['status'], 'through the zone: a visitor with a budget of their own');
+            assert_same([], server_problems($app), 'its server said nothing it should not have');
+        } finally {
+            $app['stop']();
         }
-        $over = $report('198.51.100.21');
-        assert_same([429, 'too_many'], [$over['status'], $over['body']['code'] ?? null], 'the 21st, from an address never seen: the edge\'s budget is spent');
-        assert_same(204, $report('198.51.100.22', ["X-Anotoki-Origin: $secret"])['status'], 'through the zone: a visitor with a budget of their own');
-        assert_same([], server_problems($app), 'its server said nothing it should not have');
-    } finally {
-        $app['stop']();
-    }
-});
+    },
+);
 
-test('a config/cloudflare.local.php that cannot be read cleanly - saved with a byte-order mark before <?php declare(strict_types=1), a file PHP could not even compile - fails closed: never printed, the site keeps answering, and a Worker writing a new CF-Connecting-IP every time is one sender, the edge - the file\'s own secret in X-Anotoki-Origin too', function (): void {
-    fresh();
-    // The owner meant a secret, and the file holds one - but it starts with a byte-order mark, before a
-    // declare(strict_types=1): compiled, a fatal error no handler catches, every request a 500. The site never
-    // compiles it, reads no secret from it, and believes no CF-Connecting-IP from the proxy it trusts (127.0.0.1,
-    // standing for an edge of Cloudflare's) - never "no secret", which would believe anybody's Worker there.
-    $secret = 'origin-' . bin2hex(random_bytes(20));
-    $app = start_app(test_iam(['application_file' => $GLOBALS['switch']]), [], VISITOR_SETTINGS);
-    file_put_contents($app['config'] . '/cloudflare.local.php', "\xEF\xBB\xBF<?php declare(strict_types=1);\n\nreturn " . var_export(['origin_secret' => $secret], true) . ";\n");
-    touch($app['config'] . '/storage/visitors-swept'); // no clean-up in this test, as fresh() says for the other server
-    try {
-        $answer = static fn(string $ip, array $headers = []): array => call($app['base'], 'POST', '/api/surveys/first/responses', answers(), array_merge(["CF-Connecting-IP: $ip"], $headers));
-        for ($i = 1; $i <= 3; $i++) {
-            $made = $answer("203.0.113.6$i", ["X-Anotoki-Origin: $secret"]);
-            assert_same(201, $made['status'], "made-up visitor $i: " . $made['raw']);
-            assert_true(str_starts_with($made['raw'], '{') && !str_contains($made['raw'], $secret), "made-up visitor $i: nothing of the file printed ahead of the answer");
+test(
+    'a config/cloudflare.local.php that cannot be read cleanly - saved with a byte-order mark before <?php declare(strict_types=1), a file PHP could not even compile - fails closed: never printed, the site keeps answering, and a Worker writing a new CF-Connecting-IP every time is one sender, the edge - the file\'s own secret in X-Anotoki-Origin too',
+    function (): void {
+        fresh();
+        // The owner meant a secret, and the file holds one - but it starts with a byte-order mark, before a
+        // declare(strict_types=1): compiled, a fatal error no handler catches, every request a 500. The site never
+        // compiles it, reads no secret from it, and believes no CF-Connecting-IP from the proxy it trusts (127.0.0.1,
+        // standing for an edge of Cloudflare's) - never "no secret", which would believe anybody's Worker there.
+        $secret = 'origin-' . bin2hex(random_bytes(20));
+        $app = start_app(test_iam(['application_file' => $GLOBALS['switch']]), [], VISITOR_SETTINGS);
+        file_put_contents($app['config'] . '/cloudflare.local.php', "\xEF\xBB\xBF<?php declare(strict_types=1);\n\nreturn " . var_export(['origin_secret' => $secret], true) . ";\n");
+        touch($app['config'] . '/storage/visitors-swept'); // no clean-up in this test, as fresh() says for the other server
+        try {
+            $answer = static fn(string $ip, array $headers = []): array => call($app['base'], 'POST', '/api/surveys/first/responses', answers(), array_merge(["CF-Connecting-IP: $ip"], $headers));
+            for ($i = 1; $i <= 3; $i++) {
+                $made = $answer("203.0.113.6$i", ["X-Anotoki-Origin: $secret"]);
+                assert_same(201, $made['status'], "made-up visitor $i: " . $made['raw']);
+                assert_true(str_starts_with($made['raw'], '{') && !str_contains($made['raw'], $secret), "made-up visitor $i: nothing of the file printed ahead of the answer");
+            }
+            $fourth = $answer('203.0.113.69', ["X-Anotoki-Origin: $secret"]);
+            assert_same([429, 'too_many_visitors'], [$fourth['status'], $fourth['body']['code'] ?? null], 'the fourth, from an address never seen: the edge\'s limit is spent');
+            assert_same(3, counters()[address_counter('127.0.0.1', $app)] ?? null, 'every one counted as the edge: ' . test_show(counters()));
+            foreach (['203.0.113.61', '203.0.113.69'] as $claimed) {
+                assert_false(isset(counters()[address_counter($claimed, $app)]), "never as $claimed, the address it claimed");
+            }
+
+            $status = call($app['base'], 'GET', '/api/site-status');
+            assert_same([200, 'ready'], [$status['status'], $status['body']['state'] ?? null], 'the site keeps running: the file is optional');
+            assert_false(str_contains($status['raw'], $secret), 'and says nothing of it');
+
+            $log = (string) file_get_contents($app['log']);
+            assert_true(
+                str_contains($log, '[cloudflare] config/cloudflare.local.php does not start with <?php') && str_contains($log, 'no request carries its secret'),
+                'said in the server\'s log: ' . $log,
+            );
+            assert_same(1, substr_count($log, '[cloudflare] config/cloudflare.local.php does not start with <?php'), 'once, read on every request');
+            assert_false(str_contains($log, $secret), 'never the secret');
+            assert_false(str_contains($log, 'strict_types'), 'never compiled: no fatal error');
+            assert_same([], server_problems($app), 'its server said nothing it should not have');
+        } finally {
+            $app['stop']();
         }
-        $fourth = $answer('203.0.113.69', ["X-Anotoki-Origin: $secret"]);
-        assert_same([429, 'too_many_visitors'], [$fourth['status'], $fourth['body']['code'] ?? null], 'the fourth, from an address never seen: the edge\'s limit is spent');
-        assert_same(3, counters()[address_counter('127.0.0.1', $app)] ?? null, 'every one counted as the edge: ' . test_show(counters()));
-        foreach (['203.0.113.61', '203.0.113.69'] as $claimed) {
-            assert_false(isset(counters()[address_counter($claimed, $app)]), "never as $claimed, the address it claimed");
+    },
+);
+
+test(
+    'a config/cloudflare.local.php read cleanly but naming no usable secret - its key misspelt - fails closed too (2026-10-18): a Worker writing a new CF-Connecting-IP every time is one sender, the edge, the secret the file holds in X-Anotoki-Origin or not; the site keeps answering; only deleting the file switches the secret off',
+    function (): void {
+        fresh();
+        // The owner meant a secret and wrote one - under a key the site does not read. Read as "no secret" (the rule
+        // before 2026-10-18), the proxy this file trusts (127.0.0.1, standing for an edge of Cloudflare's) would be
+        // believed about whoever anybody's Worker said it carried.
+        $secret = 'origin-' . bin2hex(random_bytes(20));
+        $app = start_app(test_iam(['application_file' => $GLOBALS['switch']]), [], VISITOR_SETTINGS, ['orgin_secret' => $secret]);
+        touch($app['config'] . '/storage/visitors-swept'); // no clean-up in this test, as fresh() says for the other server
+        try {
+            $answer = static fn(string $ip, array $headers = []): array => call($app['base'], 'POST', '/api/surveys/first/responses', answers(), array_merge(["CF-Connecting-IP: $ip"], $headers));
+            foreach (['203.0.113.51' => [], '203.0.113.52' => ["X-Anotoki-Origin: $secret"], '203.0.113.53' => []] as $ip => $headers) {
+                $made = $answer($ip, $headers);
+                assert_same(201, $made['status'], "made-up visitor $ip: " . $made['raw']);
+            }
+            $fourth = $answer('203.0.113.59', ["X-Anotoki-Origin: $secret"]);
+            assert_same(
+                [429, 'too_many_visitors'],
+                [$fourth['status'], $fourth['body']['code'] ?? null],
+                'the fourth, from an address never seen - the file\'s own secret beside it: the edge\'s limit is spent',
+            );
+            assert_same(3, counters()[address_counter('127.0.0.1', $app)] ?? null, 'every one counted as the edge: ' . test_show(counters()));
+            foreach (['203.0.113.51', '203.0.113.52', '203.0.113.59'] as $claimed) {
+                assert_false(isset(counters()[address_counter($claimed, $app)]), "never as $claimed, the address it claimed");
+            }
+
+            $status = call($app['base'], 'GET', '/api/site-status');
+            assert_same([200, 'ready'], [$status['status'], $status['body']['state'] ?? null], 'the site keeps running: the file is optional');
+            $log = (string) file_get_contents($app['log']);
+            assert_same(1, substr_count($log, '[cloudflare] config/cloudflare.local.php names no usable origin_secret'), 'said once in the server\'s log, read on every request: ' . $log);
+            assert_false(str_contains($log, $secret), 'never the secret');
+
+            // Deleted, the file switches the secret off: the visitor Cloudflare names, as before there was one.
+            unlink($app['config'] . '/cloudflare.local.php');
+            $named = $answer('203.0.113.54');
+            assert_same(201, $named['status'], 'the file deleted: ' . $named['raw']);
+            assert_same(1, counters()[address_counter('203.0.113.54', $app)] ?? null, 'counted as the visitor Cloudflare names');
+            assert_same([], server_problems($app), 'its server said nothing it should not have');
+        } finally {
+            $app['stop']();
         }
-
-        $status = call($app['base'], 'GET', '/api/site-status');
-        assert_same([200, 'ready'], [$status['status'], $status['body']['state'] ?? null], 'the site keeps running: the file is optional');
-        assert_false(str_contains($status['raw'], $secret), 'and says nothing of it');
-
-        $log = (string) file_get_contents($app['log']);
-        assert_true(str_contains($log, '[cloudflare] config/cloudflare.local.php does not start with <?php') && str_contains($log, 'no request carries its secret'), 'said in the server\'s log: ' . $log);
-        assert_same(1, substr_count($log, '[cloudflare] config/cloudflare.local.php does not start with <?php'), 'once, read on every request');
-        assert_false(str_contains($log, $secret), 'never the secret');
-        assert_false(str_contains($log, 'strict_types'), 'never compiled: no fatal error');
-        assert_same([], server_problems($app), 'its server said nothing it should not have');
-    } finally {
-        $app['stop']();
-    }
-});
-
-test('a config/cloudflare.local.php read cleanly but naming no usable secret - its key misspelt - fails closed too (2026-10-18): a Worker writing a new CF-Connecting-IP every time is one sender, the edge, the secret the file holds in X-Anotoki-Origin or not; the site keeps answering; only deleting the file switches the secret off', function (): void {
-    fresh();
-    // The owner meant a secret and wrote one - under a key the site does not read. Read as "no secret" (the rule
-    // before 2026-10-18), the proxy this file trusts (127.0.0.1, standing for an edge of Cloudflare's) would be
-    // believed about whoever anybody's Worker said it carried.
-    $secret = 'origin-' . bin2hex(random_bytes(20));
-    $app = start_app(test_iam(['application_file' => $GLOBALS['switch']]), [], VISITOR_SETTINGS, ['orgin_secret' => $secret]);
-    touch($app['config'] . '/storage/visitors-swept'); // no clean-up in this test, as fresh() says for the other server
-    try {
-        $answer = static fn(string $ip, array $headers = []): array => call($app['base'], 'POST', '/api/surveys/first/responses', answers(), array_merge(["CF-Connecting-IP: $ip"], $headers));
-        foreach (['203.0.113.51' => [], '203.0.113.52' => ["X-Anotoki-Origin: $secret"], '203.0.113.53' => []] as $ip => $headers) {
-            $made = $answer($ip, $headers);
-            assert_same(201, $made['status'], "made-up visitor $ip: " . $made['raw']);
-        }
-        $fourth = $answer('203.0.113.59', ["X-Anotoki-Origin: $secret"]);
-        assert_same([429, 'too_many_visitors'], [$fourth['status'], $fourth['body']['code'] ?? null], 'the fourth, from an address never seen - the file\'s own secret beside it: the edge\'s limit is spent');
-        assert_same(3, counters()[address_counter('127.0.0.1', $app)] ?? null, 'every one counted as the edge: ' . test_show(counters()));
-        foreach (['203.0.113.51', '203.0.113.52', '203.0.113.59'] as $claimed) {
-            assert_false(isset(counters()[address_counter($claimed, $app)]), "never as $claimed, the address it claimed");
-        }
-
-        $status = call($app['base'], 'GET', '/api/site-status');
-        assert_same([200, 'ready'], [$status['status'], $status['body']['state'] ?? null], 'the site keeps running: the file is optional');
-        $log = (string) file_get_contents($app['log']);
-        assert_same(1, substr_count($log, '[cloudflare] config/cloudflare.local.php names no usable origin_secret'), 'said once in the server\'s log, read on every request: ' . $log);
-        assert_false(str_contains($log, $secret), 'never the secret');
-
-        // Deleted, the file switches the secret off: the visitor Cloudflare names, as before there was one.
-        unlink($app['config'] . '/cloudflare.local.php');
-        $named = $answer('203.0.113.54');
-        assert_same(201, $named['status'], 'the file deleted: ' . $named['raw']);
-        assert_same(1, counters()[address_counter('203.0.113.54', $app)] ?? null, 'counted as the visitor Cloudflare names');
-        assert_same([], server_problems($app), 'its server said nothing it should not have');
-    } finally {
-        $app['stop']();
-    }
-});
+    },
+);
 
 test('the server said nothing it should not have', function (): void {
     assert_same([], server_problems($GLOBALS['app']));

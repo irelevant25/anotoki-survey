@@ -41,5 +41,4 @@ use Anotoki\Lib\Feedback\Http\FeedbackRoutes;
  * @var \Anotoki\Lib\People\Http\RecordPerson $recordPerson
  */
 
-FeedbackRoutes::public($app, '/api/feedback', surveyFeedback(), surveyAdminContext(), surveyFeedbackSender(...))
-    ->add($recordPerson)->add($identify);
+FeedbackRoutes::public($app, '/api/feedback', surveyFeedback(), surveyAdminContext(), surveyFeedbackSender(...))->add($recordPerson)->add($identify);

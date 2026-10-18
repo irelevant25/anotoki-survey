@@ -27,13 +27,27 @@ const REWORDED_AT = '2026-09-01 10:00:00+00';
 
 /** The site's keys only the kit asked for: 010 moves them, and they go. */
 const KIT_ONLY = [
-    'toast.dismiss' => 'anotoki.ui.dismiss', 'toast.region' => 'anotoki.ui.notifications', 'common.cancel' => 'anotoki.ui.cancel',
-    'common.confirm' => 'anotoki.ui.confirm', 'topbar.sections' => 'anotoki.topbar.sections', 'topbar.phoneMenu' => 'anotoki.topbar.phoneMenu',
-    'topbar.menuButton' => 'anotoki.topbar.menuButton', 'topbar.menu' => 'anotoki.topbar.menu', 'topbar.roleAdmin' => 'anotoki.topbar.roleAdmin',
-    'topbar.roleEditor' => 'anotoki.topbar.roleEditor', 'topbar.account' => 'anotoki.topbar.account', 'topbar.admin' => 'anotoki.topbar.admin',
-    'common.signOut' => 'anotoki.topbar.signOut', 'language.button' => 'anotoki.language.button', 'language.notLoaded' => 'anotoki.language.notLoaded',
-    'language.notSaved' => 'anotoki.language.notSaved', 'theme.label' => 'anotoki.theme.label', 'theme.light' => 'anotoki.theme.light',
-    'theme.dark' => 'anotoki.theme.dark', 'theme.auto' => 'anotoki.theme.auto', 'theme.autoHint' => 'anotoki.theme.autoHint',
+    'toast.dismiss' => 'anotoki.ui.dismiss',
+    'toast.region' => 'anotoki.ui.notifications',
+    'common.cancel' => 'anotoki.ui.cancel',
+    'common.confirm' => 'anotoki.ui.confirm',
+    'topbar.sections' => 'anotoki.topbar.sections',
+    'topbar.phoneMenu' => 'anotoki.topbar.phoneMenu',
+    'topbar.menuButton' => 'anotoki.topbar.menuButton',
+    'topbar.menu' => 'anotoki.topbar.menu',
+    'topbar.roleAdmin' => 'anotoki.topbar.roleAdmin',
+    'topbar.roleEditor' => 'anotoki.topbar.roleEditor',
+    'topbar.account' => 'anotoki.topbar.account',
+    'topbar.admin' => 'anotoki.topbar.admin',
+    'common.signOut' => 'anotoki.topbar.signOut',
+    'language.button' => 'anotoki.language.button',
+    'language.notLoaded' => 'anotoki.language.notLoaded',
+    'language.notSaved' => 'anotoki.language.notSaved',
+    'theme.label' => 'anotoki.theme.label',
+    'theme.light' => 'anotoki.theme.light',
+    'theme.dark' => 'anotoki.theme.dark',
+    'theme.auto' => 'anotoki.theme.auto',
+    'theme.autoHint' => 'anotoki.theme.autoHint',
     'theme.notSaved' => 'anotoki.theme.notSaved',
 ];
 /** The site's keys its own pages ask for too: 010 copies them, and they stay. */
@@ -47,11 +61,15 @@ function server_pdo(string $name): PDO
 /** The site's own files before 010 - and nothing of the library's: a database as the release before this one left it. */
 function before_010(PDO $pdo): array
 {
-    $migrator = new Migrator($pdo, [surveyMigrationSet()], [
-        'lock' => DATABASE_UPDATE_LOCK,
-        // 010 and every file after it wait, as a draft holds them.
-        'ready' => static fn(MigrationSet $set, string $name): bool => strcmp($name, FILE_010) < 0,
-    ]);
+    $migrator = new Migrator(
+        $pdo,
+        [surveyMigrationSet()],
+        [
+            'lock' => DATABASE_UPDATE_LOCK,
+            // 010 and every file after it wait, as a draft holds them.
+            'ready' => static fn(MigrationSet $set, string $name): bool => strcmp($name, FILE_010) < 0,
+        ],
+    );
 
     return $migrator->apply();
 }
@@ -64,14 +82,12 @@ function before_010(PDO $pdo): array
  */
 function owner_rewords(PDO $pdo): void
 {
-    $pdo->exec("INSERT INTO users (id, preferred_username) VALUES (" . OWNER . ", 'owner')");
+    $pdo->exec('INSERT INTO users (id, preferred_username) VALUES (' . OWNER . ", 'owner')");
     $reword = $pdo->prepare('UPDATE translations SET value = ?, updated_by = ?, updated_at = ? WHERE key_name = ? AND language_code = ?');
-    foreach ([
-        ['topbar.menu', 'sk', 'Vaša osobná ponuka'],
-        ['common.signIn', 'en', 'Log in'],
-        ['language.button', 'en', 'Language: {name}'],
-        ['home.title', 'en', 'Our surveys'],
-    ] as [$key, $code, $value]) {
+    foreach (
+        [['topbar.menu', 'sk', 'Vaša osobná ponuka'], ['common.signIn', 'en', 'Log in'], ['language.button', 'en', 'Language: {name}'], ['home.title', 'en', 'Our surveys']]
+        as [$key, $code, $value]
+    ) {
         $reword->execute([$value, OWNER, REWORDED_AT, $key, $code]);
         assert_same(1, $reword->rowCount(), "$key ($code) reworded");
     }
@@ -91,7 +107,9 @@ function strings_in(PDO $pdo, string $like, bool $stamped = true): array
     $statement->execute([$like]);
     $strings = [];
     foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-        $strings[$row['cell']] = $stamped ? [$row['value'], $row['updated_by'] === null ? null : (int) $row['updated_by'], $row['at']] : [$row['value'], $row['updated_by'] === null ? null : (int) $row['updated_by']];
+        $strings[$row['cell']] = $stamped
+            ? [$row['value'], $row['updated_by'] === null ? null : (int) $row['updated_by'], $row['at']]
+            : [$row['value'], $row['updated_by'] === null ? null : (int) $row['updated_by']];
     }
 
     return $strings;
@@ -122,7 +140,11 @@ test('010 on a database as its owner left it, then the library\'s files: every w
     $result = surveyMigrator($pdo)->apply();
     $order = applied_names($result);
     assert_true(array_search('survey/' . FILE_010, $order, true) < array_search('anotoki_translations/001_languages_and_strings.sql', $order, true), '010 first...');
-    assert_same(library_words_files(), array_values(array_filter($order, static fn(string $file): bool => str_starts_with($file, 'anotoki_translations/'))), '...then the library\'s words, every file of them');
+    assert_same(
+        library_words_files(),
+        array_values(array_filter($order, static fn(string $file): bool => str_starts_with($file, 'anotoki_translations/'))),
+        '...then the library\'s words, every file of them',
+    );
     assert_same([null, null], [$result['failed'], $result['error']]);
 
     // Every string of the site's keys, under the library's key: the same words, the same writer, the same moment.
@@ -140,7 +162,15 @@ test('010 on a database as its owner left it, then the library\'s files: every w
     // The kit's keys are gone; the three the pages ask for stay as they were, their strings untouched.
     $left = $pdo->query("SELECT name FROM translation_keys WHERE name IN ('" . implode("', '", array_keys(KIT_ONLY + SHARED)) . "') ORDER BY name")->fetchAll(PDO::FETCH_COLUMN);
     assert_same(['common.close', 'common.signIn', 'common.tryAgain'], $left);
-    assert_same(array_diff_key($shared, array_flip(array_map(static fn(string $key): string => "$key en", array_keys(KIT_ONLY))), array_flip(array_map(static fn(string $key): string => "$key sk", array_keys(KIT_ONLY)))), strings_in($pdo, 'common.%'), 'the shared keys\' strings as they were');
+    assert_same(
+        array_diff_key(
+            $shared,
+            array_flip(array_map(static fn(string $key): string => "$key en", array_keys(KIT_ONLY))),
+            array_flip(array_map(static fn(string $key): string => "$key sk", array_keys(KIT_ONLY))),
+        ),
+        strings_in($pdo, 'common.%'),
+        'the shared keys\' strings as they were',
+    );
     assert_same($others, strings_in($pdo, 'home.%'), 'and nothing else of the site\'s');
 
     // The two that had no key here: the library's English, this site's formal Slovak.
@@ -203,10 +233,16 @@ test('010\'s gate: a string that would not move fails the file loudly, and nothi
     $before = strings_in($pdo, '%');
     // Something in the way of one string: its insert under the library's key does nothing.
     $pdo->exec("CREATE FUNCTION survey_test_swallow() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RETURN NULL; END \$\$");
-    $pdo->exec("CREATE TRIGGER survey_test_swallow BEFORE INSERT ON translations FOR EACH ROW WHEN (NEW.key_name = 'anotoki.topbar.menu' AND NEW.language_code = 'sk') EXECUTE FUNCTION survey_test_swallow()");
+    $pdo->exec(
+        "CREATE TRIGGER survey_test_swallow BEFORE INSERT ON translations FOR EACH ROW WHEN (NEW.key_name = 'anotoki.topbar.menu' AND NEW.language_code = 'sk') EXECUTE FUNCTION survey_test_swallow()",
+    );
 
     $result = surveyMigrator($pdo)->apply();
-    assert_same([['anotoki_admin/001_audit_log.sql', 'anotoki_admin/002_feedback.sql'], ['set' => 'survey', 'name' => FILE_010]], [applied_names($result), $result['failed']], 'the library\'s admin set (first, and no words) - then 010, refused');
+    assert_same(
+        [['anotoki_admin/001_audit_log.sql', 'anotoki_admin/002_feedback.sql'], ['set' => 'survey', 'name' => FILE_010]],
+        [applied_names($result), $result['failed']],
+        'the library\'s admin set (first, and no words) - then 010, refused',
+    );
     assert_match('/strings that did not move under the library\'s keys: anotoki\.topbar\.menu \(sk\)/', (string) $result['error']);
     assert_same($before, strings_in($pdo, '%'), 'rolled back whole: the site\'s keys and strings as they were');
     assert_same(0, (int) $pdo->query("SELECT count(*) FROM translation_keys WHERE name LIKE 'anotoki.%'")->fetchColumn(), 'no library key either');

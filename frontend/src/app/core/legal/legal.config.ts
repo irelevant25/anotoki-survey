@@ -1,6 +1,6 @@
-import { inject } from "@angular/core";
-import { AnotokiLegalConfig } from "@anotoki/lib/legal";
-import { TranslationService } from "@anotoki/lib/translations";
+import { inject } from '@angular/core';
+import { AnotokiLegalConfig } from '@anotoki/lib/legal';
+import { TranslationService } from '@anotoki/lib/translations';
 
 /**
  * How the survey plugs into the anotoki family's legal pages (@anotoki/lib/legal,

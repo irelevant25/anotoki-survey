@@ -39,10 +39,14 @@ function server_pdo(string $name): PDO
 /** The database as the release before this one left it: the site's files before 011, the library's words 001 and 002 (anotoki-lib 0.3). */
 function before_012(PDO $pdo): void
 {
-    $migrator = new Migrator($pdo, [surveyMigrationSet(), TranslationsSchema::migrationSet()], [
-        'lock' => DATABASE_UPDATE_LOCK,
-        'ready' => static fn(MigrationSet $set, string $name): bool => $set->library ? strcmp($name, '003') < 0 : strcmp($name, '011') < 0,
-    ]);
+    $migrator = new Migrator(
+        $pdo,
+        [surveyMigrationSet(), TranslationsSchema::migrationSet()],
+        [
+            'lock' => DATABASE_UPDATE_LOCK,
+            'ready' => static fn(MigrationSet $set, string $name): bool => $set->library ? strcmp($name, '003') < 0 : strcmp($name, '011') < 0,
+        ],
+    );
     $result = $migrator->apply();
     assert_same(null, $result['failed'], (string) $result['error']);
 }
@@ -118,7 +122,11 @@ test('012 on a database as its owner left it, then the library\'s files: the fou
     }
 
     assert_same([], $pdo->query("SELECT name FROM translation_keys WHERE name IN ('" . implode("', '", array_keys(MOVED)) . "')")->fetchAll(PDO::FETCH_COLUMN), 'the site\'s four keys are gone');
-    assert_same(LibraryWords::all()['anotoki.signIn.failed']['description'], $pdo->query("SELECT description FROM translation_keys WHERE name = 'anotoki.signIn.failed'")->fetchColumn(), 'the descriptions are the library\'s');
+    assert_same(
+        LibraryWords::all()['anotoki.signIn.failed']['description'],
+        $pdo->query("SELECT description FROM translation_keys WHERE name = 'anotoki.signIn.failed'")->fetchColumn(),
+        'the descriptions are the library\'s',
+    );
     $pdo = null;
 });
 
@@ -136,7 +144,13 @@ test('the library\'s files applied before 012 (an upload applied before 012 arri
     assert_same(null, $first['failed']);
     assert_same('Prihlasujeme ťa…', strings_in($pdo, 'anotoki.signIn.signingIn')['anotoki.signIn.signingIn sk'][0], 'the library\'s informal words, for now');
     // The owner rewords one of the library's words of signing in before 012 comes.
-    $pdo->exec("UPDATE translations SET value = 'Prihlásenie teraz nejde.', updated_by = " . OWNER . ", updated_at = '" . REWORDED_AT . "' WHERE key_name = 'anotoki.signIn.unavailable' AND language_code = 'sk'");
+    $pdo->exec(
+        "UPDATE translations SET value = 'Prihlásenie teraz nejde.', updated_by = " .
+            OWNER .
+            ", updated_at = '" .
+            REWORDED_AT .
+            "' WHERE key_name = 'anotoki.signIn.unavailable' AND language_code = 'sk'",
+    );
 
     $result = surveyMigrator($pdo)->apply();
     assert_same(null, $result['failed'], (string) $result['error']);
@@ -144,7 +158,11 @@ test('the library\'s files applied before 012 (an upload applied before 012 arri
     assert_same(['Prihlásenie teraz nejde.', OWNER], $words['anotoki.signIn.unavailable sk'], 'a rewording on the library\'s key is the owner\'s, and newer: it stays');
     assert_same('Prihlasujeme Vás…', $words['anotoki.signIn.signingIn sk'][0], 'the site\'s words over the library\'s');
     assert_false(array_key_exists('anotoki.signIn.storageUnavailable sk', $words), 'a Slovak string the site did not have: the library\'s went too');
-    assert_same('Prihlásenie trvalo príliš dlho alebo sa nezačalo na tejto stránke. Skúste to, prosím, znova.', $words['anotoki.signIn.expired sk'][0], 'the formal Slovak over the library\'s informal');
+    assert_same(
+        'Prihlásenie trvalo príliš dlho alebo sa nezačalo na tejto stránke. Skúste to, prosím, znova.',
+        $words['anotoki.signIn.expired sk'][0],
+        'the formal Slovak over the library\'s informal',
+    );
     assert_same($moving, array_intersect_key(strings_in($pdo, 'anotoki.signIn.%'), $moving), 'the rest moved with who and when');
 
     $inOrder = strings_in($expected, 'anotoki.signIn.%', false);
@@ -160,7 +178,9 @@ test('012\'s gate: a string that would not move fails the file loudly, and nothi
     $before = strings_in($pdo, 'signIn.%');
     // Something in the way of one string: its insert under the library's key does nothing.
     $pdo->exec("CREATE FUNCTION survey_test_swallow() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RETURN NULL; END \$\$");
-    $pdo->exec("CREATE TRIGGER survey_test_swallow BEFORE INSERT ON translations FOR EACH ROW WHEN (NEW.key_name = 'anotoki.signIn.notCompleted' AND NEW.language_code = 'sk') EXECUTE FUNCTION survey_test_swallow()");
+    $pdo->exec(
+        "CREATE TRIGGER survey_test_swallow BEFORE INSERT ON translations FOR EACH ROW WHEN (NEW.key_name = 'anotoki.signIn.notCompleted' AND NEW.language_code = 'sk') EXECUTE FUNCTION survey_test_swallow()",
+    );
 
     $result = surveyMigrator($pdo)->apply();
     assert_same(['set' => 'survey', 'name' => FILE_012], $result['failed'], (string) $result['error']);

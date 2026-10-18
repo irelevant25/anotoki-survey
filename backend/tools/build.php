@@ -37,7 +37,7 @@ declare(strict_types=1);
 
 if (PHP_SAPI !== 'cli') {
     http_response_code(404);
-    exit;
+    exit();
 }
 
 const BUILD_MARKER = '.survey-build';
@@ -187,8 +187,9 @@ $add("$backend/config/config.php", "$out/config/config.php");
 $add("$backend/setup.php", "$out/setup.php");
 
 // Folders only PHP reads: closed to the web, wherever PHP would run a file.
-$deny = "# Not for the web: only PHP reads these files.\n<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n"
-    . "<IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n</IfModule>\n";
+$deny =
+    "# Not for the web: only PHP reads these files.\n<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n" .
+    "<IfModule !mod_authz_core.c>\n    Order allow,deny\n    Deny from all\n</IfModule>\n";
 foreach (['config', 'migrations', 'vendor', 'storage'] as $folder) {
     if (!is_dir("$out/$folder")) {
         mkdir("$out/$folder", 0775, true);
@@ -213,80 +214,84 @@ $csp = implode('; ', [
     "base-uri 'self'",
     "form-action 'self'",
 ]);
-file_put_contents("$out/.htaccess", <<<HTACCESS
-# anotoki survey - the web root: the app, with its API in api/. Written by
-# backend/tools/build.php; change that, not this.
+file_put_contents(
+    "$out/.htaccess",
+    <<<HTACCESS
+    # anotoki survey - the web root: the app, with its API in api/. Written by
+    # backend/tools/build.php; change that, not this.
 
-DirectoryIndex index.html
-Options -Indexes
+    DirectoryIndex index.html
+    Options -Indexes
 
-# ES modules need a JavaScript type; older mime.types files do not know .mjs.
-AddType text/javascript .js .mjs
+    # ES modules need a JavaScript type; older mime.types files do not know .mjs.
+    AddType text/javascript .js .mjs
 
-# The access token must reach PHP. Apache running PHP as CGI/FastCGI drops the
-# Authorization header unless told otherwise (Apache 2.4.13 or newer) ...
-<IfModule mod_version.c>
-    <IfVersion >= 2.4.13>
-        CGIPassAuth On
-    </IfVersion>
-</IfModule>
-# ... and where that is not possible, it is copied into the environment, where
-# PHP finds it as HTTP_AUTHORIZATION or REDIRECT_HTTP_AUTHORIZATION.
-<IfModule mod_setenvif.c>
-    SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
-</IfModule>
+    # The access token must reach PHP. Apache running PHP as CGI/FastCGI drops the
+    # Authorization header unless told otherwise (Apache 2.4.13 or newer) ...
+    <IfModule mod_version.c>
+        <IfVersion >= 2.4.13>
+            CGIPassAuth On
+        </IfVersion>
+    </IfModule>
+    # ... and where that is not possible, it is copied into the environment, where
+    # PHP finds it as HTTP_AUTHORIZATION or REDIRECT_HTTP_AUTHORIZATION.
+    <IfModule mod_setenvif.c>
+        SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+    </IfModule>
 
-<IfModule mod_rewrite.c>
-    RewriteEngine On
+    <IfModule mod_rewrite.c>
+        RewriteEngine On
 
-    # The API is its own handler: api/.htaccess sends it all to api/index.php.
-    RewriteRule ^api(/|$) - [L]
+        # The API is its own handler: api/.htaccess sends it all to api/index.php.
+        RewriteRule ^api(/|$) - [L]
 
-    # What only PHP reads is never served, even where a folder's own
-    # .htaccess would not be read.
-    RewriteRule ^(config|migrations|vendor|storage)(/|$) - [F,L]
+        # What only PHP reads is never served, even where a folder's own
+        # .htaccess would not be read.
+        RewriteRule ^(config|migrations|vendor|storage)(/|$) - [F,L]
 
-    # Real files (the bundles, setup.php) as they are; every other path is one
-    # of the app's own routes (a survey's address, /admin/...) and gets the app.
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^ index.html [L]
-</IfModule>
+        # Real files (the bundles, setup.php) as they are; every other path is one
+        # of the app's own routes (a survey's address, /admin/...) and gets the app.
+        RewriteCond %{REQUEST_FILENAME} !-f
+        RewriteCond %{REQUEST_FILENAME} !-d
+        RewriteRule ^ index.html [L]
+    </IfModule>
 
-# The only PHP a visitor may run here: the setup page, while it is still here
-# (it deletes itself when it is done), and the host check (tools/host-check.php,
-# never part of a build: uploaded by hand, opened with its own token, and
-# deleted again - while it is not here, this lets nothing run). api/.htaccess
-# lets api/index.php run.
-<FilesMatch "\.(php|phtml|phar)$">
-    Require all denied
-</FilesMatch>
-<FilesMatch "^(setup|host-check)\.php$">
-    Require all granted
-</FilesMatch>
-
-# Dot-files are for the server and the build (this build's own marker among
-# them), never for a visitor.
-<FilesMatch "^\.">
-    Require all denied
-</FilesMatch>
-
-<IfModule mod_headers.c>
-    Header always set X-Content-Type-Options "nosniff"
-    Header always set X-Frame-Options "DENY"
-    Header always set Referrer-Policy "same-origin"
-    Header always set Content-Security-Policy "$csp"
-
-    # The app's shell, the theme's early script and the list of versions (the
-    # version the pages show) change with every version and have no hash in
-    # their names: asked again each time (the network in front of the site
-    # keeps the hashed bundles, which never change).
-    <FilesMatch "^(index\.html|theme-boot\.js|changelog\.json)$">
-        Header set Cache-Control "no-cache"
+    # The only PHP a visitor may run here: the setup page, while it is still here
+    # (it deletes itself when it is done), and the host check (tools/host-check.php,
+    # never part of a build: uploaded by hand, opened with its own token, and
+    # deleted again - while it is not here, this lets nothing run). api/.htaccess
+    # lets api/index.php run.
+    <FilesMatch "\.(php|phtml|phar)$">
+        Require all denied
     </FilesMatch>
-</IfModule>
+    <FilesMatch "^(setup|host-check)\.php$">
+        Require all granted
+    </FilesMatch>
 
-HTACCESS);
+    # Dot-files are for the server and the build (this build's own marker among
+    # them), never for a visitor.
+    <FilesMatch "^\.">
+        Require all denied
+    </FilesMatch>
+
+    <IfModule mod_headers.c>
+        Header always set X-Content-Type-Options "nosniff"
+        Header always set X-Frame-Options "DENY"
+        Header always set Referrer-Policy "same-origin"
+        Header always set Content-Security-Policy "$csp"
+
+        # The app's shell, the theme's early script and the list of versions (the
+        # version the pages show) change with every version and have no hash in
+        # their names: asked again each time (the network in front of the site
+        # keeps the hashed bundles, which never change).
+        <FilesMatch "^(index\.html|theme-boot\.js|changelog\.json)$">
+            Header set Cache-Control "no-cache"
+        </FilesMatch>
+    </IfModule>
+
+    HTACCESS
+    ,
+);
 
 file_put_contents("$out/" . BUILD_MARKER, 'Built by backend/tools/build.php on ' . gmdate('Y-m-d H:i:s') . " UTC. Upload everything in this folder into the site's web root.\n");
 

@@ -42,4 +42,7 @@ $app->post('/api/visitor/move', function (Request $request, Response $response):
     }
 
     return respondJson($response, visitorMoveInto(currentPerson($request), $key));
-})->add($recordPerson)->add(new RequirePerson())->add($identify);
+})
+    ->add($recordPerson)
+    ->add(new RequirePerson())
+    ->add($identify);

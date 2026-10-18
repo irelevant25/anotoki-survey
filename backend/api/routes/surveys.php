@@ -36,11 +36,19 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 $app->get('/api/surveys', function (Request $request, Response $response): Response {
     return respondJson($response, ['surveys' => surveysOpen(currentUser($request)?->id)]);
-})->add(sweepVisitorsSoon())->add(new RequireCaller(RequireCaller::EMPTY))->add($recordPerson)->add($identifyTaker);
+})
+    ->add(sweepVisitorsSoon())
+    ->add(new RequireCaller(RequireCaller::EMPTY))
+    ->add($recordPerson)
+    ->add($identifyTaker);
 
 $app->get('/api/surveys/{slug}', function (Request $request, Response $response, array $args): Response {
     return respondJson($response, surveyForParticipant((string) $args['slug'], currentUser($request)?->id));
-})->add(sweepVisitorsSoon())->add(new RequireCaller(RequireCaller::EMPTY))->add($recordPerson)->add($identifyTaker);
+})
+    ->add(sweepVisitorsSoon())
+    ->add(new RequireCaller(RequireCaller::EMPTY))
+    ->add($recordPerson)
+    ->add($identifyTaker);
 
 $app->post('/api/surveys/{slug}/responses', function (Request $request, Response $response, array $args): Response {
     $saved = responseSubmit(currentUser($request), (string) $args['slug'], jsonBody($request), $request);
@@ -50,4 +58,8 @@ $app->post('/api/surveys/{slug}/responses', function (Request $request, Response
     }
 
     return $response;
-})->add(sweepVisitorsSoon())->add(new RequireCaller(RequireCaller::MAKE))->add($recordPerson)->add($identifyTaker);
+})
+    ->add(sweepVisitorsSoon())
+    ->add(new RequireCaller(RequireCaller::MAKE))
+    ->add($recordPerson)
+    ->add($identifyTaker);

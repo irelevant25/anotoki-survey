@@ -74,9 +74,7 @@ declare(strict_types=1);
  */
 
 /** What is wrong with the settings: a missing or unusable file. */
-final class NotSetUp extends RuntimeException
-{
-}
+final class NotSetUp extends RuntimeException {}
 
 /** The folder the *.local.php files are read from (and setup.php writes to). */
 function configDir(): string
@@ -157,7 +155,7 @@ function localSettings(bool $reload = false): array
     } elseif ($iam === null) {
         $problem = 'config/iam.local.php is missing.';
     } else {
-        $problem = $unreadable ?? databaseSettingsProblem($database) ?? iamSettingsProblem($iam);
+        $problem = $unreadable ?? (databaseSettingsProblem($database) ?? iamSettingsProblem($iam));
     }
 
     if ($problem === null && usingTestConfig() && !str_starts_with((string) $database['name'], 'survey_test_')) {
@@ -367,22 +365,31 @@ function originSecretFile(): ?string
         return null;
     }
     if (!is_file($file)) {
-        settingsSaid('cloudflare', 'config/cloudflare.local.php is no file (a folder in its place?): no request carries its secret, so every request from Cloudflare\'s ranges counts as the edge it came from until a file there names one - or nothing is there, which switches the secret off.');
+        settingsSaid(
+            'cloudflare',
+            'config/cloudflare.local.php is no file (a folder in its place?): no request carries its secret, so every request from Cloudflare\'s ranges counts as the edge it came from until a file there names one - or nothing is there, which switches the secret off.',
+        );
 
         return originSecretNobodyCarries();
     }
 
     $read = settingsFileReadCleanly($file);
     if ($read['problem'] !== null) {
-        settingsSaid('cloudflare', "config/cloudflare.local.php {$read['problem']}: no request carries its secret, so every request from Cloudflare's ranges counts as the edge it came from until the file is mended.");
+        settingsSaid(
+            'cloudflare',
+            "config/cloudflare.local.php {$read['problem']}: no request carries its secret, so every request from Cloudflare's ranges counts as the edge it came from until the file is mended.",
+        );
 
         return originSecretNobodyCarries();
     }
 
     $values = $read['value'];
-    $secret = is_array($values) ? ($values['origin_secret'] ?? null) : null;
+    $secret = is_array($values) ? $values['origin_secret'] ?? null : null;
     if (!is_string($secret) || trim($secret) === '') {
-        settingsSaid('cloudflare', 'config/cloudflare.local.php names no usable origin_secret (a string with something in it): no request carries its secret, so every request from Cloudflare\'s ranges counts as the edge it came from until the file holds one - or is deleted, which switches the secret off.');
+        settingsSaid(
+            'cloudflare',
+            'config/cloudflare.local.php names no usable origin_secret (a string with something in it): no request carries its secret, so every request from Cloudflare\'s ranges counts as the edge it came from until the file holds one - or is deleted, which switches the secret off.',
+        );
 
         return originSecretNobodyCarries();
     }
@@ -588,9 +595,10 @@ function writeLocalConfig(string $name, array $values): void
 {
     writePrivateFile(
         localConfigFile($name),
-        "<?php\n\n// anotoki survey: this installation's {$name} settings, written by setup.php.\n"
-        . "// Never commit it (git ignores it) - see config/config.php.\n\nreturn "
-        . var_export($values, true) . ";\n"
+        "<?php\n\n// anotoki survey: this installation's {$name} settings, written by setup.php.\n" .
+            "// Never commit it (git ignores it) - see config/config.php.\n\nreturn " .
+            var_export($values, true) .
+            ";\n",
     );
     localSettings(true);
 }

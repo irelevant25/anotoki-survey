@@ -69,7 +69,7 @@ switch ($command) {
         }
         $migrator = null;
         if ($result['busy']) {
-            fwrite(STDERR, "testdb: another run kept updating " . TEMPLATE . " for half a minute: try again.\n");
+            fwrite(STDERR, 'testdb: another run kept updating ' . TEMPLATE . " for half a minute: try again.\n");
             exit(1);
         }
         if ($result['failed'] !== null) {

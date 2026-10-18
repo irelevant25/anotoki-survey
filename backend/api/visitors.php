@@ -141,7 +141,7 @@ function visitorCounterHit(string $name, int $windowSeconds): int
              count = CASE WHEN visitor_counters.window_ends <= now() THEN 1 ELSE visitor_counters.count + 1 END,
              window_ends = CASE WHEN visitor_counters.window_ends <= now() THEN EXCLUDED.window_ends ELSE visitor_counters.window_ends END
          RETURNING count',
-        [$name, $windowSeconds]
+        [$name, $windowSeconds],
     );
 }
 
@@ -184,14 +184,20 @@ function visitorSweep(): array
     return dbTx(static function () use ($settings): array {
         $timeout = $settings['sweep_timeout_ms'] . 'ms';
         dbValue("SELECT set_config('statement_timeout', ?, true), set_config('lock_timeout', ?, true)", [$timeout, $timeout]);
-        $ids = array_map('intval', array_column(dbAll(
-            'SELECT id FROM users
+        $ids = array_map(
+            'intval',
+            array_column(
+                dbAll(
+                    'SELECT id FROM users
               WHERE visitor_key_hash IS NOT NULL AND last_seen_at < now() - make_interval(days => ?)
               ORDER BY last_seen_at
               LIMIT ?
               FOR UPDATE SKIP LOCKED',
-            [$settings['keep_days'], $settings['sweep_batch']]
-        ), 'id'));
+                    [$settings['keep_days'], $settings['sweep_batch']],
+                ),
+                'id',
+            ),
+        );
 
         $deleted = $ended = 0;
         if ($ids !== []) {
@@ -256,7 +262,7 @@ function visitorsForgetEmpty(array $ids): int
         'DELETE FROM users u
           WHERE u.id = ANY(?::bigint[]) AND u.id < 0 AND u.visitor_key_hash IS NULL
             AND NOT EXISTS (SELECT 1 FROM responses r WHERE r.user_id = u.id)',
-        [visitorIdList($ids)]
+        [visitorIdList($ids)],
     );
 }
 
@@ -305,7 +311,7 @@ function visitorMoveInto(SiteUser $person, string $key): array
             $kept = dbExec(
                 'DELETE FROM responses v USING responses p
                   WHERE v.user_id = ? AND p.user_id = ? AND p.survey_id = v.survey_id',
-                [$visitor, $person->id]
+                [$visitor, $person->id],
             );
             $moved = dbExec('UPDATE responses SET user_id = ? WHERE user_id = ?', [$person->id, $visitor]);
             dbExec('DELETE FROM users WHERE id = ?', [$visitor]);

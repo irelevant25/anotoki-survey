@@ -104,6 +104,6 @@ test('the browser\'s boot configuration: the library\'s fields, and the days a v
             surveySignInRule()->reset();
 
             return authPublicConfig();
-        })
+        }),
     );
 });

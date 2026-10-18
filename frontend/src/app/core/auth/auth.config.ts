@@ -1,9 +1,9 @@
-import { EnvironmentProviders, inject } from "@angular/core";
-import { CanActivateChildFn, CanActivateFn, Router } from "@angular/router";
-import { AnotokiAuth, type AnotokiAuthConfig, provideAnotokiAuth } from "@anotoki/lib/auth";
-import { TranslationService } from "@anotoki/lib/translations";
-import { AuthService, CALLBACK_PATH } from "./auth.service";
-import { VisitorKey } from "./visitor-key";
+import { EnvironmentProviders, inject } from '@angular/core';
+import { CanActivateChildFn, CanActivateFn, Router } from '@angular/router';
+import { AnotokiAuth, type AnotokiAuthConfig, provideAnotokiAuth } from '@anotoki/lib/auth';
+import { TranslationService } from '@anotoki/lib/translations';
+import { AuthService, CALLBACK_PATH } from './auth.service';
+import { VisitorKey } from './visitor-key';
 
 /**
  * Signing in through the anotoki family's library (anotoki-lib 0.5.0,
@@ -38,16 +38,16 @@ export function siteAuthConfig(): AnotokiAuthConfig {
   return {
     config: () => inject(AuthService).bootConfig(),
     api: {
-      prefixes: ["/api/"],
-      skip: ["/api/site-status", "/api/auth/config", "/api/translations/", "/api/images/"],
-      visitorPrefixes: ["/api/surveys"],
+      prefixes: ['/api/'],
+      skip: ['/api/site-status', '/api/auth/config', '/api/translations/', '/api/images/'],
+      visitorPrefixes: ['/api/surveys'],
     },
     visitors: () => inject(VisitorKey),
     language: () => inject(TranslationService).language(),
     translate: (key) => inject(TranslationService).libraryWord(key),
     hint: false,
     redirectPath: CALLBACK_PATH,
-    postLogoutPath: "/",
+    postLogoutPath: '/',
   };
 }
 
@@ -63,7 +63,7 @@ export function provideSiteAuth(): EnvironmentProviders {
  * the same for a page that needs somebody signed in. `prompt: 'login'` asks
  * for the password again even with a session at the IAM (the backups' proof).
  */
-export async function signInOrShowWhy(auth: AuthService, router: Router, prompt?: "login"): Promise<void> {
+export async function signInOrShowWhy(auth: AuthService, router: Router, prompt?: 'login'): Promise<void> {
   if (await auth.signIn(undefined, prompt)) {
     return;
   }
@@ -84,5 +84,5 @@ export async function signInOrShowWhy(auth: AuthService, router: Router, prompt?
  */
 export const signInFailureGuard: CanActivateFn & CanActivateChildFn = () => {
   const auth = inject(AnotokiAuth);
-  return auth.signInFailure() !== null && auth.state() !== "starting" ? inject(Router).parseUrl(CALLBACK_PATH) : true;
+  return auth.signInFailure() !== null && auth.state() !== 'starting' ? inject(Router).parseUrl(CALLBACK_PATH) : true;
 };

@@ -10,11 +10,11 @@ declare(strict_types=1);
 
 require __DIR__ . '/../lib.php'; // before the app loads: a throwaway database and settings
 
-const OWNER = 1;       // ADMIN
-const EDITH = 2;       // EDITOR
-const PAT = 101;       // takes surveys
-const QUINN = 102;     // takes surveys
-const LOOKER = 103;    // takes surveys, only ever looks
+const OWNER = 1; // ADMIN
+const EDITH = 2; // EDITOR
+const PAT = 101; // takes surveys
+const QUINN = 102; // takes surveys
+const LOOKER = 103; // takes surveys, only ever looks
 
 $GLOBALS['app'] = null;
 before(function (): void {
@@ -44,27 +44,56 @@ function anonymous(string $method, string $url, mixed $body = null): array
 function draft(array $fields = []): array
 {
     return $fields + [
-        'id' => 'ignored', 'slug' => 'genshin-1-0', 'title' => 'Genshin 1.0', 'status' => 'open',
-        'intro' => '<p>Thank you for taking a few minutes.</p>', 'thanks' => '<p>Thank you!</p>',
-        'askAboutYou' => true, 'closesOn' => null, 'language' => 'en', 'translations' => new stdClass(),
-        'steps' => [[
-            'id' => 'step-1', 'title' => 'The patch',
-            'questions' => [
-                [
-                    'id' => 'q-element', 'type' => 'single', 'text' => '<p>Your favourite element?</p>', 'images' => [], 'required' => true,
-                    'options' => [
-                        ['id' => 'o-anemo', 'label' => 'Anemo', 'other' => false, 'images' => []],
-                        ['id' => 'o-geo', 'label' => 'Geo', 'other' => false, 'images' => []],
-                        ['id' => 'o-other', 'label' => 'Another one', 'other' => true, 'images' => []],
+        'id' => 'ignored',
+        'slug' => 'genshin-1-0',
+        'title' => 'Genshin 1.0',
+        'status' => 'open',
+        'intro' => '<p>Thank you for taking a few minutes.</p>',
+        'thanks' => '<p>Thank you!</p>',
+        'askAboutYou' => true,
+        'closesOn' => null,
+        'language' => 'en',
+        'translations' => new stdClass(),
+        'steps' => [
+            [
+                'id' => 'step-1',
+                'title' => 'The patch',
+                'questions' => [
+                    [
+                        'id' => 'q-element',
+                        'type' => 'single',
+                        'text' => '<p>Your favourite element?</p>',
+                        'images' => [],
+                        'required' => true,
+                        'options' => [
+                            ['id' => 'o-anemo', 'label' => 'Anemo', 'other' => false, 'images' => []],
+                            ['id' => 'o-geo', 'label' => 'Geo', 'other' => false, 'images' => []],
+                            ['id' => 'o-other', 'label' => 'Another one', 'other' => true, 'images' => []],
+                        ],
+                        'layout' => 'list',
+                        'minChoices' => null,
+                        'maxChoices' => null,
+                        'multiline' => true,
+                        'maxLength' => null,
+                        'placeholder' => '',
                     ],
-                    'layout' => 'list', 'minChoices' => null, 'maxChoices' => null, 'multiline' => true, 'maxLength' => null, 'placeholder' => '',
-                ],
-                [
-                    'id' => 'q-words', 'type' => 'text', 'text' => '<p>Anything else?</p>', 'images' => [], 'required' => false,
-                    'options' => [], 'layout' => 'list', 'minChoices' => null, 'maxChoices' => null, 'multiline' => true, 'maxLength' => 200, 'placeholder' => '',
+                    [
+                        'id' => 'q-words',
+                        'type' => 'text',
+                        'text' => '<p>Anything else?</p>',
+                        'images' => [],
+                        'required' => false,
+                        'options' => [],
+                        'layout' => 'list',
+                        'minChoices' => null,
+                        'maxChoices' => null,
+                        'multiline' => true,
+                        'maxLength' => 200,
+                        'placeholder' => '',
+                    ],
                 ],
             ],
-        ]],
+        ],
     ];
 }
 
@@ -72,12 +101,16 @@ function draft(array $fields = []): array
 function slovak(array $fields = []): array
 {
     return $fields + [
-        'title' => 'Genshin 1.0', 'intro' => '<p>Ďakujeme, že ste si našli pár minút.</p>', 'thanks' => '<p>Ďakujeme!</p>',
+        'title' => 'Genshin 1.0',
+        'intro' => '<p>Ďakujeme, že ste si našli pár minút.</p>',
+        'thanks' => '<p>Ďakujeme!</p>',
         'steps' => ['step-1' => ['title' => 'Záplata']],
         'questions' => [
             'q-element' => [
-                'text' => '<p>Váš obľúbený živel?</p>', 'placeholder' => '',
-                'options' => ['o-anemo' => ['label' => 'Anemo'], 'o-geo' => ['label' => 'Geo'], 'o-other' => ['label' => 'Iný']], 'images' => new stdClass(),
+                'text' => '<p>Váš obľúbený živel?</p>',
+                'placeholder' => '',
+                'options' => ['o-anemo' => ['label' => 'Anemo'], 'o-geo' => ['label' => 'Geo'], 'o-other' => ['label' => 'Iný']],
+                'images' => new stdClass(),
             ],
             'q-words' => ['text' => '<p>Ešte niečo?</p>', 'placeholder' => '', 'options' => new stdClass(), 'images' => new stdClass()],
         ],
@@ -131,7 +164,10 @@ test('an editor writes a draft: it is a draft whatever it says, and nobody else 
     assert_same('draft', $survey['status'], 'the status is not the editor\'s to send');
     assert_true(isUuid($survey['id']));
     assert_same(1, $survey['revision']);
-    assert_same(['id', 'slug', 'title', 'intro', 'thanks', 'askAboutYou', 'status', 'closesOn', 'steps', 'language', 'translations', 'createdAt', 'updatedAt', 'openedAt', 'closedAt', 'revision'], array_keys($survey));
+    assert_same(
+        ['id', 'slug', 'title', 'intro', 'thanks', 'askAboutYou', 'status', 'closesOn', 'steps', 'language', 'translations', 'createdAt', 'updatedAt', 'openedAt', 'closedAt', 'revision'],
+        array_keys($survey),
+    );
     assert_same(['en', []], [$survey['language'], $survey['translations']]);
     assert_same('q-element', $survey['steps'][0]['questions'][0]['id'], 'the editor\'s own ids are kept');
     assert_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/', $survey['createdAt']);
@@ -236,7 +272,11 @@ test('taking it: people signed in look, and answer - once', function (): void {
     assert_same(null, as_user(QUINN, 'GET', '/api/surveys/genshin-1-0')['body']['answeredAt'], 'somebody else has not');
 
     // A soft line break pasted from a word processor: dropped, not a reason to refuse the answers forever.
-    $quinn = as_user(QUINN, 'POST', '/api/surveys/genshin-1-0/responses', ['aboutYou' => ['gender' => 'undisclosed', 'age' => 'undisclosed'], 'answers' => ['q-element' => ['optionIds' => ['o-geo']], 'q-words' => ['text' => " More\x0B Geo! "]], 'startedAt' => '2999-01-01T00:00:00.000Z']);
+    $quinn = as_user(QUINN, 'POST', '/api/surveys/genshin-1-0/responses', [
+        'aboutYou' => ['gender' => 'undisclosed', 'age' => 'undisclosed'],
+        'answers' => ['q-element' => ['optionIds' => ['o-geo']], 'q-words' => ['text' => " More\x0B Geo! "]],
+        'startedAt' => '2999-01-01T00:00:00.000Z',
+    ]);
     assert_same(201, $quinn['status'], test_show($quinn['body']));
     assert_true(strtotime((string) dbValue('SELECT started_at FROM responses WHERE id = ?', [$quinn['body']['id']])) <= time(), 'a start in the future is taken as now');
 
@@ -281,7 +321,13 @@ test('closing: the answers stay, new ones do not come in; a closed survey still 
     // With the day dropped, as the editor reopens it: open again.
     as_user(EDITH, 'POST', "/api/admin/surveys/$id/status", ['status' => 'open', 'closesOn' => null]);
     assert_same(1, count(as_user(LOOKER, 'GET', '/api/surveys')['body']['surveys']));
-    assert_same(409, as_user(EDITH, 'POST', '/api/admin/surveys/' . as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => draft(['slug' => 'x'])])['body']['survey']['id'] . '/status', ['status' => 'closed'])['status'], 'a draft cannot close');
+    assert_same(
+        409,
+        as_user(EDITH, 'POST', '/api/admin/surveys/' . as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => draft(['slug' => 'x'])])['body']['survey']['id'] . '/status', ['status' => 'closed'])[
+            'status'
+        ],
+        'a draft cannot close',
+    );
 });
 
 test('pictures: up as bytes, checked by what they are, served for good, cleared when nothing shows them', function (): void {
@@ -361,13 +407,15 @@ test('a survey says its language and holds its translations: neither is guessed,
     assert_true(str_contains(as_user(EDITH, 'GET', "/api/admin/surveys/$id")['raw'], $whole), 'and when it is read again');
     assert_same(
         ['object', 'object', 'object', 'object', 'object'],
-        array_values(dbOne(
-            "SELECT jsonb_typeof(content->'translations') AS a, jsonb_typeof(content#>'{translations,sk,steps}') AS b, jsonb_typeof(content#>'{translations,sk,questions}') AS c,
+        array_values(
+            dbOne(
+                "SELECT jsonb_typeof(content->'translations') AS a, jsonb_typeof(content#>'{translations,sk,steps}') AS b, jsonb_typeof(content#>'{translations,sk,questions}') AS c,
                     jsonb_typeof(content#>'{translations,sk,questions,q-words,options}') AS d, jsonb_typeof(content#>'{translations,sk,questions,q-words,images}') AS e
                FROM surveys WHERE id = ?",
-            [$id]
-        )),
-        'and in the database, all five levels'
+                [$id],
+            ),
+        ),
+        'and in the database, all five levels',
     );
 
     // The whole translation - with words for things the survey does not have, which are dropped, and markup, which is cleaned.
@@ -393,35 +441,60 @@ test('a survey says its language and holds its translations: neither is guessed,
 test('steps, questions and options called "0" and "1" keep their translations: a map by id, never a list', function (): void {
     $numbered = draft([
         'slug' => 'numbered',
-        'steps' => [[
-            'id' => '0', 'title' => 'One',
-            'questions' => [
-                [
-                    'id' => '0', 'type' => 'single', 'text' => '<p>Yes or no?</p>', 'images' => [], 'required' => true,
-                    'options' => [['id' => '0', 'label' => 'Yes', 'other' => false, 'images' => []], ['id' => '1', 'label' => 'No', 'other' => false, 'images' => []]],
-                    'layout' => 'list', 'minChoices' => null, 'maxChoices' => null, 'multiline' => true, 'maxLength' => null, 'placeholder' => '',
-                ],
-                [
-                    'id' => '1', 'type' => 'text', 'text' => '<p>Why?</p>', 'images' => [], 'required' => false,
-                    'options' => [], 'layout' => 'list', 'minChoices' => null, 'maxChoices' => null, 'multiline' => true, 'maxLength' => null, 'placeholder' => '',
+        'steps' => [
+            [
+                'id' => '0',
+                'title' => 'One',
+                'questions' => [
+                    [
+                        'id' => '0',
+                        'type' => 'single',
+                        'text' => '<p>Yes or no?</p>',
+                        'images' => [],
+                        'required' => true,
+                        'options' => [['id' => '0', 'label' => 'Yes', 'other' => false, 'images' => []], ['id' => '1', 'label' => 'No', 'other' => false, 'images' => []]],
+                        'layout' => 'list',
+                        'minChoices' => null,
+                        'maxChoices' => null,
+                        'multiline' => true,
+                        'maxLength' => null,
+                        'placeholder' => '',
+                    ],
+                    [
+                        'id' => '1',
+                        'type' => 'text',
+                        'text' => '<p>Why?</p>',
+                        'images' => [],
+                        'required' => false,
+                        'options' => [],
+                        'layout' => 'list',
+                        'minChoices' => null,
+                        'maxChoices' => null,
+                        'multiline' => true,
+                        'maxLength' => null,
+                        'placeholder' => '',
+                    ],
                 ],
             ],
-        ]],
+        ],
         // As a browser writes them: objects whose keys are "0" and "1".
-        'translations' => ['sk' => [
-            'title' => 'Genshin 1.0',
-            'steps' => (object) ['0' => ['title' => 'Jeden']],
-            'questions' => (object) [
-                '0' => ['text' => '<p>Áno alebo nie?</p>', 'options' => (object) ['0' => ['label' => 'Áno'], '1' => ['label' => 'Nie']]],
-                '1' => ['text' => '<p>Prečo?</p>'],
+        'translations' => [
+            'sk' => [
+                'title' => 'Genshin 1.0',
+                'steps' => (object) ['0' => ['title' => 'Jeden']],
+                'questions' => (object) [
+                    '0' => ['text' => '<p>Áno alebo nie?</p>', 'options' => (object) ['0' => ['label' => 'Áno'], '1' => ['label' => 'Nie']]],
+                    '1' => ['text' => '<p>Prečo?</p>'],
+                ],
             ],
-        ]],
+        ],
     ]);
     $made = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => $numbered]);
     assert_same(201, $made['status'], test_show($made['body']));
-    $kept = '"translations":{"sk":{"title":"Genshin 1.0","intro":"","thanks":"","steps":{"0":{"title":"Jeden"}},"questions":{'
-        . '"0":{"text":"<p>Áno alebo nie?</p>","placeholder":"","options":{"0":{"label":"Áno"},"1":{"label":"Nie"}},"images":{}},'
-        . '"1":{"text":"<p>Prečo?</p>","placeholder":"","options":{},"images":{}}}}}';
+    $kept =
+        '"translations":{"sk":{"title":"Genshin 1.0","intro":"","thanks":"","steps":{"0":{"title":"Jeden"}},"questions":{' .
+        '"0":{"text":"<p>Áno alebo nie?</p>","placeholder":"","options":{"0":{"label":"Áno"},"1":{"label":"Nie"}},"images":{}},' .
+        '"1":{"text":"<p>Prečo?</p>","placeholder":"","options":{},"images":{}}}}}';
     assert_true(str_contains($made['raw'], $kept), $made['raw']);
 
     // Saved again exactly as it came - what the editor does with every change - it is still the same.
@@ -440,7 +513,10 @@ test('the language a survey is written in does not change while a translation is
     $put = static fn(array $fields, int $revision): array => as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => $revision, 'survey' => $fields + $survey]);
     // What the database holds: [revision, language, the languages it is translated into].
     $kept = static function () use ($id): array {
-        $row = dbOne("SELECT revision, content->>'language' AS language, (SELECT string_agg(code, ',' ORDER BY code) FROM jsonb_object_keys(content->'translations') AS code) AS translations FROM surveys WHERE id = ?", [$id]);
+        $row = dbOne(
+            "SELECT revision, content->>'language' AS language, (SELECT string_agg(code, ',' ORDER BY code) FROM jsonb_object_keys(content->'translations') AS code) AS translations FROM surveys WHERE id = ?",
+            [$id],
+        );
 
         return [(int) $row['revision'], $row['language'], $row['translations']];
     };
@@ -480,21 +556,28 @@ test('a translation people are offered must be whole before the survey opens; th
     assert_same(200, $saved['status'], test_show($saved['body']));
     $refused = $open();
     assert_same([422, 'survey_problems'], [$refused['status'], $refused['body']['code']]);
-    assert_same([
-        'Slovak: the title is missing.',
-        'Slovak: question 1 has 1 text to translate.',
-        'German: the title is missing.',
-        'German: the welcome text is missing.',
-        'German: the thank-you text is missing.',
-        'German: the title of step 2 is missing.',
-        'German: question 1 has 4 texts to translate.',
-        'German: question 2 has 1 text to translate.',
-    ], $refused['body']['problems'], 'in the languages\' order, each in the order of the document');
+    assert_same(
+        [
+            'Slovak: the title is missing.',
+            'Slovak: question 1 has 1 text to translate.',
+            'German: the title is missing.',
+            'German: the welcome text is missing.',
+            'German: the thank-you text is missing.',
+            'German: the title of step 2 is missing.',
+            'German: question 1 has 4 texts to translate.',
+            'German: question 2 has 1 text to translate.',
+        ],
+        $refused['body']['problems'],
+        'in the languages\' order, each in the order of the document',
+    );
 
     // A hidden language may be as unfinished as it likes: nobody is offered it.
     assert_same(200, as_user(OWNER, 'PUT', '/api/admin/languages/de', ['enabled' => false])['status']);
     assert_same(['Slovak: the title is missing.', 'Slovak: question 1 has 1 text to translate.'], $open()['body']['problems'] ?? null);
-    $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => $saved['body']['survey']['revision'], 'survey' => ['translations' => ['sk' => slovak(), 'de' => new stdClass()]] + $survey]);
+    $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/$id", [
+        'revision' => $saved['body']['survey']['revision'],
+        'survey' => ['translations' => ['sk' => slovak(), 'de' => new stdClass()]] + $survey,
+    ]);
     assert_same(200, $saved['status'], test_show($saved['body']));
     $opened = $open();
     assert_same([200, 'open'], [$opened['status'], $opened['body']['survey']['status'] ?? null], test_show($opened['body']));
@@ -525,20 +608,26 @@ test('answers say which language the survey was read in - when it is one of the 
     $id = $GLOBALS['translated']['id'];
     // A language the site has and this survey does not.
     assert_same(201, as_user(OWNER, 'POST', '/api/admin/languages', ['code' => 'fr', 'name' => 'French', 'native_name' => 'Français'])['status']);
-    $send = static fn(int $user, array $more): array => as_user($user, 'POST', '/api/surveys/two-languages/responses', $more + [
-        'aboutYou' => ['gender' => 'undisclosed', 'age' => 'undisclosed'], 'answers' => ['q-element' => ['optionIds' => ['o-geo']]],
-    ]);
+    $send = static fn(int $user, array $more): array => as_user(
+        $user,
+        'POST',
+        '/api/surveys/two-languages/responses',
+        $more + [
+            'aboutYou' => ['gender' => 'undisclosed', 'age' => 'undisclosed'],
+            'answers' => ['q-element' => ['optionIds' => ['o-geo']]],
+        ],
+    );
 
     $cases = [
-        201 => ['language' => 'en'],                        // the language the survey is written in
-        202 => ['language' => 'sk'],                        // one it is translated into
-        203 => ['language' => 'de'],                        // and another, though hidden now: it was one of the survey's
-        204 => ['language' => ['sk']],                      // not text
-        205 => ['language' => str_repeat('s', 300)],        // not a code
-        206 => ['language' => 'xx'],                        // no language of the site
-        207 => ['language' => 'fr'],                        // a language the survey does not have
-        208 => [],                                          // none said (a page from before)
-        209 => ['language' => 'SK'],                        // a code is small letters
+        201 => ['language' => 'en'], // the language the survey is written in
+        202 => ['language' => 'sk'], // one it is translated into
+        203 => ['language' => 'de'], // and another, though hidden now: it was one of the survey's
+        204 => ['language' => ['sk']], // not text
+        205 => ['language' => str_repeat('s', 300)], // not a code
+        206 => ['language' => 'xx'], // no language of the site
+        207 => ['language' => 'fr'], // a language the survey does not have
+        208 => [], // none said (a page from before)
+        209 => ['language' => 'SK'], // a code is small letters
     ];
     $expected = [201 => 'en', 202 => 'sk', 203 => 'de', 204 => null, 205 => null, 206 => null, 207 => null, 208 => null, 209 => null];
     foreach ($cases as $user => $more) {
@@ -563,11 +652,14 @@ test('answers say which language the survey was read in - when it is one of the 
     $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => $survey['revision'], 'survey' => ['translations' => ['sk' => $survey['translations']['sk']]] + $survey]);
     assert_same(200, $saved['status'], test_show($saved['body']));
     assert_same(200, as_user(OWNER, 'DELETE', '/api/admin/languages/de')['status']);
-    assert_same([9, 0, 1], [
-        (int) dbValue('SELECT count(*) FROM responses WHERE survey_id = ?', [$id]),
-        (int) dbValue("SELECT count(*) FROM responses WHERE survey_id = ? AND language = 'de'", [$id]),
-        (int) dbValue("SELECT count(*) FROM responses WHERE survey_id = ? AND language = 'sk'", [$id]),
-    ]);
+    assert_same(
+        [9, 0, 1],
+        [
+            (int) dbValue('SELECT count(*) FROM responses WHERE survey_id = ?', [$id]),
+            (int) dbValue("SELECT count(*) FROM responses WHERE survey_id = ? AND language = 'de'", [$id]),
+            (int) dbValue("SELECT count(*) FROM responses WHERE survey_id = ? AND language = 'sk'", [$id]),
+        ],
+    );
 
     assert_same(204, as_user(OWNER, 'DELETE', "/api/admin/surveys/$id")['status']);
     assert_same(200, as_user(OWNER, 'DELETE', '/api/admin/languages/fr')['status']);

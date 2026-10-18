@@ -98,33 +98,35 @@ function buildSurveyApp(): \Slim\App
     $app->add(new SiteGate($siteState, $responses, siteOpenWhileUpdating()));
 
     $errorMiddleware = $app->addErrorMiddleware(false, false, false);
-    $errorMiddleware->setDefaultErrorHandler($errorLog->wrapHandler(function (Request $request, Throwable $exception) use ($app): Response {
-        $response = $app->getResponseFactory()->createResponse();
+    $errorMiddleware->setDefaultErrorHandler(
+        $errorLog->wrapHandler(function (Request $request, Throwable $exception) use ($app): Response {
+            $response = $app->getResponseFactory()->createResponse();
 
-        if ($exception instanceof ApiError) {
-            return respondError($response, $exception->status, $exception->errorCode, $exception->getMessage(), $exception->headers, $exception->extra);
-        }
-        if ($exception instanceof HttpNotFoundException) {
-            return respondError($response, 404, 'not_found', 'Not found');
-        }
-        if ($exception instanceof HttpMethodNotAllowedException) {
-            return respondError($response, 405, 'method_not_allowed', 'Method not allowed', ['Allow' => implode(', ', $exception->getAllowedMethods())]);
-        }
-        // The settings found wanting past the gate, which answers that itself before any route - and offers
-        // the setup page only to a site never installed. This one never does.
-        if ($exception instanceof NotSetUp) {
-            return respondError($response, 503, 'not_set_up', 'The site is not available right now. Try again in a few minutes.');
-        }
-        if ($exception instanceof PDOException) {
-            error_log('[db] ' . $exception->getMessage());
+            if ($exception instanceof ApiError) {
+                return respondError($response, $exception->status, $exception->errorCode, $exception->getMessage(), $exception->headers, $exception->extra);
+            }
+            if ($exception instanceof HttpNotFoundException) {
+                return respondError($response, 404, 'not_found', 'Not found');
+            }
+            if ($exception instanceof HttpMethodNotAllowedException) {
+                return respondError($response, 405, 'method_not_allowed', 'Method not allowed', ['Allow' => implode(', ', $exception->getAllowedMethods())]);
+            }
+            // The settings found wanting past the gate, which answers that itself before any route - and offers
+            // the setup page only to a site never installed. This one never does.
+            if ($exception instanceof NotSetUp) {
+                return respondError($response, 503, 'not_set_up', 'The site is not available right now. Try again in a few minutes.');
+            }
+            if ($exception instanceof PDOException) {
+                error_log('[db] ' . $exception->getMessage());
 
-            return respondError($response, 503, 'database_unavailable', 'The database is not reachable right now.');
-        }
+                return respondError($response, 503, 'database_unavailable', 'The database is not reachable right now.');
+            }
 
-        error_log('[server] ' . get_class($exception) . ': ' . $exception->getMessage() . ' @ ' . $exception->getFile() . ':' . $exception->getLine());
+            error_log('[server] ' . get_class($exception) . ': ' . $exception->getMessage() . ' @ ' . $exception->getFile() . ':' . $exception->getLine());
 
-        return respondError($response, 500, 'server_error', 'Something went wrong on the server.');
-    }));
+            return respondError($response, 500, 'server_error', 'Something went wrong on the server.');
+        }),
+    );
 
     $app->add(securityHeaders());
     // Outside everything: it sees what was answered in the end, the gate's answers and the error handler's too.

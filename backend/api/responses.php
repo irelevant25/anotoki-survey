@@ -66,8 +66,8 @@ function responseSubmit(?SiteUser $user, string $slug, mixed $body, ?Request $re
     $age = null;
     if ($survey['askAboutYou']) {
         $aboutYou = $body['aboutYou'] ?? null;
-        $gender = is_array($aboutYou) ? ($aboutYou['gender'] ?? null) : null;
-        $age = is_array($aboutYou) ? ($aboutYou['age'] ?? null) : null;
+        $gender = is_array($aboutYou) ? $aboutYou['gender'] ?? null : null;
+        $age = is_array($aboutYou) ? $aboutYou['age'] ?? null : null;
         if (!in_array($gender, SURVEY_GENDERS, true)) {
             throw new ApiError(422, 'invalid_answer', 'Please choose an answer.', [], ['questionId' => 'about-gender']);
         }
@@ -130,7 +130,7 @@ function responseSubmit(?SiteUser $user, string $slug, mixed $body, ?Request $re
                 'INSERT INTO responses (survey_id, user_id, gender, age, answers, started_at, language)
                  VALUES (?, ?, ?, ?, ?::jsonb, ?, (SELECT code FROM languages WHERE code = ?))
                  RETURNING id, submitted_at',
-                [$row['id'], $user->id, $gender, $age, jsonText($kept === [] ? new stdClass() : $kept), $startedAt->format('Y-m-d H:i:s.uP'), $language]
+                [$row['id'], $user->id, $gender, $age, jsonText($kept === [] ? new stdClass() : $kept), $startedAt->format('Y-m-d H:i:s.uP'), $language],
             );
 
             return [$saved, $key];
@@ -164,7 +164,7 @@ function responsesOf(string $surveyId): array
            JOIN users u ON u.id = r.user_id
           WHERE r.survey_id = ?
           ORDER BY r.submitted_at DESC, r.id',
-        [$surveyId]
+        [$surveyId],
     );
 
     return array_map(static function (array $row): array {
@@ -180,7 +180,7 @@ function responsesOf(string $surveyId): array
                 // The IAM's name - its placeholder, deleted-{id}, once it deleted the account (api/people.php). The
                 // IAM always gives a username; the rest is for a row that has none. No address: the IAM keeps
                 // people's addresses, this site none (migration 011).
-                'name' => $visitor ? 'Visitor ' . -(int) $row['user_id'] : ($row['preferred_username'] ?? 'Person ' . $row['user_id']),
+                'name' => $visitor ? 'Visitor ' . -(int) $row['user_id'] : $row['preferred_username'] ?? 'Person ' . $row['user_id'],
                 'visitor' => $visitor,
             ],
             'aboutYou' => $row['gender'] !== null && $row['age'] !== null ? ['gender' => $row['gender'], 'age' => $row['age']] : null,

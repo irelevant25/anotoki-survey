@@ -29,13 +29,34 @@ use Anotoki\Lib\Translations\Placeholders;
  * time they have no strings (FORMAL_SLOVAK, core/translations.ts).
  */
 const ADDRESSING_THE_READER = [
-    'anotoki.ui.copyFailed', 'anotoki.topbar.menuButton', 'anotoki.topbar.menu', 'anotoki.topbar.account',
-    'anotoki.language.notLoaded', 'anotoki.language.notSaved', 'anotoki.theme.notSaved', 'anotoki.siteStatus.unavailableText',
-    'anotoki.signIn.signingIn', 'anotoki.signIn.expired', 'anotoki.signIn.storageUnavailable', 'anotoki.signIn.unavailable',
-    'anotoki.feedback.title', 'anotoki.feedback.lead', 'anotoki.feedback.message', 'anotoki.feedback.email',
-    'anotoki.feedback.emailHint', 'anotoki.feedback.anonymousHint', 'anotoki.feedback.thanksText', 'anotoki.feedback.messageRequired',
-    'anotoki.feedback.subjectRequired', 'anotoki.feedback.tooManyHour', 'anotoki.feedback.tooManyDay', 'anotoki.feedback.unavailable',
-    'anotoki.feedback.signInRequired', 'anotoki.feedback.failed', 'anotoki.feedback.network', 'anotoki.feedback.honeypot',
+    'anotoki.ui.copyFailed',
+    'anotoki.topbar.menuButton',
+    'anotoki.topbar.menu',
+    'anotoki.topbar.account',
+    'anotoki.language.notLoaded',
+    'anotoki.language.notSaved',
+    'anotoki.theme.notSaved',
+    'anotoki.siteStatus.unavailableText',
+    'anotoki.signIn.signingIn',
+    'anotoki.signIn.expired',
+    'anotoki.signIn.storageUnavailable',
+    'anotoki.signIn.unavailable',
+    'anotoki.feedback.title',
+    'anotoki.feedback.lead',
+    'anotoki.feedback.message',
+    'anotoki.feedback.email',
+    'anotoki.feedback.emailHint',
+    'anotoki.feedback.anonymousHint',
+    'anotoki.feedback.thanksText',
+    'anotoki.feedback.messageRequired',
+    'anotoki.feedback.subjectRequired',
+    'anotoki.feedback.tooManyHour',
+    'anotoki.feedback.tooManyDay',
+    'anotoki.feedback.unavailable',
+    'anotoki.feedback.signInRequired',
+    'anotoki.feedback.failed',
+    'anotoki.feedback.network',
+    'anotoki.feedback.honeypot',
 ];
 
 /** Slovak that speaks to the reader informally (ty and its verbs): never this site's. */
@@ -53,10 +74,7 @@ const FRONTEND_FORMAL_WORDS = '/core/translations.ts';
  */
 function string_migrations(): array
 {
-    return array_values(array_filter(
-        migration_files(),
-        static fn(string $file): bool => (bool) preg_match('/INSERT\s+INTO\s+translation_keys\b/i', migration_sql($file))
-    ));
+    return array_values(array_filter(migration_files(), static fn(string $file): bool => (bool) preg_match('/INSERT\s+INTO\s+translation_keys\b/i', migration_sql($file))));
 }
 
 /** @return string[] every key the database has, by name */
@@ -167,13 +185,20 @@ function frontend_formal_slovak(): array
 
 test('the two languages the site is released in, English first - and the keys, once a migration writes them', function (): void {
     test_db();
-    assert_same([
-        ['code' => 'en', 'name' => 'English', 'native_name' => 'English', 'enabled' => true, 'sort_order' => 1],
-        ['code' => 'sk', 'name' => 'Slovak', 'native_name' => 'Slovenčina', 'enabled' => true, 'sort_order' => 2],
-    ], dbAll('SELECT code, name, native_name, enabled, sort_order FROM languages ORDER BY sort_order'));
+    assert_same(
+        [
+            ['code' => 'en', 'name' => 'English', 'native_name' => 'English', 'enabled' => true, 'sort_order' => 1],
+            ['code' => 'sk', 'name' => 'Slovak', 'native_name' => 'Slovenčina', 'enabled' => true, 'sort_order' => 2],
+        ],
+        dbAll('SELECT code, name, native_name, enabled, sort_order FROM languages ORDER BY sort_order'),
+    );
 
     if (string_migrations() === []) {
-        assert_same([], array_values(array_filter(database_keys(), static fn(string $key): bool => !LibraryWords::isLibraryKey($key))), 'no migration writes strings yet, so there are none of the site\'s');
+        assert_same(
+            [],
+            array_values(array_filter(database_keys(), static fn(string $key): bool => !LibraryWords::isLibraryKey($key))),
+            'no migration writes strings yet, so there are none of the site\'s',
+        );
     } else {
         assert_true(database_keys() !== [], implode(', ', string_migrations()) . ' left no keys');
     }
@@ -327,7 +352,11 @@ test('a string migration\'s gate checks exactly the keys the migration writes, a
         $found = migration_keys($file);
         assert_true($found['keys'] !== [], "$file: the keys it inserts could not be read");
         assert_same($found['keys'], array_values(array_unique($found['keys'])), "$file: a key is inserted twice");
-        assert_same(in_order($found['keys']), in_order($found['gate']), "$file: the keys its gate checks are not the keys it inserts - a key left out of the gate could lack a string and nothing would say so");
+        assert_same(
+            in_order($found['keys']),
+            in_order($found['gate']),
+            "$file: the keys its gate checks are not the keys it inserts - a key left out of the gate could lack a string and nothing would say so",
+        );
 
         $library = array_values(array_filter($found['keys'], LibraryWords::isLibraryKey(...)));
         if ($library === []) {
@@ -344,7 +373,11 @@ test('a string migration\'s gate checks exactly the keys the migration writes, a
         assert_same([], array_values(array_diff($library, LibraryWords::keys())), "$file: keys under anotoki. that the library does not ship");
         $taking[] = $file;
     }
-    assert_same(['010_strings_through_the_library.sql', '012_sign_in_words.sql', '014_feedback_words.sql'], $taking, 'the migrations that take the library\'s words over: the kit\'s, signing in\'s, then the feedback form\'s');
+    assert_same(
+        ['010_strings_through_the_library.sql', '012_sign_in_words.sql', '014_feedback_words.sql'],
+        $taking,
+        'the migrations that take the library\'s words over: the kit\'s, signing in\'s, then the feedback form\'s',
+    );
 });
 
 test('010 knows the library\'s own words as its 002 writes them - what it replaces where the library\'s files ran first', function (): void {
@@ -372,27 +405,42 @@ test('012 knows the library\'s own words of signing in as its 003 writes them - 
     // What 012 moves there: the site's four keys of signing in, gone (nothing asks for them any more).
     assert_same([], array_values(array_intersect(database_keys(), ['signIn.inProgress', 'signIn.notCompleted', 'signIn.failed', 'signIn.storageUnavailable'])));
     $signingIn = ['anotoki.signIn.signingIn'];
-    assert_same(['Prihlasujeme Vás…', 'Signing in…'], [strings_of('sk', $signingIn)[$signingIn[0]] ?? null, strings_of('en', $signingIn)[$signingIn[0]] ?? null], 'the callback page says what this site said');
+    assert_same(
+        ['Prihlasujeme Vás…', 'Signing in…'],
+        [strings_of('sk', $signingIn)[$signingIn[0]] ?? null, strings_of('en', $signingIn)[$signingIn[0]] ?? null],
+        'the callback page says what this site said',
+    );
 });
 
-test('the legal pages\' facts (013, and 015\'s feedback) hold no address - where a link goes is the code\'s, never a string an administrator rewords - and their Slovak speaks to the reader formally', function (): void {
-    test_db();
-    $rows = dbAll("SELECT key_name, language_code, value FROM translations WHERE key_name LIKE 'legal.%' ORDER BY key_name COLLATE \"C\", language_code");
-    $keys = array_values(array_unique(array_column($rows, 'key_name')));
-    $facts015 = array_values(array_filter(migration_keys('015_whats_new_and_feedback.sql')['keys'], static fn(string $key): bool => str_starts_with($key, 'legal.')));
-    assert_same(['legal.feedback.kept'], $facts015, '015 writes one fact: how long a feedback message stays');
-    assert_same(in_order(array_merge(migration_keys('013_legal_pages.sql')['keys'], $facts015)), in_order(array_merge($keys, ['title.contact', 'title.privacy', 'title.terms'])), 'the facts 013 and 015 write, and the three tabs\' titles');
-    foreach ($rows as ['key_name' => $key, 'language_code' => $code, 'value' => $value]) {
-        assert_false((bool) preg_match('~https?:|://|www\.|@~i', $value), "$key ($code) holds no address: $value");
-        if ($code === 'sk') {
-            // Vy, Vás, Váš with their capital (the site's formal Slovak) - never the lower case, never ty.
-            assert_false((bool) preg_match('/\b(vy|vás|vám|váš|vaš[a-záéíóúý]*|ty|teba|tebe|ťa|ti|tvoj[a-záéíóúý]*)\b/u', $value), "$key: formal Slovak - $value");
+test(
+    'the legal pages\' facts (013, and 015\'s feedback) hold no address - where a link goes is the code\'s, never a string an administrator rewords - and their Slovak speaks to the reader formally',
+    function (): void {
+        test_db();
+        $rows = dbAll("SELECT key_name, language_code, value FROM translations WHERE key_name LIKE 'legal.%' ORDER BY key_name COLLATE \"C\", language_code");
+        $keys = array_values(array_unique(array_column($rows, 'key_name')));
+        $facts015 = array_values(array_filter(migration_keys('015_whats_new_and_feedback.sql')['keys'], static fn(string $key): bool => str_starts_with($key, 'legal.')));
+        assert_same(['legal.feedback.kept'], $facts015, '015 writes one fact: how long a feedback message stays');
+        assert_same(
+            in_order(array_merge(migration_keys('013_legal_pages.sql')['keys'], $facts015)),
+            in_order(array_merge($keys, ['title.contact', 'title.privacy', 'title.terms'])),
+            'the facts 013 and 015 write, and the three tabs\' titles',
+        );
+        foreach ($rows as ['key_name' => $key, 'language_code' => $code, 'value' => $value]) {
+            assert_false((bool) preg_match('~https?:|://|www\.|@~i', $value), "$key ($code) holds no address: $value");
+            if ($code === 'sk') {
+                // Vy, Vás, Váš with their capital (the site's formal Slovak) - never the lower case, never ty.
+                assert_false((bool) preg_match('/\b(vy|vás|vám|váš|vaš[a-záéíóúý]*|ty|teba|tebe|ťa|ti|tvoj[a-záéíóúý]*)\b/u', $value), "$key: formal Slovak - $value");
+            }
         }
-    }
-    // The visitors' days are the host's number (visitor_days): a plural family, the word agreeing with it.
-    $days = array_map(static fn(string $form): string => implode(' ', array_slice(explode(' ', strings_of('sk', ["legal.visitors.kept.$form"])["legal.visitors.kept.$form"] ?? ''), 0, 3)), ['one', 'few', 'other']);
-    assert_same(['{count} deň po', '{count} dni po', '{count} dní po'], $days, 'the visitors\' days in Slovak: one, few and other');
-});
+        // The visitors' days are the host's number (visitor_days): a plural family, the word agreeing with it.
+        $days = array_map(static fn(string $form): string => implode(' ', array_slice(explode(' ', strings_of('sk', ["legal.visitors.kept.$form"])["legal.visitors.kept.$form"] ?? ''), 0, 3)), [
+            'one',
+            'few',
+            'other',
+        ]);
+        assert_same(['{count} deň po', '{count} dni po', '{count} dní po'], $days, 'the visitors\' days in Slovak: one, few and other');
+    },
+);
 
 /* -------------------------------------------------------------------- the scan */
 
@@ -404,15 +452,29 @@ test('the scan as this site has it: the specs and the specs\' helpers are not re
         'core/testing/example.ts' => "export const example = 'home.onlyInTesting';\n",
         'core/i18n/dynamic-keys.ts' => "export const DYNAMIC_KEYS = {\n  'aboutYou.gender.': ['male', 'female'],\n};\n",
     ]);
-    $database = ['home.title', 'home.questions.one', 'home.questions.few', 'home.questions.other', 'home.onlyInASpec', 'home.onlyInTesting',
-        'take.start', 'aboutYou.gender.male', 'aboutYou.gender.female', 'anotoki.ui.close'];
+    $database = [
+        'home.title',
+        'home.questions.one',
+        'home.questions.few',
+        'home.questions.other',
+        'home.onlyInASpec',
+        'home.onlyInTesting',
+        'take.start',
+        'aboutYou.gender.male',
+        'aboutYou.gender.female',
+        'anotoki.ui.close',
+    ];
     $scan = surveyKeyScanner($root)->scan($database);
 
     assert_same(['core/i18n/dynamic-keys.ts', 'pages/home/home.component.html', 'pages/home/home.component.ts'], surveyKeyScanner($root)->sourceFiles());
     assert_same(['home.onlyInASpec', 'home.onlyInTesting', 'take.start'], $scan['unused'], 'the specs and core/testing/ do not count; the library\'s keys are never unused');
-    assert_same(['aboutYou.gender.female', 'aboutYou.gender.male', 'home.questions.few', 'home.questions.one', 'home.questions.other', 'home.title'], array_keys($scan['used']), 'a plural by its family\'s name; the declared keys');
+    assert_same(
+        ['aboutYou.gender.female', 'aboutYou.gender.male', 'home.questions.few', 'home.questions.one', 'home.questions.other', 'home.title'],
+        array_keys($scan['used']),
+        'a plural by its family\'s name; the declared keys',
+    );
     assert_same(2, count($scan['problems']), test_show($scan['problems']));
-    assert_match("/^pages\\/home\\/home\\.component\\.html:3: innerHTML is given a translated string/", $scan['problems'][0]);
+    assert_match('/^pages\\/home\\/home\\.component\\.html:3: innerHTML is given a translated string/', $scan['problems'][0]);
     assert_match("/^pages\\/home\\/home\\.component\\.ts:1: a key is put together from 'take\\.refused\\.', which core\\/i18n\\/dynamic-keys\\.ts does not declare/", $scan['problems'][1]);
 });
 

@@ -58,10 +58,7 @@ function languageCodeOk(mixed $code): bool
 /** The site's words on $pdo (the site's own connection by default): the library, as this site configures it. */
 function surveyTranslations(?PDO $pdo = null): Translations
 {
-    return new Translations($pdo ?? db(), new TranslationsConfig(
-        releasedLanguages: TRANSLATION_SEEDED_LANGUAGES,
-        usage: new SurveyLanguageUsage(),
-    ));
+    return new Translations($pdo ?? db(), new TranslationsConfig(releasedLanguages: TRANSLATION_SEEDED_LANGUAGES, usage: new SurveyLanguageUsage()));
 }
 
 /**
@@ -94,8 +91,11 @@ final class SurveyLanguageUsage implements LanguageUsage
         return new Refusal(
             409,
             'language_in_use',
-            ($surveys === 1 ? '1 survey is' : "$surveys surveys are") . ' written in this language or translated into it. Switch it off instead, or remove it from the ' . ($surveys === 1 ? 'survey' : 'surveys') . ' first.',
-            ['surveys' => $surveys]
+            ($surveys === 1 ? '1 survey is' : "$surveys surveys are") .
+                ' written in this language or translated into it. Switch it off instead, or remove it from the ' .
+                ($surveys === 1 ? 'survey' : 'surveys') .
+                ' first.',
+            ['surveys' => $surveys],
         );
     }
 

@@ -38,7 +38,11 @@ function stand_in(string $label): StandInIam
 test('the sign-in settings the browser reads, without a token', function (): void {
     $config = call($GLOBALS['app']['base'], 'GET', '/api/auth/config');
     assert_same(200, $config['status']);
-    assert_same(['issuer' => TEST_ISSUER, 'client_id' => 'survey', 'login_required' => true, 'sign_in_available' => true, 'visitor_days' => 30], $config['body'], 'the IAM never reached: sign-in required (and not known to refuse the site); a visitor\'s browser remembered for 30 days');
+    assert_same(
+        ['issuer' => TEST_ISSUER, 'client_id' => 'survey', 'login_required' => true, 'sign_in_available' => true, 'visitor_days' => 30],
+        $config['body'],
+        'the IAM never reached: sign-in required (and not known to refuse the site); a visitor\'s browser remembered for 30 days',
+    );
     assert_same('no-store', $config['headers']['cache-control'] ?? null);
     assert_same('nosniff', $config['headers']['x-content-type-options'] ?? null);
     $stale = call($GLOBALS['app']['base'], 'GET', '/api/auth/config', null, bearer(test_token(ANNA, [], ['exp' => time() - 120])));
@@ -48,7 +52,11 @@ test('the sign-in settings the browser reads, without a token', function (): voi
 test('a good token: the person is recorded from it - no address - and their roles are this site\'s', function (): void {
     assert_same(200, with_token(test_token(ANNA, ['EDITOR']))['status']);
     assert_same(['id' => ANNA, 'preferred_username' => 'user' . ANNA], dbOne('SELECT id, preferred_username FROM users WHERE id = ?', [ANNA]));
-    assert_same(0, (int) dbValue("SELECT count(*) FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'email'"), 'no address is kept here (migration 011): the IAM keeps them');
+    assert_same(
+        0,
+        (int) dbValue("SELECT count(*) FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'email'"),
+        'no address is kept here (migration 011): the IAM keeps them',
+    );
     assert_same(200, with_token(test_token(ANNA, ['editor']))['status'], 'a role in any case');
     assert_same(403, with_token(test_token(ANNA, ['MEMBER']))['status'], 'MEMBER - every account holds it - is an ordinary person: no admin panel');
     assert_same(200, with_token(test_token(ANNA, ['MEMBER']), 'GET', '/api/surveys')['status'], 'MEMBER alone takes surveys');
@@ -117,7 +125,7 @@ test('the IAM\'s "Sign-in required" switch, relayed to the browser - off, nobody
     assert_same([401, 'sign_in_required'], [$refused['status'], $refused['body']['code'] ?? null], 'switched on: nobody is asked to sign in');
     unlink($file);
     assert_same(true, call($app['base'], 'GET', '/api/auth/config')['body']['login_required'], 'the IAM out of reach, never read: required');
-    ($app['stop'])();
+    $app['stop']();
 });
 
 test('no CORS: a page on another site gets nothing to let it through', function (): void {
@@ -137,7 +145,7 @@ test('keys from the IAM itself: downloaded, and cached on disk', function (): vo
     assert_true(glob("$cache/anotoki-iam-jwks-*.json") !== [], 'the key set is kept on disk');
     $standIn->stop();
     assert_same(200, call($app['base'], 'GET', '/api/admin/surveys', null, bearer($standIn->iam->token(ANNA, ['ADMIN'])))['status'], 'and used while the IAM is away');
-    ($app['stop'])();
+    $app['stop']();
 });
 
 test('the switch from the stand-in IAM: its public route, kept a minute in cache_dir, a 404 is "required" and the site unknown to it, an IAM gone keeps the last answer', function (): void {
@@ -197,9 +205,13 @@ test('the switch from the stand-in IAM: its public route, kept a minute in cache
     $standIn->state(['down' => false, 'application_missing' => true]);
     $later();
     $unknown = $config();
-    assert_same([true, false], [$unknown['login_required'] ?? null, $unknown['sign_in_available'] ?? null], 'the IAM does not know the site (404): sign-in required, whatever it said before - and no sign-in on offer');
+    assert_same(
+        [true, false],
+        [$unknown['login_required'] ?? null, $unknown['sign_in_available'] ?? null],
+        'the IAM does not know the site (404): sign-in required, whatever it said before - and no sign-in on offer',
+    );
     $standIn->state(['application_missing' => false]);
     assert_same([], server_problems($app));
-    ($app['stop'])();
+    $app['stop']();
     $standIn->stop();
 });

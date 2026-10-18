@@ -83,16 +83,18 @@ function peopleForgetFeedback(PDO $pdo, int $sub, ?array $former): void
 function peopleColumns(): array
 {
     return [
-        new PeopleColumn('answered', 'Surveys answered', 'count', static fn(PDO $pdo, array $subs): array => peopleCounts(
-            $pdo,
-            'SELECT user_id, count(*) FROM responses WHERE user_id = ANY(?::bigint[]) GROUP BY user_id',
-            $subs
-        )),
-        new PeopleColumn('written', 'Surveys written', 'count', static fn(PDO $pdo, array $subs): array => peopleCounts(
-            $pdo,
-            'SELECT created_by, count(*) FROM surveys WHERE created_by = ANY(?::bigint[]) GROUP BY created_by',
-            $subs
-        )),
+        new PeopleColumn(
+            'answered',
+            'Surveys answered',
+            'count',
+            static fn(PDO $pdo, array $subs): array => peopleCounts($pdo, 'SELECT user_id, count(*) FROM responses WHERE user_id = ANY(?::bigint[]) GROUP BY user_id', $subs),
+        ),
+        new PeopleColumn(
+            'written',
+            'Surveys written',
+            'count',
+            static fn(PDO $pdo, array $subs): array => peopleCounts($pdo, 'SELECT created_by, count(*) FROM surveys WHERE created_by = ANY(?::bigint[]) GROUP BY created_by', $subs),
+        ),
     ];
 }
 
@@ -161,10 +163,12 @@ function peopleDelete(PDO $pdo, int $sub, ?Request $request = null): ?array
  */
 function peopleNames(array $ids): array
 {
-    $ids = array_values(array_filter(
-        array_map(static fn(mixed $id): int => is_int($id) ? $id : (is_string($id) && preg_match('/^[1-9][0-9]{0,17}$/D', $id) === 1 ? (int) $id : 0), $ids),
-        static fn(int $id): bool => $id > 0
-    ));
+    $ids = array_values(
+        array_filter(
+            array_map(static fn(mixed $id): int => is_int($id) ? $id : (is_string($id) && preg_match('/^[1-9][0-9]{0,17}$/D', $id) === 1 ? (int) $id : 0), $ids),
+            static fn(int $id): bool => $id > 0,
+        ),
+    );
     if ($ids === []) {
         return [];
     }

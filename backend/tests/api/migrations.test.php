@@ -20,9 +20,9 @@ declare(strict_types=1);
 
 require __DIR__ . '/../lib.php'; // before the app loads: a throwaway database and settings
 
-const ADA = 1;      // ADMIN
-const EDITH = 2;    // EDITOR
-const PAT = 101;    // takes surveys
+const ADA = 1; // ADMIN
+const EDITH = 2; // EDITOR
+const PAT = 101; // takes surveys
 
 const FILE_004 = '004_response_language.sql';
 /**
@@ -210,7 +210,11 @@ test('up to date: every file applied, in the order it ran, with when - nothing p
     $status = as_user(ADA, 'GET', '/api/admin/migrations');
     assert_same(200, $status['status']);
     assert_same(['sets', 'applied', 'pending', 'missing'], array_keys($status['body']));
-    assert_same(['anotoki_admin', 'survey', 'anotoki_translations', 'anotoki_people'], $status['body']['sets'], 'the anotoki library\'s admin set, the site\'s own, then the library\'s words and people');
+    assert_same(
+        ['anotoki_admin', 'survey', 'anotoki_translations', 'anotoki_people'],
+        $status['body']['sets'],
+        'the anotoki library\'s admin set, the site\'s own, then the library\'s words and people',
+    );
     $applied = array_map(static fn(array $row): array => ['set' => $row['set'], 'name' => $row['name']], $status['body']['applied']);
     // In the order it ran - this database's own: one built across releases ran a set added later after the files before it.
     $ran = array_map(static function (string $record): array {
@@ -264,15 +268,26 @@ test('the status answers anybody, whatever the request carries and whatever the 
         }
     } finally {
         current_again();
-        ($required['stop'])();
-        ($open['stop'])();
+        $required['stop']();
+        $open['stop']();
     }
 });
 
 test('a file\'s SQL, for the page\'s View - and nothing that is not a file of the set', function (): void {
     $file = as_user(ADA, 'GET', '/api/admin/migrations/file?set=survey&name=' . FILE_004);
     assert_same([200, ['set' => 'survey', 'name' => FILE_004, 'sql' => migration_sql(FILE_004)]], [$file['status'], $file['body']]);
-    foreach (['set=survey&name=' . rawurlencode('../../config/config.php'), 'set=survey&name=' . rawurlencode('../survey/' . FILE_004), 'set=other&name=' . FILE_004, 'set=survey&name=nothing.sql', 'set=survey', 'name=' . FILE_004, ''] as $query) {
+    foreach (
+        [
+            'set=survey&name=' . rawurlencode('../../config/config.php'),
+            'set=survey&name=' . rawurlencode('../survey/' . FILE_004),
+            'set=other&name=' . FILE_004,
+            'set=survey&name=nothing.sql',
+            'set=survey',
+            'name=' . FILE_004,
+            '',
+        ]
+        as $query
+    ) {
         $refused = as_user(ADA, 'GET', '/api/admin/migrations/file?' . $query);
         assert_same([404, ['code' => 'not_found', 'message' => 'No such migration file.']], [$refused['status'], $refused['body']], "?$query");
     }
@@ -289,7 +304,11 @@ test('ADMIN alone, from the token: nobody is asked to sign in, a participant and
             assert_same([401, 'sign_in_required'], [$nobody['status'], $nobody['body']['code'] ?? null], "$route, nobody");
             foreach ([PAT => 'a participant', EDITH => 'an EDITOR'] as $user => $who) {
                 $refused = as_user($user, $method, $url);
-                assert_same([403, 'forbidden', 'Only an administrator of the survey site may do this.'], [$refused['status'], $refused['body']['code'] ?? null, $refused['body']['error'] ?? null], "$route, $who" . ($isBehind ? ', behind' : ''));
+                assert_same(
+                    [403, 'forbidden', 'Only an administrator of the survey site may do this.'],
+                    [$refused['status'], $refused['body']['code'] ?? null, $refused['body']['error'] ?? null],
+                    "$route, $who" . ($isBehind ? ', behind' : ''),
+                );
             }
             $bad = call($GLOBALS['app']['base'], $method, $url, null, bearer(test_token(ADA, ['ADMIN'], ['exp' => time() - 120])));
             assert_same([401, 'invalid_token'], [$bad['status'], $bad['body']['code'] ?? null], "$route: an ADMIN's token that has run out");
@@ -304,11 +323,20 @@ test('a migration waiting: 503 update_pending with Retry-After everywhere - but 
 
     $status = anonymous('GET', '/api/site-status');
     assert_same([200, ['state' => 'update_pending', 'installed' => false]], [$status['status'], $status['body']], 'the status always answers');
-    foreach ([
-        [PAT, 'GET /api/surveys'], [PAT, 'GET /api/surveys/x'], [PAT, 'POST /api/visitor/move'],
-        [ADA, 'GET /api/admin/surveys'], [ADA, 'GET /api/admin/translations'], [ADA, 'GET /api/admin/languages'],
-        [null, 'GET /api/images/00000000-0000-0000-0000-000000000000.png'], [null, 'GET /api/translations'], [null, 'GET /api/no-such-address'],
-    ] as [$user, $route]) {
+    foreach (
+        [
+            [PAT, 'GET /api/surveys'],
+            [PAT, 'GET /api/surveys/x'],
+            [PAT, 'POST /api/visitor/move'],
+            [ADA, 'GET /api/admin/surveys'],
+            [ADA, 'GET /api/admin/translations'],
+            [ADA, 'GET /api/admin/languages'],
+            [null, 'GET /api/images/00000000-0000-0000-0000-000000000000.png'],
+            [null, 'GET /api/translations'],
+            [null, 'GET /api/no-such-address'],
+        ]
+        as [$user, $route]
+    ) {
         [$method, $url] = explode(' ', $route);
         $closed = $user === null ? anonymous($method, $url) : as_user($user, $method, $url);
         assert_same([503, UPDATING], [$closed['status'], $closed['body']], "$route" . ($user === ADA ? ', even for an ADMIN' : '') . ': no error of the site\'s, no setup page');
@@ -336,20 +364,23 @@ test('a migration waiting: 503 update_pending with Retry-After everywhere - but 
 test('a migration waiting: an address dressed up as an open one stays closed - dot segments, escaped slashes, anything under the Migrations page that is not its route', function (): void {
     behind(FILE_007);
 
-    foreach ([
-        '/api/admin/migrations/../../surveys',
-        '/api/admin/migrations/%2e%2e/%2e%2e/surveys',
-        '/api/admin/migrations%2F..%2F..%2Fsurveys',
-        '/api/admin/migrations/file/../../../surveys',
-        '/api/admin/migrations/apply/..',
-        '/api/admin/migrations/',
-        '/api/admin/migrations/anything',
-        '/api/translations/sk/../../surveys',
-        '/api/translations/..%2F..%2Fsurveys',
-        '/api/auth/config/../../surveys',
-        '/api/health/../surveys',
-        '/api/site-status/../surveys',
-    ] as $path) {
+    foreach (
+        [
+            '/api/admin/migrations/../../surveys',
+            '/api/admin/migrations/%2e%2e/%2e%2e/surveys',
+            '/api/admin/migrations%2F..%2F..%2Fsurveys',
+            '/api/admin/migrations/file/../../../surveys',
+            '/api/admin/migrations/apply/..',
+            '/api/admin/migrations/',
+            '/api/admin/migrations/anything',
+            '/api/translations/sk/../../surveys',
+            '/api/translations/..%2F..%2Fsurveys',
+            '/api/auth/config/../../surveys',
+            '/api/health/../surveys',
+            '/api/site-status/../surveys',
+        ]
+        as $path
+    ) {
         foreach ([ADA, null] as $user) {
             $closed = as_written($user, 'GET', $path);
             assert_same([503, UPDATING], [$closed['status'], $closed['body']], "$path, " . ($user === null ? 'nobody signed in' : 'an ADMIN') . ': closed by the gate, not left to the routes');
@@ -372,7 +403,11 @@ test('several pending, in the order they will run; Apply runs them all and the s
     assert_same([FILE_004, FILE_007], pending_now());
 
     $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
-    assert_same([200, ['applied' => [file_entry(FILE_004), file_entry(FILE_007)], 'failed' => null, 'error' => null, 'note' => 'BACKUP']], [$apply['status'], applied($apply['body'])], 'a backup of the database first, then the files');
+    assert_same(
+        [200, ['applied' => [file_entry(FILE_004), file_entry(FILE_007)], 'failed' => null, 'error' => null, 'note' => 'BACKUP']],
+        [$apply['status'], applied($apply['body'])],
+        'a backup of the database first, then the files',
+    );
     assert_same(1, count(backups_of('before-migration')), 'the backup, in the site\'s storage');
     assert_same([], pending_now());
     assert_same(ENGLISH_007, dbValue("SELECT value FROM translations WHERE key_name = ? AND language_code = 'en'", [KEY_007]));
@@ -388,11 +423,17 @@ test('a file that fails: what ran before it stands, it is rolled back whole and 
     dbExec('DELETE FROM translation_keys WHERE name = ?', [KEY_007]);
     // 007 fails part way: its keys and their English are written first, then its Slovak string of that key is refused.
     dbExec("CREATE OR REPLACE FUNCTION survey_test_refuse() RETURNS trigger LANGUAGE plpgsql AS \$\$ BEGIN RAISE EXCEPTION 'the test refuses to write %', NEW.key_name; END \$\$");
-    dbExec("CREATE TRIGGER survey_test_refuse BEFORE INSERT ON translations FOR EACH ROW WHEN (NEW.key_name = 'visitor.notice.one' AND NEW.language_code = 'sk') EXECUTE FUNCTION survey_test_refuse()");
+    dbExec(
+        "CREATE TRIGGER survey_test_refuse BEFORE INSERT ON translations FOR EACH ROW WHEN (NEW.key_name = 'visitor.notice.one' AND NEW.language_code = 'sk') EXECUTE FUNCTION survey_test_refuse()",
+    );
 
     $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
     assert_same(200, $apply['status'], 'a failed file is still an answer: the page shows it');
-    assert_same([[file_entry(FILE_004)], file_entry(FILE_007), 'BACKUP'], [$apply['body']['applied'], $apply['body']['failed'], applied($apply['body'])['note']], 'what ran first, and the file that failed - after the backup');
+    assert_same(
+        [[file_entry(FILE_004)], file_entry(FILE_007), 'BACKUP'],
+        [$apply['body']['applied'], $apply['body']['failed'], applied($apply['body'])['note']],
+        'what ran first, and the file that failed - after the backup',
+    );
     $error = (string) $apply['body']['error'];
     assert_match('/^statement 3 of 4: SQLSTATE\[P0001\]: Raise exception: 7 ERROR:  the test refuses to write visitor\.notice\.one/', $error, 'PostgreSQL\'s own words, with the statement\'s number');
     assert_match('/\n\n  INSERT INTO translations/', $error, 'and the statement\'s first lines');
@@ -462,7 +503,9 @@ test('one update at a time: while another holds the lock, Apply and php migratio
 test('006 on a database with people and their answers: the Apply runs it, its gate passes, and nothing of theirs changes', function (): void {
     current_again();
     assert_same(200, as_user(PAT, 'GET', '/api/surveys')['status'], 'a person, recorded');
-    $survey = (string) dbValue("INSERT INTO surveys (slug, title, status, content) VALUES ('before-006', 'Before', 'open', ?::jsonb) RETURNING id", [jsonText(['intro' => '', 'thanks' => '', 'askAboutYou' => false, 'steps' => []])]);
+    $survey = (string) dbValue("INSERT INTO surveys (slug, title, status, content) VALUES ('before-006', 'Before', 'open', ?::jsonb) RETURNING id", [
+        jsonText(['intro' => '', 'thanks' => '', 'askAboutYou' => false, 'steps' => []]),
+    ]);
     dbExec("INSERT INTO responses (survey_id, user_id, started_at, language) VALUES (?, ?, now(), 'en')", [$survey, PAT]);
     undo_006();
     $people = dbAll('SELECT id, preferred_username, first_seen_at, last_seen_at FROM users ORDER BY id');
@@ -473,7 +516,11 @@ test('006 on a database with people and their answers: the Apply runs it, its ga
     assert_same([200, ['applied' => [file_entry(FILE_006), file_entry(FILE_011)], 'failed' => null, 'error' => null, 'note' => 'BACKUP']], [$apply['status'], applied($apply['body'])]);
     assert_same($people, dbAll('SELECT id, preferred_username, first_seen_at, last_seen_at FROM users ORDER BY id'), 'the people as they were');
     assert_same([0, $answers], [(int) dbValue('SELECT count(*) FROM users WHERE visitor_key_hash IS NOT NULL'), dbAll('SELECT * FROM responses ORDER BY id')], 'no key, the answers as they were');
-    assert_same([-1, 'responses_by_user'], [(int) dbValue("SELECT nextval('visitor_ids')"), dbValue("SELECT to_regclass('responses_by_user')::text")], 'visitors count down from -1; answers are found by person');
+    assert_same(
+        [-1, 'responses_by_user'],
+        [(int) dbValue("SELECT nextval('visitor_ids')"), dbValue("SELECT to_regclass('responses_by_user')::text")],
+        'visitors count down from -1; answers are found by person',
+    );
     dbExec('DELETE FROM surveys WHERE id = ?', [$survey]);
 });
 
@@ -497,7 +544,7 @@ test('a database waiting for 006: the surveys are closed for nobody, a visitor k
         assert_same(0, (int) dbValue('SELECT count(*) FROM users WHERE id < 0'), 'nobody was made a visitor');
     } finally {
         current_again();
-        ($site['stop'])();
+        $site['stop']();
     }
 });
 
@@ -515,11 +562,15 @@ test('a database with nothing in it: an ADMIN builds it on the Migrations page -
         $apply = call($site['base'], 'POST', '/api/admin/migrations/apply', null, $admin);
         assert_same([200, migration_entries(), null], [$apply['status'], $apply['body']['applied'], $apply['body']['failed']]);
         $bundle = call($site['base'], 'GET', '/api/translations/sk');
-        assert_same([200, 'Vaša ponuka'], [$bundle['status'], $bundle['body']['values']['anotoki.topbar.menu'] ?? null], 'the words from nothing too: the library\'s keys, in the site\'s formal Slovak');
+        assert_same(
+            [200, 'Vaša ponuka'],
+            [$bundle['status'], $bundle['body']['values']['anotoki.topbar.menu'] ?? null],
+            'the words from nothing too: the library\'s keys, in the site\'s formal Slovak',
+        );
         assert_same(['state' => 'ready', 'installed' => false], call($site['base'], 'GET', '/api/site-status')['body']);
         assert_same(200, call($site['base'], 'GET', '/api/surveys', null, bearer(test_token(PAT, ['MEMBER'])))['status'], 'and the site runs');
     } finally {
-        ($site['stop'])();
+        $site['stop']();
     }
 });
 
@@ -539,7 +590,11 @@ test('not set up and never installed: 503 not_set_up everywhere but the status -
         foreach ($routes as $route) {
             [$method, $url] = explode(' ', $route);
             $answer = call($site['base'], $method, $url, null, bearer(test_token(ADA, ['ADMIN'])));
-            assert_same([503, ['code' => 'not_set_up', 'installed' => false, 'message' => 'This site is not set up yet. Its setup page connects it to its database.', 'setup' => '/setup.php']], [$answer['status'], $answer['body']], $route);
+            assert_same(
+                [503, ['code' => 'not_set_up', 'installed' => false, 'message' => 'This site is not set up yet. Its setup page connects it to its database.', 'setup' => '/setup.php']],
+                [$answer['status'], $answer['body']],
+                $route,
+            );
         }
 
         // Installed once on a real host (setup.php wrote storage/installed.lock): never the setup page again.
@@ -554,54 +609,92 @@ test('not set up and never installed: 503 not_set_up everywhere but the status -
         foreach ($routes as $route) {
             [$method, $url] = explode(' ', $route);
             $answer = call($site['base'], $method, $url, null, bearer(test_token(ADA, ['ADMIN'])));
-            assert_same([503, ['code' => 'not_set_up', 'installed' => true, 'message' => 'The site is not available right now. Try again in a few minutes.']], [$answer['status'], $answer['body']], "$route, installed");
+            assert_same(
+                [503, ['code' => 'not_set_up', 'installed' => true, 'message' => 'The site is not available right now. Try again in a few minutes.']],
+                [$answer['status'], $answer['body']],
+                "$route, installed",
+            );
         }
     } finally {
-        ($site['stop'])();
+        $site['stop']();
     }
 });
 
-test('a database.local.php saved with a byte-order mark and without its <?php line, its password in it, is never printed - nor one with a byte-order mark or a blank line before <?php declare(strict_types=1), which PHP cannot even compile: no answer carries the password or PHP\'s words - the status the pages read, the API, the pages, the setup page -, none is a 500, and the site says it is not set up', function (): void {
-    $dir = test_config_dir(test_iam());
-    $password = 'sesame-' . bin2hex(random_bytes(12));
-    $settings = var_export(['host' => '127.0.0.1', 'port' => 5432, 'name' => dbName(), 'user' => 'postgres', 'password' => $password], true);
-    $site = start_with($dir);
-    try {
-        foreach ([
-            // Without its <?php line every byte of the file is text to PHP, printed as PHP reads it - ahead of the
-            // answer and its headers, on every request, unless it is never required (settingsFileReadCleanly()).
-            'a byte-order mark and no <?php line' => "\xEF\xBB\xBFreturn $settings;\n",
-            // Required, either is a compile-time fatal error that nothing catches ("strict_types declaration must be
-            // the very first statement"): every answer a 500, the status the pages read included - so neither is
-            // ever compiled.
-            'a byte-order mark before <?php declare(strict_types=1)' => "\xEF\xBB\xBF<?php declare(strict_types=1);\n\nreturn $settings;\n",
-            'a blank line before <?php declare(strict_types=1)' => "\n<?php declare(strict_types=1);\n\nreturn $settings;\n",
-        ] as $case => $file) {
-            file_put_contents("$dir/database.local.php", $file);
-            foreach ([['GET', '/api/site-status'], ['GET', '/api/health'], ['GET', '/api/auth/config'], ['GET', '/api/translations/en'], ['GET', '/api/surveys'], ['POST', '/api/admin/migrations/apply'], ['GET', '/'], ['GET', '/terms'], ['GET', '/setup.php']] as [$method, $url]) {
-                $answer = call($site['base'], $method, $url, null, bearer(test_token(ADA, ['ADMIN'])));
-                $seen = $answer['raw'] . "\n" . implode("\n", array_map(static fn(string $name, string $value): string => "$name: $value", array_keys($answer['headers']), $answer['headers']));
-                assert_false(str_contains($seen, $password) || str_contains($seen, 'sesame') || str_contains($seen, "\xEF\xBB\xBF"), "$case, $method $url: nothing of the file in the answer or its headers");
-                assert_false(str_contains($seen, 'strict_types'), "$case, $method $url: nor PHP's words about it");
-                if ($url === '/api/site-status') {
-                    assert_same([200, ['state' => 'not_set_up', 'installed' => false]], [$answer['status'], $answer['body']], "$case: the status the pages read: not set up - never a 500");
-                } elseif (str_starts_with($url, '/api/')) {
-                    assert_same([503, 'not_set_up', '/setup.php'], [$answer['status'], $answer['body']['code'] ?? null, $answer['body']['setup'] ?? null], "$case, $method $url: not set up, the setup page named - never a 500");
-                } else {
-                    assert_same(200, $answer['status'], "$case, $method $url");
+test(
+    'a database.local.php saved with a byte-order mark and without its <?php line, its password in it, is never printed - nor one with a byte-order mark or a blank line before <?php declare(strict_types=1), which PHP cannot even compile: no answer carries the password or PHP\'s words - the status the pages read, the API, the pages, the setup page -, none is a 500, and the site says it is not set up',
+    function (): void {
+        $dir = test_config_dir(test_iam());
+        $password = 'sesame-' . bin2hex(random_bytes(12));
+        $settings = var_export(['host' => '127.0.0.1', 'port' => 5432, 'name' => dbName(), 'user' => 'postgres', 'password' => $password], true);
+        $site = start_with($dir);
+        try {
+            foreach (
+                [
+                    // Without its <?php line every byte of the file is text to PHP, printed as PHP reads it - ahead of the
+                    // answer and its headers, on every request, unless it is never required (settingsFileReadCleanly()).
+                    'a byte-order mark and no <?php line' => "\xEF\xBB\xBFreturn $settings;\n",
+                    // Required, either is a compile-time fatal error that nothing catches ("strict_types declaration must be
+                    // the very first statement"): every answer a 500, the status the pages read included - so neither is
+                    // ever compiled.
+                    'a byte-order mark before <?php declare(strict_types=1)' => "\xEF\xBB\xBF<?php declare(strict_types=1);\n\nreturn $settings;\n",
+                    'a blank line before <?php declare(strict_types=1)' => "\n<?php declare(strict_types=1);\n\nreturn $settings;\n",
+                ]
+                as $case => $file
+            ) {
+                file_put_contents("$dir/database.local.php", $file);
+                foreach (
+                    [
+                        ['GET', '/api/site-status'],
+                        ['GET', '/api/health'],
+                        ['GET', '/api/auth/config'],
+                        ['GET', '/api/translations/en'],
+                        ['GET', '/api/surveys'],
+                        ['POST', '/api/admin/migrations/apply'],
+                        ['GET', '/'],
+                        ['GET', '/terms'],
+                        ['GET', '/setup.php'],
+                    ]
+                    as [$method, $url]
+                ) {
+                    $answer = call($site['base'], $method, $url, null, bearer(test_token(ADA, ['ADMIN'])));
+                    $seen = $answer['raw'] . "\n" . implode("\n", array_map(static fn(string $name, string $value): string => "$name: $value", array_keys($answer['headers']), $answer['headers']));
+                    assert_false(
+                        str_contains($seen, $password) || str_contains($seen, 'sesame') || str_contains($seen, "\xEF\xBB\xBF"),
+                        "$case, $method $url: nothing of the file in the answer or its headers",
+                    );
+                    assert_false(str_contains($seen, 'strict_types'), "$case, $method $url: nor PHP's words about it");
+                    if ($url === '/api/site-status') {
+                        assert_same([200, ['state' => 'not_set_up', 'installed' => false]], [$answer['status'], $answer['body']], "$case: the status the pages read: not set up - never a 500");
+                    } elseif (str_starts_with($url, '/api/')) {
+                        assert_same(
+                            [503, 'not_set_up', '/setup.php'],
+                            [$answer['status'], $answer['body']['code'] ?? null, $answer['body']['setup'] ?? null],
+                            "$case, $method $url: not set up, the setup page named - never a 500",
+                        );
+                    } else {
+                        assert_same(200, $answer['status'], "$case, $method $url");
+                    }
                 }
+                assert_match(
+                    '~The saved settings are not complete: config/database\.local\.php does not start with &lt;\?php~',
+                    call($site['base'], 'GET', '/setup.php')['raw'],
+                    "$case: the setup page on this computer says which file and its fault - never what it holds",
+                );
             }
-            assert_match('~The saved settings are not complete: config/database\.local\.php does not start with &lt;\?php~', call($site['base'], 'GET', '/setup.php')['raw'], "$case: the setup page on this computer says which file and its fault - never what it holds");
+            assert_same([], server_problems($site), 'no PHP warning and no fatal error - nothing went out ahead of the headers, nothing of the files was compiled');
+            $log = (string) file_get_contents($site['log']);
+            assert_same(
+                1,
+                lines_saying($log, '[config] config/database.local.php does not start with <?php'),
+                'the log says which file and its fault, once, though every request of the three files reads it: ' . $log,
+            );
+            assert_false(str_contains($log, $password) || str_contains($log, 'sesame'), 'and never the password');
+            assert_false(str_contains($log, 'strict_types'), 'never compiled: no fatal error in the log either');
+        } finally {
+            $site['stop']();
         }
-        assert_same([], server_problems($site), 'no PHP warning and no fatal error - nothing went out ahead of the headers, nothing of the files was compiled');
-        $log = (string) file_get_contents($site['log']);
-        assert_same(1, lines_saying($log, '[config] config/database.local.php does not start with <?php'), 'the log says which file and its fault, once, though every request of the three files reads it: ' . $log);
-        assert_false(str_contains($log, $password) || str_contains($log, 'sesame'), 'and never the password');
-        assert_false(str_contains($log, 'strict_types'), 'never compiled: no fatal error in the log either');
-    } finally {
-        ($site['stop'])();
-    }
-});
+    },
+);
 
 test('the database out of reach: the status says unavailable, and everything else is the site\'s own answer', function (): void {
     $dir = test_config_dir(test_iam());
@@ -614,6 +707,6 @@ test('the database out of reach: the status says unavailable, and everything els
         $surveys = call($site['base'], 'GET', '/api/surveys', null, bearer(test_token(PAT, ['MEMBER'])));
         assert_same([503, 'database_unavailable'], [$surveys['status'], $surveys['body']['code'] ?? null]);
     } finally {
-        ($site['stop'])();
+        $site['stop']();
     }
 });

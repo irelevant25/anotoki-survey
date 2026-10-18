@@ -91,8 +91,11 @@ function test_daily_backup_due(string $config): void
     // an answer about sign-in that is not there (required, nobody asked), and no
     // list of deleted accounts (the IAM out of reach: nothing scrubbed).
     test_write_config($dir, ['name' => $name] + machineDatabaseSettings(), [
-        'issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => 'storage/cache',
-        'application_file' => test_application_file(), 'anonymized_file' => test_anonymized_file(),
+        'issuer' => TEST_ISSUER,
+        'client_id' => TEST_CLIENT,
+        'cache_dir' => 'storage/cache',
+        'application_file' => test_application_file(),
+        'anonymized_file' => test_anonymized_file(),
     ]);
     putenv("SURVEY_TEST_CONFIG=$dir");
     $GLOBALS['TEST_CONFIG_DIR'] = $dir;
@@ -123,9 +126,7 @@ function after(callable $fn): void
     $GLOBALS['TESTS']['after'][] = $fn;
 }
 
-final class AssertionFailed extends RuntimeException
-{
-}
+final class AssertionFailed extends RuntimeException {}
 
 function test_show(mixed $value): string
 {
@@ -507,7 +508,10 @@ function test_frontend_build(): string
     static $dir = null;
     if ($dir === null) {
         $dir = test_temp_dir('frontend');
-        file_put_contents("$dir/index.html", "<!doctype html><html><head><title>anotoki survey</title></head><body><app-root></app-root><script src=\"main-TEST.js\" type=\"module\"></script></body></html>\n");
+        file_put_contents(
+            "$dir/index.html",
+            "<!doctype html><html><head><title>anotoki survey</title></head><body><app-root></app-root><script src=\"main-TEST.js\" type=\"module\"></script></body></html>\n",
+        );
         file_put_contents("$dir/main-TEST.js", "console.log('survey');\n");
         file_put_contents("$dir/styles-TEST.css", "body { margin: 0; }\n");
         file_put_contents("$dir/theme-boot.js", "// theme\n");
@@ -540,10 +544,15 @@ function start_app(?array $iam = null, array $env = [], ?array $visitors = null,
     if ($cloudflare !== null) {
         file_put_contents("$config/cloudflare.local.php", '<?php return ' . var_export($cloudflare, true) . ";\n");
     }
-    $app = test_start_server(TEST_BACKEND, TEST_BACKEND . '/router.php', $env + [
-        'SURVEY_TEST_CONFIG' => $config,
-        'SURVEY_FRONTEND_DIST' => test_frontend_build(),
-    ], '/api/health');
+    $app = test_start_server(
+        TEST_BACKEND,
+        TEST_BACKEND . '/router.php',
+        $env + [
+            'SURVEY_TEST_CONFIG' => $config,
+            'SURVEY_FRONTEND_DIST' => test_frontend_build(),
+        ],
+        '/api/health',
+    );
     $health = call($app['base'], 'GET', '/api/health')['body'];
     if (($health['database'] ?? null) !== dbName()) {
         throw new RuntimeException('The server uses ' . ($health['database'] ?? '?') . ', not this test\'s database.');
@@ -581,7 +590,10 @@ function begin_call(string $base, string $method, string $url, mixed $body = nul
     $headers = array_merge($headers, ['Expect:'], $body === null ? [] : ['Content-Type: application/json']);
     $received = [];
     curl_setopt_array($curl, [
-        CURLOPT_CUSTOMREQUEST => $method, CURLOPT_RETURNTRANSFER => true, CURLOPT_HTTPHEADER => $headers, CURLOPT_TIMEOUT => 30,
+        CURLOPT_CUSTOMREQUEST => $method,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_HTTPHEADER => $headers,
+        CURLOPT_TIMEOUT => 30,
         CURLOPT_HEADERFUNCTION => static function ($handle, string $line) use (&$received): int {
             if (str_contains($line, ':')) {
                 [$name, $value] = explode(':', $line, 2);
@@ -610,7 +622,7 @@ function begin_call(string $base, string $method, string $url, mixed $body = nul
 
     return [
         'waits' => static function () use ($answered): bool {
-            for ($until = microtime(true) + 10; microtime(true) < $until;) {
+            for ($until = microtime(true) + 10; microtime(true) < $until; ) {
                 if ($answered()) {
                     return false;
                 }
@@ -623,7 +635,7 @@ function begin_call(string $base, string $method, string $url, mixed $body = nul
         },
         'answer' => static function () use ($answered, $multi, $curl, &$answer, &$received): array {
             if ($answer === null) {
-                for ($until = microtime(true) + 35; !$answered() && microtime(true) < $until;) {
+                for ($until = microtime(true) + 35; !$answered() && microtime(true) < $until; ) {
                     // until it is answered (or its own 30 seconds are over)
                 }
                 $answer = ['status' => (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE), 'body' => json_decode((string) curl_multi_getcontent($curl), true), 'headers' => $received];
@@ -739,8 +751,7 @@ function call_form(string $base, string $url, array $fields, array $files = [], 
         $body .= "--$boundary\r\nContent-Disposition: form-data; name=\"$name\"\r\n\r\n$value\r\n";
     }
     foreach ($files as $name => [$fileName, $contents]) {
-        $body .= "--$boundary\r\nContent-Disposition: form-data; name=\"$name\"; filename=\"$fileName\"\r\n"
-            . "Content-Type: application/json\r\n\r\n$contents\r\n";
+        $body .= "--$boundary\r\nContent-Disposition: form-data; name=\"$name\"; filename=\"$fileName\"\r\n" . "Content-Type: application/json\r\n\r\n$contents\r\n";
     }
     $body .= "--$boundary--\r\n";
 
@@ -785,8 +796,11 @@ function test_keys(): array
 function test_iam(array $extra = []): array
 {
     return $extra + [
-        'issuer' => TEST_ISSUER, 'client_id' => TEST_CLIENT, 'cache_dir' => test_temp_dir('cache'),
-        'jwks_file' => test_keys()['jwks_file'], 'application_file' => test_application_file(),
+        'issuer' => TEST_ISSUER,
+        'client_id' => TEST_CLIENT,
+        'cache_dir' => test_temp_dir('cache'),
+        'jwks_file' => test_keys()['jwks_file'],
+        'application_file' => test_application_file(),
         'anonymized_file' => test_anonymized_file(),
     ];
 }

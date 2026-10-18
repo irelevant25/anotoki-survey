@@ -113,7 +113,7 @@ function imagesCleanup(): int
         return dbExec(
             "DELETE FROM images i
               WHERE i.created_at < now() - interval '1 day'
-                AND NOT EXISTS (SELECT 1 FROM survey_images s WHERE s.image_id = i.id)"
+                AND NOT EXISTS (SELECT 1 FROM survey_images s WHERE s.image_id = i.id)",
         );
     } catch (PDOException $e) {
         error_log('[images] clean-up skipped: ' . $e->getMessage());

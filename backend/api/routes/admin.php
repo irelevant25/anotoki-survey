@@ -128,7 +128,7 @@ $app->group('/api/admin', function (RouteCollectorProxy $group): void {
 
     $group->post('/surveys', function (Request $request, Response $response): Response {
         $body = jsonBody($request, SURVEY_BODY_LIMIT);
-        $survey = surveyCreate(currentPerson($request), is_array($body) ? ($body['survey'] ?? null) : null);
+        $survey = surveyCreate(currentPerson($request), is_array($body) ? $body['survey'] ?? null : null);
         surveyAudited($request, 'survey.created', 'survey', $survey['id'], ['title' => $survey['title'], 'slug' => $survey['slug']]);
 
         return respondJson($response, ['survey' => $survey], 201);
@@ -152,23 +152,27 @@ $app->group('/api/admin', function (RouteCollectorProxy $group): void {
         return respondJson($response, ['survey' => $survey]);
     });
 
-    $group->delete('/surveys/{id}', function (Request $request, Response $response, array $args): Response {
-        $deleted = surveyDelete((string) $args['id']);
-        surveyAudited($request, 'survey.deleted', 'survey', (string) $args['id'], $deleted);
+    $group
+        ->delete('/surveys/{id}', function (Request $request, Response $response, array $args): Response {
+            $deleted = surveyDelete((string) $args['id']);
+            surveyAudited($request, 'survey.deleted', 'survey', (string) $args['id'], $deleted);
 
-        return $response->withStatus(204);
-    })->add(requireAdmin());
+            return $response->withStatus(204);
+        })
+        ->add(requireAdmin());
 
     $group->get('/surveys/{id}/responses', function (Request $request, Response $response, array $args): Response {
         return respondJson($response, ['responses' => responsesOf((string) $args['id'])]);
     });
 
-    $group->delete('/responses/{id}', function (Request $request, Response $response, array $args): Response {
-        $deleted = responseDelete((string) $args['id']);
-        surveyAudited($request, 'response.deleted', 'response', (string) $args['id'], $deleted);
+    $group
+        ->delete('/responses/{id}', function (Request $request, Response $response, array $args): Response {
+            $deleted = responseDelete((string) $args['id']);
+            surveyAudited($request, 'response.deleted', 'response', (string) $args['id'], $deleted);
 
-        return $response->withStatus(204);
-    })->add(requireAdmin());
+            return $response->withStatus(204);
+        })
+        ->add(requireAdmin());
 
     $group->post('/images', function (Request $request, Response $response): Response {
         if (!str_starts_with(strtolower($request->getHeaderLine('Content-Type')), 'image/')) {
@@ -177,7 +181,10 @@ $app->group('/api/admin', function (RouteCollectorProxy $group): void {
 
         return respondJson($response, ['image' => imageStore(currentPerson($request), requestBytes($request, IMAGE_MAX_BYTES))], 201);
     });
-})->add(requireStaff())->add($recordPerson)->add($identify);
+})
+    ->add(requireStaff())
+    ->add($recordPerson)
+    ->add($identify);
 
 // The site's words: the anotoki library's routes, with this site's roles, error
 // body and audit log. Who saved a string is the request's person - the
@@ -187,39 +194,33 @@ $audited = static function (Request $request, string $action, ?string $type, ?st
     surveyAudited($request, $action, $type, $id, $details);
 };
 
-TranslationsRoutes::strings($app, '/api/admin', $translations, translationWriter(...), respondRefusal(...), $audited)
-    ->add(requireStaff())->add($recordPerson)->add($identify);
+TranslationsRoutes::strings($app, '/api/admin', $translations, translationWriter(...), respondRefusal(...), $audited)->add(requireStaff())->add($recordPerson)->add($identify);
 
 // Added in this order, so they run the other way round: who is asking, their
 // row, the editors' check, then deleting for an ADMIN alone.
-TranslationsRoutes::languages($app, '/api/admin', $translations, respondRefusal(...), $audited)
-    ->add(requireFor('DELETE', requireAdmin()))
-    ->add(requireStaff())->add($recordPerson)->add($identify);
+TranslationsRoutes::languages($app, '/api/admin', $translations, respondRefusal(...), $audited)->add(requireFor('DELETE', requireAdmin()))->add(requireStaff())->add($recordPerson)->add($identify);
 
 // The Migrations page's routes. Each request has a connection of its own
 // (surveyMigrator()'s rule: an Apply's lock must never sit on the pooled db()),
 // a backup comes first, and a file that fails is in the server's log as well as
 // on the page. After every Apply: the audit entries kept in a file while the
 // audit log's table waited (it may have just come), then the Apply's own.
-MigrationsRoutes::admin(
-    $app,
-    '/api/admin/migrations',
-    static fn(): Migrator => surveyMigrator(dbConnect(databaseSettings()), true),
-    static function (Request $request, array $result): void {
-        if ($result['failed'] !== null) {
-            error_log('[db] the migration ' . $result['failed']['name'] . ' failed: ' . $result['error']);
-        }
-        surveyAudit()->flushPending();
-        if ($result['applied'] !== [] || $result['failed'] !== null) {
-            $named = static fn(array $file): string => $file['set'] === surveyMigrationSet()->name ? $file['name'] : $file['set'] . '/' . $file['name'];
-            surveyAudited($request, 'migrations.applied', null, null, [
-                'applied' => array_map($named, $result['applied']),
-                'failed' => $result['failed'] === null ? null : $named($result['failed']),
-                'note' => $result['note'] ?? null,
-            ]);
-        }
-    },
-)->add(requireAdmin())->add($identify);
+MigrationsRoutes::admin($app, '/api/admin/migrations', static fn(): Migrator => surveyMigrator(dbConnect(databaseSettings()), true), static function (Request $request, array $result): void {
+    if ($result['failed'] !== null) {
+        error_log('[db] the migration ' . $result['failed']['name'] . ' failed: ' . $result['error']);
+    }
+    surveyAudit()->flushPending();
+    if ($result['applied'] !== [] || $result['failed'] !== null) {
+        $named = static fn(array $file): string => $file['set'] === surveyMigrationSet()->name ? $file['name'] : $file['set'] . '/' . $file['name'];
+        surveyAudited($request, 'migrations.applied', null, null, [
+            'applied' => array_map($named, $result['applied']),
+            'failed' => $result['failed'] === null ? null : $named($result['failed']),
+            'note' => $result['note'] ?? null,
+        ]);
+    }
+})
+    ->add(requireAdmin())
+    ->add($identify);
 
 // The admin tools: the anotoki library's routes, each group guarding itself
 // (the token's ADMIN, through surveyAdminContext()) behind this site's own
@@ -238,22 +239,20 @@ PeopleRoutes::admin(
     error: respondRefusal(...),
     audit: surveyAudit(),
     context: surveyAdminContext(),
-)->add(requireAdmin())->add($identify);
+)
+    ->add(requireAdmin())
+    ->add($identify);
 
-ErrorLogRoutes::admin($app, '/api/admin/errors', $errorLog, surveyAdminContext(), surveyAudit())
-    ->add(requireAdmin())->add($identify);
+ErrorLogRoutes::admin($app, '/api/admin/errors', $errorLog, surveyAdminContext(), surveyAudit())->add(requireAdmin())->add($identify);
 
-AuditRoutes::admin($app, '/api/admin/audit', surveyAudit(), surveyAdminContext(), peopleNames(...))
-    ->add(requireAdmin())->add($identify);
+AuditRoutes::admin($app, '/api/admin/audit', surveyAudit(), surveyAdminContext(), peopleNames(...))->add(requireAdmin())->add($identify);
 
 // What people told the site (the form's route is routes/feedback.php): each sender named from the people here
 // (surveyAdminContext()'s names), a status change and a delete written into the audit log - the delete inside its
 // own transaction (the library's AuditLog), so a restore deletes the message again.
-FeedbackRoutes::admin($app, '/api/admin/feedback', surveyFeedback(), surveyAdminContext(), surveyAudit())
-    ->add(requireAdmin())->add($identify);
+FeedbackRoutes::admin($app, '/api/admin/feedback', surveyFeedback(), surveyAdminContext(), surveyAudit())->add(requireAdmin())->add($identify);
 
-BackupsRoutes::admin($app, '/api/admin/backups', surveyBackups(), surveyAdminContext())
-    ->add(requireAdmin())->add($identify);
+BackupsRoutes::admin($app, '/api/admin/backups', surveyBackups(), surveyAdminContext())->add(requireAdmin())->add($identify);
 
 // DELIBERATELY outside every check: a browser's navigation sends no token, so
 // the download's single-use ticket (60 seconds, for one backup, made after the
