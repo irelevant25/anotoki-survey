@@ -122,7 +122,7 @@ wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (now 0.6.1, both halves:
+migrations are the shared library's, **anotoki-lib** (now 0.6.2, both halves:
 `anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and
@@ -186,7 +186,7 @@ checklist above), only on a request that carries it: anybody's Cloudflare
 Worker can connect from Cloudflare's ranges, and any other request counts as
 the edge it came from.
 
-And with anotoki-lib 0.6.1: **Terms, Privacy and Contact** - the family's
+And with anotoki-lib 0.6.2: **Terms, Privacy and Contact** - the family's
 pages, with this site's facts (what it keeps of the people who sign in, of
 their answers and of visitors, what it keeps in the browser, and for how
 long), open to anybody, signed in or not, in English and formal Slovak - and
@@ -196,21 +196,22 @@ from there. No feedback form: Contact gives the family's address. The kit's
 new pieces where the site drew its own: the home page's and the System page's
 cards that are one link, the results' filters as removable chips. And every
 `config/*.local.php` is read cleanly or not at all: one saved with a
-byte-order mark or without its `<?php` line never prints what it holds (the
-database password with it) - a database or IAM file so leaves the site not
-set up, a visitors file means the defaults, and a
-`config/cloudflare.local.php` that cannot be read cleanly fails closed
-(Hosting checklist above).
+byte-order mark or without its `<?php` line is never compiled - it never
+prints what it holds (the database password with it), nor stops every page
+with a 500 - so a database or IAM file leaves the site not set up, a visitors
+file means the defaults, and a `config/cloudflare.local.php` that cannot be
+read cleanly fails closed (Hosting checklist above).
 
 On the hosting this version brings new migrations (up to
 `013_legal_pages.sql`, and the library's own sets around them -
 `anotoki_admin` first, `anotoki_translations` and `anotoki_people` after; 012
 moves the site's sign-in words under the library's keys first, an owner's
-rewording with them; 013 writes the legal pages' facts; anotoki-lib 0.6.1
-brings its translations `005`-`010`: the legal pages', the kit's new pieces',
-the backups' wording): after the upload an ADMIN signs in from the family's
-page and applies them on the Migrations page (or the setup page does), then
-makes a backup by hand - the first one sealed - [docs/operations.md](docs/operations.md).
+rewording with them; 013 writes the legal pages' facts; anotoki-lib 0.6.2
+brings its translations `005`-`011`: the legal pages', the kit's new pieces',
+the backups' and the Privacy page's wording): after the upload an ADMIN signs
+in from the family's page and applies them on the Migrations page (or the
+setup page does), then makes a backup by hand - the first one sealed -
+[docs/operations.md](docs/operations.md).
 No survey may have the addresses `terms`, `privacy` or `contact` any more:
 one opened at such an address before this version is reached no more there
 (the legal page answers) - move it in the editor.

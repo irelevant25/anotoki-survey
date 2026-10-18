@@ -52,7 +52,7 @@ Working conventions:
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
 - Signing in, the people and the admin tools are the anotoki family's library's
-  (anotoki-lib 0.6.1, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
+  (anotoki-lib 0.6.2, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
   module, the error log - the pages' errors too, `@anotoki/lib/error-report` -,
   the audit log, the backups) - wired in
   `api/auth.php`, `api/people.php`, `api/admin_tools.php`,
@@ -74,18 +74,21 @@ Working conventions:
   guard - and their facts (`core/legal/legal-facts.ts`, `legal.*`) must stay
   true of the code: a change to what the site keeps changes them, every
   address in them stays in the code. Every `config/*.local.php` is read
-  through `settingsFileReadCleanly()`, never a plain `require`: a database or
-  IAM file not read cleanly leaves the site not set up, a visitors one means
-  the defaults, and a `config/cloudflare.local.php` that cannot be read
-  cleanly fails closed (`originSecretFile()`); each fault is said once a day,
-  never the file's text or what PHP said.
+  through `settingsFileReadCleanly()`, never a plain `require`: one that does
+  not start with `<?php` is never compiled (after a byte-order mark or a blank
+  line, a `declare(strict_types=1)` is a fatal error nothing catches - every
+  request a 500), what one prints is caught; a database or IAM file not read
+  cleanly leaves the site not set up, a visitors one means the defaults, and
+  a `config/cloudflare.local.php` that cannot be read cleanly fails closed
+  (`originSecretFile()`); each fault is said once a day, never the file's
+  text or what PHP said.
   Queries use `?` parameters; identifiers come from literals.
 - User HTML only through `richTextClean()`. Pictures are checked by their
   bytes; never SVG.
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
   (light and dark); every page works at 390 px. The UI kit and the top bar are
-  the anotoki family's (`@anotoki/lib` 0.6.1, wired in `core/kit.ts`) - use
+  the anotoki family's (`@anotoki/lib` 0.6.2, wired in `core/kit.ts`) - use
   them, each piece from its own entry point (`@anotoki/lib/ui/button`, ...,
   never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come
   from the database there (`forKit()`), and its class names are its own

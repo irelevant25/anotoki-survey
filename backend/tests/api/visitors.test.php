@@ -722,14 +722,15 @@ test('with the origin secret, a Worker writing a new CF-Connecting-IP every time
     }
 });
 
-test('a config/cloudflare.local.php that cannot be read cleanly - saved with a byte-order mark - fails closed: never printed, and a Worker writing a new CF-Connecting-IP every time is one sender, the edge - the file\'s own secret in X-Anotoki-Origin too', function (): void {
+test('a config/cloudflare.local.php that cannot be read cleanly - saved with a byte-order mark before <?php declare(strict_types=1), a file PHP could not even compile - fails closed: never printed, the site keeps answering, and a Worker writing a new CF-Connecting-IP every time is one sender, the edge - the file\'s own secret in X-Anotoki-Origin too', function (): void {
     fresh();
-    // The owner meant a secret, and the file holds one - but PHP prints the byte-order mark before its <?php: the site
-    // reads no secret from it, and believes no CF-Connecting-IP from the proxy it trusts (127.0.0.1, standing for an
-    // edge of Cloudflare's) - never "no secret", which would believe anybody's Worker there.
+    // The owner meant a secret, and the file holds one - but it starts with a byte-order mark, before a
+    // declare(strict_types=1): compiled, a fatal error no handler catches, every request a 500. The site never
+    // compiles it, reads no secret from it, and believes no CF-Connecting-IP from the proxy it trusts (127.0.0.1,
+    // standing for an edge of Cloudflare's) - never "no secret", which would believe anybody's Worker there.
     $secret = 'origin-' . bin2hex(random_bytes(20));
     $app = start_app(test_iam(['application_file' => $GLOBALS['switch']]), [], VISITOR_SETTINGS);
-    file_put_contents($app['config'] . '/cloudflare.local.php', "\xEF\xBB\xBF<?php\n\nreturn " . var_export(['origin_secret' => $secret], true) . ";\n");
+    file_put_contents($app['config'] . '/cloudflare.local.php', "\xEF\xBB\xBF<?php declare(strict_types=1);\n\nreturn " . var_export(['origin_secret' => $secret], true) . ";\n");
     touch($app['config'] . '/storage/visitors-swept'); // no clean-up in this test, as fresh() says for the other server
     try {
         $answer = static fn(string $ip, array $headers = []): array => call($app['base'], 'POST', '/api/surveys/first/responses', answers(), array_merge(["CF-Connecting-IP: $ip"], $headers));
@@ -745,10 +746,15 @@ test('a config/cloudflare.local.php that cannot be read cleanly - saved with a b
             assert_false(isset(counters()[address_counter($claimed, $app)]), "never as $claimed, the address it claimed");
         }
 
+        $status = call($app['base'], 'GET', '/api/site-status');
+        assert_same([200, 'ready'], [$status['status'], $status['body']['state'] ?? null], 'the site keeps running: the file is optional');
+        assert_false(str_contains($status['raw'], $secret), 'and says nothing of it');
+
         $log = (string) file_get_contents($app['log']);
-        assert_true(str_contains($log, '[cloudflare] config/cloudflare.local.php prints 3 bytes of its own') && str_contains($log, 'no request carries its secret'), 'said in the server\'s log: ' . $log);
-        assert_same(1, substr_count($log, '[cloudflare] config/cloudflare.local.php prints 3 bytes of its own'), 'once, read on every request');
+        assert_true(str_contains($log, '[cloudflare] config/cloudflare.local.php does not start with <?php') && str_contains($log, 'no request carries its secret'), 'said in the server\'s log: ' . $log);
+        assert_same(1, substr_count($log, '[cloudflare] config/cloudflare.local.php does not start with <?php'), 'once, read on every request');
         assert_false(str_contains($log, $secret), 'never the secret');
+        assert_false(str_contains($log, 'strict_types'), 'never compiled: no fatal error');
         assert_same([], server_problems($app), 'its server said nothing it should not have');
     } finally {
         $app['stop']();

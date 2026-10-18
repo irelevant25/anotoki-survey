@@ -414,7 +414,7 @@ while the settings are missing (there is no database to update then:
 
 ### The System: the people, the error log, the audit log, the backups
 
-The anotoki family's routes (anotoki-lib 0.6.1: `PeopleRoutes`,
+The anotoki family's routes (anotoki-lib 0.6.2: `PeopleRoutes`,
 `ErrorLogRoutes`, `AuditRoutes`, `BackupsRoutes` - wired in `routes/admin.php`,
 `api/people.php` and `api/admin_tools.php`), behind this site's
 `requireAdmin()` and guarding themselves as well (the library asks the token's

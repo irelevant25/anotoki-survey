@@ -146,7 +146,7 @@ was open. The upload carries `vendor/anotoki/lib/php/migrations/`
 (the library's set) - `tools/build.php` puts it there, under the deny-all
 `.htaccess` of `vendor/`.
 
-The version that took anotoki-lib 0.4.1 (both halves; 0.6.1 now, below) takes the rest of what every
+The version that took anotoki-lib 0.4.1 (both halves; 0.6.2 now, below) takes the rest of what every
 anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
 are gone - `api/anotoki_iam.php` stays on the host after the upload, read by
 nothing: delete it over FTP; the browser keeps its session, under the same
@@ -197,17 +197,22 @@ below). Set the Cloudflare Transform Rule first, then put
 `config/cloudflare.local.php` on the host by hand; without the file the site
 works as before.
 
-The version on anotoki-lib 0.6.1 (both halves): **Terms, Privacy and
+The version on anotoki-lib 0.6.2 (both halves): **Terms, Privacy and
 Contact** (`/terms`, `/privacy`, `/contact`, for anybody) with this site's
 facts, and their links at the foot of the pages people take surveys on; the
-kit's link cards and removable chips; and a `config/cloudflare.local.php`
-that cannot be read cleanly failing closed (*Visitors*, below). It brings, in
+kit's link cards and removable chips; a `config/cloudflare.local.php`
+that cannot be read cleanly failing closed (*Visitors*, below); and every
+`config/*.local.php` that does not start with `<?php` passed over before PHP
+compiles it - one saved with a byte-order mark before
+`declare(strict_types=1)` made every request a 500. It brings, in
 the order they run: the site's `013_legal_pages.sql` (the facts' words,
 English and formal Slovak, the three tabs' titles, the legal pages' skip
 link), then the library's `anotoki_translations/005_legal_words.sql` to
-`010_backups_where_words.sql` (the legal pages' words, the top bar's count,
-the kit's new pieces', the tabs', the inputs', and 0.6.1's two sentences on
-where the backups are). **Before the upload**: a survey opened at the address
+`011_privacy_words_made_true.sql` (the legal pages' words, the top bar's
+count, the kit's new pieces', the tabs', the inputs', 0.6.1's two sentences on
+where the backups are, and 0.6.2's three Privacy sentences made true - this
+site words two of them itself, the backups and the sign-in's storage, and its
+own words stay). **Before the upload**: a survey opened at the address
 `terms`, `privacy` or `contact` is reached no more there once this version is
 up - the legal page answers - and the editor now refuses those addresses;
 move such a survey first. **After the upload**: apply on the Migrations page,
@@ -357,9 +362,9 @@ other two, and keep a copy (it is not in the database's backup). Without it the
 defaults hold; a value that is not usable is left out and logged (`[visitors]`
 in the PHP log), and a file that cannot be read cleanly - a typo that breaks
 its syntax, no `return [...]`, saved with a byte-order mark or without its
-`<?php` line (what it prints is caught, never sent) - is logged as
+`<?php` line (never compiled, nothing of it sent) - is logged as
 `[visitors] config/visitors.local.php could not be read (ParseError on line
-3): the defaults hold` (or `prints 3 bytes of its own (...)`; never what PHP
+3): the defaults hold` (or `does not start with <?php (...)`; never what PHP
 said) and left out whole - never fatal. Each such line comes at most once a
 day, so after editing it, look at the log (or `visitor_days` in
 `/api/auth/config`):
@@ -436,15 +441,17 @@ read cleanly whose value is not a string with something in it, the site
 believes `CF-Connecting-IP` from Cloudflare's ranges alone, as before
 (`[cloudflare] config/cloudflare.local.php holds no origin_secret ...`). A file
 that cannot be read cleanly **fails closed** (since anotoki-lib 0.6.1's pass,
-the IAM's rule): saved with a byte-order mark, without its `<?php` line, with a
-line before it or text after its closing tag - what it prints is caught and
-goes nowhere -, or one PHP cannot parse, run or open. The site keeps running,
-but believes no `CF-Connecting-IP`: every visitor counts as the Cloudflare edge
-they came through (they share its limits - 30 new visitors an hour by
-default) until the file is mended; PHP's error log says so at most once a day,
-by the fault alone (`[cloudflare] config/cloudflare.local.php prints 3 bytes of
-its own (...)` or `could not be read (ParseError on line 2)`, then `: no request
-carries its secret ...`), never its contents. Visitors refused as "too many"
+the IAM's rule): saved with a byte-order mark, without its `<?php` line or
+with a line before it - never compiled, so not even a `declare(strict_types=1)`
+after such a start stops the site -, with text after its closing tag - what
+it prints is caught and goes nowhere -, or one PHP cannot parse, run or open.
+The site keeps running, but believes no `CF-Connecting-IP`: every visitor
+counts as the Cloudflare edge they came through (they share its limits - 30
+new visitors an hour by default) until the file is mended; PHP's error log
+says so at most once a day, by the fault alone (`[cloudflare]
+config/cloudflare.local.php does not start with <?php (...)` or `could not be
+read (ParseError on line 2)`, then `: no request carries its secret ...`),
+never its contents. Visitors refused as "too many"
 all at once, from everywhere, are that sign. The secret is never printed or
 logged; keep a copy off the server, as of the other settings.
 
@@ -468,7 +475,7 @@ SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 
 
 Everything is in the database, pictures and the site's reworded strings
 included. The site backs it up itself - the anotoki family's backups
-(anotoki-lib 0.6.1), on the admin panel's System → **Backups** page, for its
+(anotoki-lib 0.6.2), on the admin panel's System → **Backups** page, for its
 ADMIN: every table by COPY through PDO in one snapshot (no `pg_dump` on the
 host), each a file `storage/backups/<id>.anotoki-backup` (`ANOTOKI-BACKUP 1`,
 a JSON header, then a gzip'd tar of the manifest, the applied migrations' SQL
@@ -548,7 +555,7 @@ every backup.
 | Symptom | Likely cause |
 | --- | --- |
 | The whole site says "The site is being updated" | A migration is pending (`GET /api/site-status` says `update_pending`). Sign in as an ADMIN from that page's quiet "Sign in" - the page then says "A database update is waiting" and links to the Migrations page, which applies it. |
-| The whole site says it is not set up, or "not available right now" | `config/database.local.php` or `config/iam.local.php` is missing, incomplete or cannot be read cleanly - saved with a byte-order mark or without its `<?php` line, or with a typo PHP cannot parse; nothing of it is ever printed, and PHP's error log says which file and its fault once a day (`[config] config/database.local.php prints 3 bytes of its own ...`), as the setup page on this computer does (`/api/site-status` says `not_set_up`) - "not set up yet" with the way to the setup page only while the site was never installed; once `storage/installed.lock` is there, "not available right now": put the file back, or run the setup again (above). `unavailable`: the database cannot be reached. |
+| The whole site says it is not set up, or "not available right now" | `config/database.local.php` or `config/iam.local.php` is missing, incomplete or cannot be read cleanly - saved with a byte-order mark or without its `<?php` line, or with a typo PHP cannot parse; nothing of it is ever printed (one that does not start with `<?php` is never even compiled), and PHP's error log says which file and its fault once a day (`[config] config/database.local.php does not start with <?php ...`), as the setup page on this computer does (`/api/site-status` says `not_set_up`) - "not set up yet" with the way to the setup page only while the site was never installed; once `storage/installed.lock` is there, "not available right now": put the file back, or run the setup again (above). `unavailable`: the database cannot be reached. |
 | The Migrations page says "Stopped at <file>" | That file failed and was rolled back whole; the box under it is PostgreSQL's own error (also in the server's log). The files before it stand. Fix the cause in the database (or the file, in a new version), then Apply again. |
 | Apply says another database update is running | Another Apply, the setup page, `php migration.php` or a backup is running right now: wait a moment and look again. |
 | Apply stops before anything runs, saying a backup could not be made | The backup each Apply makes first failed (`storage/backups/` not writable, the disk full, PHP without `pdo_pgsql`'s COPY): the Backups page says which. Nothing was applied. |

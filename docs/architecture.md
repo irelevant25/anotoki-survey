@@ -28,7 +28,7 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib 0.6.1, its
+client `survey`, with the anotoki family's library (anotoki-lib 0.6.2, its
 `Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
@@ -166,8 +166,9 @@ Migrations page, the System pages and the move are a verified token's alone.
   `X-Anotoki-Origin`, which the owner's zone adds to every request through it:
   anybody's Cloudflare Worker can connect from Cloudflare's ranges, and any
   other request from them counts as its edge. A `cloudflare.local.php` that is
-  there but cannot be read cleanly (it prints, PHP cannot parse or run it, or
-  may not open it) fails closed, the IAM's rule: a secret no request carries,
+  there but cannot be read cleanly (it does not start with `<?php`, it prints,
+  PHP cannot parse or run it, or may not open it) fails closed, the IAM's
+  rule: a secret no request carries,
   every request from Cloudflare's ranges its edge, the site running all the
   same and the fault said once a day (`originSecretFile()`,
   `config/config.php`); one read cleanly that names no secret is no secret. An address's counter goes by a keyed HMAC of
@@ -296,7 +297,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib 0.6.1, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib 0.6.2, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -341,7 +342,7 @@ answer, every survey's author and every visitor lives in `users`):
 ## The admin tools
 
 The error log, the audit log and the backups are the anotoki family's
-(anotoki-lib 0.6.1, both halves: `Anotoki\Lib\ErrorLog`, `Audit`, `Backups` - wired in
+(anotoki-lib 0.6.2, both halves: `Anotoki\Lib\ErrorLog`, `Audit`, `Backups` - wired in
 `api/admin_tools.php`, their routes in `routes/admin.php`; the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/backups`, configured in
 `core/admin/admin-tools.ts`), for the site's ADMIN alone (the owner's
@@ -691,18 +692,25 @@ token alone),
 Every `config/*.local.php` - the database's and the IAM's, which `setup.php`
 writes, and the visitors' and Cloudflare's, written by hand - is read the one
 careful way (`settingsFileReadCleanly()` in `config/config.php`, the IAM's
-rule; [decisions](decisions.md), 2026-10-18): required in a closure of its own
-under an output buffer, so whatever it prints as PHP reads it - a byte-order
-mark or a line before its `<?php`, no `<?php` line at all (the whole file, the
-password with it), text after a closing tag - is caught and never sent, and
-the file is passed over, as is one PHP cannot parse, run or open. What passing
-over means is the caller's: the database's or the IAM's file leaves the site
-not set up (the setup page on this computer naming the file and its fault -
-never a 500, never its text), the visitors' file the defaults, Cloudflare's a
-secret no request carries (*Visitors*, above). Each fault is said in PHP's
-error log at most once a day (`settingsSaid()`, a stamp in `storage/cache`) by
-its kind and line or the bytes the file printed - never its text, nor what PHP
-said of it.
+rule; [decisions](decisions.md), 2026-10-18). One that does not start with
+`<?php` - a byte-order mark, a blank line or a space before it, or no `<?php`
+line at all, which would print the whole file, the password with it - is
+passed over before PHP ever compiles it: its first five bytes are read alone.
+(Compiled, one with `declare(strict_types=1)` after such a start is a fatal
+error no handler catches - every request, the site's status included, a 500
+instead of "not set up", and Cloudflare's file never failing closed: Japanese
+Academy's review of 2026-10-18.) One that does start so is required in a
+closure of its own under an output buffer, so whatever it prints all the same
+- text after a closing tag, an echo, a buffer of its own left open - is caught
+and never sent, and the file is passed over, as is one PHP cannot parse, run
+or open. What passing over means is the caller's: the database's or the IAM's
+file leaves the site not set up (the setup page on this computer naming the
+file and its fault - never a 500, never its text), the visitors' file the
+defaults, Cloudflare's a secret no request carries (*Visitors*, above). Each
+fault is said in PHP's error log at most once a day (`settingsSaid()`, a
+stamp in `storage/cache`) by its kind and line, that it does not start with
+`<?php`, or the bytes the file printed - never its text, nor what PHP said of
+it.
 
 In the browser (`@anotoki/lib/migrations`, wired in `core/migrations.ts`) the
 start asks first (`SiteStatus.check()` in `boot()`), and `siteStatusInterceptor`

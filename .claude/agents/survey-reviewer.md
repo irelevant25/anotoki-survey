@@ -43,7 +43,7 @@ Security and correctness first:
   /8 (IPv4) or /16 (IPv6) taken, a reading of an address that is not given the secret
   (`ClientAddress::of()` without it, an `AdminContext` without `originSecret:`), or the secret
   printed or logged is a finding - and so is a `cloudflare.local.php` that cannot be read cleanly
-  (it prints, PHP cannot parse, run or open it) read as "no secret" instead of failing closed (a
+  (it does not start with `<?php`, it prints, PHP cannot parse, run or open it) read as "no secret" instead of failing closed (a
   secret no request carries: `originSecretFile()`, the IAM's rule), or one that stops the site.
   **The legal pages' facts** (`core/legal/legal-facts.ts`, `legal.*`): a statement the code does not
   keep, a change to what the site keeps without its fact, or an address in a string (an
@@ -181,7 +181,9 @@ Security and correctness first:
   without it, a secret no request carries with one that cannot be read cleanly - and
   `setup.php` neither writes nor reads it); every `*.local.php` read through
   `settingsFileReadCleanly()` - a plain `require` of one (whatever it prints goes out ahead
-  of the answer: the password, from a database file without its `<?php` line), a database or
+  of the answer: the password, from a database file without its `<?php` line), one required
+  that does not start with `<?php` (after a byte-order mark or a blank line, a
+  `declare(strict_types=1)` is a fatal error no handler catches: every request a 500), a database or
   IAM file not read cleanly answered with anything but "not set up", or a fault logged with
   the file's text or what PHP said, is a finding; `tools/build.php`
   still leaves out settings, tests, tools, the command-line scripts
@@ -193,7 +195,7 @@ Then the house style:
 - Angular: three files per component, OnPush, signals, `inject()`, inputs for
   route/query parameters, colours from tokens (light and dark), 390 px; no
   logic duplicated from `core/` into a component. The UI kit is the family's
-  (`@anotoki/lib` 0.6.1): a copy of a kit piece in `src/app/ui/`, a global
+  (`@anotoki/lib` 0.6.2): a copy of a kit piece in `src/app/ui/`, a global
   style a kit component would meet, an import from the `@anotoki/lib/ui`
   barrel instead of the piece's own entry point (the first load), or a
   selector of the kit's 0.2.0 class names in a spec or the browser check

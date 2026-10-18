@@ -72,9 +72,10 @@ api/
                        backup first for the Apply and migration.php; surveySiteState() - where the
                        site stands, for the gate and /api/site-status; siteOpenWhileUpdating()
 config/
-  config.php           reads every *.local.php through settingsFileReadCleanly() - what a file
-                       prints as PHP reads it is caught, never sent; settingsSaid() says its fault
-                       once a day, never its text: database.local.php and iam.local.php - both
+  config.php           reads every *.local.php through settingsFileReadCleanly() - one that does
+                       not start with <?php is passed over uncompiled, what a file prints as PHP
+                       reads it is caught, never sent; settingsSaid() says its fault once a day,
+                       never its text: database.local.php and iam.local.php - both
                        written by setup.php, gitignored, never committed; one not read cleanly
                        leaves the site not set up - and visitors.local.php when it is there
                        (optional, put there by hand; VISITOR_DEFAULTS without it or for one not
@@ -93,7 +94,7 @@ storage/               cache (the IAM's keys, its "Sign-in required" answer, the
 tests/                 run.php, lib.php; unit/, api/; tools/ (testdb.php, testenv.php)
 tools/                 build.php (the upload -> ../dist/), translation_keys.php (the frontend's keys:
                        the library's KeyScanner, set up for this site)
-vendor/                Slim and its pieces, and anotoki/lib 0.6.1 (the family's library, from GitHub -
+vendor/                Slim and its pieces, and anotoki/lib 0.6.2 (the family's library, from GitHub -
                        ../DEV.md says how it is updated; its migration sets in php/migrations/, its
                        stand-in IAM for the tests in php/testing/) - committed: the hosting cannot
                        run Composer

@@ -109,7 +109,7 @@ Components are three files (`.ts`, `.html`, `.scss`); colours come from the
 family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
 every page works at 390 px. The UI kit, the top bar, the theme, the site's
 words, signing in, the People page, the admin tools, the error reporter and
-the legal pages are the anotoki family's library (`@anotoki/lib`, 0.6.1 - the
+the legal pages are the anotoki family's library (`@anotoki/lib`, 0.6.2 - the
 backend's half the same), configured in
 `app.config.ts`, `core/kit.ts`,
 `core/translations.ts`, `core/auth/auth.config.ts`,

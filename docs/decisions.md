@@ -682,6 +682,33 @@ PHP warning is raised, and the site says it is not set up; with a plain
 `require` back, the status answer carries the whole file - and
 `tests/unit/config.test.php` and `client_address.test.php` each kind of file.
 
+**A settings file is never compiled unless it starts with `<?php`
+(2026-10-18; Japanese Academy's review found it, the family's rule since -
+the IAM's `readLocalConfigFile()` and Piano's guard alike).** The output
+buffer above catches what a file prints, but not a file PHP cannot compile: a
+`*.local.php` saved with a byte-order mark or a blank line before
+`<?php declare(strict_types=1);` is a compile-time fatal error ("strict_types
+declaration must be the very first statement", exit 255) that no `try`, no
+error handler and no output buffer catches - every request, `/api/site-status`
+included, answered 500 instead of "not set up", and a `cloudflare.local.php`
+saved so never failed closed. `settingsFileReadCleanly()` now reads a file's
+first five bytes before anything else and, unless they are `<?php` (in any
+case), passes the file over without requiring it: its problem is that it
+"does not start with <?php", logged by that fault alone, never its text, and
+what passing over means stays each caller's (not set up, the defaults, a
+secret no request carries). Nothing a good file needs is lost: every file
+`setup.php` writes starts with `<?php`, and one whose `<?php` comes after
+anything else would print that ahead of every answer anyway - which is why a
+byte-order mark, a line before it or no `<?php` line at all is now said this
+way instead of by the bytes it printed. `tests/unit/config.test.php` and
+`client_address.test.php` write both starts before `declare(strict_types=1)`
+for each kind of file (with the check taken out, the test process ends at
+the require), `tests/api/migrations.test.php` the database's through the real
+server (not set up, never a 500, nothing of it in any answer or the log) and
+`tests/api/visitors.test.php` Cloudflare's (with the check taken out, the
+first answer is a 500; with it, a Worker's made-up `CF-Connecting-IP` through
+the trusted proxy - the file's own secret beside it - is the edge).
+
 **Terms, Privacy and Contact (anotoki-lib 0.6.0's legal pages, the owner's
 decisions of 2026-10-13) are anybody's, and their facts are the code's.**
 The pages are the family's (`@anotoki/lib/legal/pages`); the survey gives its

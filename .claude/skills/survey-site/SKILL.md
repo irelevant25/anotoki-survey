@@ -48,7 +48,7 @@ backend/
                            and only hands the key in; nothing of a survey
                            without a token while sign-in is required, but its pictures (an
                            <img> sends none; UUID addresses)
-  api/auth.php             signing in through the family's library (anotoki-lib 0.6.1, Anotoki\Lib\Auth -
+  api/auth.php             signing in through the family's library (anotoki-lib 0.6.2, Anotoki\Lib\Auth -
                            the IAM's SDK is gone): surveyIam() (IamClient), surveySignInRule() /
                            authLoginRequired() (the IAM's "Sign-in required", relayed by
                            /api/auth/config with visitor_days), surveyIdentify() (only Bearer claims to
@@ -103,7 +103,7 @@ backend/
                            languagesForSurveys() / languagesOffered() (what survey_rules.php reads)
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.6.1's PHP half - never edited here; DEV.md: how it is updated):
+                           anotoki-lib 0.6.2's PHP half - never edited here; DEV.md: how it is updated):
                            surveyMigrationSet(), surveyMigrationSets() (the library's `anotoki_admin`,
                            the site's `survey`, then the library's `anotoki_translations` and
                            `anotoki_people` - recorded as <set>/NNN.sql), surveyMigrator($pdo,
@@ -118,15 +118,18 @@ backend/
                            VISITOR_DEFAULTS - the trusted proxies Cloudflare's published ranges, the
                            library's ClientAddress::CLOUDFLARE -, visitorSettings(); visitorSettingsFile()
                            - a file not read cleanly is logged, the defaults hold); every *.local.php
-                           through settingsFileReadCleanly(), never a plain require - a database or
-                           IAM file not read cleanly leaves the site not set up; cloudflare.local.php
-                           (optional, by hand, the same in every anotoki site: originSecret() /
-                           originSecretFile() - a string with something in it, else none; a file that
-                           cannot be read cleanly - it prints, PHP cannot parse, run or open it -
-                           FAILS CLOSED, the IAM's rule: a secret no request carries,
-                           originSecretNobodyCarries(), the site running all the same;
-                           settingsFileReadCleanly() catches what it prints, settingsSaid() logs the
-                           fault once a day by its kind or bytes, never its contents);
+                           through settingsFileReadCleanly(), never a plain require - one that does
+                           not start with <?php never compiled (its first five bytes read alone: a
+                           byte-order mark or a blank line before declare(strict_types=1) would be a
+                           fatal error nothing catches, every request a 500), what one prints caught;
+                           a database or IAM file not read cleanly leaves the site not set up;
+                           cloudflare.local.php (optional, by hand, the same in every anotoki site:
+                           originSecret() / originSecretFile() - a string with something in it, else
+                           none; a file that cannot be read cleanly - it does not start with <?php,
+                           it prints, PHP cannot parse, run or open it - FAILS CLOSED, the IAM's
+                           rule: a secret no request carries, originSecretNobodyCarries(), the site
+                           running all the same); settingsSaid() logs a fault once a day by its
+                           kind, its start or its bytes, never its contents;
                            SURVEY_TEST_CONFIG for the tests
   migrations/survey/       the schema - and the site's strings (002 the tables and the two languages,
                            003 every key with its English and Slovak string: the pattern for the next;
@@ -173,7 +176,7 @@ frontend/src/app/
                            database / AdminDates' dates / reload the strings when up to date),
                            MIGRATIONS_PATH; siteStatusInterceptor in app.config.ts; SiteStatus
                            (state, blocked, check, checkForReload, markReady) is the library's
-  core/auth/               signing in through the family's library (anotoki-lib 0.6.1, @anotoki/lib/auth -
+  core/auth/               signing in through the family's library (anotoki-lib 0.6.2, @anotoki/lib/auth -
                            the vendored SDK is gone): auth.config.ts (provideSiteAuth() - the boot
                            configuration AuthService read, the site's API (/api/, its status, auth
                            config, strings and pictures skipped), the visitors (VisitorKey, the key
@@ -232,7 +235,7 @@ frontend/src/app/
                            the code's own names, the hosting company and Cloudflare; the anotoki
                            account's pages from AnotokiAuth.issuer() / accountUrl() - never a string;
                            SURVEY_LEGAL_UPDATED; surveyLegalPagesConfig(), the frame's provider)
-  core/kit.ts              the family's UI kit (anotoki-lib 0.6.1, each piece from its own entry point)
+  core/kit.ts              the family's UI kit (anotoki-lib 0.6.2, each piece from its own entry point)
                            wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
                            the language on the page and the kit's words from the database - the
                            library's keys, anotoki.* - and SURVEY_ICONS) + provideSiteShell() (the
@@ -379,8 +382,9 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   cleanly **fails closed** - the IAM's rule, case for case: a secret no
   request carries, every request from Cloudflare's ranges its edge, never "no
   secret" (which would believe anybody's Worker); read cleanly with no secret
-  in it, no secret. Its fault is logged once a day by its kind and line or its
-  byte count, never its text; the site keeps running.
+  in it, no secret. Its fault is logged once a day by its kind and line, its
+  start (one that does not start with `<?php` is never compiled) or its byte
+  count, never its text; the site keeps running.
 - **The legal pages' facts are the code's** (`core/legal/legal-facts.ts`,
   the words `legal.*`): a change to what the site keeps or for how long, to a
   cookie or a stored item's name, to who else handles data, changes them -
@@ -402,7 +406,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   a new admin route that changes something writes its entry, by the token's
   person, inside the change's transaction where there is one.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib 0.6.1,
+  applies it - the anotoki family's way, the library's** (anotoki-lib 0.6.2,
   both halves; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
@@ -527,7 +531,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   pieces both areas share (top bar, UI kit, toasts) read through
   `effectiveLanguage`, which is `en` under `/admin` - the kit's own words too
   (`core/kit.ts`), and the family's page at an admin address.
-- **The UI kit is the family's** (anotoki-lib 0.6.1 - its 0.6.0 pieces taken
+- **The UI kit is the family's** (anotoki-lib 0.6.2 - its 0.6.0 pieces taken
   where the site drew its own: the link cards of the home page and the System
   page, the results' removable filter chips; what stays the site's and why,
   `docs/decisions.md`): a new piece of a page
@@ -1157,6 +1161,16 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   (`storage/logs/client-errors.json`, the library's: keyed hashes, the hour's
   and the day's counts) - a test of the caps starts from a fresh one, and
   writes the day's counts into it to reach a budget without 500 requests.
+- **A settings file that cannot even be compiled is caught before it is
+  required**: a `*.local.php` saved with a byte-order mark or a blank line
+  before `<?php declare(strict_types=1);` is a compile-time fatal error
+  ("strict_types declaration must be the very first statement") - no `try`,
+  no error handler and no output buffer catches it, so every request, the
+  site's status too, was a 500 and Cloudflare's file never failed closed
+  (Japanese Academy's review of 2026-10-18). `settingsFileReadCleanly()` reads
+  a file's first five bytes and passes over one that does not start with
+  `<?php` before PHP sees the rest; the tests of each kind of file write both
+  starts, and fail with that check taken out (a 500, or the process ending).
 
 ## Checks before saying it is done
 

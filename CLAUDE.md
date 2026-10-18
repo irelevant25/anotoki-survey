@@ -42,18 +42,22 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   self-delete). Never print the database password; never copy it anywhere git
   would publish. **Every `*.local.php` is read cleanly or not at all**
   (`settingsFileReadCleanly()`, `config/config.php`; `docs/decisions.md`,
-  2026-10-18 - never a plain `require` of one): whatever a file prints as PHP
-  reads it - a byte-order mark or a line before its `<?php`, no `<?php` line
-  (all of it, the password too), text after a closing tag - is caught and
-  never sent, and the file is passed over, as is one PHP cannot parse, run or
-  open. A database or IAM file so leaves the site not set up (never a 500,
-  never its text; the setup page on this computer names the file and its
-  fault), the visitors' file means the defaults, Cloudflare's fails closed
-  (below). Each fault is said in PHP's error log at most once a day
-  (`settingsSaid()`) by its kind and line or its byte count - never its text,
-  nor what PHP said of it.
+  2026-10-18 - never a plain `require` of one): a file that does not start
+  with `<?php` - a byte-order mark, a blank line or a space before it, or no
+  `<?php` line (all of it would print, the password too) - is passed over
+  before PHP ever compiles it, its first five bytes read alone (with
+  `declare(strict_types=1)` after such a start PHP could not even compile it:
+  a fatal error nothing catches, every request a 500); whatever one that does
+  start so prints as PHP reads it - text after a closing tag, an echo - is
+  caught and never sent, and the file is passed over, as is one PHP cannot
+  parse, run or open. A database or IAM file so leaves the site not set up
+  (never a 500, never its text; the setup page on this computer names the
+  file and its fault), the visitors' file means the defaults, Cloudflare's
+  fails closed (below). Each fault is said in PHP's error log at most once a
+  day (`settingsSaid()`) by its kind and line, its start or its byte count -
+  never its text, nor what PHP said of it.
 - **While the site cannot run, the anotoki family's library decides what
-  happens** (anotoki-lib 0.6.1, both halves - `anotoki/lib` in `backend/vendor/`,
+  happens** (anotoki-lib 0.6.2, both halves - `anotoki/lib` in `backend/vendor/`,
   `@anotoki/lib` in the frontend -, one release line: a patch
   that changes one half alone leaves the other where it is; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
@@ -104,14 +108,15 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   before; read cleanly with no secret in it (blank, missing, not an array),
   the same. **A file that is there but cannot be read cleanly fails closed**
   (the IAM's rule, case for case: `originSecretFile()`,
-  `settingsFileReadCleanly()`; `docs/decisions.md`, 2026-10-14) - it prints
-  (no `<?php` line, a byte-order mark or a line before it, text after its
-  closing tag), PHP cannot parse or run it, or may not open it: a secret no
-  request carries (`originSecretNobodyCarries()`), so every request from
-  Cloudflare's ranges counts as its edge until the file is mended - never "no
-  secret", which would believe anybody's Worker there. The site keeps running
-  (the file is optional); the fault is logged at most once a day
-  (`settingsSaid()`), by its kind or its byte count, never its text. An IPv6 address
+  `settingsFileReadCleanly()`; `docs/decisions.md`, 2026-10-14) - it does
+  not start with `<?php` (no `<?php` line, a byte-order mark or a line before
+  it: never compiled), it prints (text after its closing tag), PHP cannot
+  parse or run it, or may not open it: a secret no request carries
+  (`originSecretNobodyCarries()`), so every request from Cloudflare's ranges
+  counts as its edge until the file is mended - never "no secret", which
+  would believe anybody's Worker there. The site keeps running (the file is
+  optional); the fault is logged at most once a day (`settingsSaid()`), by
+  its kind, its start or its byte count, never its text. An IPv6 address
   counts by its /64. The visitors' limits and the library's error log read by
   the same proxies and the same secret (`surveyAdminContext()`). **No address is kept in the
   clear**: a visitors' counter goes by a keyed HMAC of it
@@ -119,7 +124,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   `storage/anotoki-lib.key`), the error log's `client` likewise - a stable
   pseudonym of the address while that key lasts (whoever holds the key can
   try every IPv4 address against it), never a secret.
-- **Signing in is the anotoki family's library's** (anotoki-lib 0.6.1, the
+- **Signing in is the anotoki family's library's** (anotoki-lib 0.6.2, the
   `Auth` module on both halves - the IAM's SDKs are gone from this site):
   `Anotoki\Lib\Auth` on the server (`api/auth.php`, `meddleware/auth.php`),
   `@anotoki/lib/auth` in the browser (`AnotokiAuth`, its interceptor, guards,
@@ -335,7 +340,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. **The UI kit is the anotoki family's**
-  (anotoki-lib 0.6.1: each piece from its own entry point -
+  (anotoki-lib 0.6.2: each piece from its own entry point -
   `@anotoki/lib/ui/button`, `/ui/icon`, `/ui/config`, `/ui/link-card` (the
   survey home's and the System page's cards that are one link),
   `/ui/chips` (the results' filters, `<anotoki-chip-list>`), ... - never the

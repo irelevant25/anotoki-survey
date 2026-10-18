@@ -101,7 +101,7 @@ value, 32+ characters, the same file in every anotoki site): from then on
 print it; without the file the site works as before
 ([docs/operations.md](../../../docs/operations.md#visitors)).
 
-**The version on anotoki-lib 0.6.1, both halves**: the legal pages (`/terms`,
+**The version on anotoki-lib 0.6.2, both halves**: the legal pages (`/terms`,
 `/privacy`, `/contact`, for anybody) and their links at the foot of the
 survey's pages, the kit's link cards and removable chips, and a
 `config/cloudflare.local.php` that cannot be read cleanly failing closed -
@@ -109,11 +109,12 @@ after the upload, if visitors are suddenly refused "too many" from
 everywhere, PHP's error log says why once a day (`[cloudflare] ...`): mend the
 file (save it as UTF-8 without a byte-order mark, its first line `<?php`).
 Every other `config/*.local.php` is read the same careful way: one saved so
-never prints what it holds - a database or IAM file leaves the site "not set
-up" (`[config] ...` in the log, and the setup page on the owner's computer
-says which), a visitors file means the defaults (`[visitors] ...`).
-It brings `013_legal_pages.sql`, then the library's
-`anotoki_translations/005_…` to `010_…`: Apply on the Migrations page. Before
+never prints what it holds, nor stops every page with a 500 (a file that does
+not start with `<?php` is never compiled) - a database or IAM file leaves the
+site "not set up" (`[config] ...` in the log, and the setup page on the
+owner's computer says which), a visitors file means the defaults
+(`[visitors] ...`). It brings `013_legal_pages.sql`, then the library's
+`anotoki_translations/005_…` to `011_…`: Apply on the Migrations page. Before
 the upload move any survey opened at the address `terms`, `privacy` or
 `contact` (the legal page answers there from now on, and the editor refuses
 those addresses). After it, open `/privacy` signed out: the anotoki account's

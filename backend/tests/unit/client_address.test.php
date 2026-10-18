@@ -245,15 +245,22 @@ function fails_closed(string $case): void
     assert_same([clientAddressKept(request_from(EDGE), VISITOR_DEFAULTS)], array_values($kept), "$case: twenty made-up visitors from one edge - one counter, the edge's");
 }
 
-test('a cloudflare.local.php that cannot be read cleanly - it prints (no <?php line, a byte-order mark or a line before it, text after a closing tag), PHP cannot parse or run it - fails closed: never printed, a secret no request carries, every request from Cloudflare\'s ranges its edge; its fault logged once by its kind or its bytes, never its text', function (): void {
+test('a cloudflare.local.php that cannot be read cleanly - it does not start with <?php (no <?php line, a byte-order mark or a line before it - before declare(strict_types=1) too, which PHP cannot even compile), it prints (text after a closing tag), PHP cannot parse or run it - fails closed: never printed, a secret no request carries, every request from Cloudflare\'s ranges its edge; its fault logged once by its kind, its start or its bytes, never its text', function (): void {
     $secret = var_export(['origin_secret' => ORIGIN_SECRET], true);
     // A secret written bare is a constant PHP does not know, whose error quotes it; two strings side by side are a
     // parse error quoting the second.
     $bare = 'secret_' . bin2hex(random_bytes(16));
     foreach ([
-        'no <?php line' => ["return {$secret};\n", 'prints ' . strlen("return {$secret};\n") . ' bytes of its own'],
-        'a byte-order mark' => ["\xEF\xBB\xBF<?php\n\nreturn {$secret};\n", 'prints 3 bytes of its own'],
-        'a line before its <?php' => ["\n<?php\n\nreturn {$secret};\n", 'prints 1 bytes of its own'],
+        // Written by hand without its first line, or saved with a BOM or a line before it: PHP would print what comes
+        // before its <?php ahead of every answer - and with declare(strict_types=1) after it could not even compile
+        // it, a fatal error no handler catches (this process would end here; every request a 500, the file never
+        // failing closed). None is compiled: a file that does not start with <?php is passed over unread.
+        'no <?php line' => ["return {$secret};\n", 'does not start with <?php'],
+        'a byte-order mark' => ["\xEF\xBB\xBF<?php\n\nreturn {$secret};\n", 'does not start with <?php'],
+        'a line before its <?php' => ["\n<?php\n\nreturn {$secret};\n", 'does not start with <?php'],
+        'a byte-order mark before <?php declare(strict_types=1)' => ["\xEF\xBB\xBF<?php declare(strict_types=1);\n\nreturn {$secret};\n", 'does not start with <?php'],
+        'a blank line before <?php declare(strict_types=1)' => ["\n<?php declare(strict_types=1);\n\nreturn {$secret};\n", 'does not start with <?php'],
+        // Text after a closing tag, or echoed: printed all the same, and caught.
         'text after a closing tag' => ["<?php \$kept = 1; ?>\n" . ORIGIN_SECRET . "\n<?php return {$secret};\n", 'prints ' . (strlen(ORIGIN_SECRET) + 1) . ' bytes of its own'],
         'a buffer of its own left open' => ["<?php ob_start(); echo '" . ORIGIN_SECRET . "'; return {$secret};\n", 'prints ' . strlen(ORIGIN_SECRET) . ' bytes of its own'],
         'a parse error' => ["<?php return ['origin_secret' => 'x' '" . ORIGIN_SECRET . "'];\n", 'could not be read (ParseError on line 1)'],
@@ -275,6 +282,7 @@ test('a cloudflare.local.php that cannot be read cleanly - it prints (no <?php l
         assert_same(1, lines_saying($log, "[cloudflare] config/cloudflare.local.php $fault"), "$case: its fault said once, read twice - " . $log);
         assert_true(str_contains($log, 'no request carries its secret, so every request from Cloudflare\'s ranges counts as the edge it came from'), "$case: and that it fails closed - " . $log);
         assert_false(str_contains($log, ORIGIN_SECRET) || str_contains($log, $bare), "$case: the log never holds the value");
+        assert_false(str_contains($log, 'strict_types'), "$case: nor what PHP said of it");
     }
 
     // Mended - the file gone, or read cleanly - and the next reading is as the file says.
@@ -340,15 +348,18 @@ function with_visitors_file(string $contents, callable $fn): void
     }
 }
 
-test('a visitors.local.php that cannot be read cleanly - a parse error, no array returned, anything it prints (no <?php line, a byte-order mark) - means the defaults and the site stays up: nothing of it printed, its fault said once a day by its kind and line or its bytes, never what PHP said nor the file\'s text', function (): void {
+test('a visitors.local.php that cannot be read cleanly - a parse error, no array returned, a start that is not <?php (no <?php line, a byte-order mark, a blank line before declare(strict_types=1)), anything it prints - means the defaults and the site stays up: nothing of it printed, its fault said once a day by its kind and line, its start or its bytes, never what PHP said nor the file\'s text', function (): void {
     // A range the file names, to look for in the log - and a word a parse error's message would quote.
     $mine = "['keep_days' => 10, 'trusted_proxies' => ['192.0.2.0/24']]";
     foreach ([
         'a parse error' => ["<?php return ['keep_days' => 10 'unexpected-words'];\n", 'could not be read (ParseError on line 1)'],
         'no array returned' => ["<?php {$mine};\n", 'could not be read (it returns no array)'],
         'a string returned' => ["<?php return 'keep_days=10 192.0.2.0/24';\n", 'could not be read (it returns no array)'],
-        'no <?php line' => ["return {$mine};\n", 'prints ' . strlen("return {$mine};\n") . ' bytes of its own'],
-        'a byte-order mark' => ["\xEF\xBB\xBF<?php return {$mine};\n", 'prints 3 bytes of its own'],
+        'no <?php line' => ["return {$mine};\n", 'does not start with <?php'],
+        'a byte-order mark' => ["\xEF\xBB\xBF<?php return {$mine};\n", 'does not start with <?php'],
+        // Compiled, a fatal error no handler catches: never compiled.
+        'a blank line before <?php declare(strict_types=1)' => ["\n<?php declare(strict_types=1);\nreturn {$mine};\n", 'does not start with <?php'],
+        'text after a closing tag' => ["<?php \$kept = 1; ?>\n192.0.2.0/24\n<?php return {$mine};\n", 'prints 13 bytes of its own'],
     ] as $case => [$contents, $fault]) {
         [$log] = logged_while(static function () use ($case, $contents): void {
             with_visitors_file($contents, static function () use ($case): void {
@@ -370,7 +381,7 @@ test('a visitors.local.php that cannot be read cleanly - a parse error, no array
         });
         assert_same(1, lines_saying($log, "[visitors] config/visitors.local.php $fault"), "$case: its fault said once, read twice - " . $log);
         assert_true(str_contains($log, 'the defaults hold.'), "$case: and that the defaults hold - " . $log);
-        assert_false(str_contains($log, 'unexpected') || str_contains($log, '192.0.2.0') || str_contains($log, 'keep_days'), "$case: never what PHP said, nor the file's text - " . $log);
+        assert_false(str_contains($log, 'unexpected') || str_contains($log, '192.0.2.0') || str_contains($log, 'keep_days') || str_contains($log, 'strict_types'), "$case: never what PHP said, nor the file's text - " . $log);
     }
 
     // Read cleanly, with values nobody can use: each left out, said once by the key's name - never its value.
