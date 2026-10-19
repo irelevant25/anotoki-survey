@@ -260,8 +260,12 @@ test('the Feedback page: newest first, each sender by name; the counts; a new me
     assert_same(['unread' => 2], as_user(OWNER, 'GET', '/api/admin/feedback/unread')['body'], 'the admin bar\'s count');
     assert_same(1, as_user(OWNER, 'GET', '/api/admin/feedback?kind=bug&search=picture')['body']['total'], 'narrowed by kind and words');
 
+    // Opening one only reads it (anotoki-lib 0.8.1): a GET changes nothing. The page marks a new one read by a PUT of its own.
     $opened = as_user(OWNER, 'GET', '/api/admin/feedback/' . $older['id']);
-    assert_same([200, 'read'], [$opened['status'], $opened['body']['message']['status']], 'opened: read - nobody named for it');
+    assert_same([200, 'new'], [$opened['status'], $opened['body']['message']['status']], 'opened: still new');
+    assert_same(['unread' => 2], as_user(OWNER, 'GET', '/api/admin/feedback/unread')['body'], 'a GET marks nothing read');
+    $marked = as_user(OWNER, 'PUT', '/api/admin/feedback/' . $older['id'] . '/read', new stdClass());
+    assert_same([200, 'read'], [$marked['status'], $marked['body']['message']['status'] ?? null], 'marked read by its own write - nobody named for it');
     assert_same(['unread' => 1], as_user(OWNER, 'GET', '/api/admin/feedback/unread')['body']);
 
     $resolved = as_user(OWNER, 'PUT', '/api/admin/feedback/' . $older['id'] . '/status', ['status' => 'resolved']);

@@ -415,7 +415,7 @@ while the settings are missing (there is no database to update then:
 
 ### The System: the people, feedback, the error log, the audit log, the backups
 
-The anotoki family's routes (anotoki-lib 0.8.0: `PeopleRoutes`,
+The anotoki family's routes (anotoki-lib 0.8.1: `PeopleRoutes`,
 `FeedbackRoutes`, `ErrorLogRoutes`, `AuditRoutes`, `BackupsRoutes` - wired in
 `routes/admin.php`, `api/people.php` and `api/admin_tools.php`), behind this site's
 `requireAdmin()` and guarding themselves as well (the library asks the token's
@@ -432,7 +432,8 @@ pages are the library's (admin panel: System).
 | `GET /api/admin/feedback?kind=&status=&section=&search=&page=` | `{total, page, pageSize: 25, items: [{id, created_at, updated_at, kind, status, section, subject, message, details, contact_email, user_id, user_name, page, language, user_agent, handled_by, handled_by_name, handled_at}]}` - newest first; each sender and handler named from `users`; `search` in the subject, the message, the address and the extra fields; 503 `feature_unavailable` while its table waits. Spam older than 30 days and resolved messages older than 365 go at a clean-up run at most once a day, after this answer or a message's |
 | `GET /api/admin/feedback/facets` | `{kinds, statuses, sections, fields, byStatus, byKind}` - for the page's filters |
 | `GET /api/admin/feedback/unread` | `{unread}` - how many nobody opened yet: the admin bar's count beside System, and the System page's |
-| `GET /api/admin/feedback/{id}` | `{message}` - a new one opened is read (nobody named for it); 404 `not_found` |
+| `GET /api/admin/feedback/{id}` | `{message}` - reading changes nothing (anotoki-lib 0.8.1); 404 `not_found` |
+| `PUT /api/admin/feedback/{id}/read` | no body (or `{}`) → `{message}`: a `new` one becomes `read`, any other status stays as it is (nobody named for it, nothing audited) - the page sends it as it opens a new message; 404 `not_found` |
 | `PUT /api/admin/feedback/{id}/status` | `{status: "new" \| "read" \| "resolved" \| "spam"}` → `{message}` with `handled_by` the token's person; 422 `status_unknown`; audited `feedback.status_changed` (`{from, to}`) |
 | `DELETE /api/admin/feedback/{id}` | `{deleted: true}`; audited `feedback.deleted` (its kind, status and when it was sent) inside the delete's own transaction - no delete without its entry (503 `feature_unavailable` while the audit log's table waits); a restore deletes it again by that entry |
 | `GET /api/admin/errors?days=&level=&status=&search=` | `{total, errors, warnings, notices, distinct, truncated, days, daily, statuses, groups, dropped}` - the error log's report: the newest lines (`storage/logs`, 30 UTC days), grouped by fingerprint. Open while a migration waits |

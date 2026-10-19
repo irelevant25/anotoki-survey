@@ -130,7 +130,7 @@ family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
 every page works at 390 px. The UI kit, the top bar, the theme, the site's
 words, signing in, the People page, the admin tools, the feedback form, the
 error reporter, the legal pages, About and Support and the footer are the anotoki family's library
-(`@anotoki/lib`, 0.8.0 - the backend's half the same), configured in
+(`@anotoki/lib`, 0.8.1 - the backend's half the same), configured in
 `app.config.ts`, `core/kit.ts`,
 `core/translations.ts`, `core/auth/auth.config.ts`,
 `core/admin/admin-tools.ts`, `core/feedback.ts` and `core/legal/` - never copied here; each kit piece

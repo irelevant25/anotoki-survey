@@ -93,8 +93,9 @@ use Slim\Routing\RouteCollectorProxy;
  *                         GET /facets
  *   /api/admin/feedback   what people sent through the feedback form (FeedbackRoutes, api/admin_tools.php):
  *                         GET ?kind=&status=&section=&search=&page= (25 a page, newest first, each sender by
- *                         name), GET /facets, GET /unread (the admin bar's count), GET /{id} (a new one
- *                         opened is read), PUT /{id}/status {status: new|read|resolved|spam} (audited
+ *                         name), GET /facets, GET /unread (the admin bar's count), GET /{id} (reading changes
+ *                         nothing), PUT /{id}/read (a new one marked read, as the page opens it: anotoki-lib
+ *                         0.8.1), PUT /{id}/status {status: new|read|resolved|spam} (audited
  *                         feedback.status_changed), DELETE /{id} (audited feedback.deleted inside the
  *                         delete's own transaction - a restore deletes it again by it; none while the
  *                         audit log's table waits); closed while an update waits, like the rest
