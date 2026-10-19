@@ -238,9 +238,7 @@ if ($local) {
     setcookie(SETUP_NONCE_COOKIE, $nonce, ['path' => '/', 'httponly' => true, 'samesite' => 'Strict']);
 } elseif (setupToken($tokenFile) === null) {
     try {
-        if (!is_dir($storage) && !@mkdir($storage, 0700, true) && !is_dir($storage)) {
-            throw new RuntimeException('no storage folder');
-        }
+        ensureStateFolder($storage);
         writePrivateFile(
             $tokenFile,
             "<?php\n// The survey site's setup token: type it into /setup.php. It is deleted when the setup is done.\n\nreturn " . var_export(['token' => bin2hex(random_bytes(24))], true) . ";\n",
