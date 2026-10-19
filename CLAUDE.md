@@ -60,7 +60,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   day (`settingsSaid()`) by its kind and line, its start or its byte count -
   never its text, nor what PHP said of it.
 - **While the site cannot run, the anotoki family's library decides what
-  happens** (anotoki-lib 0.7.2, both halves - `anotoki/lib` in `backend/vendor/`,
+  happens** (anotoki-lib 0.8.0, both halves - `anotoki/lib` in `backend/vendor/`,
   `@anotoki/lib` in the frontend -, one release line: a patch
   that changes one half alone leaves the other where it is; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
@@ -135,7 +135,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   `storage/anotoki-lib.key`), the error log's `client` likewise - a stable
   pseudonym of the address while that key lasts (whoever holds the key can
   try every IPv4 address against it), never a secret.
-- **Signing in is the anotoki family's library's** (anotoki-lib 0.7.2, the
+- **Signing in is the anotoki family's library's** (anotoki-lib 0.8.0, the
   `Auth` module on both halves - the IAM's SDKs are gone from this site):
   `Anotoki\Lib\Auth` on the server (`api/auth.php`, `meddleware/auth.php`),
   `@anotoki/lib/auth` in the browser (`AnotokiAuth`, its interceptor, guards,
@@ -176,14 +176,18 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   string an administrator could reword. Contact opens the feedback form
   first (below), then gives the family's address. Their links are in the
   family's footer (below); the three paths are among the addresses no survey
-  may have (`RESERVED_SLUGS` ↔ `SURVEY_RESERVED_SLUGS`).
+  may have (`RESERVED_SLUGS` ↔ `SURVEY_RESERVED_SLUGS`). **About and Support**
+  (anotoki-lib 0.8.0, `@anotoki/lib/legal/about`, `/support` - the same on
+  every anotoki site) are `/about` and `/support`, anybody's in the same frame
+  and the same way, reserved too; their tabs' titles are the library's words
+  (`anotoki.about.title`, `anotoki.support.title`).
 - **One footer, the family's** (anotoki-lib 0.6.3's `<anotoki-site-footer>`,
   `@anotoki/lib/footer` - the build analyzer's, the owner's choice of
   2026-10-18; `docs/decisions.md`): at the foot of each frame - the survey's
   pages (under the card of a session that ended too), the legal pages and the
   admin panel (under its cards too) -, never round the family's page: a top
-  border, "v0.4.0 · What's new · Feedback" (a screen reader hears "Version
-  0.4.0"), then Terms · Privacy ·
+  border, "v1.0.0 · What's new · Feedback" (a screen reader hears "Version
+  1.0.0"), then About · Support · Terms · Privacy ·
   Contact; no fan clause. The version is `Changelog.current()` and What's new
   the survey's own dialog on `(whatsNew)` (`changelog.open()`) - neither while
   the list cannot be had; Feedback the family's form, which the footer opens
@@ -394,7 +398,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. **The UI kit is the anotoki family's**
-  (anotoki-lib 0.7.2: each piece from its own entry point -
+  (anotoki-lib 0.8.0: each piece from its own entry point -
   `@anotoki/lib/ui/button`, `/ui/icon`, `/ui/config`, `/ui/link-card` (the
   survey home's and the System page's cards that are one link),
   `/ui/chips` (the results' filters, `<anotoki-chip-list>`), ... - never the

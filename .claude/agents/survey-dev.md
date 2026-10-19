@@ -52,7 +52,7 @@ Working conventions:
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
 - Signing in, the people and the admin tools are the anotoki family's library's
-  (anotoki-lib 0.7.2, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
+  (anotoki-lib 0.8.0, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
   module, feedback - the form the footer's Feedback and the Contact page open, `POST /api/feedback`,
   the Feedback page -, the error log - the pages' errors too,
   `@anotoki/lib/error-report` -, the audit log, the backups) - wired in
@@ -73,8 +73,9 @@ Working conventions:
   made (the library's `issuedAs`): a person's never leaves without its token,
   a visitor's never with one; the admin panel and the preview always sign in;
   a failed sign-in is the library's screen, never a card or a toast. The legal
-  pages (`/terms`, `/privacy`, `/contact`, the family's) are anybody's - no
-  guard - and their facts (`core/legal/legal-facts.ts`, `legal.*`) must stay
+  pages (`/terms`, `/privacy`, `/contact`, the family's) and About and Support
+  (`/about`, `/support`, the family's, in the same frame) are anybody's - no
+  guard - and the legal pages' facts (`core/legal/legal-facts.ts`, `legal.*`) must stay
   true of the code: a change to what the site keeps changes them, every
   address in them stays in the code. Every `config/*.local.php` is read
   through `settingsFileReadCleanly()`, never a plain `require`: one that does
@@ -92,7 +93,7 @@ Working conventions:
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
   (light and dark); every page works at 390 px. The UI kit, the top bar and the
-  footer are the anotoki family's (`@anotoki/lib` 0.7.2, wired in `core/kit.ts`;
+  footer are the anotoki family's (`@anotoki/lib` 0.8.0, wired in `core/kit.ts`;
   `<anotoki-site-footer>` at the foot of each frame, the admin panel's too) - use
   them, each piece from its own entry point (`@anotoki/lib/ui/button`, ...,
   never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come

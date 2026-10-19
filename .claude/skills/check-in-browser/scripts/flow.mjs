@@ -4050,16 +4050,33 @@ await setIam({ anonymized: [] });
 
 // ═══ Terms, Privacy and Contact ════════════════════════════════════════════
 // The anotoki family's legal pages (@anotoki/lib/legal/pages, anotoki-lib 0.6.0) around the survey's facts
-// (core/legal/legal-facts.ts): anybody's - nobody signed in and the IAM requiring a sign-in here (and told to turn
-// one down: a trip there would end on the screen of a failed sign-in), each opens with no trip to the IAM and asks
-// nothing of a survey. The family's footer (<anotoki-site-footer>, anotoki-lib 0.6.3) under them, under the survey's
-// own pages (the card of a session that ended too) and under the admin panel: "Version X · What's new · Feedback",
-// then Terms · Privacy · Contact - What's new the survey's own dialog, Feedback the family's form, anybody's here; the
-// anotoki account's Privacy page and account page at the IAM the site signs in with; at 1280 and 390 px, light and
-// dark, in English and in Slovak - no key where a word should be.
+// (core/legal/legal-facts.ts), and its About and Support pages (anotoki-lib 0.8.0) in the same frame: anybody's -
+// nobody signed in and the IAM requiring a sign-in here (and told to turn one down: a trip there would end on the
+// screen of a failed sign-in), each opens with no trip to the IAM and asks nothing of a survey. The family's footer
+// (<anotoki-site-footer>, anotoki-lib 0.6.3) under them, under the survey's own pages (the card of a session that
+// ended too) and under the admin panel: "Version X · What's new · Feedback", then About · Support · Terms · Privacy ·
+// Contact - What's new the survey's own dialog, Feedback the family's form, anybody's here; the anotoki account's
+// Privacy page and account page at the IAM the site signs in with; at 1280 and 390 px, light and dark, in English and
+// in Slovak - no key where a word should be.
 const LEGAL = {
-  en: { terms: 'Terms of use', privacy: 'Privacy policy', contact: 'Contact', links: ['Terms', 'Privacy', 'Contact'], site: 'anotoki survey' },
-  sk: { terms: 'Podmienky používania', privacy: 'Ochrana osobných údajov', contact: 'Kontakt', links: ['Podmienky', 'Súkromie', 'Kontakt'], site: 'anotoki prieskum' },
+  en: {
+    terms: 'Terms of use',
+    privacy: 'Privacy policy',
+    contact: 'Contact',
+    about: 'About anotoki',
+    support: 'Support anotoki',
+    links: ['About', 'Support', 'Terms', 'Privacy', 'Contact'],
+    site: 'anotoki survey',
+  },
+  sk: {
+    terms: 'Podmienky používania',
+    privacy: 'Ochrana osobných údajov',
+    contact: 'Kontakt',
+    about: 'O projekte anotoki',
+    support: 'Podporiť anotoki',
+    links: ['O projekte', 'Podporiť', 'Podmienky', 'Súkromie', 'Kontakt'],
+    site: 'anotoki prieskum',
+  },
 };
 const legalHeading = () => text('app-legal-layout main h1');
 const footerLinks = (frame) => texts(`${frame} anotoki-site-footer .anotoki-legal-links__link`);
@@ -4077,7 +4094,7 @@ for (const code of ['en', 'sk']) {
   const words = LEGAL[code];
   for (const width of [1280, 390]) {
     await viewport(width);
-    for (const legal of ['terms', 'privacy', 'contact']) {
+    for (const legal of ['terms', 'privacy', 'contact', 'about', 'support']) {
       since = requested.length;
       await go(`/${legal}?lang=${code}`);
       await waitFor(page, `(document.querySelector('app-legal-layout main h1')?.textContent ?? '').trim() === ${JSON.stringify(words[legal])}`, 15000).catch(() => null);
@@ -4093,7 +4110,7 @@ for (const code of ['en', 'sk']) {
         `${await legalHeading()} / ${await js('location.pathname')} / tab: ${await js('document.title')} / ${trip.filter((line) => line.includes('/api/')).join(', ')}`,
       );
       expect(
-        `${code}, ${width} px, /${legal}: the family's footer - "${FOOTER_ROW[code].filter((part) => part !== '·').join(' · ')}", then Terms · Privacy · Contact, this page's marked`,
+        `${code}, ${width} px, /${legal}: the family's footer - "${FOOTER_ROW[code].filter((part) => part !== '·').join(' · ')}", then About · Support · Terms · Privacy · Contact, this page's marked`,
         same(await footerRow('app-legal-layout'), FOOTER_ROW[code]) &&
           same(await footerLinks('app-legal-layout'), words.links) &&
           (await js("document.querySelector('app-legal-layout anotoki-site-footer [aria-current=page]')?.getAttribute('href')")) === `/${legal}`,
@@ -4299,7 +4316,7 @@ for (const [code, scheme] of [
     await go(`/?lang=${code}`);
     await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h1')", 15000);
     expect(
-      `the survey's home page, signed in, ${code}, ${width} px: the family's footer - "${FOOTER_ROW[code].filter((part) => part !== '·').join(' · ')}", then Terms · Privacy · Contact`,
+      `the survey's home page, signed in, ${code}, ${width} px: the family's footer - "${FOOTER_ROW[code].filter((part) => part !== '·').join(' · ')}", then About · Support · Terms · Privacy · Contact`,
       same(await footerRow('app-participant-layout'), FOOTER_ROW[code]) && same(await footerLinks('app-participant-layout'), LEGAL[code].links),
       `${JSON.stringify(await footerRow('app-participant-layout'))} / ${JSON.stringify(await footerLinks('app-participant-layout'))}`,
     );
@@ -4337,7 +4354,7 @@ for (const width of [1280, 390]) {
   await waitFor(page, "!!document.querySelector('app-surveys-list')", 15000);
   await sleep(400);
   expect(
-    `the admin panel, ${width} px, from a Slovak tab: the family's footer under it, in English - "${FOOTER_ROW.en.filter((part) => part !== '·').join(' · ')}", then Terms · Privacy · Contact`,
+    `the admin panel, ${width} px, from a Slovak tab: the family's footer under it, in English - "${FOOTER_ROW.en.filter((part) => part !== '·').join(' · ')}", then About · Support · Terms · Privacy · Contact`,
     same(await footerRow('app-admin-layout'), FOOTER_ROW.en) &&
       same(await footerLinks('app-admin-layout'), LEGAL.en.links) &&
       (await js("!!document.querySelector('app-admin-layout > main + anotoki-site-footer')")),

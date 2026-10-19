@@ -150,6 +150,18 @@ version and its entry first in `frontend/public/changelog.json`, English and
 formal Slovak (a spec holds the two versions together); `changelog.json` goes
 out with `no-cache`, as `index.html` does.
 
+**Version 1.0.0, on anotoki-lib 0.8.0, both halves**: the family's About and
+Support pages (`/about`, `/support`, for anybody, in the legal pages' frame)
+and the footer's About · Support · Terms · Privacy · Contact; the footer's
+feedback form keeps what was typed until it is sent, with Clear, its buttons
+always in view; the version shown as v1.0.0. No migration of the site's own:
+the library's `anotoki_translations/013_about_and_support_words.sql` - Apply
+on the Migrations page (until then the pages and the links say the library's
+built-in words). Before the upload move any survey opened at the address
+`about` or `support` (the family's page answers there from now on, and the
+editor refuses those addresses). After it, open `/about` and `/support`
+signed out.
+
 ## 2. Upload
 
 For a version with a new migration that will be applied with the setup page
@@ -243,9 +255,10 @@ ADMIN only to the administrators the IAM had when it ran.
 - Signed out, Contact's "Send feedback" and the footer's Feedback open the
   form; a message sent shows the thanks, and the admin panel counts it beside
   System until it is opened. `https://survey.anotoki.eu/changelog.json` lists
-  the release's version first, the footer under every page says it ("Version
-  0.4.0") and its What's new opens the list; the admin panel has the same
-  footer, in English.
+  the release's version first, the footer under every page says it ("v1.0.0")
+  and its What's new opens the list, About · Support · Terms · Privacy ·
+  Contact under it; the admin panel has the same footer, in English. `/about`
+  and `/support` open signed out.
 - `https://survey.anotoki.eu/setup.php` does not show the installer.
 - `/config/database.local.php`, `/storage/`, `/vendor/composer/installed.json`,
   `/api/auth.php` are refused (403), not served.
