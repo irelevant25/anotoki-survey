@@ -227,7 +227,8 @@ describe('ParticipantLayoutComponent', () => {
       const footer = host.querySelector('app-participant-layout > anotoki-site-footer');
       expect(footer?.previousElementSibling?.classList).toContain('page');
       expect(footer?.querySelector(':scope > footer')).not.toBeNull();
-      expect(footerRow()).toEqual(['Verzia 0.4.0', '·', 'Čo je nové', '·', 'Spätná väzba']);
+      // The version reads "v0.4.0" on screen and "Verzia 0.4.0" to a screen reader (anotoki-lib 0.7.1): its text holds both.
+      expect(footerRow()).toEqual(['v0.4.0Verzia 0.4.0', '·', 'Čo je nové', '·', 'Spätná väzba']);
       expect(footerLinks()).toEqual([
         ['Podmienky', '/terms'],
         ['Súkromie', '/privacy'],
@@ -246,7 +247,7 @@ describe('ParticipantLayoutComponent', () => {
       signedIn.set(false);
       await fixture.whenStable();
       expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('Nie ste prihlásení');
-      expect(footerRow()).toEqual(['Verzia 0.4.0', '·', 'Čo je nové', '·', 'Spätná väzba']);
+      expect(footerRow()).toEqual(['v0.4.0Verzia 0.4.0', '·', 'Čo je nové', '·', 'Spätná väzba']);
       expect(footerLinks().map(([words]) => words)).toEqual(['Podmienky', 'Súkromie', 'Kontakt']);
     });
 

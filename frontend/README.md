@@ -83,7 +83,7 @@ src/
                                      somebody is signed in; no address handed to it (the site keeps none);
                                      the form says itself that its message is anybody's (anotoki-lib 0.7.2)
       changelog/                     Changelog: public/changelog.json read once, as the site starts - the site's
-                                     version (the newest entry's, package.json's too: the footer's "Version")
+                                     version (the newest entry's, package.json's too: the version in the footer)
                                      and What's new (open(): the dialog, ui/changelog-dialog, loaded with the
                                      press - the footer's What's new opens it)
       util/                          dates.ts (the admin panel's English dates), date-patterns.ts (the
@@ -102,7 +102,8 @@ src/
                                      participant, admin, legal-layout (the frame of /terms, /privacy and
                                      /contact - anybody's, no guard - and the facts' provider); each frame
                                      ends with the family's footer (<anotoki-site-footer>, @anotoki/lib/footer:
-                                     "Version · What's new · Feedback", then Terms · Privacy · Contact - the
+                                     "v{version} · What's new · Feedback" - a screen reader hears "Version
+                                     {version}" -, then Terms · Privacy · Contact - the
                                      version and What's new the changelog's, Feedback the family's form; in
                                      the admin panel English, and no Feedback while an update waits)
     pages/participant/               the open surveys, a survey to take, the visitor notice

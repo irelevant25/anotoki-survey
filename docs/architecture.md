@@ -630,7 +630,8 @@ the legal pages (`layouts/legal-layout`) and the admin panel
 (`layouts/site-footer`, the legal links alone) went for it; it had no words of
 its own, so no key went with it. A top border; then one row:
 
-- **Version 0.4.0** - `Changelog.current()`, the newest entry of
+- **v0.4.0** (a screen reader hears "Version 0.4.0", the library's
+  `anotoki.footer.version`) - `Changelog.current()`, the newest entry of
   `public/changelog.json` (*What's new and the version*, below), asked for as
   the site starts (`boot()`, never waited for): there when the first page is
   drawn;

@@ -37,11 +37,12 @@ export const CHANGELOG_URL = 'changelog.json';
 /**
  * The survey's versions and what each changed (public/changelog.json). The
  * newest entry's version is the site's version - one source: what the family's
- * footer shows ("Version 0.4.0", `current()`) under every page and in the
- * admin panel, and frontend/package.json's own version is held to it by a
- * spec. What's new (`open()`) lists every version in the kit's dialog
- * (ui/changelog-dialog, loaded with the first press: no first load carries
- * it), in the reader's language.
+ * footer shows ("v0.4.0", which a screen reader hears as "Version 0.4.0";
+ * `current()`) under every page and in the admin panel, and
+ * frontend/package.json's own version is held to it by a spec. What's new
+ * (`open()`) lists every version in the kit's dialog (ui/changelog-dialog,
+ * loaded with the first press: no first load carries it), in the reader's
+ * language.
  *
  * It opens when asked - by the What's new link of the family's footer
  * (<anotoki-site-footer>, anotoki-lib 0.6.3: its `(whatsNew)`, in each frame -

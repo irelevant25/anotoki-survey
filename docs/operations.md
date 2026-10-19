@@ -229,7 +229,8 @@ own Privacy page and account page - and that it names the hosting company
 
 Version **0.4.0** (the owner's wishes of 2026-10-18), on anotoki-lib 0.7.2
 (both halves): **the family's footer** (`<anotoki-site-footer>`) under every
-page and the admin panel - "Version 0.4.0 · What's new · Feedback", then
+page and the admin panel - "v0.4.0 · What's new · Feedback" (a screen reader
+hears "Version 0.4.0"), then
 Terms · Privacy · Contact; **feedback** - the family's form, opened from the
 footer and the Contact page (`POST /api/feedback`, anybody's), and the admin
 panel's Feedback page on System, with the count of new messages beside the

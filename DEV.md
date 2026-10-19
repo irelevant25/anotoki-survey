@@ -357,7 +357,8 @@ downloaded by its link, deleted) - and an EDITOR kept out of them; and Terms,
 Privacy and Contact - opened with nobody signed in and no trip to the IAM, at
 1280 and 390 px, light and dark, in English and Slovak, the anotoki account's
 Privacy page and account page the stand-in IAM's; the family's footer -
-"Version · What's new · Feedback", then Terms · Privacy · Contact - under them,
+"v{version} · What's new · Feedback" (a screen reader hears "Version {version}"),
+then Terms · Privacy · Contact - under them,
 under the survey's pages and the card of a session that ended, and under the
 admin panel in its English (each looked at up close, light in English and dark
 in Slovak), its What's new opening the survey's own list and its Feedback the

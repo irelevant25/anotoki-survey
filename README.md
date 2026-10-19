@@ -68,7 +68,8 @@ person by person.
   sent - the admin panel counts what is new.
 - **What's new**: the site's version and what each version changed for people,
   in English and Slovak - at the foot of every page, in the anotoki family's
-  footer: "Version · What's new · Feedback", then Terms · Privacy · Contact.
+  footer: "v{version} · What's new · Feedback" (a screen reader hears "Version
+  {version}"), then Terms · Privacy · Contact.
 
 | Part | Folder | Stack |
 | --- | --- | --- |
@@ -116,7 +117,8 @@ hosting:
 `frontend/public/changelog.json`'s newest entry): **the family's footer**
 (`<anotoki-site-footer>`, the build analyzer's - the owner's choice) under
 every page - the survey's, the legal pages, the admin panel's too (in its
-English) -: a top border, "Version 0.4.0 · What's new · Feedback", then
+English) -: a top border, "v0.4.0 · What's new · Feedback" (a screen reader
+hears "Version 0.4.0"), then
 Terms · Privacy · Contact; **feedback** - the anotoki family's form, which the
 footer's Feedback and the Contact page open for anybody, signed in or not
 (the person's account from their sign-in alone, never an address unless they

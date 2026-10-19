@@ -193,7 +193,8 @@ describe('AdminLayoutComponent', () => {
     const footer = host.querySelector('anotoki-site-footer');
     expect(footer?.previousElementSibling?.tagName.toLowerCase()).toBe('main');
     expect(footer?.querySelector(':scope > footer')).not.toBeNull();
-    expect(footerRow()).toEqual(['Version 0.4.0', '·', "What's new", '·', 'Feedback']);
+    // The version reads "v0.4.0" on screen and "Version 0.4.0" to a screen reader (anotoki-lib 0.7.1): its text holds both.
+    expect(footerRow()).toEqual(['v0.4.0Version 0.4.0', '·', "What's new", '·', 'Feedback']);
     expect(footerLinks()).toEqual([
       ['Terms', '/terms'],
       ['Privacy', '/privacy'],
@@ -209,25 +210,25 @@ describe('AdminLayoutComponent', () => {
 
   it('offers no Feedback while an update waits - the frame stands round the Migrations page then, and the server would refuse the message - and offers it again once the site runs', async () => {
     await layout({ signedIn: true, roles: ['ADMIN'] }, 'update-pending');
-    expect(footerRow()).toEqual(['Version 0.4.0', '·', "What's new"]);
+    expect(footerRow()).toEqual(['v0.4.0Version 0.4.0', '·', "What's new"]);
     expect(host.querySelector('anotoki-site-footer [data-open-feedback]')).toBeNull();
     expect(footerLinks().map(([words]) => words)).toEqual(['Terms', 'Privacy', 'Contact']);
 
     state.set('ready');
     await fixture.whenStable();
-    expect(footerRow()).toEqual(['Version 0.4.0', '·', "What's new", '·', 'Feedback']);
+    expect(footerRow()).toEqual(['v0.4.0Version 0.4.0', '·', "What's new", '·', 'Feedback']);
     TestBed.inject(HttpTestingController).expectOne('/api/admin/feedback/unread').flush({ unread: 0 });
   });
 
   it('keeps the footer under both cards - signed out, and no role here', async () => {
     await layout({ signedIn: false, roles: [] });
     expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('You are signed out');
-    expect(footerRow()).toEqual(['Version 0.4.0', '·', "What's new", '·', 'Feedback']);
+    expect(footerRow()).toEqual(['v0.4.0Version 0.4.0', '·', "What's new", '·', 'Feedback']);
 
     signedIn.set(true);
     await fixture.whenStable();
     expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('The admin panel is for the people who write the surveys');
-    expect(footerRow()).toEqual(['Version 0.4.0', '·', "What's new", '·', 'Feedback']);
+    expect(footerRow()).toEqual(['v0.4.0Version 0.4.0', '·', "What's new", '·', 'Feedback']);
     expect(footerLinks().map(([words]) => words)).toEqual(['Terms', 'Privacy', 'Contact']);
   });
 });
