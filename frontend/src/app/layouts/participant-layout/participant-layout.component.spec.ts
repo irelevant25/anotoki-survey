@@ -68,7 +68,7 @@ describe('ParticipantLayoutComponent', () => {
   const text = (selector: string) => (host.querySelector(selector)?.textContent ?? '').replace(/\s+/g, ' ').trim();
   /** The family's footer's first row as it is read: each part's words, and the dots between them. */
   const footerRow = () => Array.from(host.querySelectorAll('anotoki-site-footer .anotoki-site-footer__row > *')).map((part) => (part.textContent ?? '').replace(/\s+/g, ' ').trim());
-  /** Terms · Privacy · Contact in the footer: [the words, where each goes]. */
+  /** About · Support · Terms · Privacy · Contact in the footer: [the words, where each goes]. */
   const footerLinks = () =>
     Array.from(host.querySelectorAll<HTMLAnchorElement>('anotoki-site-footer anotoki-legal-links a')).map((link) => [(link.textContent ?? '').trim(), link.getAttribute('href')]);
 
@@ -223,13 +223,15 @@ describe('ParticipantLayoutComponent', () => {
   });
 
   describe('the family’s footer (<anotoki-site-footer>, anotoki-lib 0.6.3)', () => {
-    it('stands under the page: the version, What’s new and Feedback, then Terms · Privacy · Contact - in the reader’s language, no fan clause', () => {
+    it('stands under the page: the version, What’s new and Feedback, then About · Support · Terms · Privacy · Contact - in the reader’s language, no fan clause', () => {
       const footer = host.querySelector('app-participant-layout > anotoki-site-footer');
       expect(footer?.previousElementSibling?.classList).toContain('page');
       expect(footer?.querySelector(':scope > footer')).not.toBeNull();
       // The version reads "v0.4.0" on screen and "Verzia 0.4.0" to a screen reader (anotoki-lib 0.7.1): its text holds both.
       expect(footerRow()).toEqual(['v0.4.0Verzia 0.4.0', '·', 'Čo je nové', '·', 'Spätná väzba']);
       expect(footerLinks()).toEqual([
+        ['O projekte', '/about'],
+        ['Podporiť', '/support'],
         ['Podmienky', '/terms'],
         ['Súkromie', '/privacy'],
         ['Kontakt', '/contact'],
@@ -248,7 +250,7 @@ describe('ParticipantLayoutComponent', () => {
       await fixture.whenStable();
       expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('Nie ste prihlásení');
       expect(footerRow()).toEqual(['v0.4.0Verzia 0.4.0', '·', 'Čo je nové', '·', 'Spätná väzba']);
-      expect(footerLinks().map(([words]) => words)).toEqual(['Podmienky', 'Súkromie', 'Kontakt']);
+      expect(footerLinks().map(([words]) => words)).toEqual(['O projekte', 'Podporiť', 'Podmienky', 'Súkromie', 'Kontakt']);
     });
 
     it('says no version and offers no What’s new while the list of versions cannot be had - Feedback stays', async () => {

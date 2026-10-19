@@ -34,6 +34,13 @@ import { ParticipantLayoutComponent } from './layouts/participant-layout/partici
  *                               such a parent when none of its children match,
  *                               and drew the empty frame at / with no guard
  *                               (app.routes.spec.ts)
+ *   /about, /support            the anotoki family's About and Support pages
+ *                               (@anotoki/lib/legal/about, /support), the same
+ *                               on every anotoki site: anybody's, in the legal
+ *                               pages' frame, each a path of its own as they
+ *                               are; the tab's title is the page's heading,
+ *                               the library's words (anotoki.about.title,
+ *                               anotoki.support.title)
  *
  * The guards are the anotoki family's (@anotoki/lib/auth): anybody else is
  * sent to the IAM before anything of a page is drawn, and comes back to the
@@ -78,6 +85,16 @@ export const routes: Routes = [
     path: 'contact',
     loadComponent: legalFrame,
     children: [{ path: '', title: 'title.contact', loadComponent: () => import('@anotoki/lib/legal/pages').then((m) => m.ContactPageComponent) }],
+  },
+  {
+    path: 'about',
+    loadComponent: legalFrame,
+    children: [{ path: '', title: 'anotoki.about.title', loadComponent: () => import('@anotoki/lib/legal/about').then((m) => m.AboutPageComponent) }],
+  },
+  {
+    path: 'support',
+    loadComponent: legalFrame,
+    children: [{ path: '', title: 'anotoki.support.title', loadComponent: () => import('@anotoki/lib/legal/support').then((m) => m.SupportPageComponent) }],
   },
   {
     path: '',

@@ -99,11 +99,12 @@ src/
     layouts/                         top-bar (the site's wrapper over the family's bar, <anotoki-top-bar>:
                                      its brand, sections - System with the count of feedback nobody opened
                                      yet -, person and menu items, signing in and out),
-                                     participant, admin, legal-layout (the frame of /terms, /privacy and
-                                     /contact - anybody's, no guard - and the facts' provider); each frame
+                                     participant, admin, legal-layout (the frame of /terms, /privacy,
+                                     /contact, /about and /support - anybody's, no guard - and the facts'
+                                     provider); each frame
                                      ends with the family's footer (<anotoki-site-footer>, @anotoki/lib/footer:
                                      "v{version} · What's new · Feedback" - a screen reader hears "Version
-                                     {version}" -, then Terms · Privacy · Contact - the
+                                     {version}" -, then About · Support · Terms · Privacy · Contact - the
                                      version and What's new the changelog's, Feedback the family's form; in
                                      the admin panel English, and no Feedback while an update waits)
     pages/participant/               the open surveys, a survey to take, the visitor notice
@@ -128,8 +129,8 @@ Components are three files (`.ts`, `.html`, `.scss`); colours come from the
 family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
 every page works at 390 px. The UI kit, the top bar, the theme, the site's
 words, signing in, the People page, the admin tools, the feedback form, the
-error reporter, the legal pages and the footer are the anotoki family's library
-(`@anotoki/lib`, 0.7.2 - the backend's half the same), configured in
+error reporter, the legal pages, About and Support and the footer are the anotoki family's library
+(`@anotoki/lib`, 0.8.0 - the backend's half the same), configured in
 `app.config.ts`, `core/kit.ts`,
 `core/translations.ts`, `core/auth/auth.config.ts`,
 `core/admin/admin-tools.ts`, `core/feedback.ts` and `core/legal/` - never copied here; each kit piece

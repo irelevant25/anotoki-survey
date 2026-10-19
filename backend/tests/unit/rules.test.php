@@ -267,8 +267,8 @@ test('what keeps a survey from opening: the editor\'s list, in its words', funct
     assert_same([], surveyProblems($survey, [['id' => 'y', 'slug' => 'other']]));
     assert_same(['Another survey already lives at "genshin-1-0".'], surveyProblems($survey, [['id' => 'y', 'slug' => 'genshin-1-0']]));
     assert_same(['The address "admin" belongs to the site itself - choose another.'], surveyProblems(['slug' => 'admin'] + $survey, []));
-    foreach (['terms', 'privacy', 'contact'] as $legal) {
-        assert_same(["The address \"$legal\" belongs to the site itself - choose another."], surveyProblems(['slug' => $legal] + $survey, []), "/$legal is a legal page's");
+    foreach (['terms', 'privacy', 'contact', 'about', 'support'] as $legal) {
+        assert_same(["The address \"$legal\" belongs to the site itself - choose another."], surveyProblems(['slug' => $legal] + $survey, []), "/$legal is a page of the legal frame's");
         assert_same("The address \"$legal\" belongs to the site itself - choose another.", surveyLiveSlugProblem($legal), 'and no survey opens there');
     }
     assert_same(['The address may hold only small letters, digits and dashes.'], surveyProblems(['slug' => 'Genshin 1.0'] + $survey, []));
@@ -303,13 +303,13 @@ test('what keeps a survey from opening: the editor\'s list, in its words', funct
     assert_same(['Add at least one question.'], surveyProblems(['id' => 'x', 'title' => 'T', 'slug' => 'fine', 'content' => $empty['content']], []));
 });
 
-test('the addresses the site keeps for itself are the same on both sides - SURVEY_RESERVED_SLUGS and the frontend\'s RESERVED_SLUGS - the legal pages\' among them', function (): void {
+test('the addresses the site keeps for itself are the same on both sides - SURVEY_RESERVED_SLUGS and the frontend\'s RESERVED_SLUGS - the legal frame\'s among them', function (): void {
     $source = (string) file_get_contents(dirname(TEST_BACKEND) . '/frontend/src/app/core/survey/survey-factory.ts');
     assert_true((bool) preg_match('/export const RESERVED_SLUGS\b[^=]*=\s*new Set\(\[([^\]]*)\]\)/', $source, $m), 'RESERVED_SLUGS could be read from survey-factory.ts');
     preg_match_all("/'([^']+)'/", $m[1], $slugs);
     assert_same(SURVEY_RESERVED_SLUGS, $slugs[1], 'the same addresses, in the same order');
-    foreach (['terms', 'privacy', 'contact'] as $legal) {
-        assert_true(in_array($legal, SURVEY_RESERVED_SLUGS, true), "/$legal: a legal page's address, never a survey's");
+    foreach (['terms', 'privacy', 'contact', 'about', 'support'] as $legal) {
+        assert_true(in_array($legal, SURVEY_RESERVED_SLUGS, true), "/$legal: a page of the family's in the legal frame, never a survey's address");
     }
 });
 

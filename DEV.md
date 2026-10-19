@@ -38,10 +38,10 @@ its README), one version for both halves:
 
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
-| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.7.0"` (on 0.x a `^0.6.0` would never take 0.7) | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`backend/testing/stand-in-iam.php`), and its migration sets (`backend/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.7.2/anotoki-lib-0.7.2.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.8.0"` (on 0.x a `^0.7.0` would never take 0.8) | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`backend/testing/stand-in-iam.php`), and its migration sets (`backend/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.8.0/anotoki-lib-0.8.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-Both halves are at 0.7.2 (0.6.0 brought the legal pages, the kit's new pieces
+Both halves are at 0.8.0 (0.6.0 brought the legal pages, the kit's new pieces
 and the admin pages' fixes; 0.6.1 a sentence of the Privacy page - its
 translations `010`; 0.6.2 three more - `011`, which keeps a site's own
 words - and the feedback form; 0.6.3 the family's footer, `@anotoki/lib/footer`,
@@ -50,7 +50,9 @@ library's own folders renamed, its PHP half's files now in
 `backend/vendor/anotoki/lib/backend/`; 0.7.1 the footer's version written
 short, "v0.4.0"; 0.7.2 the feedback form saying itself whom its message is
 for - the site's own interceptor gone - and the library's words in the
-reader's language while no bundle is in memory); a release that changes one half only says so in its CHANGELOG. The
+reader's language while no bundle is in memory; 0.8.0 the About and Support
+pages and the footer's links to them - translations `013` - and the feedback
+form's kept draft and Clear); a release that changes one half only says so in its CHANGELOG. The
 kit is imported a piece at a time, each from its
 own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
 smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages
@@ -60,10 +62,12 @@ points of their own (`@anotoki/lib/translations/admin`,
 `/backups`), and so do the sign-in's callback page and its failure's screen
 (`@anotoki/lib/auth/screens`, loaded as they are shown) and the legal pages
 (`@anotoki/lib/legal/pages` - Terms, Privacy, Contact -, with their frame and
-the site's facts: `layouts/legal-layout`, `core/legal/legal-facts.ts`); the
+the site's facts: `layouts/legal-layout`, `core/legal/legal-facts.ts`) and
+About and Support (`@anotoki/lib/legal/about`, `/support`, in the same frame); the
 family's footer is `@anotoki/lib/footer` (`<anotoki-site-footer>`, in the first
 load, with the links to them, `@anotoki/lib/legal`'s `<anotoki-legal-links>`;
-its feedback dialog comes with the press, `@anotoki/lib/footer/feedback`); the pages' errors
+its feedback dialog comes with the press, `@anotoki/lib/feedback/form`'s
+`<anotoki-feedback-dialog>`); the pages' errors
 go to the error log through `@anotoki/lib/error-report` (`app.config.ts`).
 The package brings Manrope
 with it (`@fontsource-variable/manrope`, its dependency) and the theme's
@@ -192,6 +196,7 @@ the host behind Cloudflare - a computer of yours needs none.
 | `/admin/system` | an ADMIN's System pages: `/admin/people`, `/admin/feedback` (what people sent through the feedback form; the count of new ones beside the bar's System link), `/admin/errors`, `/admin/audit`, `/admin/backups`, `/admin/migrations` |
 | `/auth/callback` | where the IAM sends the browser back after signing in |
 | `/terms`, `/privacy`, `/contact` | the legal pages - the anotoki family's, with this site's facts - for anybody, signed in or not; Contact opens the feedback form; Terms · Privacy · Contact at the foot of every page people take surveys on |
+| `/about`, `/support` | the anotoki family's About and Support pages, the same on every anotoki site - for anybody, in the legal pages' frame; About · Support first among the footer's links |
 
 `?lang=sk` on any address of the site reads it in that language for the tab
 (and is taken out of the address); the chooser in the top bar remembers a
@@ -354,11 +359,11 @@ person's answers deleted after its question), the error log (a 404, and an
 error thrown in the page: reported with the owner's token, scrubbed), the
 audit log, the backups (one made after a new sign-in, named by its maker,
 downloaded by its link, deleted) - and an EDITOR kept out of them; and Terms,
-Privacy and Contact - opened with nobody signed in and no trip to the IAM, at
-1280 and 390 px, light and dark, in English and Slovak, the anotoki account's
-Privacy page and account page the stand-in IAM's; the family's footer -
-"v{version} · What's new · Feedback" (a screen reader hears "Version {version}"),
-then Terms · Privacy · Contact - under them,
+Privacy and Contact, About and Support - opened with nobody signed in and no
+trip to the IAM, at 1280 and 390 px, light and dark, in English and Slovak,
+the anotoki account's Privacy page and account page the stand-in IAM's; the
+family's footer - "v{version} · What's new · Feedback" (a screen reader hears
+"Version {version}"), then About · Support · Terms · Privacy · Contact - under them,
 under the survey's pages and the card of a session that ended, and under the
 admin panel in its English (each looked at up close, light in English and dark
 in Slovak), its What's new opening the survey's own list and its Feedback the

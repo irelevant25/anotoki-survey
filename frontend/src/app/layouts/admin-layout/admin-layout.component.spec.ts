@@ -49,7 +49,7 @@ describe('AdminLayoutComponent', () => {
   const text = (selector: string) => clean(host.querySelector(selector)?.textContent);
   /** The family's footer's first row as it is read: each part's words, and the dots between them. */
   const footerRow = () => Array.from(host.querySelectorAll('anotoki-site-footer .anotoki-site-footer__row > *')).map((part) => clean(part.textContent));
-  /** Terms · Privacy · Contact in the footer: [the words, where each goes]. */
+  /** About · Support · Terms · Privacy · Contact in the footer: [the words, where each goes]. */
   const footerLinks = () => Array.from(host.querySelectorAll<HTMLAnchorElement>('anotoki-site-footer anotoki-legal-links a')).map((link) => [clean(link.textContent), link.getAttribute('href')]);
 
   async function layout(who: { signedIn: boolean; roles: string[] }, standing: 'ready' | 'update-pending' = 'ready'): Promise<void> {
@@ -188,7 +188,7 @@ describe('AdminLayoutComponent', () => {
     expect(router.url).toBe('/admin/translations');
   });
 
-  it('puts the family’s footer under the panel, in its English whatever the reader’s language: the version, What’s new, Feedback, then Terms · Privacy · Contact', async () => {
+  it('puts the family’s footer under the panel, in its English whatever the reader’s language: the version, What’s new, Feedback, then About · Support · Terms · Privacy · Contact', async () => {
     await layout({ signedIn: true, roles: ['EDITOR'] });
     const footer = host.querySelector('anotoki-site-footer');
     expect(footer?.previousElementSibling?.tagName.toLowerCase()).toBe('main');
@@ -196,6 +196,8 @@ describe('AdminLayoutComponent', () => {
     // The version reads "v0.4.0" on screen and "Version 0.4.0" to a screen reader (anotoki-lib 0.7.1): its text holds both.
     expect(footerRow()).toEqual(['v0.4.0Version 0.4.0', '·', "What's new", '·', 'Feedback']);
     expect(footerLinks()).toEqual([
+      ['About', '/about'],
+      ['Support', '/support'],
       ['Terms', '/terms'],
       ['Privacy', '/privacy'],
       ['Contact', '/contact'],
@@ -212,7 +214,7 @@ describe('AdminLayoutComponent', () => {
     await layout({ signedIn: true, roles: ['ADMIN'] }, 'update-pending');
     expect(footerRow()).toEqual(['v0.4.0Version 0.4.0', '·', "What's new"]);
     expect(host.querySelector('anotoki-site-footer [data-open-feedback]')).toBeNull();
-    expect(footerLinks().map(([words]) => words)).toEqual(['Terms', 'Privacy', 'Contact']);
+    expect(footerLinks().map(([words]) => words)).toEqual(['About', 'Support', 'Terms', 'Privacy', 'Contact']);
 
     state.set('ready');
     await fixture.whenStable();
@@ -229,6 +231,6 @@ describe('AdminLayoutComponent', () => {
     await fixture.whenStable();
     expect(text('anotoki-empty-state .anotoki-empty-state__heading')).toBe('The admin panel is for the people who write the surveys');
     expect(footerRow()).toEqual(['v0.4.0Version 0.4.0', '·', "What's new", '·', 'Feedback']);
-    expect(footerLinks().map(([words]) => words)).toEqual(['Terms', 'Privacy', 'Contact']);
+    expect(footerLinks().map(([words]) => words)).toEqual(['About', 'Support', 'Terms', 'Privacy', 'Contact']);
   });
 });

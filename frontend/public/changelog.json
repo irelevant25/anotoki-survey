@@ -1,5 +1,29 @@
 [
   {
+    "version": "1.0.0",
+    "date": "2026-10-19",
+    "changes": {
+      "added": [
+        "About and Support, at the foot of every page: where the name anotoki comes from, who makes the anotoki projects and what each of them is, and how to support them - anybody may read them, signed in or not"
+      ],
+      "updated": [
+        "The feedback form at the foot of every page keeps what you typed until you send it - closed and opened again, it is still there - and its Clear button empties it; its buttons are always in view, on a phone too",
+        "The version at the foot of every page is written short, as v1.0.0"
+      ]
+    },
+    "translations": {
+      "sk": {
+        "added": [
+          "O projekte a Podporiť v spodnej časti každej stránky: odkiaľ pochádza názov anotoki, kto tvorí projekty anotoki a čo je každý z nich, a ako ich podporiť – prečítať si ich môže ktokoľvek, prihlásený aj neprihlásený"
+        ],
+        "updated": [
+          "Formulár spätnej väzby v spodnej časti každej stránky si pamätá, čo ste napísali, kým to neodošlete – keď ho zatvoríte a znova otvoríte, text tam stále je – a jeho tlačidlo Vymazať ho vyprázdni; jeho tlačidlá sú vždy na očiach, aj na telefóne",
+          "Verzia v spodnej časti každej stránky je napísaná skrátene, ako v1.0.0"
+        ]
+      }
+    }
+  },
+  {
     "version": "0.4.0",
     "date": "2026-10-18",
     "changes": {

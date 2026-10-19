@@ -39,8 +39,8 @@ person by person.
   added, in the admin panel - which itself is English. A new language starts
   hidden, to be offered when its strings are written.
 - **Who does what**: people sign in with their **anotoki account** (the anotoki
-  IAM) - every page asks for that first (but Terms, Privacy and Contact, which
-  anybody may read), and nothing of a survey shows before;
+  IAM) - every page asks for that first (but Terms, Privacy and Contact, About
+  and Support, which anybody may read), and nothing of a survey shows before;
   unless the IAM's "Sign-in required" is switched off for the survey, when
   anybody may take the open surveys without signing in, once from their
   browser, and signing in later moves those answers into their account (the
@@ -69,7 +69,7 @@ person by person.
 - **What's new**: the site's version and what each version changed for people,
   in English and Slovak - at the foot of every page, in the anotoki family's
   footer: "v{version} · What's new · Feedback" (a screen reader hears "Version
-  {version}"), then Terms · Privacy · Contact.
+  {version}"), then About · Support · Terms · Privacy · Contact.
 
 | Part | Folder | Stack |
 | --- | --- | --- |
@@ -111,10 +111,19 @@ hosting:
   "Who connects" says Cloudflare, not a proxy of the host's (behind one, every visitor would share one
   address); pending database updates are applied on the admin panel's Migrations page.
 
-## Current state - 0.4
+## Current state - 1.0
+
+**1.0** (2026-10-19, on anotoki-lib 0.8.0; its notes for people are
+`frontend/public/changelog.json`'s newest entry): the family's **About** and
+**Support** pages (`/about`, `/support`), anybody's, in the legal pages'
+frame, and the footer's About · Support · Terms · Privacy · Contact; the
+footer's feedback form keeps what was typed until it is sent, with Clear,
+its buttons always in view; the version shown as v1.0.0. On the hosting it
+brings the library's `anotoki_translations/013_about_and_support_words.sql`,
+applied on the Migrations page.
 
 **0.4** (2026-10-18, on anotoki-lib 0.7.2; its notes for people are
-`frontend/public/changelog.json`'s newest entry): **the family's footer**
+`frontend/public/changelog.json`'s 0.4.0 entry): **the family's footer**
 (`<anotoki-site-footer>`, the build analyzer's - the owner's choice) under
 every page - the survey's, the legal pages, the admin panel's too (in its
 English) -: a top border, "v0.4.0 · What's new · Feedback" (a screen reader
@@ -160,7 +169,7 @@ wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (now 0.7.2, both halves:
+migrations are the shared library's, **anotoki-lib** (now 0.8.0, both halves:
 `anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and

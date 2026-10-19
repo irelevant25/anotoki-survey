@@ -15,9 +15,9 @@ import { TopBarComponent } from '../top-bar/top-bar.component';
  * The frame of the admin area: the top bar over the page - for the people who
  * write the surveys (EDITOR) and run the site (ADMIN) - and under it the
  * anotoki family's footer, as under every page of every anotoki site (the
- * owner, 2026-10-18): the version and What's new, Feedback and Terms ·
- * Privacy · Contact, in English like the rest of the panel - under the cards
- * below too. Feedback only while the site runs: while an update waits this
+ * owner, 2026-10-18): the version and What's new, Feedback and About ·
+ * Support · Terms · Privacy · Contact, in English like the rest of the panel -
+ * under the cards below too. Feedback only while the site runs: while an update waits this
  * frame stands round the Migrations page alone, for the ADMIN who applies it,
  * and the server refuses a message then (503 update_pending), so the footer
  * offers none. It has three states:

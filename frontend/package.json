@@ -1,6 +1,6 @@
 {
   "name": "anotoki-survey",
-  "version": "0.4.0",
+  "version": "1.0.0",
   "description": "anotoki survey's frontend: Angular 21 (standalone, zoneless, signals) - the survey people take, the editor, and the results, on the PHP API in ../backend.",
   "private": true,
   "engines": {
@@ -16,7 +16,7 @@
   },
   "packageManager": "npm@10.9.2",
   "dependencies": {
-    "@anotoki/lib": "https://github.com/irelevant25/anotoki-lib/releases/download/v0.7.2/anotoki-lib-0.7.2.tgz",
+    "@anotoki/lib": "https://github.com/irelevant25/anotoki-lib/releases/download/v0.8.0/anotoki-lib-0.8.0.tgz",
     "@angular/cdk": "~21.2.0",
     "@angular/common": "^21.2.0",
     "@angular/compiler": "^21.2.0",

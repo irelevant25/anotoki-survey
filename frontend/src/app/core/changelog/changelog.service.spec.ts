@@ -75,9 +75,10 @@ describe('public/changelog.json: the survey’s versions', () => {
         expect(sentence, `${entry.version}: Vy, Vás, Váš with their capital - ${sentence}`).not.toMatch(/(^|[^\p{L}])(vy|vás|vám|váš|vaš\p{L}*|vášho)(?![\p{L}])/u);
       }
     }
-    // This release's entry: what it changed for people - the legal pages and feedback.
-    expect(entries[0].changes.added?.join(' ')).toMatch(/Terms, Privacy and Contact/);
-    expect(entries[0].changes.added?.join(' ')).toMatch(/feedback/);
+    // This release's entry: what it changed for people - About and Support, the feedback form that keeps what was typed, the version as v1.0.0.
+    expect(entries[0].changes.added?.join(' ')).toMatch(/About and Support/);
+    expect(entries[0].changes.updated?.join(' ')).toMatch(/feedback form .* keeps what you typed/);
+    expect(entries[0].changes.updated?.join(' ')).toMatch(/v1\.0\.0/);
   });
 });
 

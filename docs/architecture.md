@@ -28,7 +28,7 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib 0.7.2, its
+client `survey`, with the anotoki family's library (anotoki-lib 0.8.0, its
 `Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
@@ -110,8 +110,8 @@ welcome it lets anybody through); while sign-in
 is required the API answers nothing of a survey without a token - its
 pictures aside, which an `<img>` loads with no token, at addresses that are
 random UUIDs ([API](api.md#the-people-taking-surveys)). Only the legal pages
-(*Terms, Privacy and Contact*, below: anybody's, nothing of a survey on them)
-and the pages drawn while the site cannot run (the family's page, the card for
+(*Terms, Privacy and Contact*, below: anybody's, nothing of a survey on them;
+About and Support with them) and the pages drawn while the site cannot run (the family's page, the card for
 a server out of reach) draw without it: while the site cannot run and the server said why
 (`SiteStatus.blocked()`) the guard lets every page through and sends nobody to
 the IAM - the family's page stands instead of each, with its own quiet Sign in
@@ -300,7 +300,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib 0.7.2, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib 0.8.0, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -345,7 +345,7 @@ answer, every survey's author and every visitor lives in `users`):
 ## The admin tools
 
 The error log, the audit log, feedback and the backups are the anotoki
-family's (anotoki-lib 0.7.2, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
+family's (anotoki-lib 0.8.0, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
 `Feedback`, `Backups` - wired in `api/admin_tools.php`, their routes in
 `routes/admin.php` (feedback's form in `routes/feedback.php`); the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/feedback`, `/backups`, configured in
@@ -364,9 +364,9 @@ and are in every backup).
 - **Feedback** (the owner's wish of 2026-10-18; before it, none) - the
   library's form (`@anotoki/lib/feedback/form`, its code loaded with the first
   press; set up in `core/feedback.ts`) opened from the family's footer's
-  Feedback under every page (its dialog the footer's own,
-  `@anotoki/lib/footer/feedback`, loaded with the press) and from the Contact
-  page, sending `POST /api/feedback` for anybody - a person, a visitor,
+  Feedback under every page (its dialog the library's `<anotoki-feedback-dialog>`
+  in the same entry point since anotoki-lib 0.8.0, loaded with the press) and
+  from the Contact page, sending `POST /api/feedback` for anybody - a person, a visitor,
   nobody, whether sign-in is required or not; the admin panel's footer
   offers it only while the site runs (round the Migrations page while an
   update waits the server would refuse it, 503 `update_pending`). Who sent it is the token's alone (`Identify` in front, `RecordPerson`
@@ -586,6 +586,12 @@ are the library's, the facts this site's.
   is on them or asked of the API; while the site cannot run, the family's page
   stands instead, as of every page. The three are reserved addresses
   (`RESERVED_SLUGS` ↔ `SURVEY_RESERVED_SLUGS`).
+- **About and Support** (anotoki-lib 0.8.0, `@anotoki/lib/legal/about`,
+  `/support`): `/about` and `/support`, the same on every anotoki site, are
+  anybody's in the same frame and the same way - reserved addresses too; the
+  tab's title is the page's heading, the library's `anotoki.about.title` /
+  `anotoki.support.title`. Their words are the library's (`anotoki.about.*`,
+  `anotoki.support.*`, its translations `013`), none of the site's facts.
 - **The facts** (`core/legal/legal-facts.ts`, given by the frame - out of the
   first load): the site's name; what it is; three parts of its own - the
   record of a person (the account's id and name, first and last seen), their
@@ -615,8 +621,8 @@ are the library's, the facts this site's.
   lists the feedback - what it keeps and what for in the library's words, how
   long in the site's (`legal.feedback.kept`, migration 015).
 - **Their links** are in the family's footer under every page (*The footer*,
-  below): Terms · Privacy · Contact (`<anotoki-legal-links>`, the paths and
-  words of `provideAnotokiLegal()`), the open page marked.
+  below): About · Support · Terms · Privacy · Contact (`<anotoki-legal-links>`,
+  the paths and words of `provideAnotokiLegal()`), the open page marked.
 
 ## The footer
 
@@ -630,7 +636,7 @@ the legal pages (`layouts/legal-layout`) and the admin panel
 (`layouts/site-footer`, the legal links alone) went for it; it had no words of
 its own, so no key went with it. A top border; then one row:
 
-- **v0.4.0** (a screen reader hears "Version 0.4.0", the library's
+- **v1.0.0** (a screen reader hears "Version 1.0.0", the library's
   `anotoki.footer.version`) - `Changelog.current()`, the newest entry of
   `public/changelog.json` (*What's new and the version*, below), asked for as
   the site starts (`boot()`, never waited for): there when the first page is
@@ -639,13 +645,14 @@ its own, so no key went with it. A top border; then one row:
   (`(whatsNew)`), the frame opens `Changelog.open()`. Neither it nor the
   version while the list cannot be had;
 - **Feedback** - the family's form in the kit's dialog, opened by the footer
-  itself (its code with the press, `@anotoki/lib/footer/feedback`), set up by
+  itself (its code with the press, `<anotoki-feedback-dialog>` of
+  `@anotoki/lib/feedback/form` since anotoki-lib 0.8.0), set up by
   the site's `provideAnotokiFeedback()` (`core/feedback.ts`): anybody's here,
   so under every frame for anybody, the message marked whom it is for by
   the form itself (anotoki-lib 0.7.2); in the admin panel only while the site runs
   (round the Migrations page while an update waits the server would refuse it);
 
-then Terms · Privacy · Contact; no fan clause (the survey is no fan site). Its
+then About · Support · Terms · Privacy · Contact; no fan clause (the survey is no fan site). Its
 words are the library's (`anotoki.footer.*`, the library's translations `012`;
 `anotoki.legalLinks.*`), read by the footer itself through the kit's lookup -
 the database's string first, an owner's rewording - in the language on the

@@ -56,19 +56,21 @@ describe('the site’s routes', () => {
 
   it('a survey’s address too - and one that only begins like a legal page’s is a survey’s', async () => {
     const harness = await RouterTestingHarness.create();
-    for (const address of ['/genshin-6-1', '/terms-of-the-event', '/privacy2']) {
+    for (const address of ['/genshin-6-1', '/terms-of-the-event', '/privacy2', '/about-you', '/supporters']) {
       await harness.navigateByUrl(address);
       const [frame, page] = taken();
       expect([address, frame.component === ParticipantLayoutComponent, page.path]).toEqual([address, true, ':slug']);
     }
   });
 
-  it('/terms, /privacy and /contact: the legal pages, each its own path in the legal frame - no guard on the way', async () => {
+  it('/terms, /privacy and /contact, /about and /support: the family’s pages, each its own path in the legal frame - no guard on the way', async () => {
     const harness = await RouterTestingHarness.create();
     for (const [address, title] of [
       ['/terms', 'title.terms'],
       ['/privacy', 'title.privacy'],
       ['/contact', 'title.contact'],
+      ['/about', 'anotoki.about.title'],
+      ['/support', 'anotoki.support.title'],
     ]) {
       await harness.navigateByUrl(address);
       const [frame, page] = taken();

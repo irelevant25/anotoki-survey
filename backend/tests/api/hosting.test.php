@@ -80,6 +80,7 @@ test('the build: exactly what to upload - no settings, no tools, no composer fil
         'vendor/anotoki/lib/backend/migrations/translations/010_backups_where_words.sql',
         'vendor/anotoki/lib/backend/migrations/translations/011_privacy_words_made_true.sql',
         'vendor/anotoki/lib/backend/migrations/translations/012_footer_words.sql',
+        'vendor/anotoki/lib/backend/migrations/translations/013_about_and_support_words.sql',
         // The anotoki library's words: its code, its migration set and the words it ships - run and read on the host.
         'vendor/anotoki/lib/backend/src/Translations/Translations.php', 'vendor/anotoki/lib/backend/src/Translations/Http/TranslationsRoutes.php',
         'vendor/anotoki/lib/backend/migrations/translations/001_languages_and_strings.sql', 'vendor/anotoki/lib/backend/migrations/translations/002_library_words.sql',

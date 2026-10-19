@@ -153,7 +153,7 @@ was open. The upload carries `vendor/anotoki/lib/backend/migrations/`
 (the library's set) - `tools/build.php` puts it there, under the deny-all
 `.htaccess` of `vendor/`.
 
-The version that took anotoki-lib 0.4.1 (both halves; 0.7.2 now, below) takes the rest of what every
+The version that took anotoki-lib 0.4.1 (both halves; 0.8.0 now, below) takes the rest of what every
 anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
 are gone - `api/anotoki_iam.php` stays on the host after the upload, read by
 nothing: delete it over FTP; the browser keeps its session, under the same
@@ -254,6 +254,20 @@ Migrations page (until it is applied the admin panel's footer round that page
 offers no Feedback), then send a message signed out - from the footer's
 Feedback or `/contact` - and find it on System → Feedback - then mark it, or
 delete it; and open What's new from the footer.
+
+Version **1.0.0** (the owner, 2026-10-19), on anotoki-lib 0.8.0 (both
+halves): the family's **About** and **Support** pages (`/about`, `/support`,
+for anybody, in the legal pages' frame), About · Support first among the
+footer's links; the footer's feedback form keeping what was typed until it is
+sent, with Clear, its buttons always in view; the version shown as v1.0.0.
+It brings no migration of the site's own, only the library's
+`anotoki_translations/013_about_and_support_words.sql` (the two pages' words,
+the footer's two links and the form's Clear - until it is applied they say
+the library's built-in ones). **Before the upload**: a survey opened at the
+address `about` or `support` is reached no more there once this version is
+up - the family's page answers - and the editor now refuses those addresses;
+move such a survey first. **After the upload**: apply on the Migrations page,
+then open `/about` and `/support` signed out.
 
 A **release** adds its entry at the top of `frontend/public/changelog.json` -
 what changed for people, in English and its whole formal-Slovak translation
@@ -518,7 +532,7 @@ SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 
 
 Everything is in the database, pictures and the site's reworded strings
 included. The site backs it up itself - the anotoki family's backups
-(anotoki-lib 0.7.2), on the admin panel's System → **Backups** page, for its
+(anotoki-lib 0.8.0), on the admin panel's System → **Backups** page, for its
 ADMIN: every table by COPY through PDO in one snapshot (no `pg_dump` on the
 host), each a file `storage/backups/<id>.anotoki-backup` (`ANOTOKI-BACKUP 1`,
 a JSON header, then a gzip'd tar of the manifest, the applied migrations' SQL

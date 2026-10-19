@@ -32,5 +32,5 @@
 </main>
 
 <!-- The family's footer, in the admin panel's English - under the cards too: the version and What's new, Feedback while the site runs
-     (not round the Migrations page while an update waits: the server would refuse the message), Terms · Privacy · Contact. -->
+     (not round the Migrations page while an update waits: the server would refuse the message), About · Support · Terms · Privacy · Contact. -->
 <anotoki-site-footer [version]="changelog.current()" [whatsNew]="changelog.current() !== null" (whatsNew)="changelog.open()" [feedback]="!siteStatus.blocked()" />
