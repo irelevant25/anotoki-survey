@@ -80,10 +80,8 @@ src/
       feedback.ts                    the family's feedback form (@anotoki/lib/feedback - the footer's Feedback
                                      and the Contact page open it, its code loaded with the press): provideSiteFeedback() - the
                                      language, the library's words in this site's formal Slovak, whether
-                                     somebody is signed in; no address handed to it (the site keeps none) -
-                                     and feedbackSenderInterceptor (in SITE_INTERCEPTORS): its message the
-                                     person's while somebody is signed in, nobody's otherwise - never a
-                                     person's with no token, which the family's interceptor keeps back
+                                     somebody is signed in; no address handed to it (the site keeps none);
+                                     the form says itself that its message is anybody's (anotoki-lib 0.7.2)
       changelog/                     Changelog: public/changelog.json read once, as the site starts - the site's
                                      version (the newest entry's, package.json's too: the footer's "Version")
                                      and What's new (open(): the dialog, ui/changelog-dialog, loaded with the
@@ -130,7 +128,7 @@ family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
 every page works at 390 px. The UI kit, the top bar, the theme, the site's
 words, signing in, the People page, the admin tools, the feedback form, the
 error reporter, the legal pages and the footer are the anotoki family's library
-(`@anotoki/lib`, 0.7.0 - the backend's half the same), configured in
+(`@anotoki/lib`, 0.7.2 - the backend's half the same), configured in
 `app.config.ts`, `core/kit.ts`,
 `core/translations.ts`, `core/auth/auth.config.ts`,
 `core/admin/admin-tools.ts`, `core/feedback.ts` and `core/legal/` - never copied here; each kit piece

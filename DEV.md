@@ -39,15 +39,18 @@ its README), one version for both halves:
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
 | PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.7.0"` (on 0.x a `^0.6.0` would never take 0.7) | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`backend/testing/stand-in-iam.php`), and its migration sets (`backend/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.7.0/anotoki-lib-0.7.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.7.2/anotoki-lib-0.7.2.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-Both halves are at 0.7.0 (0.6.0 brought the legal pages, the kit's new pieces
+Both halves are at 0.7.2 (0.6.0 brought the legal pages, the kit's new pieces
 and the admin pages' fixes; 0.6.1 a sentence of the Privacy page - its
 translations `010`; 0.6.2 three more - `011`, which keeps a site's own
 words - and the feedback form; 0.6.3 the family's footer, `@anotoki/lib/footer`,
 and its four words - translations `012`; 0.7.0 nothing the site does - the
 library's own folders renamed, its PHP half's files now in
-`backend/vendor/anotoki/lib/backend/`); a release that changes one half only says so in its CHANGELOG. The
+`backend/vendor/anotoki/lib/backend/`; 0.7.1 the footer's version written
+short, "v0.4.0"; 0.7.2 the feedback form saying itself whom its message is
+for - the site's own interceptor gone - and the library's words in the
+reader's language while no bundle is in memory); a release that changes one half only says so in its CHANGELOG. The
 kit is imported a piece at a time, each from its
 own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
 smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages

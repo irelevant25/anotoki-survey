@@ -28,7 +28,7 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib 0.7.0, its
+client `survey`, with the anotoki family's library (anotoki-lib 0.7.2, its
 `Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
@@ -300,7 +300,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib 0.7.0, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib 0.7.2, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -345,7 +345,7 @@ answer, every survey's author and every visitor lives in `users`):
 ## The admin tools
 
 The error log, the audit log, feedback and the backups are the anotoki
-family's (anotoki-lib 0.7.0, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
+family's (anotoki-lib 0.7.2, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
 `Feedback`, `Backups` - wired in `api/admin_tools.php`, their routes in
 `routes/admin.php` (feedback's form in `routes/feedback.php`); the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/feedback`, `/backups`, configured in
@@ -372,10 +372,11 @@ and are in every backup).
   update waits the server would refuse it, 503 `update_pending`). Who sent it is the token's alone (`Identify` in front, `RecordPerson`
   after it), the person's id and nothing else - none at all for a message
   sent "without my name"; a visitor's key is never read there. In the browser
-  the message says whom it is for as it is issued (`feedbackSenderInterceptor`,
-  before the family's interceptor): the person's while somebody is signed in,
-  nobody's otherwise - left unsaid, it would be a person's with no token
-  whenever the sign-in is set up, which the family's interceptor never sends.
+  the form says itself whom its message is for as it is issued (anybody's, the
+  library's `issuedAs('anybody')` since anotoki-lib 0.7.2): the person's while
+  somebody is signed in, nobody's otherwise - a visitor's key goes to the
+  surveys' routes alone -, never a person's with no token, which the family's
+  interceptor never sends.
   No address is
   written into the form: a reply address is kept only when the sender types
   one (the IAM is the only holder of anybody's address). The table is the
@@ -639,8 +640,8 @@ its own, so no key went with it. A top border; then one row:
 - **Feedback** - the family's form in the kit's dialog, opened by the footer
   itself (its code with the press, `@anotoki/lib/footer/feedback`), set up by
   the site's `provideAnotokiFeedback()` (`core/feedback.ts`): anybody's here,
-  so under every frame for anybody, the message marked whom it is for
-  (`feedbackSenderInterceptor`); in the admin panel only while the site runs
+  so under every frame for anybody, the message marked whom it is for by
+  the form itself (anotoki-lib 0.7.2); in the admin panel only while the site runs
   (round the Migrations page while an update waits the server would refuse it);
 
 then Terms · Privacy · Contact; no fan clause (the survey is no fan site). Its

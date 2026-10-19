@@ -3,7 +3,7 @@ import { HttpTestingController, type TestRequest, provideHttpClientTesting } fro
 import { ErrorHandler } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { AnotokiAuth, ISSUED_AS } from '@anotoki/lib/auth';
+import { AnotokiAuth, ISSUED_AS, issuedAs } from '@anotoki/lib/auth';
 import { type TestAnotokiAuthOptions, provideTestAnotokiAuth, testAnotokiAuth } from '@anotoki/lib/auth/testing';
 import { ANOTOKI_ERROR_REPORT, AnotokiErrorReporter, provideAnotokiErrorReport } from '@anotoki/lib/error-report';
 import { firstValueFrom } from 'rxjs';
@@ -87,8 +87,10 @@ describe("app.config.ts: the browser's errors, into the site's error log", () =>
 
 /**
  * The feedback form's message (POST /api/feedback, the family's form - core/feedback.ts) through the app's own
- * HttpClient and its interceptors: the person's while somebody is signed in, nobody's otherwise - never a person's
- * with no token to send, which the family's interceptor keeps back (the Contact page is anybody's, and so is its form).
+ * HttpClient and its interceptors, marked as the form marks it - anybody's (issuedAs('anybody'), anotoki-lib 0.7.2):
+ * the person's while somebody is signed in, nobody's otherwise - never kept back as a person's with no token to send
+ * (the Contact page is anybody's, and so is its form), and never with a visitor's key, which goes to the surveys' routes
+ * alone.
  */
 describe("app.config.ts: the feedback form's message, whoever sends it", () => {
   const MESSAGE = { kind: 'bug', message: 'The Next button does nothing on step 2.', page: '/contact', language: 'en', website: '' };
@@ -109,12 +111,12 @@ describe("app.config.ts: the feedback form's message, whoever sends it", () => {
     return TestBed.inject(HttpTestingController);
   }
 
-  /** The message as the form sends it - no context of its own - and what it answered. */
+  /** The message as the form sends it - anybody's - and what it answered. */
   function send(): Promise<unknown> {
-    return firstValueFrom(TestBed.inject(HttpClient).post('/api/feedback', MESSAGE));
+    return firstValueFrom(TestBed.inject(HttpClient).post('/api/feedback', MESSAGE, { context: issuedAs('anybody') }));
   }
 
-  it("nobody signed in, the site requiring a sign-in: it leaves, with neither a token nor a key - where the family's interceptor alone would keep it back as a person's", async () => {
+  it("nobody signed in, the site requiring a sign-in: it leaves, with neither a token nor a key - where a request that does not say would be kept back as a person's", async () => {
     const http = await setUp({ user: null });
     const auth = TestBed.inject(AnotokiAuth);
     expect(auth.caller(), "a request that does not say whom it is for is a person's here").toBe('person');
@@ -124,7 +126,7 @@ describe("app.config.ts: the feedback form's message, whoever sends it", () => {
     const sent = await vi.waitFor(() => http.expectOne('/api/feedback'));
     expect(sent.request.headers.has('Authorization')).toBe(false);
     expect(sent.request.headers.has('X-Visitor-Key')).toBe(false);
-    expect(sent.request.context.get(ISSUED_AS)).toBe('nobody');
+    expect(sent.request.context.get(ISSUED_AS)).toBe('anybody');
     expect(sent.request.body).toEqual(MESSAGE);
     sent.flush({ ok: true }, { status: 201, statusText: 'Created' });
     await expect(answered).resolves.toEqual({ ok: true });
@@ -156,9 +158,5 @@ describe("app.config.ts: the feedback form's message, whoever sends it", () => {
     sent.flush({ ok: true }, { status: 201, statusText: 'Created' });
     await expect(answered).resolves.toEqual({ ok: true });
     http.verify();
-  });
-
-  it("is in the app's interceptors before the family's, which reads what it says", () => {
-    expect(SITE_INTERCEPTORS.map((interceptor) => interceptor.name)).toEqual(['siteStatusInterceptor', 'feedbackSenderInterceptor', 'anotokiAuthInterceptor']);
   });
 });

@@ -908,7 +908,8 @@ in every admin panel"):
   that take a person's feedback only it is offered only while it can be sent.
   Not while an update waits: the admin panel's frame round the Migrations
   page offers none then (the server answers 503 `update_pending`), as Japanese
-  Academy's footer does.
+  Academy's footer does. Since anotoki-lib 0.7.2 the form marks its message
+  itself (`issuedAs('anybody')`), and `feedbackSenderInterceptor` is gone.
 - **The version is there when the first page is drawn**: `boot()` asks for
   `changelog.json` at the very start and never waits for it; a list that
   cannot be had leaves neither the version nor What's new.

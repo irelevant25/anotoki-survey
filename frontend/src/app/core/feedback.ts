@@ -1,7 +1,5 @@
-import { HttpInterceptorFn } from '@angular/common/http';
 import { EnvironmentProviders, inject } from '@angular/core';
-import { AnotokiAuth, ISSUED_AS } from '@anotoki/lib/auth';
-import { DEFAULT_FEEDBACK_ENDPOINT, provideAnotokiFeedback } from '@anotoki/lib/feedback';
+import { provideAnotokiFeedback } from '@anotoki/lib/feedback';
 import { TranslationService } from '@anotoki/lib/translations';
 import { AuthService } from './auth/auth.service';
 
@@ -27,8 +25,10 @@ import { AuthService } from './auth/auth.service';
  *
  * It sends to POST /api/feedback (backend routes/feedback.php) through the
  * app's HttpClient, so the site's interceptors decide what it carries - and
- * feedbackSenderInterceptor, below, says whom it is for: a person's message
- * goes with the token, anybody else's with neither. No mail is sent: the
+ * the form itself says whom it is for (anybody's: the library's
+ * issuedAs('anybody'), since anotoki-lib 0.7.2): a person's message goes with
+ * the token, anybody else's with neither - a visitor's key goes to the
+ * surveys' routes alone (core/auth/auth.config.ts). No mail is sent: the
  * admin panel counts what is new.
  */
 export function provideSiteFeedback(): EnvironmentProviders {
@@ -41,36 +41,4 @@ export function provideSiteFeedback(): EnvironmentProviders {
       signedIn: () => auth.person() !== null,
     };
   });
-}
-
-/**
- * Whom the feedback form's message is for, said as it is issued (the library's
- * ISSUED_AS): the person's while somebody is signed in here - their token goes
- * with it, so the Feedback page names them - and nobody's otherwise: nobody,
- * and a visitor too (the server never reads a visitor's key there).
- *
- * Left to the family's interceptor, a request that does not say is the
- * person's whenever the sign-in is set up (AnotokiAuth.caller()), signed in or
- * not - and a person's request with no token is never sent: the Contact page,
- * which is anybody's, said "Sign in to send a message" to everybody not signed
- * in while the site requires signing in, and the page followed a session that
- * had never been. A request that says whom it is for already is left alone.
- * Before anotokiAuthInterceptor in SITE_INTERCEPTORS (app.config.ts).
- */
-export const feedbackSenderInterceptor: HttpInterceptorFn = (request, next) => {
-  if (request.method !== 'POST' || !isFeedbackRoute(request.url) || request.context.get(ISSUED_AS) !== null) {
-    return next(request);
-  }
-  // HttpContext is the request's own, and mutable: the family's interceptor reads it next.
-  request.context.set(ISSUED_AS, inject(AnotokiAuth).signedIn() ? 'person' : 'nobody');
-  return next(request);
-};
-
-/** Whether `url` is the form's route (its path; the site's origin is the family's interceptor's to judge). */
-function isFeedbackRoute(url: string): boolean {
-  try {
-    return new URL(url, 'http://feedback.invalid').pathname === DEFAULT_FEEDBACK_ENDPOINT;
-  } catch {
-    return false;
-  }
 }

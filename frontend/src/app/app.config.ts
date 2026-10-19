@@ -9,7 +9,7 @@ import { routes } from './app.routes';
 import { provideSiteAdmin } from './core/admin/admin-tools';
 import { provideSiteAuth } from './core/auth/auth.config';
 import { boot } from './core/boot';
-import { feedbackSenderInterceptor, provideSiteFeedback } from './core/feedback';
+import { provideSiteFeedback } from './core/feedback';
 import { provideSiteKit } from './core/kit';
 import { surveyLegalConfig } from './core/legal/legal.config';
 import { provideSiteMigrations } from './core/migrations';
@@ -21,12 +21,12 @@ import { provideSiteTranslations } from './core/translations';
  * the error reporter's alike. The site's status first: it hears the answer
  * every other interceptor is done with (a 503 saying the site is not set up, or
  * an update waits), and the page that says so stands instead of the site. Then
- * whom the feedback form's message is for - the person signed in, or nobody,
- * never a person with no token to send (core/feedback.ts) - and who a request
- * of the site's API is: the anotoki family's (@anotoki/lib/auth) - see
- * core/auth/auth.config.ts.
+ * who a request of the site's API is: the anotoki family's (@anotoki/lib/auth)
+ * - see core/auth/auth.config.ts. The feedback form's message says itself whom
+ * it is for (anotoki-lib 0.7.2: anybody's - a person's with the token, anybody
+ * else's with neither token nor key; core/feedback.ts).
  */
-export const SITE_INTERCEPTORS: HttpInterceptorFn[] = [siteStatusInterceptor, feedbackSenderInterceptor, anotokiAuthInterceptor];
+export const SITE_INTERCEPTORS: HttpInterceptorFn[] = [siteStatusInterceptor, anotokiAuthInterceptor];
 
 export const appConfig: ApplicationConfig = {
   providers: [
