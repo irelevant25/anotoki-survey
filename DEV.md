@@ -394,17 +394,17 @@ storage/    the lock, the token, logs, backups, the library's key         never 
 
 ```bash
 cd frontend
-npx anotoki-deploy build                              # npm run build, then the release -> dist/
-npx anotoki-deploy deploy --backups <folder>          # what would go up (a dry run)
-npx anotoki-deploy deploy --backups <folder> --go     # the live frontend/ and backend/ copied into <folder>,
+bun run anotoki-deploy build                          # npm run build, then the release -> dist/
+bun run anotoki-deploy deploy --backups <folder>      # what would go up (a dry run)
+bun run anotoki-deploy deploy --backups <folder> --go # the live frontend/ and backend/ copied into <folder>,
                                                       # the release up beside them, checked, swapped in, the site checked
-npx anotoki-deploy rollback --go                      # the release before back in (kept as .old)
-npx anotoki-deploy status                             # what is on the host
+bun run anotoki-deploy rollback --go                  # the release before back in (kept as .old)
+bun run anotoki-deploy status                         # what is on the host
 ```
 
-Until `@anotoki/deploy` is a dev dependency of `frontend/` (from anotoki-lib
-0.9.0's release), `node ../../anotoki-lib/deploy/cli.mjs` stands for
-`npx anotoki-deploy`. The SFTP login is never in a repository:
+`@anotoki/deploy` is a dev dependency of `frontend/`, from anotoki-lib's
+release. `bun run` finds it whichever tool installed `node_modules/`; on
+Windows, `npx` misses bun's links. The SFTP login is never in a repository:
 `ANOTOKI_DEPLOY_SECRETS` names a `secrets.json`, with the host's pinned key in
 `hostkey.txt` beside it.
 
@@ -418,8 +418,8 @@ whole. The PHP finds its state with one rule (`stateRoot()`,
 
 1. In the hosting panel: a PostgreSQL database and its user, and HTTPS for the
    site.
-2. `npx anotoki-deploy deploy --backups <folder> --go`, then
-   `npx anotoki-deploy switch --go` (the folder's `.htaccess` becomes the
+2. `bun run anotoki-deploy deploy --backups <folder> --go`, then
+   `bun run anotoki-deploy switch --go` (the folder's `.htaccess` becomes the
    switch). PHP must be able to write into the site's folder: the setup page
    makes `config/` and `storage/` there.
 3. Open `https://survey.anotoki.eu/setup.php`. On a real host it asks for a
@@ -447,8 +447,8 @@ release with string migrations needs first, and how a language is added, is in
 
 If a whole site answers "500 Internal Server Error" after a release, the host
 refused a line of `frontend/.htaccess` (anotoki-deploy writes it - `CGIPassAuth`
-is the one line a host has been known to refuse): `npx anotoki-deploy rollback
---go`, then see anotoki-lib's `deploy/README.md`.
+is the one line a host has been known to refuse): `bun run anotoki-deploy
+rollback --go`, then see anotoki-lib's `deploy/README.md`.
 
 ## Troubleshooting
 

@@ -455,7 +455,7 @@ php tests/tools/testdb.php template --fresh   # after editing a migration the te
 php migration.php [--status|--dry-run]  # migrations for the configured database
 php translations.php --status           # the keys the frontend uses against the database's strings (the library's command)
 php translations.php --export sk [file] | --import sk file   # a language's strings as flat JSON
-# the release: cd ../frontend && npx anotoki-deploy build / deploy --backups <folder> [--go] (DEV.md)
+# the release: cd ../frontend && bun run anotoki-deploy build / deploy --backups <folder> [--go] (DEV.md)
 php composer.phar update anotoki/lib --prefer-dist   # a new anotoki-lib release (with the frontend's, below; DEV.md)
 
 # Frontend (from frontend/)

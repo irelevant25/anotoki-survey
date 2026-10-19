@@ -45,9 +45,9 @@ Things the hosting does that matter here:
 
 ## A first install
 
-1. `cd frontend && npx anotoki-deploy build` → the release in `dist/`.
-2. `npx anotoki-deploy deploy --backups <folder> --go`, then
-   `npx anotoki-deploy switch --go` - `frontend/` and `backend/` in
+1. `cd frontend && bun run anotoki-deploy build` → the release in `dist/`.
+2. `bun run anotoki-deploy deploy --backups <folder> --go`, then
+   `bun run anotoki-deploy switch --go` - `frontend/` and `backend/` in
    `anotoki.eu/sub/survey/`, and its `.htaccess` the switch.
 3. Open `https://survey.anotoki.eu/setup.php`. It writes a token into
    `storage/setup-token.php` - read it over FTP/SFTP - and asks for it with the

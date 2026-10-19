@@ -32,12 +32,12 @@ owner before `--go` - it changes the live site.
 cd backend
 php tests/run.php                  # green first
 cd ../frontend && npm test         # and these
-npx anotoki-deploy build           # npm run build, then the release -> ../dist/
+bun run anotoki-deploy build       # npm run build, then the release -> ../dist/
 ```
 
-(Until `@anotoki/deploy` is a dev dependency of `frontend/` - from anotoki-lib
-0.9.0's release - `node ../../anotoki-lib/deploy/cli.mjs` stands for
-`npx anotoki-deploy`.)
+(`@anotoki/deploy`: a dev dependency of `frontend/`, from anotoki-lib's release.
+`bun run` finds it whichever tool installed `node_modules/`; on Windows, `npx`
+misses bun's links.)
 
 `dist/` holds the release: `frontend/` (the app, `index.php`, `.htaccess`) and
 `backend/` (`api/`, `config/config.php`, `migrations/`, `vendor/` - with
@@ -184,15 +184,15 @@ For a version with a new migration that will be applied with the setup page
 the release (step 3 says why). Then, in `frontend/`:
 
 ```bash
-npx anotoki-deploy deploy --backups <folder>        # a dry run: what goes up
-npx anotoki-deploy deploy --backups <folder> --go   # the live frontend/ and backend/ copied into <folder>,
-                                                    # the release up as .new, checked, swapped in, the site checked
-npx anotoki-deploy rollback --go                    # if it is wrong: the release before (kept as .old) back in
+bun run anotoki-deploy deploy --backups <folder>        # a dry run: what goes up
+bun run anotoki-deploy deploy --backups <folder> --go   # the live frontend/ and backend/ copied into <folder>,
+                                                        # the release up as .new, checked, swapped in, the site checked
+bun run anotoki-deploy rollback --go                    # if it is wrong: the release before (kept as .old) back in
 ```
 
 Nothing of the version before stays on the host; `config/` and `storage/`
 stay as they are (the lock too, for a version with no new migration).
-`npx anotoki-deploy status` says what is there.
+`bun run anotoki-deploy status` says what is there.
 
 `config/visitors.local.php` (the visitors' limits and trusted proxies) and
 `config/cloudflare.local.php` (the origin secret) are never in a release and
