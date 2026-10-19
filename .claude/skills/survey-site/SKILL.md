@@ -51,7 +51,7 @@ backend/
                            and only hands the key in; nothing of a survey
                            without a token while sign-in is required, but its pictures (an
                            <img> sends none; UUID addresses)
-  api/auth.php             signing in through the family's library (anotoki-lib 0.7.0, Anotoki\Lib\Auth -
+  api/auth.php             signing in through the family's library (anotoki-lib 0.7.2, Anotoki\Lib\Auth -
                            the IAM's SDK is gone): surveyIam() (IamClient), surveySignInRule() /
                            authLoginRequired() (the IAM's "Sign-in required", relayed by
                            /api/auth/config with visitor_days), surveyIdentify() (only Bearer claims to
@@ -111,7 +111,7 @@ backend/
                            languagesForSurveys() / languagesOffered() (what survey_rules.php reads)
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.7.0's PHP half - never edited here; DEV.md: how it is updated):
+                           anotoki-lib 0.7.2's PHP half - never edited here; DEV.md: how it is updated):
                            surveyMigrationSet(), surveyMigrationSets() (the library's `anotoki_admin`,
                            the site's `survey`, then the library's `anotoki_translations` and
                            `anotoki_people` - recorded as <set>/NNN.sql), surveyMigrator($pdo,
@@ -174,8 +174,7 @@ backend/
   tests/                   run.php, lib.php, unit/, api/, tools/ (testdb, testenv); the IAM is the
                            library's TestIam (and its stand-in, vendor/anotoki/lib/backend/testing)
 frontend/src/app/
-  app.config.ts            the providers; SITE_INTERCEPTORS (the site's status, whom the feedback form's
-                           message is for, then who a request is);
+  app.config.ts            the providers; SITE_INTERCEPTORS (the site's status, then who a request is);
                            provideAnotokiErrorReport() - the family's reporter, the app's ErrorHandler:
                            the pages' errors, scrubbed, to POST /api/client-errors through that
                            HttpClient (a person's with the token, a visitor's without the key -
@@ -194,7 +193,7 @@ frontend/src/app/
                            database / AdminDates' dates / reload the strings when up to date),
                            MIGRATIONS_PATH; siteStatusInterceptor in app.config.ts; SiteStatus
                            (state, blocked, check, checkForReload, markReady) is the library's
-  core/auth/               signing in through the family's library (anotoki-lib 0.7.0, @anotoki/lib/auth -
+  core/auth/               signing in through the family's library (anotoki-lib 0.7.2, @anotoki/lib/auth -
                            the vendored SDK is gone): auth.config.ts (provideSiteAuth() - the boot
                            configuration AuthService read, the site's API (/api/, its status, auth
                            config, strings and pictures skipped), the visitors (VisitorKey, the key
@@ -225,9 +224,8 @@ frontend/src/app/
                            Feedback and the Contact page open it) - the language
                            on the page, the library's words through libraryWord() (formal Slovak),
                            signedIn; no email: the site keeps nobody's address, so none is filled in.
-                           feedbackSenderInterceptor (SITE_INTERCEPTORS, before the family's): POST
-                           /api/feedback issued as the person's while somebody is signed in, else
-                           nobody's (app.config.spec.ts)
+                           The form marks its message anybody's itself (anotoki-lib 0.7.2: the
+                           person's while somebody is signed in, else nobody's - app.config.spec.ts)
   core/changelog/          Changelog (changelog.json read once, asked by boot() at the start and never
                            waited for - public/changelog.json, each release's entry first, English and
                            formal Slovak in it -, entries, current - the footer's "Version" -, open():
@@ -268,7 +266,7 @@ frontend/src/app/
                            the code's own names, the hosting company and Cloudflare; the anotoki
                            account's pages from AnotokiAuth.issuer() / accountUrl() - never a string;
                            SURVEY_LEGAL_UPDATED; surveyLegalPagesConfig(), the frame's provider)
-  core/kit.ts              the family's UI kit (anotoki-lib 0.7.0, each piece from its own entry point)
+  core/kit.ts              the family's UI kit (anotoki-lib 0.7.2, each piece from its own entry point)
                            wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
                            the language on the page and the kit's words from the database - the
                            library's keys, anotoki.* - and SURVEY_ICONS) + provideSiteShell() (the
@@ -446,7 +444,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   `api/routes/feedback.php`, `core/feedback.ts`): the family's footer's
   Feedback under every frame and the Contact page open the form for anybody -
   signed in, a visitor, nobody - whether sign-in is required or not (the
-  message marked whom it is for, `feedbackSenderInterceptor`; not in the admin
+  form marks its message anybody's itself, the library's `issuedAs('anybody')`; not in the admin
   panel's footer while an update waits - the server answers 503 then); the sender is the token's id alone (a bad token 401, a
   visitor's key never read: a visitor sends as nobody), the reply address only
   what the sender typed (the form is handed none: the site keeps nobody's
@@ -486,7 +484,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   a new admin route that changes something writes its entry, by the token's
   person, inside the change's transaction where there is one.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib 0.7.0,
+  applies it - the anotoki family's way, the library's** (anotoki-lib 0.7.2,
   both halves; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
@@ -616,7 +614,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   pieces both areas share (top bar, UI kit, toasts, the family's footer) read
   through `effectiveLanguage`, which is `en` under `/admin` - the kit's own
   words too (`core/kit.ts`), and the family's page at an admin address.
-- **The UI kit is the family's** (anotoki-lib 0.7.0 - its 0.6.0 pieces taken
+- **The UI kit is the family's** (anotoki-lib 0.7.2 - its 0.6.0 pieces taken
   where the site drew its own: the link cards of the home page and the System
   page, the results' removable filter chips; what stays the site's and why,
   `docs/decisions.md`): a new piece of a page
@@ -1221,12 +1219,13 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   interceptor decides it by `AnotokiAuth.caller()`, which is "person" whenever
   the sign-in is set up - signed in or not - and a person's request with no
   token is never sent (a local 401 `sign_in_required`, and the page follows a
-  session that ended). The feedback form, a library component, says nothing, so
+  session that ended). The feedback form, a library component, said nothing, so
   everybody not signed in read "Sign in to send a message" on the Contact page
   (the browser check found it; the form's unit test had a plain HttpClient):
-  `feedbackSenderInterceptor` issues it as the person's or nobody's. A new
-  request of anybody's - a library's or the site's - says whom it is for
-  (`issuedAs()`, `ISSUED_AS`), and its spec goes through `SITE_INTERCEPTORS`.
+  since anotoki-lib 0.7.2 the form issues it as anybody's itself
+  (`issuedAs('anybody')`). A new request of anybody's - a library's or the
+  site's - says whom it is for (`issuedAs()`, `ISSUED_AS`), and its spec goes
+  through `SITE_INTERCEPTORS`.
 - **A file held back holds back every file after it, the library's sets
   too**: the sets run in one order (`anotoki_admin`, `survey`,
   `anotoki_translations`, `anotoki_people`), so a test that wants a database

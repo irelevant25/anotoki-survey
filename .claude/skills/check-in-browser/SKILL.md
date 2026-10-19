@@ -758,10 +758,11 @@ Things that cost time to find out:
   reads them as "Page: /contact"), the segmented `[data-mark]` (its buttons by
   their words), `[data-delete]` and the question `[data-question]` /
   `[data-question-yes]`. The audit API's `action=` is a prefix: `feedback.` is
-  every feedback entry. The form's own request says whom it is for
-  (`feedbackSenderInterceptor`): without it nobody signed in read "Sign in to
-  send a message" and nothing left the page - a send is checked by the request
-  going out (`POST /api/feedback` in `requested`), not by the form alone.
+  every feedback entry. The form's own request says whom it is for (the
+  library's `issuedAs('anybody')`, anotoki-lib 0.7.2): without it nobody
+  signed in read "Sign in to send a message" and nothing left the page - a
+  send is checked by the request going out (`POST /api/feedback` in
+  `requested`), not by the form alone.
 - `signInAs(user, words)` reads the page it is on: after `/?lang=sk` the tab is
   Slovak whoever is signed in (`SK`), after the chooser it is what was chosen,
   and with nothing stored it is the account's language while signed in and
