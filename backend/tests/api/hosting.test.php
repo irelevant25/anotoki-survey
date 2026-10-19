@@ -39,18 +39,10 @@ function build(?string $out = null): array
     return [$code, implode("\n", $lines), $out];
 }
 
-/** frontend/.htaccess as PHP's built-in server can play it: a file of the app as it is, every other address to index.php. */
+/** frontend/.htaccess as PHP's built-in server can play it (tests/release_router.php). */
 function release_router(): string
 {
-    $router = test_temp_dir('router') . '/router.php';
-    file_put_contents(
-        $router,
-        "<?php\n\$path = (string) parse_url((string) \$_SERVER['REQUEST_URI'], PHP_URL_PATH);\n" .
-            "if (\$path !== '/' && is_file(\$_SERVER['DOCUMENT_ROOT'] . \$path)) {\n    return false;\n}\n" .
-            "require \$_SERVER['DOCUMENT_ROOT'] . '/index.php';\n",
-    );
-
-    return $router;
+    return dirname(__DIR__) . '/release_router.php';
 }
 
 /** Every file under $dir, relative, forward slashes. */
