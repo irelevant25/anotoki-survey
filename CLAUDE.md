@@ -182,7 +182,8 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   2026-10-18; `docs/decisions.md`): at the foot of each frame - the survey's
   pages (under the card of a session that ended too), the legal pages and the
   admin panel (under its cards too) -, never round the family's page: a top
-  border, "Version 0.4.0 · What's new · Feedback", then Terms · Privacy ·
+  border, "v0.4.0 · What's new · Feedback" (a screen reader hears "Version
+  0.4.0"), then Terms · Privacy ·
   Contact; no fan clause. The version is `Changelog.current()` and What's new
   the survey's own dialog on `(whatsNew)` (`changelog.open()`) - neither while
   the list cannot be had; Feedback the family's form, which the footer opens
@@ -427,7 +428,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   with each version's whole formal-Slovak translation beside it
   (`translations.sk`); the newest entry is the site's version, one source
   (`Changelog.current()`, `core/changelog/`, asked for as the site starts -
-  `boot()`, never waited for), the footer's "Version", and
+  `boot()`, never waited for), the version in the footer, and
   `frontend/package.json`'s (and `package-lock.json`'s) is held to it by a
   spec - a release adds its entry first and moves both. What's new is the
   kit's dialog (`ui/changelog-dialog`, lazy), opened only when asked - by the

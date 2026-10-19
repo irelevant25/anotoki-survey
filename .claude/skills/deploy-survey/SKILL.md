@@ -121,7 +121,8 @@ those addresses). After it, open `/privacy` signed out: the anotoki account's
 Privacy page and account page are the IAM's.
 
 **Version 0.4.0, on anotoki-lib 0.7.2, both halves**: the family's footer
-under every page and the admin panel ("Version 0.4.0 · What's new · Feedback",
+under every page and the admin panel ("v0.4.0 · What's new · Feedback" - a screen
+reader hears "Version 0.4.0" -,
 then Terms · Privacy · Contact), feedback (the footer's and the Contact page's
 form, the admin panel's Feedback page), the version and its What's new list,
 and two hardenings. It brings `014_feedback_words.sql` (the library's feedback words

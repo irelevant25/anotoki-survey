@@ -154,7 +154,7 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   `sk-390-legal-*` (Terms, Privacy, Contact - the family's pages with this
   site's facts; the family's footer under them, Sign in in the bar);
   `en-1280-footer-legal-light`, `en-390-…`, `sk-1280-footer-legal-dark`,
-  `sk-390-…` (the footer up close - its top border, "Version · What's new ·
+  `sk-390-…` (the footer up close - its top border, "v{version} · What's new ·
   Feedback", Terms · Privacy · Contact - for a look beside the build
   analyzer's: light in English, dark in Slovak); `en-1280-whats-new-light` /
   `sk-390-whats-new-dark` (the footer's What's new: the survey's own list, the

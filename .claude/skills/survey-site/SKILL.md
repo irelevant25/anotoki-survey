@@ -228,7 +228,7 @@ frontend/src/app/
                            person's while somebody is signed in, else nobody's - app.config.spec.ts)
   core/changelog/          Changelog (changelog.json read once, asked by boot() at the start and never
                            waited for - public/changelog.json, each release's entry first, English and
-                           formal Slovak in it -, entries, current - the footer's "Version" -, open():
+                           formal Slovak in it -, entries, current - the version in the footer -, open():
                            the What's new dialog, ui/changelog-dialog, loaded with the press - the
                            footer's What's new, (whatsNew) in each frame)
   core/api/api.service.ts  one method a route; the surveys' marked issuedAs('caller') as they are made,
