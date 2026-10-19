@@ -294,8 +294,8 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const VERSION = (await (await fetch(`${origin}/changelog.json`)).json())[0].version;
 /** The family's footer's first row (<anotoki-site-footer>, anotoki-lib 0.6.3), as it reads in each language: the version, What's new, Feedback. */
 const FOOTER_ROW = {
-  en: [`Version ${VERSION}`, '·', "What's new", '·', 'Feedback'],
-  sk: [`Verzia ${VERSION}`, '·', 'Čo je nové', '·', 'Spätná väzba'],
+  en: [`v${VERSION}Version ${VERSION}`, '·', "What's new", '·', 'Feedback'],
+  sk: [`v${VERSION}Verzia ${VERSION}`, '·', 'Čo je nové', '·', 'Spätná väzba'],
 };
 /** The stand-in IAM told how to behave: who signs in next ({user}), whether it still renews a session ({refuse}). */
 const setIam = async (changes) => (await fetch(`${iam}/_test/state`, { method: 'POST', body: JSON.stringify(changes) })).ok;
