@@ -1,18 +1,30 @@
 ---
 name: deploy-survey
-description: Build the survey site for the FTP-only hosting and ship it to survey.anotoki.eu - the upload, the installer on a first install, re-running it for a version with a new migration, and the IAM's registration of the site. Use when the user asks to deploy, release, upload or publish the survey site, or asks what a new version needs on the hosting.
+description: Build the survey site for the FTP-only hosting and ship it to survey.anotoki.eu with anotoki-deploy - a release of frontend/ and backend/, swapped in whole, the installer on a first install, re-running it for a version with a new migration, and the IAM's registration of the site. Use when the user asks to deploy, release, upload or publish the survey site, roll a release back, or asks what a new version needs on the hosting.
 ---
 
 # Deploy the survey site
 
-The hosting is FTP/SFTP only - PHP, PostgreSQL, Apache with `.htaccess`, no
-shell. Everything a release needs goes up as files; the database is changed by
-the site's own installer. [docs/operations.md](../../../docs/operations.md) has
-the hosting's quirks and the troubleshooting table.
+The hosting is SFTP only - PHP, PostgreSQL, Apache with `.htaccess`, no shell.
+A release is built and put up by **anotoki-deploy** (the anotoki library's
+deploy tool, the same for every site; this site's facts are in
+`backend/composer.json`, `extra["anotoki-deploy"]`); the database is changed by
+the site's own installer or its Migrations page.
+[docs/operations.md](../../../docs/operations.md) has the hosting's quirks and
+the troubleshooting table.
+
+The site's folder on the host, `anotoki.eu/sub/survey/`: `frontend/` and
+`backend/` - the release, each replaced whole - beside `config/` (the
+`*.local.php` settings) and `storage/` (the lock, logs, backups, the library's
+key), which no release writes, under the switch: the folder's `.htaccess`,
+which sends every request into `frontend/`. Never upload, rename or delete
+anything in `config/` or `storage/` as part of a release.
 
 Ask for (and never print, store in the repository, or put in a commit) the
-SFTP login and the database password; they are the owner's to give per session.
-Confirm with the owner before uploading - it changes the live site.
+SFTP login and the database password; they are the owner's to give per session
+(`ANOTOKI_DEPLOY_SECRETS` names the `secrets.json` that holds the login, outside
+every repository, with the pinned `hostkey.txt` beside it). Confirm with the
+owner before `--go` - it changes the live site.
 
 ## 1. Build
 
@@ -20,17 +32,20 @@ Confirm with the owner before uploading - it changes the live site.
 cd backend
 php tests/run.php                  # green first
 cd ../frontend && npm test         # and these
-cd ../backend && php tools/build.php
+npx anotoki-deploy build           # npm run build, then the release -> ../dist/
 ```
 
-`dist/` at the top of the repository holds the upload: the app, `.htaccess`,
-`setup.php`, `api/`, `config/config.php`, `migrations/`, `vendor/` (with
-`vendor/anotoki/lib`, the family's library - its migration sets
+(Until `@anotoki/deploy` is a dev dependency of `frontend/` - from anotoki-lib
+0.9.0's release - `node ../../anotoki-lib/deploy/cli.mjs` stands for
+`npx anotoki-deploy`.)
+
+`dist/` holds the release: `frontend/` (the app, `index.php`, `.htaccess`) and
+`backend/` (`api/`, `config/config.php`, `migrations/`, `vendor/` - with
+`vendor/anotoki/lib`, the family's library, its migration sets
 `backend/migrations/` too: `admin/` before the site's own, `translations/` and
-`people/` after them), `storage/`.
-No `*.local.php`, no tests or tools, no `migration.php` or `translations.php`
-(the command line's), no composer files - check it, it is what the world will
-be able to read.
+`people/` after them - `setup.php`, `release.json`). No `*.local.php`, no tests
+or tools, no `migration.php` or `translations.php` (the command line's), no
+composer files - the tool refuses a release that holds one.
 
 **A version whose migrations change the site's strings** (a reworded default,
 a deleted key): before uploading, export each language on the live site -
@@ -78,8 +93,8 @@ visitor, which 0.5.0 could not): the
 host needs PHP's `mbstring` (the library requires it; the setup page checks
 it) and `zlib` (the backups compress with it: without it every backup fails,
 and the error log says so). A plain backup is sealed under the installation's key
-(`storage/anotoki-lib.key`, which the upload never carries and FTP never
-deletes), and only a sealed one is restored on the Backups page: every backup
+(`storage/anotoki-lib.key`, which a release never carries or touches), and
+only a sealed one is restored on the Backups page: every backup
 made before 0.5.0 has no seal and is restored offline alone - **make one by
 hand on System → Backups once the update is in** (it is the first that the
 page restores at today's migrations). The visitors' trusted proxies are
@@ -143,7 +158,7 @@ visitors may be refused "too many" from everywhere; `[cloudflare] ... names
 no usable origin_secret` in PHP's error log once a day) - mend it, or delete
 it to switch the secret off. The family's host check now runs beside
 `setup.php` (the `.htaccess` lets both through): to check a host, write a long
-random token into `tools/host-check.php`, upload it to the web root, open
+random token into `tools/host-check.php`, upload it into `frontend/`, open
 `/host-check.php?token=<it>`, and delete it again (its page has a button for
 that; check over SFTP that it is gone). A release is `frontend/package.json`'s
 version and its entry first in `frontend/public/changelog.json`, English and
@@ -162,20 +177,27 @@ built-in words). Before the upload move any survey opened at the address
 editor refuses those addresses). After it, open `/about` and `/support`
 signed out.
 
-## 2. Upload
+## 2. Release
 
 For a version with a new migration that will be applied with the setup page
 (not the Migrations page), delete `storage/installed.lock` on the host BEFORE
-uploading (step 3 says why). Then everything in `dist/` into the
-web root `anotoki.eu/sub/survey/` (over the old files: FTP never deletes, and
-`config/*.local.php` on the host stays - and the lock, for a version with no
-new migration). Files that were removed from a version stay on the host until
-deleted by hand - delete them if they matter.
+the release (step 3 says why). Then, in `frontend/`:
+
+```bash
+npx anotoki-deploy deploy --backups <folder>        # a dry run: what goes up
+npx anotoki-deploy deploy --backups <folder> --go   # the live frontend/ and backend/ copied into <folder>,
+                                                    # the release up as .new, checked, swapped in, the site checked
+npx anotoki-deploy rollback --go                    # if it is wrong: the release before (kept as .old) back in
+```
+
+Nothing of the version before stays on the host; `config/` and `storage/`
+stay as they are (the lock too, for a version with no new migration).
+`npx anotoki-deploy status` says what is there.
 
 `config/visitors.local.php` (the visitors' limits and trusted proxies) and
-`config/cloudflare.local.php` (the origin secret) are never in the upload and
-nothing writes them: they are put into the web root's `config/` by hand over
-SFTP, and they stay across uploads. Before the
+`config/cloudflare.local.php` (the origin secret) are never in a release and
+nothing writes them: they are put into the site's `config/` by hand over
+SFTP, and they stay across releases. Before the
 IAM's "Sign-in required" is switched off for the survey, nothing in it is
 needed for Cloudflare: its ranges are the default (anotoki-lib 0.5.0) -
 [docs/operations.md](../../../docs/operations.md#visitors). Once it is
@@ -207,13 +229,13 @@ results list that answer as "Visitor N", "Not signed in".
   transaction; a failure is rolled back whole and shown with the database's
   whole error ("Stopped at <file>"), and the next Apply goes on from there.
   Once nothing is pending the site runs again. The lock stays where it is.
-  The other way, the setup page: with the lock deleted before the upload, open
-  `/setup.php` (the upload carries it), give the new token and the same
+  The other way, the setup page: with the lock deleted before the release, open
+  `/setup.php` (each release carries it), give the new token and the same
   details. It applies what is pending and locks and deletes itself again. (The
   two never run at once: one lock, and the second says another update is
   running.) If
   `setup.php` was opened while the lock was still there (anybody may) it has
-  deleted itself: delete the lock, upload `setup.php` again. The version that
+  deleted itself: delete the lock, deploy again. The version that
   brings the family's library (anotoki-lib 0.1.0) is one: `009` (the "not set
   up yet" page's strings deleted) - and it leaves `api/migration_runner.php`,
   `api/database_update.php` and `api/meddleware/setup.php` of the version

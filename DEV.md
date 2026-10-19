@@ -222,7 +222,6 @@ php migration.php [--status|--dry-run]    # apply pending migrations (setup.php 
 php translations.php --status             # the keys the frontend uses against the database's strings
 php translations.php --export sk [file]   # a language's own strings as flat JSON (to the screen without a file)
 php translations.php --import sk file     # and back in, checked as a save in the admin panel is
-php tools/build.php [--out=DIR]           # the upload (see Building and deploying)
 ```
 
 (`translations.php` is anotoki-lib's command - `TranslationsCommand` - on this
@@ -377,24 +376,52 @@ a PHP 8.2+ where `php` is an older one.
 
 ## Building and deploying
 
-The hosting is FTP only: PHP and PostgreSQL, Apache with `.htaccess`, no shell.
+The hosting is SFTP only: PHP and PostgreSQL, Apache with `.htaccess`, no shell.
+A release is built and put up by **anotoki-deploy**, the anotoki library's
+deploy tool (the same for every site; anotoki-lib's `deploy/README.md`). This
+site's facts are in `backend/composer.json`, `extra["anotoki-deploy"]`.
 
-```bash
-cd backend
-php tools/build.php                # -> dist/ at the top of the repository
+The site's folder on the host, `anotoki.eu/sub/survey/`:
+
+```
+.htaccess   the switch: every request -> frontend/ (written once: anotoki-deploy switch)
+frontend/   the built app, index.php (the front controller), .htaccess   } a release:
+backend/    api/, config/config.php, migrations/, vendor/, setup.php,     } replaced whole
+            release.json                                                  }
+config/     *.local.php - the settings: setup.php writes them             never in a release
+storage/    the lock, the token, logs, backups, the library's key         never in a release
 ```
 
-It builds the frontend (`npm ci` if needed, then `npm run build`) and puts
-together one folder whose contents go into the site's web root: the app, its
-`.htaccess` (routing, closed folders, security headers), `setup.php`, `api/`,
-`config/` (the loader only), `migrations/`, `vendor/` and an empty `storage/`.
-No settings file, no tests or tools, no command-line scripts (`migration.php`,
-`translations.php`), no composer files.
+```bash
+cd frontend
+npx anotoki-deploy build                              # npm run build, then the release -> dist/
+npx anotoki-deploy deploy --backups <folder>          # what would go up (a dry run)
+npx anotoki-deploy deploy --backups <folder> --go     # the live frontend/ and backend/ copied into <folder>,
+                                                      # the release up beside them, checked, swapped in, the site checked
+npx anotoki-deploy rollback --go                      # the release before back in (kept as .old)
+npx anotoki-deploy status                             # what is on the host
+```
+
+Until `@anotoki/deploy` is a dev dependency of `frontend/` (from anotoki-lib
+0.9.0's release), `node ../../anotoki-lib/deploy/cli.mjs` stands for
+`npx anotoki-deploy`. The SFTP login is never in a repository:
+`ANOTOKI_DEPLOY_SECRETS` names a `secrets.json`, with the host's pinned key in
+`hostkey.txt` beside it.
+
+A release is `frontend/` and `backend/` alone: no settings file, no tests or
+tools, no command-line scripts (`migration.php`, `translations.php`), no
+composer files - and `config/` and `storage/` are the host's, never written by
+a release. Nothing stale stays on the host: each release replaces both folders
+whole. The PHP finds its state with one rule (`stateRoot()`,
+`config/config.php`): with `release.json` in `backend/`, `config/` and
+`storage/` are the ones beside it; in a checkout, `backend/`'s own.
 
 1. In the hosting panel: a PostgreSQL database and its user, and HTTPS for the
    site.
-2. Upload everything in `dist/` into the web root (the folder `survey.anotoki.eu`
-   points at). PHP must be able to write into `config/` and `storage/`.
+2. `npx anotoki-deploy deploy --backups <folder> --go`, then
+   `npx anotoki-deploy switch --go` (the folder's `.htaccess` becomes the
+   switch). PHP must be able to write into the site's folder: the setup page
+   makes `config/` and `storage/` there.
 3. Open `https://survey.anotoki.eu/setup.php`. On a real host it asks for a
    token it wrote into `storage/setup-token.php` - read it with your FTP
    program. Enter the database and the IAM (`https://iam.anotoki.eu`, client id
@@ -404,23 +431,24 @@ No settings file, no tests or tools, no command-line scripts (`migration.php`,
    [docs/operations.md](docs/operations.md) (*The IAM*).
 5. Sign in on the site.
 
-**Later versions**: build and upload again (the settings stay). A
+**Later versions**: build and `deploy --go` again (the settings stay). A
 version with a new migration closes the site until it is applied - everybody
 reads "The site is being updated": sign in as an ADMIN from that page's quiet
 "Sign in", follow "Open Migrations", and press "Apply pending" (back the
 database up first) - it applies what is missing and keeps every survey and
 answer. The setup page still does the same:
-delete `storage/installed.lock` first, then build and upload, then open
-`/setup.php` (the upload carries it) with the same details. Opened while the
-lock is there, `setup.php` deletes itself - delete the lock and upload it
+delete `storage/installed.lock` first, then build and deploy, then open
+`/setup.php` (each release brings it) with the same details. Opened while the
+lock is there, `setup.php` deletes itself - delete the lock and deploy
 again. The site's strings on the host
 are reworded in its admin panel and are never overwritten by a release; what a
 release with string migrations needs first, and how a language is added, is in
 [docs/operations.md](docs/operations.md) (*The site's words and languages*).
 
-If a whole site answers "500 Internal Server Error" after an upload, the host
-may not allow a line of `.htaccess` (`Options -Indexes` or `CGIPassAuth`):
-remove that line.
+If a whole site answers "500 Internal Server Error" after a release, the host
+refused a line of `frontend/.htaccess` (anotoki-deploy writes it - `CGIPassAuth`
+is the one line a host has been known to refuse): `npx anotoki-deploy rollback
+--go`, then see anotoki-lib's `deploy/README.md`.
 
 ## Troubleshooting
 

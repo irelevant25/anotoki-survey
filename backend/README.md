@@ -98,10 +98,9 @@ storage/               cache (the IAM's keys, its "Sign-in required" answer, the
                        (a settings file's fault said today); gitignored, and never
                        served (each folder guarded)
 tests/                 run.php, lib.php; unit/, api/; tools/ (testdb.php, testenv.php)
-tools/                 build.php (the upload -> ../dist/, and its .htaccess: setup.php and the host
-                       check - ../tools/host-check.php, uploaded by hand - the only PHP files a
-                       visitor may run in the web root), translation_keys.php (the frontend's keys:
-                       the library's KeyScanner, set up for this site)
+tools/                 translation_keys.php (the frontend's keys: the library's KeyScanner, set up for
+                       this site). The release is anotoki-deploy's (anotoki-lib's deploy tool, set up
+                       in composer.json's extra["anotoki-deploy"]; ../DEV.md, Building and deploying)
 vendor/                Slim and its pieces, and anotoki/lib 0.8.1 (the family's library, from GitHub -
                        ../DEV.md says how it is updated; its migration sets in backend/migrations/,
                        its stand-in IAM for the tests in backend/testing/) - committed: the hosting
@@ -123,7 +122,7 @@ vendor/                Slim and its pieces, and anotoki/lib 0.8.1 (the family's 
 composer start                                # http://localhost:8500 - the API and setup.php
 php migration.php --status                    # what is applied, what is pending
 php translations.php --status                 # every key the frontend uses has its strings
-php tools/build.php                           # the upload -> ../dist/ (builds the frontend too)
+# the release: anotoki-deploy, from ../frontend/ (../DEV.md, Building and deploying)
 ```
 
 ## Tests

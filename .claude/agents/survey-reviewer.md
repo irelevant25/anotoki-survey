@@ -195,12 +195,12 @@ Security and correctness first:
   that does not start with `<?php` (after a byte-order mark or a blank line, a
   `declare(strict_types=1)` is a fatal error no handler catches: every request a 500), a database or
   IAM file not read cleanly answered with anything but "not set up", or a fault logged with
-  the file's text or what PHP said, is a finding; `tools/build.php`
-  still leaves out settings, tests, tools, the command-line scripts
-  (`migration.php`, `translations.php`) and composer files; its `.htaccess`
-  runs no PHP file in the web root but `setup.php` and `host-check.php` (their
-  `FilesMatch` after the one refusing PHP - a wider pattern is a finding); no new route
-  named like a folder under the web root's `api/`.
+  the file's text or what PHP said, is a finding; the release (anotoki-deploy, its include
+  list in composer.json's `extra["anotoki-deploy"]`) still leaves out settings, tests, tools,
+  the command-line scripts (`migration.php`, `translations.php`) and composer files; state
+  is only ever reached through `stateRoot()` / `configDir()` / `storageDir()` (a path to
+  `backend/config` or `backend/storage` built any other way is a finding: on the host the
+  state is beside `backend/`, never in it); no new route named like a folder of `frontend/`.
 
 Then the house style:
 

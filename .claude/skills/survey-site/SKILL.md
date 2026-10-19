@@ -164,10 +164,15 @@ backend/
   translations.php         command line only, never uploaded - the library's TranslationsCommand:
                            --status (the frontend's keys against the database), --export / --import a
                            language as flat JSON
-  tools/build.php          the upload -> ../dist/ (an allow-list: a new file beside setup.php is left out);
-                           its .htaccess runs two PHP files in the web root, setup.php and the
-                           family's host check (../tools/host-check.php, never in a build, uploaded by
-                           hand), and caches neither index.html, theme-boot.js nor changelog.json
+  (the release)            anotoki-deploy (anotoki-lib's deploy tool) builds it -> ../dist/frontend/ and
+                           ../dist/backend/ from composer.json's extra["anotoki-deploy"] (include: api,
+                           config without *.local.php, migrations, vendor, setup.php); on the host they
+                           are replaced whole beside config/ and storage/ (stateRoot() in
+                           config/config.php: with backend/release.json, the state is beside backend/).
+                           frontend/.htaccess runs three PHP files: index.php (the front controller),
+                           setup.php's address, and the family's host check (../tools/host-check.php,
+                           never in a build, uploaded by hand), and caches neither index.html,
+                           theme-boot.js nor changelog.json
   tools/translation_keys.php   surveyKeyScanner(): the library's KeyScanner set up for this site - the
                            keys the frontend uses, and a fail for a key asked for the wrong way, one put
                            together from an undeclared prefix, innerHTML given a string; the library's

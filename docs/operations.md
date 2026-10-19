@@ -16,19 +16,24 @@ Things the hosting does that matter here:
 - Apache knows no MIME type for `.avif`: the pictures are served by PHP with
   their own type, so it does not matter.
 - A URL naming a real folder without its slash gets a 301 from mod_dir even
-  after a rewrite: no route may be named like a folder under the web root's
-  `api/` (`routes`, `meddleware`) - and no folder there is ever named
-  `translations` or `languages`, which are routes.
+  after a rewrite: no route may be named like a folder of the release's
+  `frontend/` (`media`). The API's addresses never name a folder: every
+  `/api/...` goes to `frontend/index.php`, the front controller.
 - Cloudflare caches static files by extension for hours: `index.html`,
   `theme-boot.js` and `changelog.json` (the list of versions - its newest is
   the version the pages show) go out with `no-cache`; a picture's address ends
   in its extension and never changes, so caching it is right.
-- The web root's `.htaccess` lets a visitor run two PHP files alone, each only
-  while it is there: `setup.php` (it deletes itself once a real host is
-  installed) and the family's host check, `host-check.php` (`tools/` in the
-  repository, never in a build: upload it with a long token written into it,
-  open `/host-check.php?token=…`, delete it again - the README's Hosting
-  checklist). Every other PHP file there answers 403; `api/` has its own.
+- The site's folder holds a release - `frontend/` and `backend/`, each replaced
+  whole by anotoki-deploy (DEV.md, *Building and deploying*) - beside `config/`
+  and `storage/`, which no release writes; its `.htaccess`, the switch, sends
+  every request into `frontend/`, so nothing of `backend/`, `config/` or
+  `storage/` is ever served. `frontend/.htaccess` lets a visitor run three PHP
+  files alone: `index.php` (the front controller: `/api/...`, and
+  `/setup.php` while `backend/` has the setup page, which deletes itself once a
+  real host is installed) and the family's host check, `host-check.php`
+  (`tools/` in the repository, never in a build: upload it into `frontend/`
+  with a long token written into it, open `/host-check.php?token=…`, delete it
+  again - the README's Hosting checklist). Every other PHP file answers 403.
 - Whatever compresses an answer marks its `ETag`: Cloudflare weakens it
   (`W/"…"`), and an Apache that compresses JSON itself appends to it
   (`"…-gzip"`, mod_deflate - not something an `.htaccess` can switch off). The
@@ -40,8 +45,10 @@ Things the hosting does that matter here:
 
 ## A first install
 
-1. `cd backend && php tools/build.php` → `dist/` at the top of the repository.
-2. Upload everything in `dist/` into `anotoki.eu/sub/survey/`.
+1. `cd frontend && npx anotoki-deploy build` → the release in `dist/`.
+2. `npx anotoki-deploy deploy --backups <folder> --go`, then
+   `npx anotoki-deploy switch --go` - `frontend/` and `backend/` in
+   `anotoki.eu/sub/survey/`, and its `.htaccess` the switch.
 3. Open `https://survey.anotoki.eu/setup.php`. It writes a token into
    `storage/setup-token.php` - read it over FTP/SFTP - and asks for it with the
    database (`localhost`, 5432, `anotoki_survey`, the hosting's user and
@@ -53,11 +60,10 @@ Things the hosting does that matter here:
 
 ## Later versions
 
-Upload the new build over the old one: FTP never deletes, and the settings
-stay. (The old version's `api/migration_runner.php`, `api/database_update.php`
-and `api/meddleware/setup.php` stay on the host after the version that brought
-the anotoki family's library, read by nothing: delete them over FTP when
-convenient.) A version with a new migration closes the site until it is
+Build and deploy (DEV.md, *Building and deploying*): the release replaces
+`frontend/` and `backend/` whole - nothing of the version before stays, and
+`rollback --go` brings it back - and the settings and storage beside them stay
+as they are. A version with a new migration closes the site until it is
 applied: people - visitors and signed-in alike - see the anotoki family's page,
 "The site is being updated", in their language, which asks again by itself and
 comes back on its own once the update is in; no error, no setup page. **An
@@ -76,7 +82,7 @@ and Apply again. Once nothing is pending the site runs again, at once, for
 everybody (an open page reloads by itself within half a minute).
 
 The setup page is still a way to do the same, in this order: **delete
-`storage/installed.lock` over FTP first**, then upload (the upload carries
+`storage/installed.lock` over SFTP first**, then deploy (each release carries
 `setup.php`), then open `/setup.php`, give the token it writes and the same
 details - it applies what is missing, keeps every survey and answer, and locks
 and deletes itself again. The order matters: opened while the lock is still
@@ -149,9 +155,8 @@ language** from the Translations page (*The site's words and languages*,
 below), save whatever is typed and not saved on the two admin pages (a tab's
 drafts holding a Languages row typed before the upload are not read again,
 nor the strings typed with them), and after it reload every admin page that
-was open. The upload carries `vendor/anotoki/lib/backend/migrations/`
-(the library's set) - `tools/build.php` puts it there, under the deny-all
-`.htaccess` of `vendor/`.
+was open. A release carries `vendor/anotoki/lib/backend/migrations/`
+(the library's set) in `backend/`, never served.
 
 The version that took anotoki-lib 0.4.1 (both halves; 0.8.1 now, below) takes the rest of what every
 anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
@@ -410,10 +415,10 @@ Switching on while visitors exist: their keys stop working at once (401
 `keep_days` brings them back.
 
 **The settings** are an optional file, `config/visitors.local.php`, which
-nothing writes - `setup.php` neither writes nor reads it, an upload never
-carries it (`*.local.php` is left out of the build) and FTP never deletes it:
-put it there by hand, over SFTP, into the web root's `config/` beside the
-other two, and keep a copy (it is not in the database's backup). Without it the
+nothing writes - `setup.php` neither writes nor reads it, and a release never
+carries it (`*.local.php` is never in one) or touches `config/`: put it there
+by hand, over SFTP, into the site's `config/` (beside `frontend/` and
+`backend/`) with the other two, and keep a copy (it is not in the database's backup). Without it the
 defaults hold; a value that is not usable is left out and logged (`[visitors]`
 in the PHP log), and a file that cannot be read cleanly - a typo that breaks
 its syntax, no `return [...]`, saved with a byte-order mark or without its
@@ -481,7 +486,7 @@ same value in two places, a long random value of 32 characters or more:
   rule serves every anotoki site).
 - **The host**: `config/cloudflare.local.php` beside the other settings, put
   there by hand like `visitors.local.php` (`setup.php` neither writes nor
-  reads it, an upload never carries it, FTP never deletes it) - the same file
+  reads it, a release never carries or touches it) - the same file
   in every anotoki site:
 
   ```php

@@ -40,10 +40,16 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   and `iam.local.php` (gitignored), written by `backend/setup.php` - on this
   computer (no token, a nonce, re-runnable) and on the host (token, lock,
   self-delete). Never print the database password; never copy it anywhere git
-  would publish. The web root's `.htaccess` (`tools/build.php`) lets a visitor
-  run two PHP files alone, each while it is there: `setup.php` and the host
-  check (`tools/host-check.php`: never in a build, uploaded by hand with a
-  token in it, deleted again). **Every `*.local.php` is read cleanly or not at all**
+  would publish. A release (anotoki-lib's anotoki-deploy, set up in
+  `backend/composer.json`'s `extra["anotoki-deploy"]`) is `frontend/` and
+  `backend/`, each replaced whole on the host beside `config/` and `storage/`,
+  which no release writes; the PHP reaches its state only through
+  `stateRoot()` / `configDir()` / `storageDir()` (with `backend/release.json`,
+  the state is beside `backend/`). `frontend/.htaccess` lets a visitor run
+  three PHP files alone: `index.php` (the front controller), `setup.php`'s
+  address while `backend/` has it, and the host check
+  (`tools/host-check.php`: never in a build, uploaded by hand with a token in
+  it, deleted again). **Every `*.local.php` is read cleanly or not at all**
   (`settingsFileReadCleanly()`, `config/config.php`; `docs/decisions.md`,
   2026-10-18 - never a plain `require` of one): a file that does not start
   with `<?php` - a byte-order mark, a blank line or a space before it, or no
@@ -449,7 +455,7 @@ php tests/tools/testdb.php template --fresh   # after editing a migration the te
 php migration.php [--status|--dry-run]  # migrations for the configured database
 php translations.php --status           # the keys the frontend uses against the database's strings (the library's command)
 php translations.php --export sk [file] | --import sk file   # a language's strings as flat JSON
-php tools/build.php                     # the upload -> ../dist/ (builds the frontend too)
+# the release: cd ../frontend && npx anotoki-deploy build / deploy --backups <folder> [--go] (DEV.md)
 php composer.phar update anotoki/lib --prefer-dist   # a new anotoki-lib release (with the frontend's, below; DEV.md)
 
 # Frontend (from frontend/)
