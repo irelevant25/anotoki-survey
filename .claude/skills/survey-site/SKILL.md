@@ -158,7 +158,10 @@ backend/
                            in any - and the three tabs' titles; 014 the library's feedback words
                            (anotoki.feedback.*) in formal Slovak - written where none stand or the
                            library's informal ones do, an owner's rewording kept; 015 the feedback's
-                           fact, legal.feedback.kept, and What's new's six words, whatsNew.*)
+                           fact, legal.feedback.kept, and What's new's six words, whatsNew.*; 016
+                           every step's own text and pictures - "" and [] on each step kept before,
+                           nothing else of a survey changed, its revision and updated_at neither -
+                           and question.showLarge*'s descriptions naming a step's pictures)
   setup.php                the installer (this computer: nonce, re-runnable; a host: token, lock, self-delete)
   router.php               php -S behaving like the hosting's Apache (+ the built app)
   translations.php         command line only, never uploaded - the library's TranslationsCommand:
@@ -358,7 +361,9 @@ frontend/src/app/
                            (<anotoki-migrations-page>: Pending in the order the files run, Applied
                            with each file's SQL, Missing, Apply pending)
   ui/                      the survey's own pieces: rich-text-editor (TipTap), lightbox, survey-image,
-                           image-strip, changelog-dialog (What's new: each release's added / changed /
+                           image-strip, image-gallery (the pictures under a question's text or a
+                           step's own, as people meet them: each a button that opens it large),
+                           changelog-dialog (What's new: each release's added / changed /
                            fixed, in the language on the page, English where an entry has no
                            Slovak) - the rest is the family's kit (@anotoki/lib/ui/<piece>, /shell)
 frontend/public/           changelog.json: the releases, the newest first - its first entry's version
@@ -553,6 +558,31 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   writer), and in PHP `surveyTranslationFromBody()`, `surveyTranslationsJson()`
   (it writes out only the fields it names) and `surveyTranslationGaps()`; the
   copies (`copyQuestion`, `copySurvey`); the editor's pair (`translated-text`).
+- **A step's own text and pictures** (migration 016, the owner's request of
+  2026-10-20) are that pattern whole: `Step.text` / `Step.images` and
+  `StepTranslation {title, text, images}` (`survey.model.ts`, `newStep()`,
+  `copySurvey()`); the places `stepText` and `stepImage` (`localize.ts`,
+  `placeKey()` in `translating.ts`, after the step's title and before its
+  questions - the server's order); `surveyFromBody()` (both may be left out:
+  `""` and `[]`), `surveyTranslationFromBody()` (the step's own pictures
+  only), `surveyTranslationsJson()`, `surveyTranslationGaps()`;
+  `MAX_STEP_IMAGES` and `SURVEY_MAX_STEP_IMAGES` (10). A stored step without
+  the two - saved by a release from before 016, put back after it ran - is
+  read as having neither (`surveyContent()`, as `language` and `translations`
+  are): every survey leaving PHP has both on every step, and nothing past it
+  needs a default. The text is a
+  question's text in every way - `richTextClean()` on the way in, drawn
+  through the same `[innerHTML]` in `.rich` (`take-survey`), never another
+  way - and the pictures are `ui/image-gallery`, a question's too. A step with
+  text or a picture needs no question (`stepHasContent()`); with none of the
+  three it is a problem, "Step N is empty - add a question, text or a picture,
+  or remove the step." (`stepIsEmpty()` and `surveyStepIsEmpty()`). In the
+  editor the text is behind "Text and pictures" on a step (open whenever it
+  has some, `.step-own`) and "Add a text step" (`#add-text-step`) makes one
+  with it open; the outline says "Text only - no questions". The results
+  (`survey-results`) leave a step with no question out and keep the others'
+  numbers; a person's survey (`response-view`) shows it as a line ("Text
+  only - nothing to answer"). The CSV has no column for it.
 - **A survey's translations**: `language` and `translations` are required in
   every save - no default on the way in (a page from before would wipe them),
   defaults only when a stored row is read (`surveyContent()`). The maps are
@@ -826,10 +856,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   everything before its first `await` - `inject()` does not work after one.
 - **`jsonb_exists(content->'translations', ?)`, not the JSONB `?` operator**:
   PDO takes every `?` for a parameter.
-- **A translation's maps are JSON objects at all five levels** (`translations`,
-  each language's `steps` and `questions`, each question's `options` and
-  `images`), empty or not: PHP writes an empty one as `[]`, and the editor
-  spreading its next text into `[]` loses it. One helper,
+- **A translation's maps are JSON objects at all six levels** (`translations`,
+  each language's `steps` and `questions`, each step's `images`, each
+  question's `options` and `images`), empty or not: PHP writes an empty one
+  as `[]`, and the editor spreading its next text into `[]` loses it. One helper,
   `surveyTranslationsJson()`, wherever a survey leaves PHP - into the database,
   `surveyJson()`, the 409 conflict body, the participant routes. The tests
   assert on the raw text (`"options":{}`).

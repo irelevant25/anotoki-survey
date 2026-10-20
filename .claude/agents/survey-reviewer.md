@@ -100,6 +100,10 @@ Security and correctness first:
 - **HTML and pictures**: user HTML only through `richTextClean()`; a new
   element or attribute there needs a reason and a test of what it must not
   allow. Pictures checked by their bytes; SVG never; served with their CSP.
+  A step's own text (016) drawn any other way than a question's text - not
+  `[innerHTML]` of the cleaned text, a sanitizer bypassed, a pipe of its own -
+  or a step's pictures left out of `survey_images` (the clean-up would delete
+  them under the survey) is a finding.
 - **Queries**: `?` parameters only; table and column names from literals;
   bytea as `PARAM_LOB`; transactions around multi-statement writes; a unique
   violation turned into an ApiError, not a 500.

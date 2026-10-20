@@ -326,6 +326,20 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   both, and every map of a translation leaves PHP as a JSON object
   (`surveyTranslationsJson()`). People read a translation only when it is whole
   (`localizedSurvey()`, `core/survey/localize.ts`).
+- **A step may be text and pictures alone** (migration 016, the owner's
+  request of 2026-10-20: a usability test's task, read and left with Next): a
+  step's own `text` and `images` stand above its questions, or with none. The
+  text is a question's in every way - cleaned by `richTextClean()`, drawn
+  through the same `[innerHTML]`, translated (`stepText`, `stepImage`) - and
+  the pictures too (at most 10, recorded in `survey_images`; one only that
+  step showed goes with it). A step with no text, no picture and no question
+  is "empty" (`stepIsEmpty()` and `surveyStepIsEmpty()`, the same sentence);
+  a survey still needs a question. The results leave such a step out; a
+  person's survey shows it as a line. A step kept without the two (saved by a
+  release from before 016) is read as having neither (`surveyContent()`).
+  Once 016 is applied no release from before it goes on the host again -
+  `rollback` included, whatever the surveys hold: its editor would save a
+  survey without its steps' text and pictures. Fix forward.
 - **The site's own words are in the database** (`languages`, `translation_keys`,
   `translations`), English and Slovak - kept by the anotoki family's
   translations module (anotoki-lib 0.3.0 and later, the owner's decision; `docs/decisions.md`):

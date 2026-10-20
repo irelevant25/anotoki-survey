@@ -89,7 +89,9 @@ Working conventions:
   once a day, never the file's text or what PHP said.
   Queries use `?` parameters; identifiers come from literals.
 - User HTML only through `richTextClean()`. Pictures are checked by their
-  bytes; never SVG.
+  bytes; never SVG. A step's own text and pictures (016) are a question's in
+  every way: cleaned and drawn the same, its pictures recorded in
+  `survey_images` - never a way of their own.
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
   (light and dark); every page works at 390 px. The UI kit, the top bar and the

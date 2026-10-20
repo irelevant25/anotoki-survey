@@ -177,6 +177,19 @@ built-in words). Before the upload move any survey opened at the address
 editor refuses those addresses). After it, open `/about` and `/support`
 signed out.
 
+**The next version** (not released yet - its number and its What's new entry
+are the release's): a step of text and pictures alone (the owner's request of
+2026-10-20). It brings `016_step_text_and_pictures.sql` (every step of every
+survey kept gets `"text": ""` and `"images": []`, nothing else of a survey
+changes - its revision neither -, and the descriptions of
+`question.showLarge*` name a step's pictures): Apply on the Migrations page.
+After it, in the editor: "Add a text step", write it, add a picture, and take
+the survey through it in the preview. Once 016 is applied, no release from
+before it goes on the host again - `rollback` included - whatever the surveys
+hold: its editor would save a survey without its steps' text and pictures.
+Fix forward. (A step such a release saved all the same is read as having
+neither, `surveyContent()`: nothing fails on it, but what it dropped is gone.)
+
 ## 2. Release
 
 For a version with a new migration that will be applied with the setup page

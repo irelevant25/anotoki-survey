@@ -839,9 +839,10 @@ Things that cost time to find out:
 - Toasts stay for seconds over the bottom corner: `dismissToasts()` before a
   screenshot, and before reading the next toast.
 - In a translation every field carries `data-place` - a JSON array that starts
-  with what it is (`title`, `intro`, `thanks`, `step`, `text`, `option`,
-  `placeholder`, `image`) - and "Next missing" puts the cursor in the next
-  empty one after the field it was last in; the flow types where the cursor is.
+  with what it is (`title`, `intro`, `thanks`, `step`, `stepText`,
+  `stepImage`, `text`, `option`, `placeholder`, `image`) - and "Next missing"
+  puts the cursor in the next empty one after the field it was last in; the
+  flow types where the cursor is.
 - The editor's settings - the address and "Use the title" among them - are not
   drawn on a translation's tab: set the address before adding a language.
 - An open survey can lose a translation: a text added in the main language is
@@ -849,6 +850,13 @@ Things that cost time to find out:
   survey in the main language until the gap is filled. Stage 15 is that.
 - The hero shows a step's number only; its title is the heading under the
   hero (`.step-heading`).
+- A step of text alone (016): in the editor "Add a text step"
+  (`#add-text-step`, beside `#add-step`) makes one with its text open in
+  `.step-own`, and "Text and pictures" opens it on a step that has none.
+  Taking the survey, its text is `.step-text` and its pictures
+  `app-image-gallery`'s buttons ("Show large: …"), both in `.step-own` above
+  `.questions` when it has any; Next goes on with nothing to answer. A survey
+  saved through the API may leave a step's `text` and `images` out.
 
 ## By hand
 
