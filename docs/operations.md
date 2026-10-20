@@ -285,9 +285,12 @@ their descriptions that a step's pictures use them too. **After the upload**:
 apply on the Migrations page (the site is closed until it is applied); then,
 in the editor, "Add a text step", write it, add a picture, and take the
 survey through it in the preview. Its release adds its entry to What's new.
-Once a survey has a step's own text or pictures, no release from before this
-one goes on the host again - `rollback` included: its editor would save that
-survey without them, and its pages would show such a step empty. Fix forward.
+Once 016 is applied, no release from before it goes on the host again -
+`rollback` included - whatever the surveys hold: its editor would save a
+survey without its steps' text and pictures, and its pages would show a step
+of text alone empty. Fix forward. (A step such a release saved all the same is
+read as having neither - `surveyContent()` - so nothing fails on it; what it
+dropped is gone.)
 
 A **release** adds its entry at the top of `frontend/public/changelog.json` -
 what changed for people, in English and its whole formal-Slovak translation

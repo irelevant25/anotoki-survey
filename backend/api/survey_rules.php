@@ -318,7 +318,7 @@ function surveyTranslationsFromBody(mixed $raw, array $steps, string $language, 
 function surveyTranslationFromBody(mixed $raw, array $steps, string $name): array
 {
     $raw = surveyMap($raw, "The $name translation");
-    $rawSteps = surveyMap($raw['steps'] ?? [], "The map of step titles in $name", true);
+    $rawSteps = surveyMap($raw['steps'] ?? [], "The map of steps in $name", true);
     $rawQuestions = surveyMap($raw['questions'] ?? [], "The map of questions in $name", true);
 
     $translation = [
@@ -333,8 +333,9 @@ function surveyTranslationFromBody(mixed $raw, array $steps, string $name): arra
     foreach ($steps as $s => $step) {
         $rawStep = $rawSteps[$step['id']] ?? null;
         if ($rawStep !== null) {
+            // The step's entry - its title, its own text, its pictures' descriptions - and then each by its own name.
+            $rawStep = surveyMap($rawStep, "The $name entry of step " . ($s + 1));
             $stepName = "the $name title of step " . ($s + 1);
-            $rawStep = surveyMap($rawStep, ucfirst($stepName));
             // The step's own text and the pictures under it, as a question's: only the step's own pictures are
             // looked up, and the same one twice shares one description.
             $stepWhat = 'step ' . ($s + 1) . " in $name";

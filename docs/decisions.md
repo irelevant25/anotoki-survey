@@ -966,7 +966,12 @@ it. What was chosen:
   then (a save since is a newer revision - a conflict), and its "Save mine over
   it" says the other person's changes to the survey are lost; refused, every
   client written before - the browser check's surveys made through the API
-  among them - could no longer save a survey for nothing gained.
+  among them - could no longer save a survey for nothing gained. And a step
+  kept without them all the same - saved by a release from before 016, put
+  back on the host after it ran - is read as having neither
+  (`surveyContent()`), so nothing that reads a survey fails on it; no such
+  release goes on the host once 016 is applied, whatever the surveys hold
+  ([operations](operations.md)).
 - **The results**: a step of text alone has no answers, so the summary leaves
   it out (the other steps keep the numbers people saw them under) and the CSV
   has nothing of it; a person's whole survey keeps its place as one line - its

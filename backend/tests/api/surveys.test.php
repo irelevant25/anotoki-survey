@@ -719,6 +719,18 @@ test('a step of its own text and pictures, with no question: cleaned on the way 
     $listed = array_values(array_filter(as_user(EDITH, 'GET', '/api/admin/surveys')['body']['surveys'], static fn(array $row): bool => $row['id'] === $survey['id']))[0];
     assert_same(['steps' => 2, 'questions' => 2], ['steps' => $listed['steps'], 'questions' => $listed['questions']]);
 
+    // An answer for the step of text is no answer: the question after it that must be answered still must.
+    $onlyTheTask = as_user(PAT, 'POST', '/api/surveys/usability/responses', [
+        'aboutYou' => ['gender' => 'female', 'age' => '25-34'],
+        'answers' => ['step-task' => ['text' => 'Done.', 'optionIds' => ['o-anemo']]],
+        'startedAt' => gmdate('Y-m-d\TH:i:s', time() - 300) . '.000Z',
+    ]);
+    assert_same(
+        [422, 'invalid_answer', 'q-element', 'Question 1: Please choose an answer.'],
+        [$onlyTheTask['status'], $onlyTheTask['body']['code'] ?? null, $onlyTheTask['body']['questionId'] ?? null, $onlyTheTask['body']['error'] ?? null],
+    );
+    assert_same(0, (int) dbValue('SELECT count(*) FROM responses WHERE survey_id = ?', [$survey['id']]), 'nothing kept');
+
     // Taken: nothing is asked on the step of text; the answers are the questions'.
     $sent = as_user(PAT, 'POST', '/api/surveys/usability/responses', [
         'aboutYou' => ['gender' => 'female', 'age' => '25-34'],
@@ -772,6 +784,69 @@ test('a step\'s own text and its pictures\' descriptions in another language: cl
     as_user(EDITH, 'POST', "/api/admin/surveys/{$survey['id']}/status", ['status' => 'closed']);
     assert_same(['Slovak: step 2 has 1 text to translate.'], as_user(EDITH, 'POST', "/api/admin/surveys/{$survey['id']}/status", ['status' => 'open'])['body']['problems'] ?? null);
     assert_same(204, as_user(OWNER, 'DELETE', "/api/admin/surveys/{$survey['id']}")['status']);
+});
+
+test('steps kept without their own text and pictures - by a release from before 016, put back after it ran - are read as having neither: the survey opens, is taken and is edited', function (): void {
+    // Made as the editor makes it, translated into Slovak, which people are offered - then written back as a release
+    // from before 016 saves it: every step {id, title, questions}, a step's translation its title alone.
+    $made = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => draft(['slug' => 'from-before-016', 'translations' => ['sk' => slovak()]])]);
+    assert_same(201, $made['status'], test_show($made['body']));
+    $id = $made['body']['survey']['id'];
+    dbExec(
+        "UPDATE surveys
+            SET content = jsonb_set(content, '{steps}', (SELECT jsonb_agg(step - 'text' - 'images' ORDER BY n)
+                                                           FROM jsonb_array_elements(content->'steps') WITH ORDINALITY AS kept(step, n)))
+                          #- '{translations,sk,steps,step-1,text}' #- '{translations,sk,steps,step-1,images}'
+          WHERE id = ?",
+        [$id],
+    );
+    $kept = json_decode((string) dbValue('SELECT content::text FROM surveys WHERE id = ?', [$id]), true);
+    assert_same(
+        [false, false, ['title']],
+        [array_key_exists('text', $kept['steps'][0]), array_key_exists('images', $kept['steps'][0]), array_keys($kept['translations']['sk']['steps']['step-1'])],
+        'kept as a release from before 016 keeps it',
+    );
+
+    // The editor reads it with the two on every step, and the step's translation whole.
+    $read = as_user(EDITH, 'GET', "/api/admin/surveys/$id");
+    assert_same([200, '', []], [$read['status'], $read['body']['survey']['steps'][0]['text'] ?? null, $read['body']['survey']['steps'][0]['images'] ?? null], test_show($read['body']));
+    assert_true(str_contains($read['raw'], '"step-1":{"title":"Záplata","text":"","images":{}}'), $read['raw']);
+
+    // Its problems as it opens - the Slovak translation's among them, step by step: none.
+    $opened = as_user(EDITH, 'POST', "/api/admin/surveys/$id/status", ['status' => 'open']);
+    assert_same([200, 'open'], [$opened['status'], $opened['body']['survey']['status'] ?? null], test_show($opened['body']));
+
+    // People read it in Slovak or not, and answer it.
+    $taken = as_user(LOOKER, 'GET', '/api/surveys/from-before-016');
+    assert_same([200, '', []], [$taken['status'], $taken['body']['survey']['steps'][0]['text'] ?? null, $taken['body']['survey']['steps'][0]['images'] ?? null], test_show($taken['body']));
+    assert_json_same(slovak_kept(), $taken['body']['survey']['translations']['sk']);
+    $sent = as_user(PAT, 'POST', '/api/surveys/from-before-016/responses', [
+        'aboutYou' => ['gender' => 'female', 'age' => '25-34'],
+        'answers' => ['q-element' => ['optionIds' => ['o-geo']]],
+        'startedAt' => gmdate('Y-m-d\TH:i:s', time() - 60) . '.000Z',
+    ]);
+    assert_same(201, $sent['status'], test_show($sent['body']));
+
+    // The editor saves it as it read it: from then on the two are kept.
+    $survey = $opened['body']['survey'];
+    $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/$id", ['revision' => $survey['revision'], 'survey' => $survey]);
+    assert_same(200, $saved['status'], test_show($saved['body']));
+    assert_same(['text' => '', 'images' => []], array_intersect_key(json_decode((string) dbValue("SELECT content->'steps'->0 FROM surveys WHERE id = ?", [$id]), true), ['text' => 0, 'images' => 0]));
+
+    // A step such a release kept with no question - a draft may have one - is "empty", as any: never a failure.
+    assert_same(200, as_user(EDITH, 'POST', "/api/admin/surveys/$id/status", ['status' => 'closed'])['status']);
+    dbExec("UPDATE surveys SET content = jsonb_set(content, '{steps}', content->'steps' || ?::jsonb) WHERE id = ?", [json_encode([['id' => 'step-2', 'title' => '', 'questions' => []]]), $id]);
+    $read = as_user(EDITH, 'GET', "/api/admin/surveys/$id");
+    assert_same([200, '', []], [$read['status'], $read['body']['survey']['steps'][1]['text'] ?? null, $read['body']['survey']['steps'][1]['images'] ?? null]);
+    assert_same(
+        [200, ''],
+        (static fn(array $r): array => [$r['status'], $r['body']['survey']['steps'][1]['text'] ?? null])(as_user(LOOKER, 'GET', '/api/surveys/from-before-016')),
+        'its page, closed',
+    );
+    $refused = as_user(EDITH, 'POST', "/api/admin/surveys/$id/status", ['status' => 'open']);
+    assert_same([422, 'survey_problems'], [$refused['status'], $refused['body']['code'] ?? null], test_show($refused['body']));
+    assert_same(['Step 3 is empty - add a question, text or a picture, or remove the step.'], $refused['body']['problems']);
+    assert_same(204, as_user(OWNER, 'DELETE', "/api/admin/surveys/$id")['status']);
 });
 
 test('the server said nothing it should not have', function (): void {

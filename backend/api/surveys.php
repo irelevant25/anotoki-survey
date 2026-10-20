@@ -47,12 +47,24 @@ function surveyTakesAnswers(array $row): bool
  * survey kept before surveys had languages what that means - written in
  * English, translated into nothing. (So no survey needed migrating.) The
  * translations are arrays here.
+ *
+ * And a step kept without its own text and pictures has none: '' and [].
+ * Migration 016 gave the two to every step kept then, but a release from
+ * before it, put back on the host after it ran (a rollback), saves its steps
+ * without them - and 016 never runs again. So whatever reads a survey here -
+ * its problems when it opens, the people taking it, the editor - finds both
+ * on every step, as every survey leaving PHP has them.
  */
 function surveyContent(array $row): array
 {
     $content = json_decode((string) $row['content'], true, 512, JSON_THROW_ON_ERROR);
     $content['language'] = is_string($content['language'] ?? null) ? $content['language'] : SURVEY_LANGUAGE_DEFAULT;
     $content['translations'] = is_array($content['translations'] ?? null) ? $content['translations'] : [];
+    foreach ($content['steps'] as &$step) {
+        $step['text'] = is_string($step['text'] ?? null) ? $step['text'] : '';
+        $step['images'] = is_array($step['images'] ?? null) ? $step['images'] : [];
+    }
+    unset($step);
 
     return $content;
 }

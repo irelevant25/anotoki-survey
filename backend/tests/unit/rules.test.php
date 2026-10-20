@@ -486,8 +486,10 @@ test('a survey says its language and carries its translations: neither is guesse
         // Every level that is there is an object (or the empty array an empty one decodes to).
         'a translation as a word' => [body([], ['translations' => ['sk' => 'Ahoj']]), '/The Slovak translation is not an object/'],
         'a translation as a list' => [body([], ['translations' => ['sk' => ['Ahoj']]]), '/The Slovak translation is not an object/'],
-        'step titles as a word' => [body([], ['translations' => ['sk' => ['steps' => 'x']]]), '/step titles in Slovak is not an object/'],
-        'a step title as a word' => [body([], ['translations' => ['sk' => ['steps' => ['s1' => 'Prvý']]]]), '/The Slovak title of step 1 is not an object/'],
+        // A step's entry holds its title, its own text and its pictures' descriptions: refused as the entry it is.
+        'steps as a word' => [body([], ['translations' => ['sk' => ['steps' => 'x']]]), '/^The map of steps in Slovak is not an object\.$/'],
+        'a step\'s entry as a word' => [body([], ['translations' => ['sk' => ['steps' => ['s1' => 'Prvý']]]]), '/^The Slovak entry of step 1 is not an object\.$/'],
+        'a step\'s entry as a list' => [body([], ['translations' => ['sk' => ['steps' => ['s1' => ['Prvý']]]]]), '/^The Slovak entry of step 1 is not an object\.$/'],
         'questions as a number' => [body([], ['translations' => ['sk' => ['questions' => 1]]]), '/questions in Slovak is not an object/'],
         'a question as a word' => [body([], ['translations' => ['sk' => ['questions' => ['q1' => 'Ktorý?']]]]), '/Question 1 in Slovak is not an object/'],
         'options as a word' => [body([], ['translations' => ['sk' => ['questions' => ['q1' => ['options' => 'x']]]]]), '/options of question 1 in Slovak is not an object/'],

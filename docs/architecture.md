@@ -731,7 +731,8 @@ pictures are edited, saved and read as one thing, so they are one JSONB value
 (`surveys.content`: `{intro, thanks, askAboutYou, steps, language,
 translations}`, each step `{id, title, text, images, questions}` - its own
 text and the pictures under it, above its questions or alone: migration `016`
-gave every step kept before it none of either); what the database
+gave every step kept before it none of either, and `surveyContent()` reads a
+step kept without them since as having neither); what the database
 must look things up by - the address (`slug`), the title, the status, the
 closing day, the times - are columns beside it. The frontend's
 `core/survey/survey.model.ts` is the shape the API sends and takes

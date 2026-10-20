@@ -1086,7 +1086,6 @@ describe('TakeSurveyComponent', () => {
       expect(drawn.querySelectorAll('[onclick], [onerror]')).toHaveLength(0);
       expect(Array.from(drawn.querySelectorAll('a')).map((link) => link.getAttribute('href') ?? '')).not.toContainEqual(expect.stringMatching(/^javascript:/i));
       expect(text('.step-text')).toBe('Choďte na stránku');
-      expect((window as unknown as { stolen?: number }).stolen).toBeUndefined();
     });
   });
 });

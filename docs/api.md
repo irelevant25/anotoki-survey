@@ -331,10 +331,11 @@ is sent).
   questions - or only that: a step with text or pictures needs no question; it
   is read, and left with Next (a usability test's task, say, before the step
   that asks about it). Neither field has to be sent: a step without them has
-  no text and no pictures. A step with neither, and no question, keeps the
-  survey from opening ("Step 3 is empty - add a question, text or a picture, or
-  remove the step."), and so does a survey with no question at all ("Add at
-  least one question.").
+  no text and no pictures - and one kept without them (saved by a release
+  from before them) goes out with both, `""` and `[]`. A step with neither,
+  and no question, keeps the survey from opening ("Step 3 is empty - add a
+  question, text or a picture, or remove the step."), and so does a survey
+  with no question at all ("Add at least one question.").
 - The answers are by question id (`POST /api/surveys/{slug}/responses`): a
   step of text alone has none; anything sent for an id that is no question's
   is not kept.
