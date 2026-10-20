@@ -54,6 +54,8 @@ const SURVEY_MAX_QUESTIONS = 300;
 const SURVEY_MAX_OPTIONS = 100;
 const SURVEY_MAX_QUESTION_IMAGES = 10;
 const SURVEY_MAX_OPTION_IMAGES = 4;
+/** The pictures under a step's own text: as many as under a question's (MAX_STEP_IMAGES in prepare-image.ts). */
+const SURVEY_MAX_STEP_IMAGES = 10;
 const SURVEY_TITLE_MAX = 200;
 const SURVEY_LABEL_MAX = 300;
 
@@ -141,9 +143,10 @@ function surveyDay(mixed $value, string $what): ?string
 /**
  * The survey an editor sent, as it may be kept: every field the editor has,
  * checked and cleaned, and nothing else. The texts are cleaned HTML
- * (api/rich_text.php); the pictures are ones this site has, with the size it
- * measured. The status and times are not the editor's to send - they come from
- * the database and the status route.
+ * (api/rich_text.php) - a question's, and a step's own text alike; the
+ * pictures - a question's, an option's, a step's - are ones this site has,
+ * with the size it measured. The status and times are not the editor's to
+ * send - they come from the database and the status route.
  *
  * $languages: every language the site has, offered or hidden -
  * [code => ['name' => its name in English, 'enabled' => bool]]
@@ -217,9 +220,15 @@ function surveyFromBody(mixed $body, array $languages): array
             $questions[] = $question;
         }
 
+        // A step's own text and pictures, above its questions or alone: the same rich text as a question's and
+        // the same pictures as under it. Neither has to be sent - nothing there is a step with no text and no
+        // pictures, and every step there was before steps had them is one (migration 016).
+        $stepWhat = 'step ' . ($s + 1);
         $steps[] = [
             'id' => $rawStep['id'],
             'title' => surveyLine($rawStep['title'] ?? '', SURVEY_TITLE_MAX, "The title of $stepName"),
+            'text' => richTextClean($rawStep['text'] ?? '', $stepWhat),
+            'images' => surveyImagesFromBody($rawStep['images'] ?? [], SURVEY_MAX_STEP_IMAGES, $stepWhat, $imageIds),
             'questions' => $questions,
         ];
     }
@@ -298,7 +307,9 @@ function surveyTranslationsFromBody(mixed $raw, array $steps, string $language, 
  * localize.ts does the same in the editor), the work is bounded by what a
  * survey may hold, and an id is never read back from an array key (PHP makes
  * a number of a key like "12"). Every text is cleaned and measured exactly
- * like the one it translates.
+ * like the one it translates. A step's entry holds its title, its own text and
+ * what its pictures show; a question's its text, hint, labels and what the
+ * pictures under its text show.
  *
  * @param array  $steps the survey's own steps, already checked
  * @param string $name  the language's name in English, for the refusals ("Slovak")
@@ -323,7 +334,24 @@ function surveyTranslationFromBody(mixed $raw, array $steps, string $name): arra
         $rawStep = $rawSteps[$step['id']] ?? null;
         if ($rawStep !== null) {
             $stepName = "the $name title of step " . ($s + 1);
-            $translation['steps'][$step['id']] = ['title' => surveyLine(surveyMap($rawStep, ucfirst($stepName))['title'] ?? '', SURVEY_TITLE_MAX, ucfirst($stepName))];
+            $rawStep = surveyMap($rawStep, ucfirst($stepName));
+            // The step's own text and the pictures under it, as a question's: only the step's own pictures are
+            // looked up, and the same one twice shares one description.
+            $stepWhat = 'step ' . ($s + 1) . " in $name";
+            $rawImages = surveyMap($rawStep['images'] ?? [], "The map of picture descriptions of $stepWhat", true);
+            $images = [];
+            foreach ($step['images'] as $i => $image) {
+                $rawImage = $rawImages[$image['id']] ?? null;
+                if ($rawImage !== null && !isset($images[$image['id']])) {
+                    $imageName = 'picture ' . ($i + 1) . " of $stepWhat";
+                    $images[$image['id']] = ['alt' => surveyLine(surveyMap($rawImage, ucfirst($imageName))['alt'] ?? '', SURVEY_LABEL_MAX, "The description of $imageName")];
+                }
+            }
+            $translation['steps'][$step['id']] = [
+                'title' => surveyLine($rawStep['title'] ?? '', SURVEY_TITLE_MAX, ucfirst($stepName)),
+                'text' => richTextClean($rawStep['text'] ?? '', $stepWhat),
+                'images' => $images,
+            ];
         }
 
         foreach ($step['questions'] as $question) {
@@ -369,16 +397,17 @@ function surveyTranslationFromBody(mixed $raw, array $steps, string $name): arra
 
 /**
  * A survey's translations as they go out as JSON - to the database, to the
- * editor, to the people taking it: every map an object at all five levels
- * (the translations, each one's steps and questions, each question's options
- * and images), empty or not, whatever its ids look like. Left to itself PHP
- * writes an empty map as [] and one with the ids "0" and "1" as a list - and
- * an editor that got [] where a map should be would lose the next text it
- * writes into it. Used wherever a survey leaves PHP; inside PHP the
- * translations stay arrays.
+ * editor, to the people taking it: every map an object at all six levels
+ * (the translations, each one's steps and questions, each step's images, each
+ * question's options and images), empty or not, whatever its ids look like.
+ * Left to itself PHP writes an empty map as [] and one with the ids "0" and
+ * "1" as a list - and an editor that got [] where a map should be would lose
+ * the next text it writes into it. Used wherever a survey leaves PHP; inside
+ * PHP the translations stay arrays.
  *
- * Shaped from what is there, so a translation kept with less than all of it
- * goes out whole.
+ * Shaped from what is there, so a translation kept with less than all of it -
+ * a step's entry from before steps had their own text, which holds a title
+ * alone - goes out whole.
  *
  * @param array<string, mixed> $translations [code => translation], as surveyFromBody() or json_decode() gives them
  */
@@ -390,6 +419,15 @@ function surveyTranslationsJson(array $translations): object
     $out = [];
     foreach ($translations as $code => $translation) {
         $translation = $map($translation);
+        $steps = [];
+        foreach ($map($translation['steps'] ?? null) as $id => $step) {
+            $step = $map($step);
+            $steps[$id] = [
+                'title' => $text($step['title'] ?? null),
+                'text' => $text($step['text'] ?? null),
+                'images' => (object) $map($step['images'] ?? null),
+            ];
+        }
         $questions = [];
         foreach ($map($translation['questions'] ?? null) as $id => $question) {
             $question = $map($question);
@@ -404,7 +442,7 @@ function surveyTranslationsJson(array $translations): object
             'title' => $text($translation['title'] ?? null),
             'intro' => $text($translation['intro'] ?? null),
             'thanks' => $text($translation['thanks'] ?? null),
-            'steps' => (object) $map($translation['steps'] ?? null),
+            'steps' => (object) $steps,
             'questions' => (object) $questions,
         ];
     }
@@ -415,11 +453,12 @@ function surveyTranslationsJson(array $translations): object
 /**
  * The places where the survey has a text and its translation into $code has
  * none - translationGaps() in localize.ts, in the same order: the title, the
- * welcome, the thanks, then step by step its title and each question's text,
- * hint, option labels and picture descriptions. A question counts what its
- * type shows (a hint for "own words", options for a choice); the same picture
- * twice is one description. Rich text is empty when it has no words, a line
- * when it is only spaces.
+ * welcome, the thanks, then step by step its title, its own text and the
+ * descriptions of its pictures, and each question's text, hint, option labels
+ * and picture descriptions. A question counts what its type shows (a hint for
+ * "own words", options for a choice); the same picture twice is one
+ * description. Rich text is empty when it has no words, a line when it is
+ * only spaces.
  *
  * @param array{title: string, content: array} $survey
  * @return array<array{kind: string, stepId?: string, questionId?: string, optionId?: string, imageId?: string}>
@@ -443,8 +482,21 @@ function surveyTranslationGaps(array $survey, string $code): array
     }
 
     foreach ($content['steps'] as $step) {
-        if (!$line($step['title']) && $line($translation['steps'][$step['id']]['title'] ?? null)) {
-            $gaps[] = ['kind' => 'step', 'stepId' => $step['id']];
+        $stepId = $step['id'];
+        if (!$line($step['title']) && $line($translation['steps'][$stepId]['title'] ?? null)) {
+            $gaps[] = ['kind' => 'step', 'stepId' => $stepId];
+        }
+        if (!$rich($step['text']) && $rich($translation['steps'][$stepId]['text'] ?? null)) {
+            $gaps[] = ['kind' => 'stepText', 'stepId' => $stepId];
+        }
+        $described = [];
+        foreach ($step['images'] as $image) {
+            if (!$line($image['alt']) && !isset($described[$image['id']])) {
+                $described[$image['id']] = true;
+                if ($line($translation['steps'][$stepId]['images'][$image['id']]['alt'] ?? null)) {
+                    $gaps[] = ['kind' => 'stepImage', 'stepId' => $stepId, 'imageId' => $image['id']];
+                }
+            }
         }
         foreach ($step['questions'] as $question) {
             $questionId = $question['id'];
@@ -548,6 +600,16 @@ function surveyImagesFromBody(mixed $raw, int $max, string $name, array &$imageI
 
 // ── What keeps a survey from opening ────────────────────────────────────────
 
+/**
+ * A step with nothing in it for anybody: no question, no text with words in
+ * it, no picture - stepIsEmpty() in survey-outline.ts. A step with only text
+ * or pictures is a step people read and leave with Next.
+ */
+function surveyStepIsEmpty(array $step): bool
+{
+    return $step['questions'] === [] && richTextIsBlank($step['text']) && $step['images'] === [];
+}
+
 /** An address as slugify() leaves it: small letters, digits and single dashes, at most SLUG_MAX. */
 function surveySlugOk(string $slug): bool
 {
@@ -600,11 +662,12 @@ function surveyProblems(array $survey, array $others, array $languages = []): ar
     if ($questions === []) {
         $problems[] = 'Add at least one question.';
     }
-    // Steps are numbered as people see them too: "About you", when asked, is step 1.
+    // Steps are numbered as people see them too: "About you", when asked, is step 1. A step may be only text
+    // and pictures - a task to read and do before the next step asks about it - but not nothing at all.
     $firstStep = $content['askAboutYou'] ? 2 : 1;
     foreach ($content['steps'] as $index => $step) {
-        if ($step['questions'] === []) {
-            $problems[] = 'Step ' . ($index + $firstStep) . ' has no questions - add one, or remove the step.';
+        if (surveyStepIsEmpty($step)) {
+            $problems[] = 'Step ' . ($index + $firstStep) . ' is empty - add a question, text or a picture, or remove the step.';
         }
     }
 
@@ -670,9 +733,10 @@ function surveyProblems(array $survey, array $others, array $languages = []): ar
 /**
  * What a translation still lacks - translationProblems() in
  * survey-problems.ts - in the order of the document: the title, the welcome,
- * the thanks, then step by step its title and, question by question, how many
- * of its texts are left (one problem a question, however many) and two
- * options that would read the same.
+ * the thanks, then step by step its title, how many of its own texts are left
+ * (its text and its pictures' descriptions: one problem a step), and,
+ * question by question, how many of its texts are left (one problem a
+ * question, however many) and two options that would read the same.
  *
  * @param string $name the language's name in English
  * @return string[]
@@ -689,8 +753,10 @@ function surveyTranslationProblems(array $survey, string $code, string $name, in
             $missing[$gap['kind']] = true;
         } elseif ($gap['kind'] === 'step') {
             $missing['step ' . $gap['stepId']] = true;
-        } else {
+        } elseif ($gap['kind'] === 'stepText' || $gap['kind'] === 'stepImage') {
             // Counted by a key that is never a number to PHP, whatever the id looks like.
+            $texts['step ' . $gap['stepId']] = ($texts['step ' . $gap['stepId']] ?? 0) + 1;
+        } else {
             $texts['question ' . $gap['questionId']] = ($texts['question ' . $gap['questionId']] ?? 0) + 1;
         }
     }
@@ -710,6 +776,10 @@ function surveyTranslationProblems(array $survey, string $code, string $name, in
     foreach ($content['steps'] as $index => $step) {
         if (isset($missing['step ' . $step['id']])) {
             $problems[] = "$name: the title of step " . ($index + $firstStep) . ' is missing.';
+        }
+        $count = $texts['step ' . $step['id']] ?? 0;
+        if ($count > 0) {
+            $problems[] = "$name: step " . ($index + $firstStep) . ' has ' . ($count === 1 ? '1 text' : "$count texts") . ' to translate.';
         }
         foreach ($step['questions'] as $question) {
             $number++;

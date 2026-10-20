@@ -113,6 +113,15 @@ hosting:
 
 ## Current state - 1.0
 
+**Since 1.0, not released yet** (the owner's request of 2026-10-20): **a step
+of text and pictures alone** - a step's own rich text and pictures above its
+questions, or with none: a task people read and do, and leave with Next (for
+usability tests); written and translated in the editor ("Add a text step",
+"Text and pictures"), counted as a step, left out of the per-question results
+and kept as a line in a person's survey ([docs/architecture.md](docs/architecture.md#a-steps-own-text-and-a-step-of-text-alone)).
+On the hosting it brings `016_step_text_and_pictures.sql`, applied on the
+Migrations page ([docs/operations.md](docs/operations.md)).
+
 **1.0** (2026-10-19, on anotoki-lib 0.8.0; its notes for people are
 `frontend/public/changelog.json`'s newest entry): the family's **About** and
 **Support** pages (`/about`, `/support`), anybody's, in the legal pages'

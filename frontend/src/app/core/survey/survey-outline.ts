@@ -1,4 +1,23 @@
+import { isBlankHtml } from './plain-text';
 import { Question, Step, Survey, SurveyStatus } from './survey.model';
+
+/**
+ * The step has something of its own to show: a text with words in it, or a
+ * picture - above its questions, or alone (a task to read and do, left with
+ * Next).
+ */
+export function stepHasContent(step: Pick<Step, 'text' | 'images'>): boolean {
+  return !isBlankHtml(step.text) || step.images.length > 0;
+}
+
+/**
+ * A step with nothing in it for anybody: no question, and no text or picture
+ * of its own - surveyStepIsEmpty() in backend/api/survey_rules.php. It keeps
+ * the survey from opening (survey-problems.ts).
+ */
+export function stepIsEmpty(step: Step): boolean {
+  return step.questions.length === 0 && !stepHasContent(step);
+}
 
 /** A question with where it stands: its step, and its number in the whole survey. */
 export interface NumberedQuestion {

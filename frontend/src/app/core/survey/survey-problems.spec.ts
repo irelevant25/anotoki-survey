@@ -30,8 +30,21 @@ describe('surveyProblems', () => {
     expect(messages({ ...survey, steps: [] })).toContain('Add at least one question.');
     const empty = newStep();
     // "About you" is step 1 when it is asked, so the empty one is step 3.
-    expect(messages({ ...survey, askAboutYou: true, steps: [...survey.steps, empty] })).toContain('Step 3 has no questions - add one, or remove the step.');
-    expect(messages({ ...survey, askAboutYou: false, steps: [...survey.steps, empty] })).toContain('Step 2 has no questions - add one, or remove the step.');
+    expect(messages({ ...survey, askAboutYou: true, steps: [...survey.steps, empty] })).toEqual(['Step 3 is empty - add a question, text or a picture, or remove the step.']);
+    expect(messages({ ...survey, askAboutYou: false, steps: [...survey.steps, empty] })).toEqual(['Step 2 is empty - add a question, text or a picture, or remove the step.']);
+    // Text with no words in it is no text (what the browser finds blank, the server does too).
+    expect(messages({ ...survey, askAboutYou: false, steps: [...survey.steps, { ...empty, text: '<p> </p><p><br></p>' }] })).toEqual([
+      'Step 2 is empty - add a question, text or a picture, or remove the step.',
+    ]);
+    expect(messages({ ...survey, askAboutYou: false, steps: [...survey.steps, { ...empty, text: '<p>\u0085</p>' }] })).toEqual([]);
+  });
+
+  it('takes a step of text and pictures alone - a task to read and do - but still wants a question in the survey', () => {
+    const survey = readySurvey();
+    const task = { ...newStep(), text: '<p>Go to the <strong>genshin</strong> site, then come back.</p>' };
+    const pictures = { ...newStep(), images: [{ id: 'p1', alt: 'The city', width: 40, height: 30, src: '/api/images/p1.png' }] };
+    expect(messages({ ...survey, steps: [task, ...survey.steps, pictures] })).toEqual([]);
+    expect(messages({ ...survey, steps: [task, pictures] })).toEqual(['Add at least one question.']);
   });
 
   it('checks every question: text, options, labels, limits', () => {
@@ -74,12 +87,14 @@ function threeQuestions(): Survey {
       {
         id: 's1',
         title: 'First',
+        text: '',
+        images: [],
         questions: [
           { ...newQuestion('single'), id: 'q1', text: '<p>Which one?</p>', options: [option('a', 'Anemo'), option('b', 'Geo'), option('o', 'Something else', true)] },
           { ...newQuestion('text'), id: 'q2', text: '<p>Why?</p>', placeholder: 'A few words' },
         ],
       },
-      { id: 's2', title: 'Second', questions: [{ ...newQuestion('single'), id: 'q3', text: '<p>Again?</p>', options: [option('a', 'Yes'), option('b', 'No')] }] },
+      { id: 's2', title: 'Second', text: '', images: [], questions: [{ ...newQuestion('single'), id: 'q3', text: '<p>Again?</p>', options: [option('a', 'Yes'), option('b', 'No')] }] },
     ],
   };
 }
@@ -90,7 +105,7 @@ function wholeSlovak(): SurveyTranslation {
     title: 'Genshin 1.0',
     intro: '<p>Ahoj</p>',
     thanks: '<p>Vďaka</p>',
-    steps: { s1: { title: 'Prvý' }, s2: { title: 'Druhý' } },
+    steps: { s1: { title: 'Prvý', text: '', images: {} }, s2: { title: 'Druhý', text: '', images: {} } },
     questions: {
       q1: { text: '<p>Ktorý?</p>', placeholder: '', options: { a: { label: 'Anemo' }, b: { label: 'Geo' }, o: { label: 'Niečo iné' } }, images: {} },
       q2: { text: '<p>Prečo?</p>', placeholder: 'Pár slov', options: {}, images: {} },
@@ -105,7 +120,7 @@ function brokenSlovak(): SurveyTranslation {
     title: '',
     intro: '<p> </p>',
     thanks: '',
-    steps: { s2: { title: 'Druhý' } },
+    steps: { s2: { title: 'Druhý', text: '', images: {} } },
     questions: {
       q1: { text: '', placeholder: '', options: { a: { label: 'Rovnaké' }, b: { label: ' rovnaké ' } }, images: {} },
       q2: { text: '<p>Prečo?</p>', placeholder: '', options: {}, images: {} },
@@ -187,6 +202,77 @@ describe('translations', () => {
     ]);
     // Every marked one says which language it is missing in.
     expect(problems.filter((problem) => problem.untranslated).every((problem) => problem.target.language === 'sk')).toBe(true);
+  });
+});
+
+/** The ids of textSteps()'s pictures: those of backend/tests/unit/rules.test.php's text_steps(). */
+const MAP = '0f6c2a52-4c1e-4b55-9d2e-6a1c5e0b7a11';
+const CITY = '5b8e1d7c-2f3a-4e6b-8c9d-0a1b2c3d4e5f';
+const picture = (id: string, alt: string) => ({ id, alt, width: 40, height: 30, src: `/api/images/${id}.png` });
+
+/** A step of text and pictures alone, then one that asks - with "About you" - as text_steps() in rules.test.php. */
+function textSteps(translations: Record<string, SurveyTranslation> = {}): Survey {
+  return {
+    ...readySurvey(),
+    title: 'Genshin 1.0',
+    slug: 'genshin-1-0',
+    intro: '<p>Hello</p>',
+    thanks: '<p>Thanks</p>',
+    askAboutYou: true,
+    steps: [
+      {
+        id: 's1',
+        title: 'The task',
+        text: '<p>Open the <strong>map</strong>, find Mondstadt, then come back.</p>',
+        images: [picture(MAP, 'The map'), picture(CITY, ''), picture(MAP, 'The map')],
+        questions: [],
+      },
+      { id: 's2', title: 'How it went', text: '', images: [], questions: [{ ...newQuestion('single'), id: 'q1', text: '<p>Was it easy?</p>', options: [option('a', 'Yes'), option('b', 'No')] }] },
+    ],
+    translations,
+  };
+}
+
+/** Nothing of textSteps() left to translate (whole_text_steps() in rules.test.php). */
+function wholeTextSteps(): SurveyTranslation {
+  return {
+    title: 'Genshin 1.0',
+    intro: '<p>Ahoj</p>',
+    thanks: '<p>Vďaka</p>',
+    steps: {
+      s1: { title: 'Úloha', text: '<p>Otvorte <strong>mapu</strong>, nájdite Mondstadt a vráťte sa.</p>', images: { [MAP]: { alt: 'Mapa' } } },
+      s2: { title: 'Ako to šlo', text: '', images: {} },
+    },
+    questions: { q1: { text: '<p>Bolo to ľahké?</p>', placeholder: '', options: { a: { label: 'Áno' }, b: { label: 'Nie' } }, images: {} } },
+  };
+}
+
+describe('a step’s own text and pictures in a translation', () => {
+  it('lacks them as the server says: one problem a step, after its title’s, in the words of the server', () => {
+    expect(messages(textSteps({ sk: wholeTextSteps() }), [], LANGUAGES)).toEqual([]);
+
+    const holes = { ...wholeTextSteps(), steps: { ...wholeTextSteps().steps, s1: { title: '', text: '', images: {} } } };
+    const problems = surveyProblems(textSteps({ sk: holes }), [], LANGUAGES);
+    // "About you" is step 1: the step of text is the second people meet.
+    expect(problems.map((problem) => problem.message)).toEqual(['Slovak: the title of step 2 is missing.', 'Slovak: step 2 has 2 texts to translate.']);
+    expect(problems.map((problem) => [problem.target, problem.untranslated])).toEqual([
+      [{ kind: 'step', stepId: 's1', language: 'sk' }, true],
+      [{ kind: 'step', stepId: 's1', language: 'sk' }, true],
+    ]);
+    const oneLeft = { ...wholeTextSteps(), steps: { ...wholeTextSteps().steps, s1: { title: 'Úloha', text: '<p>Otvorte mapu.</p>', images: {} } } };
+    expect(messages(textSteps({ sk: oneLeft }), [], LANGUAGES)).toEqual(['Slovak: step 2 has 1 text to translate.']);
+
+    // German, with nothing in it yet, and offered: every text of the step and of the question after it.
+    const offered = LANGUAGES.map((language) => ({ ...language, enabled: true }));
+    expect(messages(textSteps({ sk: wholeTextSteps(), de: emptyTranslation() }), [], offered)).toEqual([
+      'German: the title is missing.',
+      'German: the welcome text is missing.',
+      'German: the thank-you text is missing.',
+      'German: the title of step 2 is missing.',
+      'German: step 2 has 2 texts to translate.',
+      'German: the title of step 3 is missing.',
+      'German: question 1 has 3 texts to translate.',
+    ]);
   });
 });
 

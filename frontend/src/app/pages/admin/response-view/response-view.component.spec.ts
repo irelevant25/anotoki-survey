@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { type AdminLanguage } from '@anotoki/lib/translations';
 import { AdminStore } from '../../../core/admin/admin-store.service';
-import { newOption, newQuestion, newSurvey } from '../../../core/survey/survey-factory';
+import { newOption, newQuestion, newStep, newSurvey } from '../../../core/survey/survey-factory';
 import { Survey, SurveyResponse } from '../../../core/survey/survey.model';
 import { ResponseViewComponent } from './response-view.component';
 
@@ -18,9 +18,15 @@ function survey(): Survey {
     ...newSurvey([]),
     id: 's1',
     askAboutYou: false,
-    steps: [{ id: 'st1', title: 'The game', questions: [question] }],
+    steps: [{ id: 'st1', title: 'The game', text: '', images: [], questions: [question] }],
     translations: {
-      sk: { title: '', intro: '', thanks: '', steps: { st1: { title: 'Hra' } }, questions: { q1: { text: '<p>Ktorý živel?</p>', placeholder: '', options: { o1: { label: 'Vietor' } }, images: {} } } },
+      sk: {
+        title: '',
+        intro: '',
+        thanks: '',
+        steps: { st1: { title: 'Hra', text: '', images: {} } },
+        questions: { q1: { text: '<p>Ktorý živel?</p>', placeholder: '', options: { o1: { label: 'Vietor' } }, images: {} } },
+      },
     },
   };
 }
@@ -100,5 +106,24 @@ describe('ResponseViewComponent: the language the survey was read in', () => {
     fixture.componentRef.setInput('response', response('de'));
     await fixture.whenStable();
     expect(readIn()).toBe('Read in de');
+  });
+});
+
+describe('ResponseViewComponent: a step of text alone', () => {
+  it('is a line in the person’s survey - its number and title, and that it asked nothing - between the steps they answered', async () => {
+    TestBed.configureTestingModule({ providers: [{ provide: AdminStore, useValue: { languages: signal(LANGUAGES) } }] });
+    const fixture = TestBed.createComponent(ResponseViewComponent);
+    const base = survey();
+    const task = { ...newStep('Try the genshin site'), id: 'st0', text: '<p>Go there, then come back.</p>' };
+    fixture.componentRef.setInput('survey', { ...base, steps: [task, ...base.steps] });
+    fixture.componentRef.setInput('response', response('en'));
+    await fixture.whenStable();
+    const host: HTMLElement = fixture.nativeElement;
+
+    const titles = Array.from(host.querySelectorAll('.step-title')).map((title) => title.textContent?.replace(/\s+/g, ' ').trim());
+    expect(titles).toEqual(['Step 1 Try the genshin site Text only - nothing to answer', 'Step 2 The game']);
+    // Its text is the survey's to read in the editor: the person's survey lists what they answered.
+    expect(host.textContent).not.toContain('Go there');
+    expect(host.querySelectorAll('.item')).toHaveLength(1);
   });
 });

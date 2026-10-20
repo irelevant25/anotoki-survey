@@ -1,15 +1,14 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { TranslationPlace, setTranslatedText, translatedText, translationOf } from '../../../core/survey/localize';
-import { ChoiceOption, Question, Survey, SurveyImage } from '../../../core/survey/survey.model';
+import { ChoiceOption, Question, Step, Survey, SurveyImage } from '../../../core/survey/survey.model';
 import { languageName } from './translating';
 
-/** Where a list of pictures belongs: a question of a survey, or one of its options. */
-export interface ImageTarget {
-  surveyId: string;
-  questionId: string;
-  optionId: string | null;
-}
+/**
+ * Where a list of pictures belongs: a question of a survey, or one of its
+ * options - or a step, the pictures under its own text.
+ */
+export type ImageTarget = { surveyId: string; stepId: string } | { surveyId: string; questionId: string; optionId: string | null };
 
 /**
  * Every change the editor makes to a survey, made to the survey as the store
@@ -83,6 +82,11 @@ export class SurveyEditing {
     this._store.updateSurvey(surveyId, change);
   }
 
+  /** A step's own fields - its title, its text, its pictures - wherever it is now, or nowhere, if it is gone. */
+  updateStep(stepId: string, change: (step: Step) => Step, surveyId = this.surveyId()): void {
+    this.update((survey) => ({ ...survey, steps: survey.steps.map((step) => (step.id === stepId ? change(step) : step)) }), surveyId);
+  }
+
   updateQuestion(questionId: string, change: (question: Question) => Question, surveyId = this.surveyId()): void {
     this.update(
       (survey) => ({
@@ -97,8 +101,12 @@ export class SurveyEditing {
     this.updateQuestion(questionId, (question) => ({ ...question, options: change(question.options) }), surveyId);
   }
 
-  /** The pictures of a question or an option - wherever it is now, or nowhere, if it is gone. */
+  /** The pictures of a step, a question or an option - wherever it is now, or nowhere, if it is gone. */
   updateImages(target: ImageTarget, change: (images: SurveyImage[]) => SurveyImage[]): void {
+    if ('stepId' in target) {
+      this.updateStep(target.stepId, (step) => ({ ...step, images: change(step.images) }), target.surveyId);
+      return;
+    }
     const { surveyId, questionId, optionId } = target;
     if (optionId) {
       this.updateOptions(questionId, (options) => options.map((option) => (option.id === optionId ? { ...option, images: change(option.images) } : option)), surveyId);
@@ -110,6 +118,11 @@ export class SurveyEditing {
   /** Where the pictures of this question (or its option) belong - taken when an upload starts, kept until it ends. */
   target(questionId: string, optionId: string | null = null): ImageTarget {
     return { surveyId: this.surveyId(), questionId, optionId };
+  }
+
+  /** Where the pictures under this step's own text belong - taken when an upload starts, kept until it ends. */
+  stepTarget(stepId: string): ImageTarget {
+    return { surveyId: this.surveyId(), stepId };
   }
 
   // ── A translation ──────────────────────────────────────────────────────────

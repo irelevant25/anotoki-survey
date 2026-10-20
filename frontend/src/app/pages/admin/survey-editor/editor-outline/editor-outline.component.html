@@ -48,13 +48,16 @@
                 <button type="button" class="step-name" (click)="show.emit({ kind: 'step', stepId: item.step.id })">
                     <span class="step-number">{{ item.number }}</span>
                     <span class="step-text">{{ item.step.title || "Untitled step" }}</span>
-                    @if (item.titleMissing) {
-                        <span class="todo" [attr.title]="'Its title is still to translate into ' + translating()">
-                            1
-                            <span class="visually-hidden">text to translate</span>
+                    @if (item.missing) {
+                        <span class="todo" [attr.title]="(item.missing === 1 ? '1 text' : item.missing + ' texts') + ' of the step still to translate into ' + translating()">
+                            {{ item.missing }}
+                            <span class="visually-hidden">{{ item.missing === 1 ? "text" : "texts" }} to translate</span>
                         </span>
                     }
                 </button>
+                @if (item.textOnly) {
+                    <p class="text-only">Text only - no questions</p>
+                }
                 <ol class="questions">
                     @for (entry of item.questions; track entry.question.id) {
                         <li>

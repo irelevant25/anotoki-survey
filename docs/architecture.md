@@ -729,10 +729,13 @@ the answer into `user()` at once, in every tab, and the next token carries it.
 A survey is a document: steps, their questions, the questions' options and
 pictures are edited, saved and read as one thing, so they are one JSONB value
 (`surveys.content`: `{intro, thanks, askAboutYou, steps, language,
-translations}`); what the database
+translations}`, each step `{id, title, text, images, questions}` - its own
+text and the pictures under it, above its questions or alone: migration `016`
+gave every step kept before it none of either); what the database
 must look things up by - the address (`slug`), the title, the status, the
 closing day, the times - are columns beside it. The frontend's
-`core/survey/survey.model.ts` is the shape the API sends and takes.
+`core/survey/survey.model.ts` is the shape the API sends and takes
+([api](api.md#the-survey-document)).
 
 | Table | Holds |
 | --- | --- |
@@ -889,7 +892,9 @@ sentences stay English and are never shown to somebody taking a survey.
   "Other" needs its words; text within the question's limit and never more than
   10 000 characters (1 000 for "Other"). Kept as `cleanAnswer` keeps it.
 - **Opening**: a title, a valid address nobody else has, at least one question,
-  no empty step, every question with text, choices with two options at least,
+  no empty step (a step needs a question, a text or a picture - one of text
+  and pictures alone is a step people read and leave with Next), every
+  question with text, choices with two options at least,
   labels, no two alike, sensible limits - and every translation into a language
   people are offered whole, its option labels no two alike. Drafts may break
   every rule while they are written.
@@ -909,12 +914,14 @@ sentences stay English and are never shown to somebody taking a survey.
   box holding nothing to see over no string is none (no "1 string changed",
   no "The string is saved."). A blank box over a string is still a change - it
   means "delete the row".
-- **Rich text** (question texts, welcome, thanks): the server keeps only what
+- **Rich text** (question texts, a step's own text, welcome, thanks): the
+  server keeps only what
   the editor makes - `p br strong b em i u s mark a ul ol li h2 h3`, a link's
   address (http, https, mailto; always a new tab), a list's start - and drops
-  or unwraps the rest (`api/rich_text.php`). The editor's own HTML comes back
-  byte for byte. The frontend shows it with `[innerHTML]` (Angular sanitizes
-  once more).
+  or unwraps the rest (`api/rich_text.php`), the same for all four. The
+  editor's own HTML comes back byte for byte. The frontend shows it with
+  `[innerHTML]` (Angular sanitizes once more; nothing bypasses it) - a step's
+  text exactly as a question's.
 
 ## Saving in the editor
 
@@ -1013,13 +1020,54 @@ address offers to carry on.
 - The server checks what the file *is* (`getimagesizefromstring`), never what
   the request calls it - no SVG, ever - keeps the bytes in `images`, and answers
   with the picture's id, size and address, `/api/images/{id}.{ext}`.
-- A survey holds `{id, alt, width, height, src}` per picture; on every save the
+- A survey holds `{id, alt, width, height, src}` per picture - under a step's
+  own text, under a question's, on an option; on every save the
   server fills in the size and address from the file itself and refuses a
-  picture it does not have.
+  picture it does not have, and records every picture the survey shows
+  (`survey_images`) - a step's as a question's.
+- People see the pictures under a question's or a step's text in one gallery
+  (`ui/image-gallery`: one whole, two or three side by side, each opening
+  large with arrows through the others); the editor adds them with the same
+  row (`image-list-editor`: a file, a drop, a paste into the text).
 - Served with `Cache-Control: public, max-age=31536000, immutable` (the address
   never changes: a picture never changes), `nosniff`, and a CSP with `sandbox`.
 - A picture no survey shows any more is deleted after its next survey save or
-  delete - once it is a day old (an upload may be on its way into a save).
+  delete - once it is a day old (an upload may be on its way into a save). A
+  step or a question removed takes its pictures that way, unless something
+  else still shows them.
+
+## A step's own text, and a step of text alone
+
+A step may say something of its own above its questions - rich text, as a
+question's, and pictures under it, as under a question's text - or be only
+that: a step with text or pictures needs no question (the owner's request of
+2026-10-20, for usability tests: a step says the task, the person does it and
+presses Next, the step after it asks about it; [decisions](decisions.md)).
+
+- **The editor**: "Add a text step" beside "Add a step" makes a step with no
+  question, its text ready to be written; "Text and pictures" in a step's row
+  of things to add gives a step of questions its own text above them. Its
+  text and pictures stand above its questions as a card of their own - the
+  editor's rich text field (`app-rich-text-editor`, no headings, as a
+  question's) and the row of pictures (`app-image-list-editor` for a step:
+  a file, a drop, a paste into the text); a step with neither shows none until
+  asked. A step with nothing at all is a problem ("Step 3 is empty - …"); the
+  outline says "Text only - no questions" under a step of text alone. Removing
+  a step asks first when it has a question, a text or a picture, and says
+  which go with it. On a translation's tab the step's text and its pictures'
+  descriptions are pairs like a question's (`stepText`, `stepImage` places),
+  counted on the tab, the outline's step and "Next missing".
+- **People** (`take-survey`): the step's title, its text (`[innerHTML]` with
+  the class `rich`, as a question's text) and its pictures (`ui/image-gallery`,
+  the question's own), then its questions if it has any; Next and Back as
+  ever - a step of text alone has nothing to check. It counts as a step in the
+  welcome's "N questions in M steps", the hero's progress and a draft (which
+  keeps the step it got to, so carrying on lands there and goes on).
+- **The results**: a step of text alone has no answers - the summary leaves it
+  out (the others keep the numbers people saw them under) and the CSV, being
+  by question, has nothing of it; a person's whole survey shows it as a line,
+  its number and title and "Text only - nothing to answer", between the steps
+  they answered.
 
 ## The site's own words
 
@@ -1306,7 +1354,8 @@ survey, whichever language a person read.
 - **The document**: `language` is the language the survey is written in - the
   texts of the document itself. `translations[code]` holds the same texts in
   another language, each found by the id of what it belongs to: the title, the
-  welcome, the thanks, each step's title, each question's text, hint, option
+  welcome, the thanks, each step's title, its own text and the descriptions of
+  the pictures under it, each question's text, hint, option
   labels and the descriptions of the pictures under its text. Nothing else is
   translated: ids, structure, pictures and limits are the survey's own, and an
   answer is the id of an option, not its words.
@@ -1387,7 +1436,8 @@ survey, whichever language a person read.
   translates. Wherever a survey leaves PHP, every map of a translation is a
   JSON object (`surveyTranslationsJson()`).
 - **Copies** keep their translations: `copyQuestion()` says which id became
-  which, and `duplicateQuestion()` / `copySurvey()` re-key the translated texts.
+  which, and `duplicateQuestion()` / `copySurvey()` re-key the translated texts
+  - a step's own text and its pictures' descriptions with the step.
   A copied survey's title is a new one ("Copy of …"), so `copySurvey()` empties
   the title of every translation: each shows one text still to translate, and
   the copy cannot open to readers of another language under the original's

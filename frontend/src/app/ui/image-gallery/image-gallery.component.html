@@ -1,0 +1,11 @@
+<div class="gallery" [attr.data-count]="count()">
+    @for (image of images(); track image.id; let i = $index) {
+        <button
+            type="button"
+            class="gallery-item"
+            [attr.aria-label]="image.alt ? ('question.showLarge' | translate: { label: image.alt }) : ('question.showLargeNumbered' | translate: { number: i + 1 })"
+            (click)="lightbox.open(images(), i, null, lang())">
+            <app-survey-image [image]="image" [fit]="count() === 1 ? 'contain' : 'cover'" [natural]="count() === 1" [decorative]="true" />
+        </button>
+    }
+</div>

@@ -216,9 +216,10 @@ function surveyById(string $id): array
 }
 
 /**
- * The pictures of a survey as it is kept: each with the size of its file and
- * the address it is served at. A picture this site does not have (any more) is
- * refused - it could only ever show as missing.
+ * The pictures of a survey as it is kept - a step's, a question's, an
+ * option's: each with the size of its file and the address it is served at. A
+ * picture this site does not have (any more) is refused - it could only ever
+ * show as missing.
  *
  * @param array{content: array, imageIds: string[]} $survey from surveyFromBody()
  */
@@ -243,6 +244,7 @@ function surveyContentWithImages(array $survey): array
 
     $content = $survey['content'];
     foreach ($content['steps'] as &$step) {
+        $step['images'] = $fill($step['images']);
         foreach ($step['questions'] as &$question) {
             $question['images'] = $fill($question['images']);
             foreach ($question['options'] as &$option) {
@@ -257,7 +259,12 @@ function surveyContentWithImages(array $survey): array
     return $content;
 }
 
-/** Which pictures the survey shows now: the list the clean-up goes by. */
+/**
+ * Which pictures the survey shows now - under a step's text, under a
+ * question's, on an option: the list the clean-up goes by. A step or a
+ * question that goes takes its pictures out of it with the next save, and the
+ * clean-up deletes them once nothing shows them (images.php).
+ */
 function surveyImagesRecord(string $surveyId, array $imageIds): void
 {
     dbExec('DELETE FROM survey_images WHERE survey_id = ?', [$surveyId]);

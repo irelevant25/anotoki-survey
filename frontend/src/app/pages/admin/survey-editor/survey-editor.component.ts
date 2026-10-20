@@ -11,11 +11,12 @@ import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminStore, SURVEY_TOO_LARGE } from '../../../core/admin/admin-store.service';
 import { toApiError } from '../../../core/api/api.service';
 import { AuthService } from '../../../core/auth/auth.service';
+import { MAX_STEP_IMAGES } from '../../../core/images/prepare-image';
 import { AGES, GENDERS } from '../../../core/survey/about-you';
 import { TranslationPlace, addTranslation, removeTranslation, translationCodes, translationGaps, translationOf, translationPlaces } from '../../../core/survey/localize';
 import { isBlankHtml } from '../../../core/survey/plain-text';
 import { duplicateQuestion, newQuestion, newStep } from '../../../core/survey/survey-factory';
-import { currentStatus, numberedQuestions } from '../../../core/survey/survey-outline';
+import { currentStatus, numberedQuestions, stepHasContent } from '../../../core/survey/survey-outline';
 import { SurveyProblem, surveyProblems } from '../../../core/survey/survey-problems';
 import { Question, QuestionType, Step, Survey } from '../../../core/survey/survey.model';
 import { RichTextEditorComponent } from '../../../ui/rich-text-editor/rich-text-editor.component';
@@ -23,6 +24,7 @@ import { SurveyHeaderComponent } from '../survey-header/survey-header.component'
 import { EditorLanguagesComponent } from './editor-languages/editor-languages.component';
 import { EditorOutlineComponent } from './editor-outline/editor-outline.component';
 import { EditorSettingsComponent } from './editor-settings/editor-settings.component';
+import { ImageListEditorComponent } from './image-list-editor/image-list-editor.component';
 import { KeyedDirective } from './keyed.directive';
 import { QUESTION_TYPES, QuestionEditorComponent, StepChoice } from './question-editor/question-editor.component';
 import { SurveyEditing } from './survey-editing.service';
@@ -37,6 +39,13 @@ import { languageName, listOfNames, nextGap, placeKey, questionGaps, stepGaps, t
  * so arranging the steps is arranging the pages. Questions are dragged by
  * their handle within a step or into another one (or moved with the arrows,
  * which cross into the next step at the ends); steps move with their arrows.
+ *
+ * A step may say something of its own above its questions - a text (rich, as
+ * a question's) and pictures under it (as under a question's text) - or be
+ * only that, with no question: a task people read and do, and leave with
+ * Next ("Add a text step"). A step's text and pictures are shown once it has
+ * either, or once "Text and pictures" is pressed on it; a step with neither
+ * and no question is a problem.
  *
  * Every change is saved as it is made (AdminStore, a moment after the last
  * one). There is no Save button to forget - and a save that did not go
@@ -89,6 +98,7 @@ import { languageName, listOfNames, nextGap, placeKey, questionGaps, stepGaps, t
     EditorLanguagesComponent,
     EditorOutlineComponent,
     EditorSettingsComponent,
+    ImageListEditorComponent,
     KeyedDirective,
     QuestionEditorComponent,
     TranslatedTextComponent,
@@ -120,6 +130,7 @@ export class SurveyEditorComponent {
 
   protected readonly types = QUESTION_TYPES;
   protected readonly tooLarge = SURVEY_TOO_LARGE;
+  protected readonly maxStepImages = MAX_STEP_IMAGES;
   protected readonly genders = GENDERS.map((item) => item.label).join(' · ');
   protected readonly ages = AGES.map((item) => item.label).join(' · ');
 
@@ -298,6 +309,14 @@ export class SurveyEditorComponent {
   protected readonly expanded = signal<ReadonlySet<string>>(new Set());
   /** The question just added: its text takes the focus. */
   protected readonly justAdded = signal<string | null>(null);
+  /**
+   * The steps whose text and pictures were asked for here ("Text and
+   * pictures", "Add a text step") and may still be empty: shown all the same.
+   * A step that has a text or a picture shows them anyway.
+   */
+  protected readonly textOpened = signal<ReadonlySet<string>>(new Set());
+  /** The step whose text was just asked for: its text takes the focus. */
+  protected readonly justAddedText = signal<string | null>(null);
   private _unfoldedFor: string | null = null;
   /** The translated text last visited (its key): "Next missing" goes on from there. */
   private _at: string | null = null;
@@ -377,6 +396,7 @@ export class SurveyEditorComponent {
     this._editing.chosen.set(code);
     if (this.language() !== before) {
       this.justAdded.set(null);
+      this.justAddedText.set(null);
       this._at = null;
     }
   }
@@ -534,6 +554,35 @@ export class SurveyEditorComponent {
     this._editSteps((steps) => steps.map((step) => (step.id === stepId ? { ...step, title } : step)));
   }
 
+  /** The step's own text, as the rich text field writes it - made to the step as the survey holds it now. */
+  protected setStepText(stepId: string, text: string): void {
+    this._editSteps((steps) => steps.map((step) => (step.id === stepId ? { ...step, text } : step)));
+  }
+
+  /** Whether the step's text and pictures are drawn: it has either, or they were asked for on this page. */
+  protected showsText(step: Step): boolean {
+    return stepHasContent(step) || this.textOpened().has(step.id);
+  }
+
+  /**
+   * On a translation's tab: whether the step's text has a pair - the step
+   * has a text, or the translation still holds one for it (the original was
+   * emptied since: it is shown so that it can be taken out).
+   */
+  protected translatesText(step: Step): boolean {
+    return !isBlankHtml(step.text) || !isBlankHtml(this._editing.text({ kind: 'stepText', stepId: step.id }));
+  }
+
+  /** "Text and pictures" on a step: its text and pictures are drawn, and the text takes the focus. */
+  protected openStepText(stepId: string): void {
+    if (this.language() !== null) {
+      return;
+    }
+    this.textOpened.update((open) => new Set(open).add(stepId));
+    this.justAdded.set(null);
+    this.justAddedText.set(stepId);
+  }
+
   /** A new step at the end, with a first question in it, ready to be written. */
   protected addStep(): void {
     const step = newStep();
@@ -543,16 +592,41 @@ export class SurveyEditorComponent {
     this._unfold(question.id);
   }
 
+  /**
+   * A new step at the end with no question: its text and pictures, the text
+   * ready to be written - a task to read and do, which people leave with
+   * Next. Questions can still be added to it.
+   */
+  protected addTextStep(): void {
+    if (this.language() !== null) {
+      return;
+    }
+    const step = newStep();
+    this._editSteps((steps) => [...steps, step]);
+    this.openStepText(step.id);
+    this._scrollTo(`step-${step.id}`);
+  }
+
   protected async removeStep(step: Step, index: number): Promise<void> {
-    if (step.questions.length) {
+    const count = step.questions.length;
+    const hasText = !isBlankHtml(step.text);
+    const pictures = step.images.length;
+    if (count || hasText || pictures) {
       const answered = step.questions.reduce((sum, question) => sum + (this.counts().get(question.id)?.answered ?? 0), 0);
-      const count = step.questions.length;
+      // What goes with it, by name: its questions, its text, its pictures.
+      const parts = [
+        ...(count ? [count === 1 ? 'its question' : `its ${count} questions`] : []),
+        ...(hasText ? ['its text'] : []),
+        ...(pictures ? [pictures === 1 ? 'its picture' : `its ${pictures} pictures`] : []),
+      ];
+      const plural = parts.length > 1 || /^its \d/.test(parts[0]);
+      const goes = listOfNames(parts);
       const sure = await this._confirm.ask({
         title: `Remove step ${index + this.firstStep()}${step.title ? ` "${step.title}"` : ''}?`,
         message:
-          `Its ${count === 1 ? 'question goes' : `${count} questions go`} with it.` +
+          `${goes.charAt(0).toUpperCase()}${goes.slice(1)} ${plural ? 'go' : 'goes'} with it.` +
           (answered ? ' Their answers disappear from the results.' : '') +
-          ' To keep a question, move it to another step first.',
+          (count ? ' To keep a question, move it to another step first.' : ''),
         confirmLabel: 'Remove',
         tone: 'danger',
       });
@@ -725,8 +799,10 @@ export class SurveyEditorComponent {
         this._scrollTo(`question-${target.questionId}`);
       }
     } else if (target.kind === 'step') {
-      if (toGap && translating && this.stepGaps().has(target.stepId)) {
-        this._focusPlace({ kind: 'step', stepId: target.stepId });
+      // On a translation's tab, at the first of the step's own texts still missing - its title, its text, a picture's description.
+      const gap = toGap && translating ? this.gaps().find((place) => 'stepId' in place && place.stepId === target.stepId) : undefined;
+      if (gap) {
+        this._focusPlace(gap);
       } else {
         this._scrollTo(`step-${target.stepId}`);
       }
@@ -842,7 +918,10 @@ export class SurveyEditorComponent {
         if (/^question \d+ has (1 text|\d+ texts) to translate\.$/.test(message)) {
           continue;
         }
-        onIt = message.replace(/^question \d+ /, 'It ').replace(/^the title of step \d+ /, 'Its title ');
+        onIt = message
+          .replace(/^question \d+ /, 'It ')
+          .replace(/^step \d+ /, 'It ')
+          .replace(/^the title of step \d+ /, 'Its title ');
       }
       map.set(id, [...(map.get(id) ?? []), onIt.charAt(0).toUpperCase() + onIt.slice(1)]);
     }

@@ -382,6 +382,31 @@
   }
 }
 
+// A step's own text and the pictures under it, above its questions: a card of their own on the step's lane.
+.step-own {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0.85rem 0.9rem 0.95rem;
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius-lg);
+  background: var(--anotoki-surface);
+}
+
+.step-pictures {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.section-label {
+  color: var(--anotoki-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
 .questions {
   display: flex;
   flex-direction: column;
@@ -419,6 +444,25 @@
   color: var(--anotoki-muted);
   font-size: 0.8125rem;
   font-weight: 600;
+}
+
+// Between the questions to add and the step's own text and pictures: another kind of thing.
+.add-divider {
+  align-self: stretch;
+  width: 1px;
+  margin: 0.2rem 0.3rem;
+  background: var(--anotoki-border);
+}
+
+// A step with a question in it, and a step of text alone: side by side, each the whole width on a phone.
+.add-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+
+  .add-step {
+    flex: 1 1 14rem;
+  }
 }
 
 .add-step {
@@ -471,6 +515,10 @@
 @media (max-width: 560px) {
   .step {
     padding: 0.7rem 0.55rem 0.85rem;
+  }
+
+  .step-own {
+    padding: 0.7rem 0.6rem 0.8rem;
   }
 
   .step-head {

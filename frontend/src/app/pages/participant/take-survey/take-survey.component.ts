@@ -17,23 +17,33 @@ import { aboutYouQuestions } from '../../../core/survey/about-you-questions';
 import { AnswerProblem, answerProblem, cleanAnswer } from '../../../core/survey/answer-rules';
 import { Draft, adoptVisitorDraft, clearDraft, readDraft, writeDraft } from '../../../core/survey/drafts';
 import { LocalizedSurvey, localizedSurvey } from '../../../core/survey/localize';
+import { isBlankHtml } from '../../../core/survey/plain-text';
 import { newId } from '../../../core/survey/survey-factory';
 import { currentStatus, estimatedMinutes, numberedQuestions, questionCount } from '../../../core/survey/survey-outline';
-import { AboutYou, Answer, Question, SurveyResponse } from '../../../core/survey/survey.model';
+import { AboutYou, Answer, Question, SurveyImage, SurveyResponse } from '../../../core/survey/survey.model';
+import { ImageGalleryComponent } from '../../../ui/image-gallery/image-gallery.component';
 import { QuestionBlockComponent } from '../question-block/question-block.component';
 import { otherLanguage } from '../shown-language';
 import { SurveyHeroComponent } from '../survey-hero/survey-hero.component';
 import { VisitorNoticeComponent } from '../visitor-notice/visitor-notice.component';
 import { sendFailure, sendFailureText } from './send-failure';
 
-/** One page of the survey: "About you" (when asked), then each of the survey's steps. */
+/**
+ * One page of the survey: "About you" (when asked), then each of the survey's
+ * steps - its title, its own text and pictures, then its questions, if it
+ * has any (a step of text alone is read, and left with Next).
+ */
 interface Page {
   key: string;
   title: string;
+  /** The step's own text: HTML, as the server keeps it; '' for none (and for "About you"). */
+  text: string;
+  /** The pictures under the step's text. */
+  images: SurveyImage[];
   /**
-   * The language the step's title and its questions' texts are in, when it is
-   * not the page's: the survey's, for the survey's own steps. Null for "About
-   * you", which the site words itself.
+   * The language the step's title, text and questions' texts are in, when it
+   * is not the page's: the survey's, for the survey's own steps. Null for
+   * "About you", which the site words itself.
    */
   lang: string | null;
   questions: { question: Question; number: number | null }[];
@@ -53,6 +63,12 @@ type State = 'loading' | 'failed' | 'missing' | 'not-open' | 'closed' | 'answere
  * again, since an answer given earlier may no longer fit a survey the editor
  * has changed since - and the server checks it all once more, in the same
  * words (backend/api/survey_rules.php).
+ *
+ * A step shows its own text and pictures above its questions - drawn as a
+ * question's text and pictures are ([innerHTML], the server's cleaned HTML,
+ * Angular's sanitizer once more; the shared gallery) - and a step of text and
+ * pictures alone asks nothing: Next goes on, and it counts as a step in the
+ * progress and the draft like any other.
  *
  * Somebody taking surveys without signing in (while the site welcomes
  * visitors) takes it the same way, as this browser's visitor: the draft is
@@ -100,6 +116,7 @@ type State = 'loading' | 'failed' | 'missing' | 'not-open' | 'closed' | 'answere
     AlertComponent,
     ButtonComponent,
     IconComponent,
+    ImageGalleryComponent,
     QuestionBlockComponent,
     SpinnerComponent,
     SurveyHeroComponent,
@@ -195,11 +212,26 @@ export class TakeSurveyComponent {
       // words the step again. Its ids and its options' ids do not change, so
       // what was answered stays answered.
       const word = (key: string): string => this._i18n.t(key);
-      pages.push({ key: 'about-you', title: word('aboutYou.title'), lang: null, questions: aboutYouQuestions(word).map((question) => ({ question, number: null })) });
+      pages.push({
+        key: 'about-you',
+        title: word('aboutYou.title'),
+        text: '',
+        images: [],
+        lang: null,
+        questions: aboutYouQuestions(word).map((question) => ({ question, number: null })),
+      });
     }
     const lang = this.surveyLang();
     for (const step of survey.steps) {
-      pages.push({ key: step.id, title: step.title, lang, questions: step.questions.map((question) => ({ question, number: numbers.get(question.id) ?? null })) });
+      pages.push({
+        key: step.id,
+        title: step.title,
+        // A text with no words in it - what an emptied editor leaves, in a preview - is no text.
+        text: isBlankHtml(step.text) ? '' : step.text,
+        images: step.images,
+        lang,
+        questions: step.questions.map((question) => ({ question, number: numbers.get(question.id) ?? null })),
+      });
     }
     return pages;
   });

@@ -164,17 +164,30 @@
                         }
 
                         @for (current of [page]; track current.key) {
-                            <div class="questions">
-                                @for (item of current.questions; track item.question.id) {
-                                    <app-question-block
-                                        [question]="item.question"
-                                        [number]="item.number"
-                                        [lang]="current.lang"
-                                        [answer]="answers()[item.question.id]"
-                                        [error]="tried() ? (problems().get(item.question.id) ?? null) : null"
-                                        (answerChange)="setAnswer(item.question.id, $event)" />
-                                }
-                            </div>
+                            @if (current.text || current.images.length) {
+                                <!-- The step's own text and pictures: as a question's are drawn - above its questions, or alone. -->
+                                <div class="step-own">
+                                    @if (current.text) {
+                                        <div class="step-text rich" [attr.lang]="current.lang" [innerHTML]="current.text"></div>
+                                    }
+                                    @if (current.images.length) {
+                                        <app-image-gallery [images]="current.images" [lang]="current.lang" />
+                                    }
+                                </div>
+                            }
+                            @if (current.questions.length) {
+                                <div class="questions">
+                                    @for (item of current.questions; track item.question.id) {
+                                        <app-question-block
+                                            [question]="item.question"
+                                            [number]="item.number"
+                                            [lang]="current.lang"
+                                            [answer]="answers()[item.question.id]"
+                                            [error]="tried() ? (problems().get(item.question.id) ?? null) : null"
+                                            (answerChange)="setAnswer(item.question.id, $event)" />
+                                    }
+                                </div>
+                            }
                         }
 
                         <footer class="step-actions">

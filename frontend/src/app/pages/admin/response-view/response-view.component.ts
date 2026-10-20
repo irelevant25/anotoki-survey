@@ -22,7 +22,9 @@ interface Item {
 /**
  * One person's filled survey, read back: every question in its step, with
  * what they chose marked among all the options (so "3 of 9" shows as such),
- * what they wrote for "Other", their own words, and what they skipped.
+ * what they wrote for "Other", their own words, and what they skipped. A step
+ * of text and pictures alone is a line - its number and title, and that it
+ * asked nothing - so the steps read in the order the person met them.
  *
  * `highlight` marks the answer that led here - the bar that was pressed - so
  * the eye lands on it first.

@@ -189,8 +189,10 @@ Migrations page and the move answer it 401 `sign_in_required`.
   key held it asks for the move, again after no answer or a 5xx (2 s, 10 s,
   30 s; `Retry-After` wins), and forgets the key on a 200 or a 422.
 
-A `survey` here carries its `language` and, of its `translations`, only those
-into languages people are offered (below: *A survey's languages*).
+A `survey` here is the survey document the admin routes send (below: *The
+survey document* - each step with its own text and pictures, and its
+questions), with its `language` and, of its `translations`, only those into
+languages people are offered (below: *A survey's languages*).
 
 Sending answers is refused with:
 
@@ -244,6 +246,99 @@ person.
 | `DELETE /api/admin/responses/{id}` | ADMIN → 204: that person may take the survey again (a visitor too, while its key lives; an ended visitor left with no answers is deleted) |
 | `POST /api/admin/images` | the picture's bytes, `Content-Type: image/*` → 201 `{image: {id, alt, width, height, src}}` |
 
+### The survey document
+
+What `POST /api/admin/surveys` takes as `survey` and `PUT
+/api/admin/surveys/{id}` as `survey` (beside `revision`), and what every route
+that answers a survey sends - the admin routes, and the people's
+(`GET /api/surveys`, `GET /api/surveys/{slug}`, with only the translations into
+offered languages). The frontend's `core/survey/survey.model.ts` is the same
+shape. The server keeps what is listed here, checked and cleaned
+(`surveyFromBody()`), and drops every other field; the survey's `id`,
+`status`, `revision` and times are its own (a new survey is a draft, whatever
+is sent).
+
+```
+{
+  "title": "Genshin 1.0",                 // required, a line of at most 200 characters
+  "slug": "genshin-1-0",                  // required, 100 characters at most; to open: small letters, digits, single dashes, 60 at most
+  "closesOn": null,                       // "YYYY-MM-DD" or null
+  "intro": "<p>…</p>",                    // rich text (below); "" for none
+  "thanks": "<p>…</p>",                   // rich text
+  "askAboutYou": true,                    // required: gender and age, on a step of their own before the first
+  "language": "en",                       // required: a language the site has
+  "translations": {},                     // required, {} for none (A survey's languages, below)
+  "steps": [                              // required, a list of at most 50
+    {
+      "id": "step-task",                  // required: 1-64 of A-Z a-z 0-9 _ -, unique among the steps
+      "title": "The task",                // a line of at most 200 characters; "" for none (the default)
+      "text": "<p>Go to …, then come back.</p>",   // the step's own rich text, above its questions; "" (the default) for none
+      "images": [                         // the pictures under the step's text: at most 10; [] (the default) for none
+        { "id": "<an uploaded picture's id>", "alt": "What it shows" }   // alt: at most 300 characters, "" for none
+      ],
+      "questions": []                     // required: a list - empty for a step of text and pictures alone
+    },
+    {
+      "id": "step-ask",
+      "title": "How it went",
+      "text": "",
+      "images": [],
+      "questions": [
+        {
+          "id": "q-easy",                 // required: as a step's id, unique among all the questions - never about-gender or about-age
+          "type": "single",               // required: "single", "multiple" or "text"
+          "text": "<p>Was it easy?</p>",  // rich text
+          "images": [],                   // under the question's text: at most 10 {id, alt}
+          "required": true,               // required: true or false
+          "options": [                    // at most 100; read for "single" and "multiple"
+            { "id": "yes", "label": "Yes", "other": false, "images": [] },   // label: 300 characters; images: at most 4 {id, alt}
+            { "id": "no", "label": "No", "other": false, "images": [] }
+          ],
+          "layout": "list",               // "list" (the default), "columns" or "scale"
+          "minChoices": null,             // "multiple": the fewest and the most to choose, numbers or null
+          "maxChoices": null,
+          "multiline": true,              // "text": a box (true, the default) or one line
+          "maxLength": null,              // "text": the longest answer, a number or null
+          "placeholder": ""               // "text": the hint in the empty field, 300 characters
+        }
+      ]
+    }
+  ]
+}
+```
+
+- **Rich text** - `intro`, `thanks`, a question's `text` and a step's `text` -
+  is cleaned on the way in, the same way for all four (`richTextClean()`,
+  `api/rich_text.php`): `p br strong b em i u s mark a ul ol li h2 h3` and
+  nothing else, a link's address only to `http(s):` or `mailto:` (and always a
+  new tab), a list's `start`; a `<script>`, a `<style>`, a picture, a frame or
+  a form go with what is inside them, any other element is unwrapped to its
+  words, every other attribute (`onclick`, `onerror`, `style`) goes, a
+  `javascript:` link becomes its words. At most 50 000 bytes of UTF-8; no
+  words at all (an emptied editor's `<p></p>`) is `""`.
+- **A picture** is one uploaded first (`POST /api/admin/images`, above:
+  checked by its own bytes - PNG, JPEG, WebP, GIF or AVIF, never SVG - at most
+  10 MB and 10 000 px a side): a survey sends its `id` (a UUID) and what it
+  shows (`alt`); the server fills in `width`, `height` and `src` from the file,
+  and refuses a picture it does not have (422 `unknown_image`). Every save
+  records the pictures the survey shows - a step's, a question's, an
+  option's - and a picture nothing shows any more goes a day after it came
+  (`survey_images`, `imagesCleanup()`): a step or a question removed takes its
+  pictures with it, unless something else still shows them. The same picture
+  may stand in more than one place - and in a copy of the survey, which shows
+  the original's pictures.
+- **A step** says something of its own (`text`, `images`) above its
+  questions - or only that: a step with text or pictures needs no question; it
+  is read, and left with Next (a usability test's task, say, before the step
+  that asks about it). Neither field has to be sent: a step without them has
+  no text and no pictures. A step with neither, and no question, keeps the
+  survey from opening ("Step 3 is empty - add a question, text or a picture, or
+  remove the step."), and so does a survey with no question at all ("Add at
+  least one question.").
+- The answers are by question id (`POST /api/surveys/{slug}/responses`): a
+  step of text alone has none; anything sent for an id that is no question's
+  is not kept.
+
 A survey is refused with:
 
 | Status, code | When |
@@ -251,8 +346,8 @@ A survey is refused with:
 | 409 `conflict` + `survey` | saved to a revision older than the server's: `survey` is the version there now |
 | 409 `slug_taken` | a live survey already has the address (on save or on opening) |
 | 422 `invalid_survey` | not a survey: a field missing or of the wrong kind, too long, too many, an id twice; a live survey given an address people could not reach; no `language` or no `translations`; a language the site does not have - or one deleted while the save was on its way; a translation into the language the survey is written in; a level of a translation that is not an object; another `language` than the stored one while both the stored and the sent survey hold translations |
-| 422 `unknown_image` | a picture the server does not have (any more) |
-| 422 `survey_problems` + `problems` | opening one that has something to fix - the editor's sentences, from `surveyProblems()`; what a translation into an offered language still lacks is among them |
+| 422 `unknown_image` | a picture the server does not have (any more) - a step's, a question's or an option's |
+| 422 `survey_problems` + `problems` | opening one that has something to fix - the editor's sentences, from `surveyProblems()` ("Step 3 is empty - add a question, text or a picture, or remove the step."); what a translation into an offered language still lacks is among them |
 | 409 `not_open` | closing a draft |
 | 413 `too_large` | a survey with all its translations is one save of at most 2 MB |
 
@@ -266,7 +361,10 @@ other languages, by code, each text found by the id of what it belongs to:
 "translations": {
   "sk": {
     "title": "", "intro": "<rich text>", "thanks": "<rich text>",
-    "steps":     { "<step id>": { "title": "" } },
+    "steps":     { "<step id>": {
+      "title": "", "text": "<rich text>",
+      "images":  { "<picture id>": { "alt": "" } }
+    } },
     "questions": { "<question id>": {
       "text": "<rich text>", "placeholder": "",
       "options": { "<option id>": { "label": "" } },
@@ -276,9 +374,13 @@ other languages, by code, each text found by the id of what it belongs to:
 }
 ```
 
-- Only texts: ids, structure, pictures and limits are the survey's own. The
-  `images` are the pictures under the question's text (an option's pictures
-  have no description); the same picture twice shares one entry.
+- Only texts: ids, structure, pictures and limits are the survey's own. A
+  step's entry holds its title, its own text and what the pictures under its
+  text show (`images`: by picture id, only the step's own pictures); a
+  question's its text, hint, option labels and what the pictures under its
+  text show (an option's pictures have no description). The same picture
+  twice shares one entry. Every field of an entry may be left out when it is
+  sent: it is then `""` (or `{}`), a text not translated yet.
 - **Both fields are required in every `POST` and `PUT`** (`translations` may
   be `{}`): a default there would let a page from before surveys had languages
   wipe the translations without a word. A survey stored before them is read as
@@ -309,19 +411,24 @@ other languages, by code, each text found by the id of what it belongs to:
   `language_in_use`.
 - The server builds each translation by walking the survey's own steps,
   questions, options and pictures: a text for an id the survey does not have is
-  dropped, and every text is cleaned and measured like the one it translates
+  dropped (a description of a picture the step or question does not show
+  too), and every text is cleaned and measured like the one it translates
   (`richTextClean()`, the same limits).
-- **Every map goes out as a JSON object, at all five levels** (`translations`,
-  `steps`, `questions`, `options`, `images`), empty or not, whatever the ids
-  look like (`"0"`, `"1"`).
+- **Every map goes out as a JSON object, at all six levels** (`translations`,
+  `steps`, `questions`, a step's `images`, a question's `options` and
+  `images`), empty or not, whatever the ids look like (`"0"`, `"1"`) - and
+  every entry whole: a step's kept from before steps had their own text goes
+  out as `{"title": "…", "text": "", "images": {}}`.
 - The admin routes send every translation; the routes for people only those
   into languages that are offered.
 - A translation is *whole* when every text the survey has is there
   (`surveyTranslationGaps()` / `translationGaps()`). Opening is refused while a
   translation into an offered language is not (`survey_problems`: "Slovak: the
-  title is missing.", "Slovak: question 2 has 3 texts to translate.", "Slovak:
-  question 2 has two options called "Áno"."); one into a hidden language may be
-  as unfinished as it likes.
+  title is missing.", "Slovak: the title of step 2 is missing.", "Slovak: step
+  2 has 2 texts to translate." - its own text and its pictures' descriptions -,
+  "Slovak: question 2 has 3 texts to translate.", "Slovak: question 2 has two
+  options called "Áno"."); one into a hidden language may be as unfinished as
+  it likes.
 
 ### The languages and the site's strings
 
@@ -467,8 +574,8 @@ through `POST /api/client-errors` ("Anybody", above).
 | | |
 | --- | --- |
 | A JSON body | 256 kB; a survey's save - with all its translations - 2 MB; a save or an import of strings 1 MB |
-| A survey | 50 steps, 300 questions, 100 options a question, 10 pictures a question, 4 an option; translations into no more languages than the site has |
-| Texts | title 200 characters, label 300, rich text 50 000 bytes of HTML - a translated text the same as the one it translates |
+| A survey | 50 steps, 300 questions, 100 options a question, 10 pictures under a question's text, 10 under a step's, 4 on an option; translations into no more languages than the site has |
+| Texts | title 200 characters (a step's too), label 300 (a picture's description too), rich text 50 000 bytes of HTML (a question's, a step's, the welcome, the thanks) - a translated text the same as the one it translates |
 | The site's words | 20 languages; a language's name 50 characters; a string 2000 characters |
 | An answer | 10 000 characters of text, 1 000 for "Other" |
 | A picture | 10 MB, 10 000 px a side |

@@ -117,8 +117,9 @@ src/
                                      audit log, the backups (@anotoki/lib/admin/feedback, /errors, /audit,
                                      /backups) and Migrations (<anotoki-migrations-page>) - admin.routes.ts
     ui/                              the survey's own pieces: the rich text editor, the lightbox, the
-                                     picture and the strip of pictures, What's new (changelog-dialog) - the
-                                     rest is the family's kit
+                                     picture, the gallery of pictures under a question's or a step's text
+                                     (image-gallery) and the strip of pictures, What's new
+                                     (changelog-dialog) - the rest is the family's kit
 public/                              the mark, the favicon, changelog.json (the versions, newest first, in
                                      English and formal Slovak - the newest is package.json's version)
 proxy.conf.json                      /api and /setup.php to the backend on :8500

@@ -1,4 +1,4 @@
-import { ChoiceOption, Question, QuestionTranslation, QuestionType, Step, Survey, SurveyTranslation } from './survey.model';
+import { ChoiceOption, Question, QuestionTranslation, QuestionType, Step, StepTranslation, Survey, SurveyTranslation } from './survey.model';
 
 /** A new id: random, so two editors (or two tabs) never make the same one. */
 export function newId(): string {
@@ -34,8 +34,9 @@ export function newQuestion(type: QuestionType): Question {
   };
 }
 
+/** A step with nothing in it yet: no text of its own, no pictures, no questions. */
 export function newStep(title = ''): Step {
-  return { id: newId(), title, questions: [] };
+  return { id: newId(), title, text: '', images: [], questions: [] };
 }
 
 /**
@@ -141,11 +142,12 @@ export function duplicateQuestion(survey: Survey, stepId: string, questionId: st
 }
 
 /**
- * A new draft with everything the survey asks - in every language it is
- * translated into - and none of its answers. Every step, question and option
- * gets a new id, and the translations follow them there. The pictures are
- * shared, like a copied question's; the server keeps the copy under an id of
- * its own.
+ * A new draft with everything the survey asks and says - in every language
+ * it is translated into - and none of its answers. Every step, question and
+ * option gets a new id, and the translations follow them there: a step's
+ * title, its own text and what its pictures show, as a question's texts. The
+ * pictures are shared, like a copied question's - a step's too; the server
+ * keeps the copy under an id of its own.
  *
  * The copy's title is a new one ("Copy of ..."), so no translation has a
  * title for it yet: each starts with none, and says so as a text still to
@@ -164,7 +166,7 @@ export function copySurvey(survey: Survey, takenSlugs: Iterable<string>, now = n
       questionIds.push(copy.ids);
       return copy.question;
     });
-    return { ...step, id, questions };
+    return { ...step, id, images: [...step.images], questions };
   });
   const translations = Object.entries(survey.translations ?? {}).map(([code, translation]): [string, SurveyTranslation] => {
     const questions: [string, QuestionTranslation][] = [];
@@ -173,7 +175,9 @@ export function copySurvey(survey: Survey, takenSlugs: Iterable<string>, now = n
         questions.push([ids.to, copyQuestionTranslation(translation.questions[ids.from], ids)]);
       }
     }
-    return [code, { ...translation, title: '', steps: rekeyed(translation.steps, stepIds), questions: Object.fromEntries(questions) }];
+    // A step's entry under its new id, its pictures' descriptions a map of its own (the picture ids stay).
+    const steps = Object.entries(rekeyed(translation.steps, stepIds)).map(([id, entry]): [string, StepTranslation] => [id, { ...entry, images: { ...entry.images } }]);
+    return [code, { ...translation, title: '', steps: Object.fromEntries(steps), questions: Object.fromEntries(questions) }];
   });
   return {
     ...survey,

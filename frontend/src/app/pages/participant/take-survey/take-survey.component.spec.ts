@@ -12,8 +12,9 @@ import { AGE_ID, GENDER_ID } from '../../../core/survey/about-you';
 import { VISITOR_SLOT, readDraft, writeDraft } from '../../../core/survey/drafts';
 import { translationGaps } from '../../../core/survey/localize';
 import { newOption, newQuestion, newSurvey } from '../../../core/survey/survey-factory';
-import { Person, Question, Survey } from '../../../core/survey/survey.model';
+import { Person, Question, Survey, SurveyImage } from '../../../core/survey/survey.model';
 import { provideTestTranslations } from '../../../core/testing/test-translations';
+import { LightboxService } from '../../../ui/lightbox/lightbox.service';
 import { TakeSurveyComponent } from './take-survey.component';
 
 /** Every string the page, its question blocks and its hero ask for - what the migration seeds. */
@@ -102,6 +103,8 @@ const ENGLISH: Record<string, string> = {
   'question.otherPlaceholder': 'Your own answer',
   'question.otherLabel': '{label}: your own answer',
   'question.clear': 'Clear my answer',
+  'question.showLarge': 'Show large: {label}',
+  'question.showLargeNumbered': 'Show large: picture {number}',
 };
 
 const SLOVAK: Record<string, string> = {
@@ -189,6 +192,8 @@ const SLOVAK: Record<string, string> = {
   'question.otherPlaceholder': 'Vaša vlastná odpoveď',
   'question.otherLabel': '{label}: Vaša vlastná odpoveď',
   'question.clear': 'Vymazať odpoveď',
+  'question.showLarge': 'Zväčšiť obrázok: {label}',
+  'question.showLargeNumbered': 'Zväčšiť obrázok {number}',
 };
 
 const ZUZKA: Person = { id: 'p1', name: 'Zuzka' };
@@ -213,8 +218,8 @@ function exampleSurvey(): Survey {
     status: 'open',
     closesOn: '2099-10-20',
     steps: [
-      { id: 'st1', title: '', questions: [element] },
-      { id: 'st2', title: 'Na záver', questions: [wish] },
+      { id: 'st1', title: '', text: '', images: [], questions: [element] },
+      { id: 'st2', title: 'Na záver', text: '', images: [], questions: [wish] },
     ],
     language: 'sk',
   };
@@ -242,8 +247,8 @@ function bilingualSurvey(): Survey {
     thanks: '<p>Thank you for your time.</p>',
     status: 'open',
     steps: [
-      { id: 'st1', title: 'The game', questions: [element] },
-      { id: 'st2', title: 'To finish', questions: [wish] },
+      { id: 'st1', title: 'The game', text: '', images: [], questions: [element] },
+      { id: 'st2', title: 'To finish', text: '', images: [], questions: [wish] },
     ],
     language: 'en',
     translations: {
@@ -251,7 +256,7 @@ function bilingualSurvey(): Survey {
         title: 'Čo hráte?',
         intro: '<p>Vitajte!</p>',
         thanks: '<p>Ďakujeme za Váš čas.</p>',
-        steps: { st1: { title: 'Hra' }, st2: { title: 'Na záver' } },
+        steps: { st1: { title: 'Hra', text: '', images: {} }, st2: { title: 'Na záver', text: '', images: {} } },
         questions: {
           q1: { text: '<p>Ktorý živel hráte najčastejšie?</p>', placeholder: '', options: { o1: { label: 'Vietor' }, o2: { label: 'Voda' }, o3: { label: 'Iné' } }, images: {} },
           q2: { text: '<p>Čo by ste zmenili?</p>', placeholder: 'Veta alebo dve', options: {}, images: {} },
@@ -981,6 +986,107 @@ describe('TakeSurveyComponent', () => {
       await open('sk', { survey, language: 'en' });
       expect(text('h1')).toBe('What do you play?');
       expect(editorLinks()).toEqual(['/admin/surveys/s1/edit']);
+    });
+  });
+
+  describe('a step of text and pictures alone', () => {
+    const MAP: SurveyImage = { id: 'p1', alt: 'Mapa Mondstadtu', width: 400, height: 300, src: '/api/images/p1.webp' };
+    const CITY: SurveyImage = { id: 'p2', alt: '', width: 400, height: 300, src: '/api/images/p2.webp' };
+    const TASK = '<p>Choďte na <strong>stránku genshin</strong>, nájdite Mondstadt a vráťte sa.</p>';
+
+    /** exampleSurvey() with a task between its two steps of questions: a text and two pictures, nothing to answer. */
+    function withTask(text = TASK): Survey {
+      const survey = exampleSurvey();
+      const [first, last] = survey.steps;
+      return { ...survey, steps: [first, { id: 'st-task', title: 'Úloha', text, images: [MAP, CITY], questions: [] }, last] };
+    }
+
+    /** From the welcome to the task: about you, then the first question. */
+    async function toTheTask(): Promise<void> {
+      await click('.start button');
+      await click(`input[value="male"]`, blocks()[0]);
+      await click(`input[value="18-24"]`, blocks()[1]);
+      await next();
+      await click('input[value="o1"]');
+      await next();
+    }
+
+    it('shows its title, its text and its pictures - nothing to answer, nothing asked - counts as a step, and goes on with Next', async () => {
+      api.surveyBySlug.mockResolvedValue({ survey: withTask(), answeredAt: null });
+      api.submit.mockResolvedValue({ id: 'r1', submittedAt: new Date().toISOString() });
+      await open();
+      expect(texts('.facts li')[0]).toBe('2 otázky · 4 kroky');
+
+      await toTheTask();
+      expect(text('.where')).toBe('Krok 3 / 4');
+      expect(text('.step-heading')).toBe('Úloha');
+      expect(text('.step-text')).toBe('Choďte na stránku genshin, nájdite Mondstadt a vráťte sa.');
+      expect(host.querySelector('.step-text strong')?.textContent).toBe('stránku genshin');
+      expect(blocks()).toHaveLength(0);
+      expect(host.querySelector('.questions')).toBeNull();
+      // The pictures as a question's are: each opens large, named by what it shows or by its place.
+      const pictures = Array.from(host.querySelectorAll<HTMLButtonElement>('.step-own .gallery-item'));
+      expect(pictures.map((button) => button.getAttribute('aria-label'))).toEqual(['Zväčšiť obrázok: Mapa Mondstadtu', 'Zväčšiť obrázok 2']);
+      pictures[1].click();
+      expect(TestBed.inject(LightboxService).view()).toMatchObject({ images: [MAP, CITY], index: 1, caption: null, lang: null });
+
+      // Nothing to answer: Next goes on, and nothing is said to be missing.
+      expect(text('button[type=submit]')).toBe('Ďalej');
+      await next();
+      expect(texts('.error span')).toEqual([]);
+      expect(text('.step-heading')).toBe('Na záver');
+      expect(text('.where')).toBe('Krok 4 / 4');
+      // Back to it and on again, then sent: the answers are the questions'.
+      await click('.step-actions button');
+      expect(text('.step-heading')).toBe('Úloha');
+      await next();
+      await next();
+      expect(api.submit).toHaveBeenCalledTimes(1);
+      expect(api.submit.mock.calls[0][1].answers).toEqual({ q1: { optionIds: ['o1'], other: '', text: '' } });
+      expect(text('.done-heading')).toBe('Ďakujeme!');
+    });
+
+    it('carries an unfinished survey on past it: kept at that step, and on from there', async () => {
+      api.surveyBySlug.mockResolvedValue({ survey: withTask(), answeredAt: null });
+      const startedAt = new Date(Date.now() - 10 * 60_000).toISOString();
+      const chosen = (id: string) => ({ optionIds: [id], other: '', text: '' });
+      writeDraft('s1', ZUZKA.id, { stepIndex: 2, answers: { [GENDER_ID]: chosen('male'), [AGE_ID]: chosen('18-24'), q1: chosen('o1') }, startedAt, savedAt: startedAt });
+      await open();
+      expect(text('anotoki-alert .anotoki-alert__text')).toContain('po krok 3 / 4');
+
+      await click('anotoki-alert .anotoki-alert__actions button');
+      expect(text('.step-heading')).toBe('Úloha');
+      await next();
+      expect(text('.step-heading')).toBe('Na záver');
+      expect(readDraft('s1', ZUZKA.id)).toMatchObject({ stepIndex: 3, answers: { q1: chosen('o1') } });
+    });
+
+    it('marks the step’s text with the language it is in, as a question’s - and the large pictures - never the site’s words around it', async () => {
+      api.surveyBySlug.mockResolvedValue({ survey: withTask(), answeredAt: null });
+      await open('en');
+      await toTheTask();
+      expect(text('.step-heading')).toBe('Úloha');
+      expect(marked()).toEqual(['title: sk', 'step-heading: sk', 'step-text rich: sk']);
+      expect(Array.from(host.querySelectorAll('.step-own .gallery-item')).map((button) => button.getAttribute('aria-label'))).toEqual(['Show large: Mapa Mondstadtu', 'Show large: picture 2']);
+      host.querySelector<HTMLButtonElement>('.step-own .gallery-item')!.click();
+      expect(TestBed.inject(LightboxService).view()).toMatchObject({ index: 0, lang: 'sk' });
+    });
+
+    it('draws the step’s text as a question’s is drawn - nothing of a script, a handler, a style or a javascript: link, even should one come', async () => {
+      // The server cleans every text (api/rich_text.php); this is the page's own guard behind it - the preview draws what the editor holds.
+      const unsafe =
+        '<p onclick="window.stolen = 1">Choďte<script>window.stolen = 2</script> na <a href="javascript:window.stolen = 3">stránku</a><img src="x" onerror="window.stolen = 4"></p>' +
+        '<style>p { display: none }</style>';
+      api.surveyBySlug.mockResolvedValue({ survey: withTask(unsafe), answeredAt: null });
+      await open();
+      await toTheTask();
+
+      const drawn = host.querySelector('.step-text')!;
+      expect(drawn.querySelector('script, style')).toBeNull();
+      expect(drawn.querySelectorAll('[onclick], [onerror]')).toHaveLength(0);
+      expect(Array.from(drawn.querySelectorAll('a')).map((link) => link.getAttribute('href') ?? '')).not.toContainEqual(expect.stringMatching(/^javascript:/i));
+      expect(text('.step-text')).toBe('Choďte na stránku');
+      expect((window as unknown as { stolen?: number }).stolen).toBeUndefined();
     });
   });
 });

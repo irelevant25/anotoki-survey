@@ -1,0 +1,56 @@
+:host {
+  display: block;
+}
+
+.gallery {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.gallery[data-count="2"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.gallery[data-count="3"] {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.gallery-item {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--anotoki-border);
+  border-radius: var(--anotoki-radius);
+  overflow: hidden;
+  background: var(--anotoki-surface-2);
+  cursor: zoom-in;
+  transition:
+    border-color var(--anotoki-duration) var(--anotoki-ease),
+    box-shadow var(--anotoki-duration) var(--anotoki-ease);
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--anotoki-primary) 45%, var(--anotoki-border));
+    box-shadow: var(--anotoki-shadow-sm);
+  }
+
+  app-survey-image {
+    background: var(--anotoki-surface-2);
+  }
+}
+
+// One picture is shown whole, in its own proportions, up to a height that
+// leaves what is under it - the question's options, the step's next ones - in view.
+.gallery[data-count="1"] app-survey-image {
+  width: 100%;
+  max-height: 24rem;
+}
+
+.gallery:not([data-count="1"]) app-survey-image {
+  aspect-ratio: 4 / 3;
+}
+
+@media (max-width: 560px) {
+  .gallery[data-count="3"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

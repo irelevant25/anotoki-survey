@@ -3,7 +3,7 @@ import { AgeKey, GenderKey } from './about-you';
 /**
  * A survey as the editor makes it and people take it - the shape the API
  * sends and takes (backend/api/surveys.php): a survey has steps, a step has
- * questions, a choice question has options.
+ * its own text and pictures and its questions, a choice question has options.
  *
  * Every id is made once and never reused, so an answer keeps pointing at its
  * option when the editor renames it, reorders it, or moves its question to
@@ -19,7 +19,7 @@ export type QuestionType = 'single' | 'multiple' | 'text';
 export type ChoiceLayout = 'list' | 'columns' | 'scale';
 
 /**
- * A picture under a question or on an option. The file itself is kept apart
+ * A picture under a step's text or a question's, or on an option. The file itself is kept apart
  * from the survey, which holds only this: the file's id, what it shows, its
  * size - enough to lay the page out before the picture has loaded - and where
  * the site serves it. The server measures the file and sets the address; the
@@ -72,16 +72,30 @@ export interface Question {
   placeholder: string;
 }
 
+/**
+ * One page of the survey. Its own text and pictures stand above its questions
+ * - or alone: a step with text or pictures needs no question (a task to read
+ * and do before the next step asks about it; people leave it with Next). A
+ * step with neither, nor a question, is a problem (survey-problems.ts).
+ */
 export interface Step {
   id: string;
-  /** Shown above the step's questions, and in the progress; may be empty. */
+  /** Shown above the step's text and questions, and in the progress; may be empty. */
   title: string;
+  /** The step's own text: HTML from the editor, as a question's text is; '' for none. */
+  text: string;
+  /** Pictures under the step's text, in order - as under a question's. */
+  images: SurveyImage[];
   questions: Question[];
 }
 
-/** A step's title in another language. */
+/** A step's texts in another language: its title, its own text, and what each picture under it shows. */
 export interface StepTranslation {
   title: string;
+  /** HTML, like the step's own text. */
+  text: string;
+  /** What each picture under the step's text shows, by picture id; the same picture twice shares one description. */
+  images: Record<string, { alt: string }>;
 }
 
 /**

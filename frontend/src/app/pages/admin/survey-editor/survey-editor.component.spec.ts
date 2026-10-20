@@ -1,5 +1,6 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { ConfirmService } from '@anotoki/lib/ui/dialog';
 import { ToastService } from '@anotoki/lib/ui/toast';
@@ -10,6 +11,7 @@ import { AuthService } from '../../../core/auth/auth.service';
 import { newOption, newQuestion, newSurvey } from '../../../core/survey/survey-factory';
 import { Person, Survey, SurveyImage, SurveyTranslation } from '../../../core/survey/survey.model';
 import { provideTestTranslations } from '../../../core/testing/test-translations';
+import { RichTextEditorComponent } from '../../../ui/rich-text-editor/rich-text-editor.component';
 import { SurveyEditorComponent } from './survey-editor.component';
 
 const ENGLISH: AdminLanguage = { code: 'en', name: 'English', native_name: 'English', enabled: true, sort_order: 1, seeded: true, strings: 0 };
@@ -42,7 +44,7 @@ function survey(revision = 3, translations: Record<string, SurveyTranslation> = 
     intro: '<p>Hello</p><ul><li>honest</li></ul>',
     thanks: '<p>Thanks!</p>',
     askAboutYou: false,
-    steps: [{ id: 's1', title: 'Your cup', questions: [choice, words] }],
+    steps: [{ id: 's1', title: 'Your cup', text: '', images: [], questions: [choice, words] }],
     translations,
     revision,
   };
@@ -61,7 +63,7 @@ const SLOVAK_WHOLE: SurveyTranslation = {
   title: 'Nápoje',
   intro: '<p>Ahoj</p>',
   thanks: '<p>Ďakujeme!</p>',
-  steps: { s1: { title: 'Vaša šálka' } },
+  steps: { s1: { title: 'Vaša šálka', text: '', images: {} } },
   questions: {
     q1: { text: '<p>Čaj alebo káva?</p>', placeholder: '', options: { a: { label: 'Čaj' }, b: { label: 'Káva' } }, images: { img1: { alt: 'Šálka' } } },
     q2: { text: '<p>Prečo?</p>', placeholder: 'Pár slov', options: {}, images: {} },
@@ -326,7 +328,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
       title: 'Nápoje',
       intro: '',
       thanks: '',
-      steps: { s1: { title: 'Vaša šálka' } },
+      steps: { s1: { title: 'Vaša šálka', text: '', images: {} } },
       questions: {
         q1: { text: '<p>Čaj alebo káva?</p>', placeholder: '', options: { a: { label: 'Čaj' }, b: { label: 'Káva' } }, images: { img1: { alt: 'Šálka na stole' } } },
         q2: { text: '', placeholder: 'Pár slov', options: {}, images: {} },
@@ -423,7 +425,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
       title: 'Nápoje',
       intro: '<p>Ahoj</p>',
       thanks: '<p>Ďakujeme!</p>',
-      steps: { s1: { title: 'Vaša šálka' } },
+      steps: { s1: { title: 'Vaša šálka', text: '', images: {} } },
       questions: {
         q1: { text: '<p>Čaj alebo káva?</p>', placeholder: '', options: { a: { label: 'Čaj' }, b: { label: 'Káva' } }, images: { img1: { alt: 'Šálka' } } },
         q2: { text: '<p>Prečo?</p>', placeholder: 'Pár slov', options: {}, images: {} },
@@ -686,7 +688,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
       title: 'Moje nápoje',
       intro: '',
       thanks: '<p>Ich ďakujú</p>',
-      steps: { s1: { title: 'Vaša šálka' } },
+      steps: { s1: { title: 'Vaša šálka', text: '', images: {} } },
       questions: { q1: { text: '<p>Čaj alebo káva?</p>', placeholder: '', options: { a: { label: 'Čaj' }, b: { label: 'Ich káva' } }, images: {} } },
     });
     await store.flush('survey-1');
@@ -927,5 +929,99 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
     );
     expect(button('Try again now', alert)).toBeUndefined();
     expect(api.saveSurvey).toHaveBeenCalledTimes(1);
+  });
+
+  describe('a step’s own text and pictures', () => {
+    const MAP: SurveyImage = { id: 'img2', alt: 'The map', width: 40, height: 30, src: '/api/images/img2.png' };
+    /** survey() with a step of text and a picture before its step of questions: 3 texts more. */
+    function withTask(translations: Record<string, SurveyTranslation> = {}): Survey {
+      const base = survey(3, translations);
+      return { ...base, steps: [{ id: 's0', title: 'The task', text: '<p>Go to the <strong>genshin</strong> site, then come back.</p>', images: [MAP], questions: [] }, ...base.steps] };
+    }
+    /** The rich text fields of the page that are a step's own, by step. */
+    const stepText = (stepId: string) => fixture.debugElement.query(By.css(`[id="step-${stepId}"] .step-own app-rich-text-editor`))?.componentInstance as RichTextEditorComponent | undefined;
+    const problems = () => texts('app-editor-outline .problem');
+
+    it('adds a step of text alone: its text written in place of questions, the step no problem once it says something', async () => {
+      await page();
+      await click(button('Add a text step'));
+      const added = store.survey('survey-1')!.steps[1];
+      expect({ title: added.title, text: added.text, images: added.images, questions: added.questions }).toEqual({ title: '', text: '', images: [], questions: [] });
+      // Empty as it is: said, and drawn with its text and pictures to write.
+      expect(problems()).toEqual(['Step 2 is empty - add a question, text or a picture, or remove the step.']);
+      expect(stepText(added.id)).toBeTruthy();
+      expect(clean(host.querySelector(`[id="step-${added.id}"] .step-pictures .section-label`)?.textContent)).toBe('Pictures under the text');
+      expect(clean(host.querySelector(`[id="step-${added.id}"] .drop-here`)?.textContent)).toBe('No questions: people read this step and go on with Next. Add one below, or drag one here.');
+
+      stepText(added.id)!.value.set('<p>Go to the genshin site, then come back.</p>');
+      await settle();
+      expect(store.survey('survey-1')!.steps[1].text).toBe('<p>Go to the genshin site, then come back.</p>');
+      expect(problems()).toEqual([]);
+      expect(texts('app-editor-outline .text-only')).toEqual(['Text only - no questions']);
+      await store.flush('survey-1');
+      expect(api.saveSurvey).toHaveBeenLastCalledWith(
+        expect.objectContaining({ steps: [expect.anything(), expect.objectContaining({ text: '<p>Go to the genshin site, then come back.</p>', questions: [] })] }),
+        3,
+      );
+    });
+
+    it('gives a step of questions its own text above them when asked - and draws none it has not', async () => {
+      await page();
+      expect(host.querySelector('[id="step-s1"] .step-own')).toBeNull();
+      await click(button('Text and pictures'));
+      expect(stepText('s1')).toBeTruthy();
+      expect(button('Text and pictures')).toBeUndefined();
+      stepText('s1')!.value.set('<p>About your cup.</p>');
+      await settle();
+      expect(store.survey('survey-1')!.steps[0]).toMatchObject({ text: '<p>About your cup.</p>', images: [] });
+      expect(store.survey('survey-1')!.steps[0].questions).toHaveLength(2);
+    });
+
+    it('asks before a step goes with its text or its pictures, and says what goes', async () => {
+      await page(withTask());
+      await click(all('[id="step-s0"] .step-actions button[aria-label="Remove the step"]')[0]);
+      expect(await answer(false)).toEqual({ title: 'Remove step 1 "The task"?', message: 'Its text and its picture go with it.' });
+      expect(store.survey('survey-1')!.steps).toHaveLength(2);
+
+      await click(all('[id="step-s1"] .step-actions button[aria-label="Remove the step"]')[0]);
+      expect(await answer(false)).toEqual({ title: 'Remove step 2 "Your cup"?', message: 'Its 2 questions go with it. To keep a question, move it to another step first.' });
+
+      await click(all('[id="step-s0"] .step-actions button[aria-label="Remove the step"]')[0]);
+      await answer(true);
+      expect(store.survey('survey-1')!.steps.map((step) => step.id)).toEqual(['s1']);
+    });
+
+    it('translates the step’s text and what its pictures show, side by side, its structure locked', async () => {
+      await page(withTask({ sk: SLOVAK_PART }));
+      await click(all('app-editor-languages .tab')[1]);
+      expect(tabs()[1]).toBe('Slovak 3 / 13');
+
+      // The pairs: the original, read-only, and the field for it in Slovak.
+      const own = host.querySelector('[id="step-s0"] .step-own')!;
+      expect(clean(own.querySelector('app-translated-text .original.rich')?.textContent)).toBe('Go to the genshin site, then come back.');
+      expect(own.querySelector('app-translated-text .original.rich strong')?.textContent).toBe('genshin');
+      expect(field(['stepText', 's0'])?.getAttribute('lang')).toBe('sk');
+      expect(field(['stepImage', 's0', 'img2'])?.getAttribute('aria-label')).toBe('Step 1, picture 1: what it shows in Slovak (not translated yet)');
+      // Nothing of the step to add, move or remove there: the picture's own buttons, the text's own field, the way to a text step.
+      for (const gone of ['.step-own > app-rich-text-editor', '.add', '.thumb-actions', '.add-text', '#add-text-step']) {
+        expect(host.querySelector('.builder ' + gone), gone).toBeNull();
+      }
+
+      await type(field(['stepImage', 's0', 'img2']), 'Mapa');
+      expect(translation()?.steps['s0']).toEqual({ title: '', text: '', images: { img2: { alt: 'Mapa' } } });
+      expect(tabs()[1]).toBe('Slovak 4 / 13');
+      expect(store.survey('survey-1')!.steps[0].images).toEqual([MAP]);
+      // What the step still lacks: its title and its text - counted on the outline's step.
+      expect(texts('app-editor-outline .step-name .todo')).toEqual(['2 texts to translate', '1 text to translate']);
+      expect(problems()).toContain('Slovak: step 1 has 1 text to translate.');
+    });
+
+    it('goes from a step’s problem to the first of its texts still missing in that language', async () => {
+      await page(withTask({ sk: { ...SLOVAK_PART, steps: { s0: { title: 'Úloha', text: '', images: { img2: { alt: 'Mapa' } } } } } }));
+      await click(all('app-editor-outline .problem').find((problem) => clean(problem.textContent) === 'Slovak: step 1 has 1 text to translate.'));
+      await settle(120);
+      expect(all('app-editor-languages .tab')[1].getAttribute('aria-selected')).toBe('true');
+      expect(focused()).toBe('["stepText","s0"]');
+    });
   });
 });

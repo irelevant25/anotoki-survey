@@ -94,6 +94,52 @@ function whole_slovak(): array
     ];
 }
 
+/** The pictures text_steps() shows: ids the server would have made. */
+const MAP = '0f6c2a52-4c1e-4b55-9d2e-6a1c5e0b7a11';
+const CITY = '5b8e1d7c-2f3a-4e6b-8c9d-0a1b2c3d4e5f';
+
+/**
+ * A step people only read and leave with Next - its own text and three
+ * pictures (the map twice, the city with no description) - then a step that
+ * asks, with "About you" before them: the survey
+ * frontend/src/app/core/survey/survey-problems.spec.ts and localize.spec.ts
+ * check the same places and sentences on (textSteps() there).
+ */
+function text_steps(array $translations = []): array
+{
+    return body(
+        [],
+        [
+            'steps' => [
+                [
+                    'id' => 's1',
+                    'title' => 'The task',
+                    'text' => '<p>Open the <strong>map</strong>, find Mondstadt, then come back.</p>',
+                    'images' => [['id' => MAP, 'alt' => 'The map'], ['id' => CITY, 'alt' => ''], ['id' => MAP, 'alt' => 'The map']],
+                    'questions' => [],
+                ],
+                ['id' => 's2', 'title' => 'How it went', 'questions' => [question(['text' => '<p>Was it easy?</p>', 'options' => [option('a', 'Yes'), option('b', 'No')]])]],
+            ],
+            'translations' => $translations,
+        ],
+    );
+}
+
+/** Nothing of text_steps() left to translate (wholeTextSteps() in the specs). */
+function whole_text_steps(): array
+{
+    return [
+        'title' => 'Genshin 1.0',
+        'intro' => '<p>Ahoj</p>',
+        'thanks' => '<p>Vďaka</p>',
+        'steps' => [
+            's1' => ['title' => 'Úloha', 'text' => '<p>Otvorte <strong>mapu</strong>, nájdite Mondstadt a vráťte sa.</p>', 'images' => [MAP => ['alt' => 'Mapa']]],
+            's2' => ['title' => 'Ako to šlo', 'text' => '', 'images' => []],
+        ],
+        'questions' => ['q1' => ['text' => '<p>Bolo to ľahké?</p>', 'placeholder' => '', 'options' => ['a' => ['label' => 'Áno'], 'b' => ['label' => 'Nie']], 'images' => []]],
+    ];
+}
+
 /** The same with holes in it (brokenSlovak() in the spec). */
 function broken_slovak(): array
 {
@@ -249,6 +295,23 @@ test('a survey that is not one is refused, and says where', function (): void {
             body([question(['options' => [['id' => 'a', 'label' => 'A', 'other' => false, 'images' => array_fill(0, 5, ['id' => newUuid(), 'alt' => ''])]]])]),
             '/more than 4 items/',
         ],
+        // A step's own text and pictures: as a question's are.
+        'a step\'s text that is no text' => [body([], ['steps' => [['id' => 's1', 'title' => '', 'text' => ['<p>x</p>'], 'questions' => [question()]]]]), '/^The text of step 1 is not text\.$/'],
+        'a step\'s text too long' => [body([], ['steps' => [['id' => 's1', 'title' => '', 'text' => str_repeat('x', 50001), 'questions' => [question()]]]]), '/^The text of step 1 is too long\.$/'],
+        'a step\'s text not UTF-8' => [body([], ['steps' => [['id' => 's1', 'title' => '', 'text' => "<p>\xff</p>", 'questions' => [question()]]]]), '/^The text of step 1 is not valid UTF-8\.$/'],
+        'a step\'s pictures as a word' => [body([], ['steps' => [['id' => 's1', 'title' => '', 'images' => 'none', 'questions' => [question()]]]]), '/^The pictures of step 1 is not a list\.$/'],
+        'a picture of a step\'s from elsewhere' => [
+            body([], ['steps' => [['id' => 's1', 'title' => '', 'images' => [['id' => 'https://example.com/x.png', 'alt' => '']], 'questions' => [question()]]]]),
+            '/^Picture 1 of step 1 is not a picture of this site\.$/',
+        ],
+        'too many pictures on a step' => [
+            body([], ['steps' => [['id' => 's1', 'title' => '', 'images' => array_fill(0, 11, ['id' => MAP, 'alt' => '']), 'questions' => [question()]]]]),
+            '/^The pictures of step 1 has more than 10 items\.$/',
+        ],
+        'a step picture\'s description too long' => [
+            body([], ['steps' => [['id' => 's1', 'title' => '', 'images' => [['id' => MAP, 'alt' => str_repeat('x', 301)]], 'questions' => [question()]]]]),
+            '/^The description of picture 1 of step 1 is longer than 300 characters\.$/',
+        ],
     ];
     foreach ($bad as $what => [$body, $pattern]) {
         try {
@@ -284,11 +347,11 @@ test('what keeps a survey from opening: the editor\'s list, in its words', funct
         ),
         LANGUAGES,
     );
-    $broken['content']['steps'][] = ['id' => 's2', 'title' => '', 'questions' => []];
+    $broken['content']['steps'][] = ['id' => 's2', 'title' => '', 'text' => '', 'images' => [], 'questions' => []];
     assert_same(
         [
             'The survey needs a title.',
-            'Step 3 has no questions - add one, or remove the step.',
+            'Step 3 is empty - add a question, text or a picture, or remove the step.',
             'Question 1 has no text.',
             'Question 1 has two options called "anemo".',
             'Question 2 has an option with no label.',
@@ -301,6 +364,75 @@ test('what keeps a survey from opening: the editor\'s list, in its words', funct
 
     $empty = surveyFromBody(body([], ['steps' => []]), LANGUAGES);
     assert_same(['Add at least one question.'], surveyProblems(['id' => 'x', 'title' => 'T', 'slug' => 'fine', 'content' => $empty['content']], []));
+});
+
+test('a step may be text and pictures alone - a task to read and do - but never nothing at all; the survey still needs a question', function (): void {
+    // Its own text and pictures above a step's questions, a step of text alone, a step of pictures alone: nothing to fix.
+    $survey = checked(
+        body(
+            [],
+            [
+                'steps' => [
+                    ['id' => 's0', 'title' => '', 'text' => '<p>Go to the <strong>genshin</strong> site, then come back.</p>', 'questions' => []],
+                    ['id' => 's1', 'title' => 'First', 'text' => '<p>A few questions about it.</p>', 'images' => [['id' => MAP, 'alt' => '']], 'questions' => [question()]],
+                    ['id' => 's2', 'title' => '', 'images' => [['id' => CITY, 'alt' => 'The city']], 'questions' => []],
+                ],
+            ],
+        ),
+    );
+    assert_same([], surveyProblems($survey, []));
+
+    // Text with no words in it is no text: such a step, with no picture and no question, is empty - numbered as people see it.
+    $blank = $survey;
+    $blank['content']['steps'][2] = ['id' => 's2', 'title' => 'Nothing', 'text' => '', 'images' => [], 'questions' => []];
+    assert_same(['Step 4 is empty - add a question, text or a picture, or remove the step.'], surveyProblems($blank, []));
+    $blank['content']['askAboutYou'] = false;
+    assert_same(['Step 3 is empty - add a question, text or a picture, or remove the step.'], surveyProblems($blank, []));
+    assert_true(surveyStepIsEmpty(['text' => '<p> </p><p><br></p>', 'images' => [], 'questions' => []]), 'what the browser finds blank is blank');
+    assert_false(surveyStepIsEmpty(['text' => "<p>\u{0085}</p>", 'images' => [], 'questions' => []]), 'and what it does not, is not (TEXT_SPACE)');
+
+    // Text and pictures alone are no survey: something must be asked.
+    $nothingAsked = $survey;
+    $nothingAsked['content']['steps'] = [$survey['content']['steps'][0], $survey['content']['steps'][2]];
+    assert_same(['Add at least one question.'], surveyProblems($nothingAsked, []));
+});
+
+test('a step\'s own text is cleaned as a question\'s is, and its pictures are taken as a question\'s are', function (): void {
+    $survey = surveyFromBody(
+        body(
+            [],
+            [
+                'steps' => [
+                    [
+                        'id' => 's1',
+                        'title' => 'The task',
+                        'text' =>
+                            '<p onclick="x()" style="color:red">Go<script>alert(1)</script> to <a href="javascript:alert(1)">the site</a><img src="x" onerror="alert(1)"></p>' .
+                            '<style>p{display:none}</style><p><a href="https://genshin.anotoki.eu" onmouseover="x()">and back</a></p>',
+                        'images' => [['id' => MAP, 'alt' => "The\x0B map", 'width' => 9999, 'height' => 9999, 'src' => 'https://evil.example/x.png']],
+                        'extra' => 'dropped',
+                        'questions' => [question()],
+                    ],
+                ],
+            ],
+        ),
+        LANGUAGES,
+    );
+    $step = $survey['content']['steps'][0];
+    assert_same(['id', 'title', 'text', 'images', 'questions'], array_keys($step), 'what a step holds, and nothing else');
+    assert_same(
+        '<p>Go to the site</p><p><a target="_blank" rel="noopener noreferrer" href="https://genshin.anotoki.eu">and back</a></p>',
+        $step['text'],
+        'no script, no handler, no style, no javascript: link',
+    );
+    assert_same([['id' => MAP, 'alt' => 'The map']], $step['images'], 'the size and the address are the file\'s to say');
+    assert_same([MAP], $survey['imageIds'], 'the survey shows it, as it shows a question\'s: the clean-up keeps it');
+
+    // Neither has to be sent: a step from a page that knows nothing of them has no text and no pictures.
+    $plain = surveyFromBody(body(), LANGUAGES)['content']['steps'][0];
+    assert_same(['', []], [$plain['text'], $plain['images']]);
+    // No words is no text.
+    assert_same('', surveyFromBody(body([], ['steps' => [['id' => 's1', 'title' => '', 'text' => '<p> </p><p><br></p>', 'questions' => [question()]]]]), LANGUAGES)['content']['steps'][0]['text']);
 });
 
 test('the addresses the site keeps for itself are the same on both sides - SURVEY_RESERVED_SLUGS and the frontend\'s RESERVED_SLUGS - the legal frame\'s among them', function (): void {
@@ -384,6 +516,18 @@ test('a survey says its language and carries its translations: neither is guesse
             body($pictured, ['translations' => ['sk' => ['questions' => ['q1' => ['images' => [$picture => ['alt' => "\xff"]]]]]]]),
             '/The description of picture 1 of question 1 in Slovak is not text/',
         ],
+        // A step's own text and its pictures' descriptions: the same limits, every level an object.
+        'a translated step text too long' => [body([], ['translations' => ['sk' => ['steps' => ['s1' => ['text' => str_repeat('x', 50001)]]]]]), '/^The text of step 1 in Slovak is too long\.$/'],
+        'a translated step text that is no text' => [body([], ['translations' => ['sk' => ['steps' => ['s1' => ['text' => 1]]]]]), '/^The text of step 1 in Slovak is not text\.$/'],
+        'a step\'s picture descriptions as true' => [
+            body([], ['translations' => ['sk' => ['steps' => ['s1' => ['images' => true]]]]]),
+            '/^The map of picture descriptions of step 1 in Slovak is not an object\.$/',
+        ],
+        'a step picture\'s description as a word' => [text_steps(['sk' => ['steps' => ['s1' => ['images' => [MAP => 'Mapa']]]]]), '/^Picture 1 of step 1 in Slovak is not an object\.$/'],
+        'a step picture\'s description too long' => [
+            text_steps(['sk' => ['steps' => ['s1' => ['images' => [MAP => ['alt' => str_repeat('x', 301)]]]]]]),
+            '/^The description of picture 1 of step 1 in Slovak is longer than 300 characters\.$/',
+        ],
     ];
     foreach ($bad as $what => [$body, $pattern]) {
         try {
@@ -439,7 +583,7 @@ test('a translation is built from the survey itself: its ids only, its texts cle
                 'title' => 'Genshin 1.0',
                 'intro' => '<p>Ahoj</p>',
                 'thanks' => '',
-                'steps' => ['s1' => ['title' => 'Prvý']],
+                'steps' => ['s1' => ['title' => 'Prvý', 'text' => '', 'images' => []]],
                 'questions' => ['q1' => ['text' => '<p>Ktorý ?</p>', 'placeholder' => 'Nič', 'options' => ['a' => ['label' => 'Anemo']], 'images' => [$picture => ['alt' => 'Mapa']]]],
             ],
         ],
@@ -454,14 +598,45 @@ test('a translation is built from the survey itself: its ids only, its texts cle
     assert_same(['sk' => ['title' => '', 'intro' => '', 'thanks' => '', 'steps' => [], 'questions' => []]], $empty['content']['translations']);
 });
 
+test('a step\'s own text and its pictures\' descriptions are translated from the step itself: its pictures only, cleaned like the text they translate', function (): void {
+    $sent = whole_text_steps();
+    $sent['steps']['s1']['text'] = '<p onclick="x()">Otvorte<script>alert(1)</script> <a href="javascript:alert(1)">mapu</a><style>p{color:red}</style></p>';
+    $sent['steps']['s1']['images'] = [
+        MAP => ['alt' => "Ma\x0Bpa", 'src' => 'https://evil.example/x.png'],
+        // A picture the step does not show - another step's, a question's, or none at all - has no description here.
+        newUuid() => ['alt' => 'Inde'],
+    ];
+    $sent['steps']['s1']['extra'] = 'dropped';
+    $survey = surveyFromBody(text_steps(['sk' => $sent]), LANGUAGES);
+    assert_same(
+        ['title' => 'Úloha', 'text' => '<p>Otvorte mapu</p>', 'images' => [MAP => ['alt' => 'Mapa']]],
+        $survey['content']['translations']['sk']['steps']['s1'],
+        'the step\'s own picture described, its text cleaned - and nothing else',
+    );
+    assert_same(['title' => 'Ako to šlo', 'text' => '', 'images' => []], $survey['content']['translations']['sk']['steps']['s2']);
+    assert_same([MAP, CITY], $survey['imageIds'], 'a translation names no picture of its own');
+
+    // A picture under a question is described by the question's entry, never by its step's.
+    $survey = surveyFromBody(
+        body([question(['images' => [['id' => CITY, 'alt' => 'The city']]])], ['translations' => ['sk' => ['steps' => ['s1' => ['title' => 'Prvý', 'images' => [CITY => ['alt' => 'Mesto']]]]]]]),
+        LANGUAGES,
+    );
+    assert_same([], $survey['content']['translations']['sk']['steps']['s1']['images']);
+});
+
 test('as JSON every map of a translation is an object - empty, or with ids that look like numbers', function (): void {
     assert_same('{}', jsonText(surveyTranslationsJson([])));
-    $empty = surveyFromBody(body([], ['translations' => ['sk' => ['questions' => ['q1' => []]]]]), LANGUAGES);
+    $empty = surveyFromBody(body([], ['translations' => ['sk' => ['steps' => ['s1' => []], 'questions' => ['q1' => []]]]]), LANGUAGES);
     assert_same(
-        '{"sk":{"title":"","intro":"","thanks":"","steps":{},"questions":{"q1":{"text":"","placeholder":"","options":{},"images":{}}}}}',
+        '{"sk":{"title":"","intro":"","thanks":"","steps":{"s1":{"title":"","text":"","images":{}}},"questions":{"q1":{"text":"","placeholder":"","options":{},"images":{}}}}}',
         jsonText(surveyTranslationsJson($empty['content']['translations'])),
     );
     assert_same('{"sk":{"title":"","intro":"","thanks":"","steps":{},"questions":{}}}', jsonText(surveyTranslationsJson(['sk' => []])), 'and one kept with less than all of it goes out whole');
+    assert_same(
+        '{"sk":{"title":"","intro":"","thanks":"","steps":{"s1":{"title":"Prvý","text":"","images":{}}},"questions":{}}}',
+        jsonText(surveyTranslationsJson(['sk' => ['steps' => ['s1' => ['title' => 'Prvý']]]])),
+        'a step\'s entry kept before steps had their own text: whole too',
+    );
 
     // Steps, questions and options called "0" and "1": a list to PHP, a map by id to everybody else.
     $numbered = surveyFromBody(
@@ -483,7 +658,7 @@ test('as JSON every map of a translation is an object - empty, or with ids that 
         LANGUAGES,
     );
     assert_same(
-        '{"sk":{"title":"","intro":"","thanks":"","steps":{"0":{"title":"Prvý"},"1":{"title":"Druhý"}},"questions":{' .
+        '{"sk":{"title":"","intro":"","thanks":"","steps":{"0":{"title":"Prvý","text":"","images":{}},"1":{"title":"Druhý","text":"","images":{}}},"questions":{' .
             '"0":{"text":"<p>Ktorý?</p>","placeholder":"","options":{"0":{"label":"Áno"},"1":{"label":"Nie"}},"images":{}},' .
             '"1":{"text":"<p>Prečo?</p>","placeholder":"","options":{},"images":{}}}}}',
         jsonText(surveyTranslationsJson($numbered['content']['translations'])),
@@ -537,6 +712,36 @@ test('what is left to translate: the places the page finds, in its order', funct
         surveyTranslationGaps($survey, 'sk'),
         'and where the survey says nothing there is nothing to translate',
     );
+});
+
+test('a step\'s own text and its pictures\' descriptions are texts to translate, after its title and before its questions', function (): void {
+    assert_same([], surveyTranslationGaps(checked(text_steps(['sk' => whole_text_steps()])), 'sk'));
+    assert_same(
+        [
+            ['kind' => 'title'],
+            ['kind' => 'intro'],
+            ['kind' => 'thanks'],
+            ['kind' => 'step', 'stepId' => 's1'],
+            ['kind' => 'stepText', 'stepId' => 's1'],
+            // The map twice is one description; the city has none to translate.
+            ['kind' => 'stepImage', 'stepId' => 's1', 'imageId' => MAP],
+            ['kind' => 'step', 'stepId' => 's2'],
+            ['kind' => 'text', 'questionId' => 'q1'],
+            ['kind' => 'option', 'questionId' => 'q1', 'optionId' => 'a'],
+            ['kind' => 'option', 'questionId' => 'q1', 'optionId' => 'b'],
+        ],
+        surveyTranslationGaps(checked(text_steps()), 'sk'),
+        'everything, in a language it is not translated into - in the order of the page',
+    );
+
+    // Rich text with no words in it is missing; a description of spaces too.
+    $holes = whole_text_steps();
+    $holes['steps']['s1'] = ['title' => 'Úloha', 'text' => '<p> </p>', 'images' => [MAP => ['alt' => ' ']]];
+    $survey = checked(text_steps(['sk' => $holes]));
+    assert_same([['kind' => 'stepText', 'stepId' => 's1'], ['kind' => 'stepImage', 'stepId' => 's1', 'imageId' => MAP]], surveyTranslationGaps($survey, 'sk'));
+    // ... and so is an entry of the step's from before steps had their own text: a title alone.
+    $survey['content']['translations']['sk']['steps']['s1'] = ['title' => 'Úloha'];
+    assert_same([['kind' => 'stepText', 'stepId' => 's1'], ['kind' => 'stepImage', 'stepId' => 's1', 'imageId' => MAP]], surveyTranslationGaps($survey, 'sk'));
 });
 
 test('a translation people are offered must be whole before the survey opens: the editor\'s list, in its words', function (): void {
@@ -593,4 +798,33 @@ test('a translation people are offered must be whole before the survey opens: th
     $old = checked(three_questions());
     unset($old['content']['language'], $old['content']['translations']);
     assert_same([], surveyProblems($old, [], LANGUAGES));
+});
+
+test('what a step\'s own text and pictures still lack in a translation: one problem a step, after its title\'s - the editor\'s words', function (): void {
+    assert_same([], surveyProblems(checked(text_steps(['sk' => whole_text_steps()])), [], LANGUAGES));
+
+    $holes = whole_text_steps();
+    $holes['steps']['s1'] = ['title' => '', 'text' => '', 'images' => []];
+    assert_same(
+        ['Slovak: the title of step 2 is missing.', 'Slovak: step 2 has 2 texts to translate.'],
+        surveyProblems(checked(text_steps(['sk' => $holes])), [], LANGUAGES),
+        '"About you" is step 1: the step of text is the second people meet',
+    );
+    $holes['steps']['s1'] = ['title' => 'Úloha', 'text' => '<p>Otvorte mapu.</p>', 'images' => []];
+    assert_same(['Slovak: step 2 has 1 text to translate.'], surveyProblems(checked(text_steps(['sk' => $holes])), [], LANGUAGES));
+
+    // German, with nothing in it yet, and offered: every text of the step and of the question after it.
+    $offered = array_map(static fn(array $language): array => ['enabled' => true] + $language, LANGUAGES);
+    assert_same(
+        [
+            'German: the title is missing.',
+            'German: the welcome text is missing.',
+            'German: the thank-you text is missing.',
+            'German: the title of step 2 is missing.',
+            'German: step 2 has 2 texts to translate.',
+            'German: the title of step 3 is missing.',
+            'German: question 1 has 3 texts to translate.',
+        ],
+        surveyProblems(checked(text_steps(['sk' => whole_text_steps(), 'de' => []])), [], $offered),
+    );
 });

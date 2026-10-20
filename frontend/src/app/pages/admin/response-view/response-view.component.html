@@ -22,6 +22,9 @@
         <h3 class="step-title">
             <span class="step-number">Step {{ entry.number }}</span>
             {{ entry.step.title }}
+            @if (!entry.items.length) {
+                <span class="text-only">Text only - nothing to answer</span>
+            }
         </h3>
         @for (item of entry.items; track item.question.id) {
             <ng-container *ngTemplateOutlet="question; context: { $implicit: item }" />

@@ -2,7 +2,7 @@ import { isChoice } from './answer-rules';
 import { translatedText, translationGaps, translationOf } from './localize';
 import { isBlankHtml } from './plain-text';
 import { RESERVED_SLUGS, slugify } from './survey-factory';
-import { numberedQuestions } from './survey-outline';
+import { numberedQuestions, stepIsEmpty } from './survey-outline';
 import { Survey, SurveyStatus } from './survey.model';
 
 /** Something that keeps a survey from being opened, and where it is. */
@@ -62,11 +62,12 @@ export function surveyProblems(survey: Survey, others: readonly Pick<Survey, 'id
   if (questions.length === 0) {
     problems.push({ message: 'Add at least one question.', target: { kind: 'survey', field: 'questions' } });
   }
-  // Steps are numbered as people see them: "About you", when asked, is step 1.
+  // Steps are numbered as people see them: "About you", when asked, is step 1. A step may be only text and
+  // pictures - a task to read and do before the next step asks about it - but not nothing at all.
   const firstStep = survey.askAboutYou ? 2 : 1;
   survey.steps.forEach((step, index) => {
-    if (step.questions.length === 0) {
-      problems.push({ message: `Step ${index + firstStep} has no questions - add one, or remove the step.`, target: { kind: 'step', stepId: step.id } });
+    if (stepIsEmpty(step)) {
+      problems.push({ message: `Step ${index + firstStep} is empty - add a question, text or a picture, or remove the step.`, target: { kind: 'step', stepId: step.id } });
     }
   });
 
@@ -128,9 +129,11 @@ export function surveyProblems(survey: Survey, others: readonly Pick<Survey, 'id
 
 /**
  * What a translation still lacks, in the order of the document: the title,
- * the welcome, the thanks, then step by step its title and, question by
- * question, how many of its texts are left - one problem a question, however
- * many - and two options that would read the same.
+ * the welcome, the thanks, then step by step its title, how many of its own
+ * texts are left (its text and its pictures' descriptions: one problem a
+ * step), and, question by question, how many of its texts are left - one
+ * problem a question, however many - and two options that would read the
+ * same.
  */
 function translationProblems(survey: Survey, language: ProblemLanguage, firstStep: number): SurveyProblem[] {
   const problems: SurveyProblem[] = [];
@@ -139,11 +142,14 @@ function translationProblems(survey: Survey, language: ProblemLanguage, firstSte
 
   const missing = new Set<string>();
   const texts = new Map<string, number>();
+  const stepTexts = new Map<string, number>();
   for (const gap of translationGaps(survey, code)) {
     if (gap.kind === 'title' || gap.kind === 'intro' || gap.kind === 'thanks') {
       missing.add(gap.kind);
     } else if (gap.kind === 'step') {
       missing.add(`step ${gap.stepId}`);
+    } else if (gap.kind === 'stepText' || gap.kind === 'stepImage') {
+      stepTexts.set(gap.stepId, (stepTexts.get(gap.stepId) ?? 0) + 1);
     } else {
       texts.set(gap.questionId, (texts.get(gap.questionId) ?? 0) + 1);
     }
@@ -163,6 +169,14 @@ function translationProblems(survey: Survey, language: ProblemLanguage, firstSte
   survey.steps.forEach((step, index) => {
     if (missing.has(`step ${step.id}`)) {
       problems.push({ message: `${language.name}: the title of step ${index + firstStep} is missing.`, target: { kind: 'step', stepId: step.id, language: code }, untranslated: true });
+    }
+    const own = stepTexts.get(step.id) ?? 0;
+    if (own > 0) {
+      problems.push({
+        message: `${language.name}: step ${index + firstStep} has ${own === 1 ? '1 text' : `${own} texts`} to translate.`,
+        target: { kind: 'step', stepId: step.id, language: code },
+        untranslated: true,
+      });
     }
     for (const question of step.questions) {
       number++;

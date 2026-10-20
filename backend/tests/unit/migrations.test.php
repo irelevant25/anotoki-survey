@@ -47,7 +47,7 @@ test('an empty database gets every migration, recorded once - in the table the s
     );
     $survey = array_keys(array_filter($entries, static fn(array $entry): bool => $entry['set'] === 'survey'));
     assert_same(range($survey[0], $survey[count($survey) - 1]), $survey, 'the site\'s own one after the other');
-    assert_same(['set' => 'survey', 'name' => '015_whats_new_and_feedback.sql'], $entries[end($survey)], 'the site\'s last file before the library\'s words');
+    assert_same(['set' => 'survey', 'name' => '016_step_text_and_pictures.sql'], $entries[end($survey)], 'the site\'s last file before the library\'s words');
     assert_same(['set' => 'anotoki_people', 'name' => '001_people.sql'], $entries[count($entries) - 1], 'the people\'s tables last: after 011 adds the column the scrub writes');
     $name = test_empty_db('fresh');
     $migrator = surveyMigrator(server_pdo($name));

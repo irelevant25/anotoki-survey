@@ -1,6 +1,6 @@
 import { isChoice } from './answer-rules';
 import { isBlankHtml } from './plain-text';
-import { Question, QuestionTranslation, Survey, SurveyTranslation } from './survey.model';
+import { Question, QuestionTranslation, Step, StepTranslation, Survey, SurveyImage, SurveyTranslation } from './survey.model';
 
 /**
  * A survey in more than one language: the document holds its texts in the
@@ -16,12 +16,19 @@ import { Question, QuestionTranslation, Survey, SurveyTranslation } from './surv
  * through own(): an id may be any word, "constructor" too.
  */
 
-/** One text of a survey that a translation has words of its own for. */
+/**
+ * One text of a survey that a translation has words of its own for. A
+ * step's: its title (`step`), its own text (`stepText`) and what a picture
+ * under that text shows (`stepImage`); a question's: its text, its hint, an
+ * option's label, what a picture under its text shows.
+ */
 export type TranslationPlace =
   | { kind: 'title' }
   | { kind: 'intro' }
   | { kind: 'thanks' }
   | { kind: 'step'; stepId: string }
+  | { kind: 'stepText'; stepId: string }
+  | { kind: 'stepImage'; stepId: string; imageId: string }
   | { kind: 'text'; questionId: string }
   | { kind: 'placeholder'; questionId: string }
   | { kind: 'option'; questionId: string; optionId: string }
@@ -50,6 +57,10 @@ function emptyQuestionTranslation(): QuestionTranslation {
   return { text: '', placeholder: '', options: {}, images: {} };
 }
 
+function emptyStepTranslation(): StepTranslation {
+  return { title: '', text: '', images: {} };
+}
+
 /** The survey's translation into a language, or undefined when it has none. */
 export function translationOf(survey: Survey, code: string): SurveyTranslation | undefined {
   return own(survey.translations, code);
@@ -63,10 +74,11 @@ export function translationCodes(survey: Survey): string[] {
 /**
  * Every text the survey itself has - what there is to translate - in the
  * order of the document: the title, the welcome, the thanks, then step by
- * step its title and each question's text, hint, option labels and picture
- * descriptions. A question counts what its type shows: a hint for "own
- * words", options for a choice (the other kind's fields are kept, and shown
- * to nobody). The same picture twice is one description.
+ * step its title, its own text and its pictures' descriptions, and each
+ * question's text, hint, option labels and picture descriptions. A question
+ * counts what its type shows: a hint for "own words", options for a choice
+ * (the other kind's fields are kept, and shown to nobody). The same picture
+ * twice is one description.
  */
 export function translationPlaces(survey: Survey): TranslationPlace[] {
   const places: TranslationPlace[] = [];
@@ -80,12 +92,26 @@ export function translationPlaces(survey: Survey): TranslationPlace[] {
     places.push({ kind: 'thanks' });
   }
   for (const step of survey.steps) {
-    if (step.title.trim()) {
-      places.push({ kind: 'step', stepId: step.id });
-    }
+    places.push(...stepPlaces(step));
     for (const question of step.questions) {
       places.push(...questionPlaces(question));
     }
+  }
+  return places;
+}
+
+/** A step's own texts: its title, its text, what each picture under it shows (once a picture). */
+function stepPlaces(step: Step): TranslationPlace[] {
+  const places: TranslationPlace[] = [];
+  const stepId = step.id;
+  if (step.title.trim()) {
+    places.push({ kind: 'step', stepId });
+  }
+  if (!isBlankHtml(step.text)) {
+    places.push({ kind: 'stepText', stepId });
+  }
+  for (const imageId of describedPictures(step.images)) {
+    places.push({ kind: 'stepImage', stepId, imageId });
   }
   return places;
 }
@@ -105,14 +131,21 @@ function questionPlaces(question: Question): TranslationPlace[] {
   } else if (question.placeholder.trim()) {
     places.push({ kind: 'placeholder', questionId });
   }
-  const described = new Set<string>();
-  for (const image of question.images) {
-    if (image.alt.trim() && !described.has(image.id)) {
-      described.add(image.id);
-      places.push({ kind: 'image', questionId, imageId: image.id });
-    }
+  for (const imageId of describedPictures(question.images)) {
+    places.push({ kind: 'image', questionId, imageId });
   }
   return places;
+}
+
+/** The pictures that say what they show, each once - the same picture twice has one description - in their order. */
+function describedPictures(images: readonly SurveyImage[]): string[] {
+  const described = new Set<string>();
+  for (const image of images) {
+    if (image.alt.trim()) {
+      described.add(image.id);
+    }
+  }
+  return [...described];
 }
 
 /** What a translation says at a place - empty when it says nothing there (yet). */
@@ -129,6 +162,10 @@ export function translatedText(translation: SurveyTranslation | undefined, place
       return translation.thanks ?? '';
     case 'step':
       return own(translation.steps, place.stepId)?.title ?? '';
+    case 'stepText':
+      return own(translation.steps, place.stepId)?.text ?? '';
+    case 'stepImage':
+      return own(own(translation.steps, place.stepId)?.images, place.imageId)?.alt ?? '';
     case 'text':
       return own(translation.questions, place.questionId)?.text ?? '';
     case 'placeholder':
@@ -140,9 +177,9 @@ export function translatedText(translation: SurveyTranslation | undefined, place
   }
 }
 
-/** The welcome, the thanks and a question's text are HTML; everything else is a line. */
+/** The welcome, the thanks, a step's own text and a question's text are HTML; everything else is a line. */
 function isRich(place: TranslationPlace): boolean {
-  return place.kind === 'intro' || place.kind === 'thanks' || place.kind === 'text';
+  return place.kind === 'intro' || place.kind === 'thanks' || place.kind === 'stepText' || place.kind === 'text';
 }
 
 function isBlank(text: string, rich: boolean): boolean {
@@ -199,6 +236,8 @@ export function localizedSurvey(survey: Survey, language: string, mode: Localize
       steps: survey.steps.map((step) => ({
         ...step,
         title: pick({ kind: 'step', stepId: step.id }, step.title),
+        text: pick({ kind: 'stepText', stepId: step.id }, step.text),
+        images: step.images.map((image) => ({ ...image, alt: pick({ kind: 'stepImage', stepId: step.id, imageId: image.id }, image.alt) })),
         questions: step.questions.map((question) => {
           const questionId = question.id;
           return {
@@ -216,19 +255,29 @@ export function localizedSurvey(survey: Survey, language: string, mode: Localize
 
 /**
  * The survey without the translated texts of what it no longer has: a step,
- * a question, an option or a picture that was removed takes its entries in
- * every language with it. AdminStore.updateSurvey() applies this after every
- * change, so no way of removing something needs code of its own (and the
- * server does the same on the way in). Comes back as it came when there was
- * nothing to drop.
+ * a question, an option or a picture - a step's or a question's - that was
+ * removed takes its entries in every language with it.
+ * AdminStore.updateSurvey() applies this after every change, so no way of
+ * removing something needs code of its own (and the server does the same on
+ * the way in). Comes back as it came when there was nothing to drop.
  */
 export function pruneTranslations(survey: Survey): Survey {
-  const stepIds = new Set(survey.steps.map((step) => step.id));
+  const steps = new Map(survey.steps.map((step) => [step.id, step] as const));
   const questions = new Map(survey.steps.flatMap((step) => step.questions.map((question) => [question.id, question] as const)));
   let changed = !survey.translations;
 
   const translations = Object.entries(survey.translations ?? {}).map(([code, translation]): [string, SurveyTranslation] => {
-    const steps = kept(translation.steps, (id) => stepIds.has(id));
+    const stepEntries = kept(translation.steps, (id) => steps.has(id));
+    let stepsChanged = stepEntries !== translation.steps;
+    const prunedSteps = Object.entries(stepEntries).map(([stepId, entry]): [string, StepTranslation] => {
+      const step = steps.get(stepId) as Step;
+      const images = kept(entry.images, (id) => step.images.some((image) => image.id === id));
+      if (images === entry.images) {
+        return [stepId, entry];
+      }
+      stepsChanged = true;
+      return [stepId, { ...entry, images }];
+    });
     const entries = kept(translation.questions, (id) => questions.has(id));
     let questionsChanged = entries !== translation.questions;
     const pruned = Object.entries(entries).map(([questionId, entry]): [string, QuestionTranslation] => {
@@ -241,11 +290,11 @@ export function pruneTranslations(survey: Survey): Survey {
       questionsChanged = true;
       return [questionId, { ...entry, options, images }];
     });
-    if (steps === translation.steps && !questionsChanged) {
+    if (!stepsChanged && !questionsChanged) {
       return [code, translation];
     }
     changed = true;
-    return [code, { ...translation, steps, questions: Object.fromEntries(pruned) }];
+    return [code, { ...translation, steps: stepsChanged ? Object.fromEntries(prunedSteps) : translation.steps, questions: questionsChanged ? Object.fromEntries(pruned) : translation.questions }];
   });
 
   return changed ? { ...survey, translations: Object.fromEntries(translations) } : survey;
@@ -308,7 +357,11 @@ export function setTranslatedText(survey: Survey, code: string, place: Translati
 function everyPlace(survey: Survey): TranslationPlace[] {
   const places: TranslationPlace[] = [{ kind: 'title' }, { kind: 'intro' }, { kind: 'thanks' }];
   for (const step of survey.steps) {
-    places.push({ kind: 'step', stepId: step.id });
+    const stepId = step.id;
+    places.push({ kind: 'step', stepId }, { kind: 'stepText', stepId });
+    for (const imageId of new Set(step.images.map((image) => image.id))) {
+      places.push({ kind: 'stepImage', stepId, imageId });
+    }
     for (const question of step.questions) {
       const questionId = question.id;
       places.push({ kind: 'text', questionId }, { kind: 'placeholder', questionId });
@@ -338,6 +391,10 @@ function ownText(survey: Survey, place: TranslationPlace): string | undefined {
       return survey.thanks;
     case 'step':
       return survey.steps.find((step) => step.id === place.stepId)?.title;
+    case 'stepText':
+      return survey.steps.find((step) => step.id === place.stepId)?.text;
+    case 'stepImage':
+      return survey.steps.find((step) => step.id === place.stepId)?.images.find((image) => image.id === place.imageId)?.alt;
     default: {
       const question = survey.steps.flatMap((step) => step.questions).find((item) => item.id === place.questionId);
       switch (place.kind) {
@@ -465,11 +522,26 @@ function withText(translation: SurveyTranslation, place: TranslationPlace, text:
     case 'thanks':
       return { ...translation, thanks: text };
     case 'step':
-      return { ...translation, steps: { ...translation.steps, [place.stepId]: { title: text } } };
+    case 'stepText':
+    case 'stepImage': {
+      const entry = own(translation.steps, place.stepId) ?? emptyStepTranslation();
+      return { ...translation, steps: { ...translation.steps, [place.stepId]: withStepText(entry, place, text) } };
+    }
     default: {
       const entry = own(translation.questions, place.questionId) ?? emptyQuestionTranslation();
       return { ...translation, questions: { ...translation.questions, [place.questionId]: withQuestionText(entry, place, text) } };
     }
+  }
+}
+
+function withStepText(entry: StepTranslation, place: Extract<TranslationPlace, { stepId: string }>, text: string): StepTranslation {
+  switch (place.kind) {
+    case 'step':
+      return { ...entry, title: text };
+    case 'stepText':
+      return { ...entry, text };
+    case 'stepImage':
+      return { ...entry, images: { ...entry.images, [place.imageId]: { alt: text } } };
   }
 }
 

@@ -285,7 +285,11 @@ describe('AdminStore: saving what the editor changes', () => {
       const age = { ...newQuestion('text'), id: 'q1', text: '<p>How old are you?</p>' };
       const why = { ...newQuestion('text'), id: 'q2', text: '<p>Why?</p>' };
       const q1Slovak = (text: string) => ({ text, placeholder: '', options: {}, images: {} });
-      const withQuestions = (s: Survey, questions: (typeof age)[], sk: SurveyTranslation): Survey => ({ ...s, steps: [{ id: 's1', title: '', questions }], translations: { sk } });
+      const withQuestions = (s: Survey, questions: (typeof age)[], sk: SurveyTranslation): Survey => ({
+        ...s,
+        steps: [{ id: 's1', title: '', text: '', images: [], questions }],
+        translations: { sk },
+      });
 
       beforeEach(async () => {
         // Saved from here: two questions, both translated.
@@ -357,9 +361,9 @@ describe('AdminStore: saving what the editor changes', () => {
   });
 
   it('settles a conflict met while translating by language: their survey, with the translation from here put into it', async () => {
-    const slovak = (title: string) => ({ title, intro: '', thanks: '', steps: { s1: { title: 'Prvý' }, gone: { title: 'Preč' } }, questions: {} });
+    const slovak = (title: string) => ({ title, intro: '', thanks: '', steps: { s1: { title: 'Prvý', text: '', images: {} }, gone: { title: 'Preč', text: '', images: {} } }, questions: {} });
     const german = { title: 'Umfrage', intro: '', thanks: '', steps: {}, questions: {} };
-    const step = { id: 's1', title: 'First', questions: [] };
+    const step = { id: 's1', title: 'First', text: '', images: [], questions: [] };
 
     // Here: Slovak being written, to revision 3.
     api.saveSurvey.mockRejectedValueOnce(
@@ -367,7 +371,7 @@ describe('AdminStore: saving what the editor changes', () => {
         survey: { ...survey(7, 'Theirs'), steps: [step], translations: { sk: slovak('Ich'), de: german } },
       }),
     );
-    store.updateSurvey('survey-1', (s) => ({ ...s, title: 'Mine', steps: [step, { id: 'gone', title: 'Last', questions: [] }], translations: { sk: slovak('Môj prieskum') } }));
+    store.updateSurvey('survey-1', (s) => ({ ...s, title: 'Mine', steps: [step, { id: 'gone', title: 'Last', text: '', images: [], questions: [] }], translations: { sk: slovak('Môj prieskum') } }));
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);
     expect(store.saveStatus('survey-1').state).toBe('conflict');
 
@@ -376,7 +380,7 @@ describe('AdminStore: saving what the editor changes', () => {
     // The questions are theirs (the title, the steps, their German); Slovak is
     // mine - without the text of the step their version no longer has.
     expect(store.survey('survey-1')).toMatchObject({ title: 'Theirs', revision: 7, steps: [step] });
-    expect(store.survey('survey-1')?.translations).toEqual({ de: german, sk: { ...slovak('Môj prieskum'), steps: { s1: { title: 'Prvý' } } } });
+    expect(store.survey('survey-1')?.translations).toEqual({ de: german, sk: { ...slovak('Môj prieskum'), steps: { s1: { title: 'Prvý', text: '', images: {} } } } });
     await vi.advanceTimersByTimeAsync(0);
     expect(api.saveSurvey).toHaveBeenLastCalledWith(expect.objectContaining({ title: 'Theirs', translations: expect.objectContaining({ sk: expect.objectContaining({ title: 'Môj prieskum' }) }) }), 7);
     expect(store.saveStatus('survey-1').state).toBe('saved');
@@ -547,13 +551,13 @@ describe('AdminStore: saving what the editor changes', () => {
     const other = { ...newQuestion('text'), id: 'q2', text: '<p>Why?</p>' };
     store.updateSurvey('survey-1', (s) => ({
       ...s,
-      steps: [{ id: 's1', title: 'First', questions: [question, other] }],
+      steps: [{ id: 's1', title: 'First', text: '', images: [], questions: [question, other] }],
       translations: {
         sk: {
           title: 'Prieskum',
           intro: '',
           thanks: '',
-          steps: { s1: { title: 'Prvý' } },
+          steps: { s1: { title: 'Prvý', text: '', images: {} } },
           questions: {
             q1: { text: '<p>Ktorý?</p>', placeholder: '', options: { a: { label: 'Áno' }, b: { label: 'Nie' } }, images: {} },
             q2: { text: '<p>Prečo?</p>', placeholder: '', options: {}, images: {} },
@@ -568,7 +572,7 @@ describe('AdminStore: saving what the editor changes', () => {
     expect(store.survey('survey-1')?.translations['sk'].questions['q1'].options).toEqual({ a: { label: 'Áno' } });
     store.updateSurvey('survey-1', (s) => ({ ...s, steps: [{ ...s.steps[0], questions: [other] }] }));
     expect(store.survey('survey-1')?.translations['sk'].questions).toEqual({ q2: { text: '<p>Prečo?</p>', placeholder: '', options: {}, images: {} } });
-    expect(store.survey('survey-1')?.translations['sk'].steps).toEqual({ s1: { title: 'Prvý' } });
+    expect(store.survey('survey-1')?.translations['sk'].steps).toEqual({ s1: { title: 'Prvý', text: '', images: {} } });
 
     api.saveSurvey.mockResolvedValueOnce(survey(4));
     await vi.advanceTimersByTimeAsync(SAVE_DELAY_MS);

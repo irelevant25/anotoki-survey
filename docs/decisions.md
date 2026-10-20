@@ -927,6 +927,56 @@ build, is uploaded by hand with a token written into it, answers 404 without
 that token, and is deleted again. `tests/api/hosting.test.php` reads the
 `.htaccess` as Apache reads it.
 
+**A step may be text and pictures alone (the owner, 2026-10-20).** "A survey
+step may hold only text" - rich text and pictures, no questions - for usability
+tests: a step says the task ("Go to the genshin site and do X, then come
+back"), the person does it and presses Next, and the step after it asks about
+it. What was chosen:
+- **A step's text is a question's text, its pictures a question's pictures.**
+  The same rich text (the editor's field, no headings), cleaned by the same
+  `richTextClean()` on the way in - no element or attribute more - and drawn
+  the same way (`[innerHTML]`, Angular's sanitizer once more, nothing
+  bypassed). The same pictures: uploaded and checked by their bytes, at most
+  ten, opening large with arrows (the gallery is one component now,
+  `ui/image-gallery`, the question's and the step's), recorded as the
+  survey's in `survey_images` so the clean-up keeps them while anything shows
+  them and takes them a day after nothing does - a step removed takes its
+  own. A picture is not tied to the survey that first showed it, as a
+  question's never was: a copy of a survey shows the original's
+  (`copySurvey()`), and the editor of either may use them; what is checked is
+  that the server has it (422 `unknown_image`), and a translation describes
+  only the step's own pictures.
+- **Above the questions, or alone.** A step with text or pictures needs no
+  question; a step with nothing at all keeps the survey from opening ("Step 3
+  is empty - add a question, text or a picture, or remove the step." - it
+  said "has no questions" before), and so does a survey that asks nothing.
+  People get the step as it is, Next and Back as ever; it counts as a step in
+  the progress and in a draft.
+- **Translated as a question's texts are**: the step's text and its
+  pictures' descriptions are places of the translation (`stepText`,
+  `stepImage`; a step's entry `{title, text, images}`), one problem a step
+  for what is left ("Slovak: step 2 has 2 texts to translate."), and they
+  count for "read in theirs when every text is translated" like any text.
+- **Old surveys**: migration 016 gives every step kept before it an empty
+  text and no pictures - the one shape for every document - and its gate
+  proves nothing else of a survey changed (not a text, nor its revision, nor
+  when it was changed). On the way in neither field has to be sent, unlike
+  `language` and `translations`: a page left open across the release saves to
+  the revision it holds, which can only be of a survey that had no step text
+  then (a save since is a newer revision - a conflict), and its "Save mine over
+  it" says the other person's changes to the survey are lost; refused, every
+  client written before - the browser check's surveys made through the API
+  among them - could no longer save a survey for nothing gained.
+- **The results**: a step of text alone has no answers, so the summary leaves
+  it out (the other steps keep the numbers people saw them under) and the CSV
+  has nothing of it; a person's whole survey keeps its place as one line - its
+  number, its title, "Text only - nothing to answer".
+- **No new words**: what people meet is the survey's own text, and the
+  buttons that open a step's picture large say what a question's say
+  (`question.showLarge`, `question.showLargeNumbered` - their descriptions say
+  so since 016); the editor is the admin panel's English. No version yet: the
+  next release adds its entry to What's new.
+
 ## Languages
 
 The first five are the owner's, made before any of it was built.

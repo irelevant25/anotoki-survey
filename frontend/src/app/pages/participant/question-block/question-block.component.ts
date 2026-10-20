@@ -6,6 +6,7 @@ import { IconComponent } from '@anotoki/lib/ui/icon';
 import { problemText, ruleText } from '../../../core/i18n/answer-words';
 import { AnswerProblem, choiceLimits, choiceRule, emptyAnswer, textLimit, withoutControls } from '../../../core/survey/answer-rules';
 import { Answer, ChoiceOption, Question } from '../../../core/survey/survey.model';
+import { ImageGalleryComponent } from '../../../ui/image-gallery/image-gallery.component';
 import { LightboxService } from '../../../ui/lightbox/lightbox.service';
 import { SurveyImageComponent } from '../../../ui/survey-image/survey-image.component';
 
@@ -36,7 +37,7 @@ import { SurveyImageComponent } from '../../../ui/survey-image/survey-image.comp
  */
 @Component({
   selector: 'app-question-block',
-  imports: [IconComponent, AutofocusDirective, SurveyImageComponent, TranslatePipe, TranslatePluralPipe],
+  imports: [IconComponent, AutofocusDirective, ImageGalleryComponent, SurveyImageComponent, TranslatePipe, TranslatePluralPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './question-block.component.html',
   styleUrl: './question-block.component.scss',
@@ -86,8 +87,6 @@ export class QuestionBlockComponent {
   protected readonly maxLength = computed(() => textLimit(this.question()));
   /** Options with pictures are drawn as cards, the pictures on top - all of them, so the cards line up. */
   protected readonly media = computed(() => this.question().options.some((option) => option.images.length > 0));
-  /** One picture under the question is shown whole; two or three share a row. */
-  protected readonly galleryCount = computed(() => Math.min(this.question().images.length, 3));
 
   protected readonly lightbox = inject(LightboxService);
 

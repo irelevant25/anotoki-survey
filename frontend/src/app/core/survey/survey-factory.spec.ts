@@ -13,7 +13,7 @@ function translated(): Survey {
     title: 'Prieskum',
     intro: '<p>Vitajte</p>',
     thanks: '<p>Ďakujeme</p>',
-    steps: { s1: { title: 'Prvý' }, s2: { title: 'Druhý' } },
+    steps: { s1: { title: 'Prvý', text: '', images: {} }, s2: { title: 'Druhý', text: '', images: {} } },
     questions: {
       q1: { text: '<p>Ktorý?</p>', placeholder: '', options: { a: { label: 'Áno' }, b: { label: 'Nie' } }, images: { p1: { alt: 'Mapa' } } },
       q2: { text: '<p>A?</p>', placeholder: '', options: { a: { label: 'Červená' }, b: { label: 'Modrá' } }, images: {} },
@@ -115,7 +115,7 @@ describe('copySurvey', () => {
       title: '',
       intro: '<p>Vitajte</p>',
       thanks: '<p>Ďakujeme</p>',
-      steps: { [s1.id]: { title: 'Prvý' }, [s2.id]: { title: 'Druhý' } },
+      steps: { [s1.id]: { title: 'Prvý', text: '', images: {} }, [s2.id]: { title: 'Druhý', text: '', images: {} } },
       questions: {
         [q1.id]: { text: '<p>Ktorý?</p>', placeholder: '', options: { [q1.options[0].id]: { label: 'Áno' }, [q1.options[1].id]: { label: 'Nie' } }, images: { p1: { alt: 'Mapa' } } },
         // The same option ids as the first question's: each question's options go their own way.
@@ -142,9 +142,46 @@ describe('copySurvey', () => {
 
   it('leaves behind translated texts of what the survey does not have', () => {
     const survey = translated();
-    const stray = { ...survey, translations: { sk: { ...survey.translations['sk'], steps: { gone: { title: 'x' } }, questions: { gone: { text: 'x', placeholder: '', options: {}, images: {} } } } } };
+    const stray = {
+      ...survey,
+      translations: { sk: { ...survey.translations['sk'], steps: { gone: { title: 'x', text: '', images: {} } }, questions: { gone: { text: 'x', placeholder: '', options: {}, images: {} } } } },
+    };
     const copy = copySurvey(stray, []);
     expect(copy.translations['sk'].steps).toEqual({});
     expect(copy.translations['sk'].questions).toEqual({});
+  });
+
+  it('copies a step’s own text and pictures - the pictures shared - with their translations under the step’s new id', () => {
+    const survey = translated();
+    const task = { ...newStep('The task'), id: 's0', text: '<p>Go to the site, then come back.</p>', images: [picture('p2')] };
+    const withTask: Survey = {
+      ...survey,
+      steps: [task, ...survey.steps],
+      translations: {
+        ...survey.translations,
+        sk: { ...survey.translations['sk'], steps: { ...survey.translations['sk'].steps, s0: { title: 'Úloha', text: '<p>Choďte na stránku.</p>', images: { p2: { alt: 'Mapa' } } } } },
+      },
+    };
+    const before = JSON.stringify(withTask);
+    const copy = copySurvey(withTask, []);
+    expect(JSON.stringify(withTask)).toBe(before);
+
+    const [copied] = copy.steps;
+    expect(copied.id).not.toBe('s0');
+    expect({ title: copied.title, text: copied.text, questions: copied.questions }).toEqual({ title: 'The task', text: '<p>Go to the site, then come back.</p>', questions: [] });
+    expect(copied.images).toEqual(task.images);
+    expect(copied.images).not.toBe(task.images);
+    expect(copy.translations['sk'].steps[copied.id]).toEqual({ title: 'Úloha', text: '<p>Choďte na stránku.</p>', images: { p2: { alt: 'Mapa' } } });
+    expect(copy.translations['sk'].steps[copied.id].images).not.toBe(withTask.translations['sk'].steps['s0'].images);
+    expect(pruneTranslations(copy)).toBe(copy);
+    // Only the copy's new title is left to translate: the step's text and picture are translated as they were.
+    expect(translationGaps(copy, 'sk')).toEqual([{ kind: 'title' }]);
+  });
+});
+
+describe('a new step', () => {
+  it('has no text of its own, no pictures and no questions yet', () => {
+    const step = newStep('Fourth');
+    expect({ ...step, id: '' }).toEqual({ id: '', title: 'Fourth', text: '', images: [], questions: [] });
   });
 });

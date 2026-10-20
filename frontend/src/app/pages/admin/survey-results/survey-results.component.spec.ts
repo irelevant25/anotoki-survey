@@ -3,7 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { AuthService } from '../../../core/auth/auth.service';
-import { newSurvey } from '../../../core/survey/survey-factory';
+import { newStep, newSurvey } from '../../../core/survey/survey-factory';
 import { answersOf } from '../../../core/testing/answers-of';
 import { SurveyResultsComponent } from './survey-results.component';
 
@@ -141,5 +141,39 @@ describe('SurveyResultsComponent: the filters, the kit’s removable chips', () 
     one.host.querySelector<HTMLButtonElement>('.clear')!.click();
     expect(one.filtersAsked()).toEqual([null, null]);
     expect(document.activeElement?.id).toBe('results-tab-summary');
+  });
+});
+
+describe('SurveyResultsComponent: a step of text alone', () => {
+  it('has no results, so the summary leaves it out - and the steps that asked keep the numbers people saw them under', async () => {
+    const base = { ...newSurvey([]), id: 's1', askAboutYou: true };
+    const task = { ...newStep('Try the genshin site'), text: '<p>Go there, then come back.</p>' };
+    const survey = { ...base, steps: [task, { ...base.steps[0], title: 'How it went' }] };
+    const responses = [answersOf('r1', 'Zuzka', false)];
+    const store = {
+      survey: () => survey,
+      loadError: () => null,
+      responses: () => responses,
+      responsesError: () => null,
+      responseCount: () => responses.length,
+      summaries: signal([]),
+      languages: signal([]),
+      saveStatus: () => ({ state: 'saved', message: null, theirs: null }),
+      load: () => Promise.resolve(),
+      loadSummaries: () => Promise.resolve(),
+      loadResponses: () => Promise.resolve(),
+    };
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), { provide: AdminStore, useValue: store }, { provide: AuthService, useValue: { isAdmin: () => false, preferences: () => null } }],
+    });
+    const fixture = TestBed.createComponent(SurveyResultsComponent);
+    fixture.componentRef.setInput('surveyId', 's1');
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+
+    const steps = [...host.querySelectorAll('#results-panel-summary .step-title')].map((title) => title.textContent?.replace(/\s+/g, ' ').trim());
+    expect(steps).toEqual(['Step 1 About them', 'Step 3 How it went']);
+    expect(host.querySelectorAll('app-choice-result')).toHaveLength(1);
+    expect(host.textContent).not.toContain('Try the genshin site');
   });
 });

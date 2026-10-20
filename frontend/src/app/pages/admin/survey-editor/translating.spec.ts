@@ -20,7 +20,14 @@ function survey(): Survey {
     ],
   };
   const words = { ...newQuestion('text'), id: 'q2', text: '<p>Why?</p>', placeholder: 'A few words' };
-  return { ...newSurvey([]), id: 'survey-1', title: 'Drinks', intro: '<p>Hello</p>', thanks: '', steps: [{ id: 's1', title: 'Your cup', questions: [choice, words] }] };
+  return { ...newSurvey([]), id: 'survey-1', title: 'Drinks', intro: '<p>Hello</p>', thanks: '', steps: [{ id: 's1', title: 'Your cup', text: '', images: [], questions: [choice, words] }] };
+}
+
+/** survey() with a step of text before its step of questions: its title, its text and one described picture - 3 texts more. */
+function withTask(): Survey {
+  const base = survey();
+  const task = { id: 's0', title: 'First', text: '<p>Try the site.</p>', images: [{ id: 'p1', alt: 'The map', width: 40, height: 30, src: '/api/images/p1.png' }], questions: [] };
+  return { ...base, steps: [task, ...base.steps] };
 }
 
 describe('the editor while translating', () => {
@@ -37,7 +44,12 @@ describe('the editor while translating', () => {
       translations: {
         de: emptyTranslation(),
         cs: emptyTranslation(),
-        sk: { ...emptyTranslation(), title: 'Nápoje', steps: { s1: { title: 'Vaša šálka' } }, questions: { q1: { text: '', placeholder: '', options: { a: { label: 'Čaj' } }, images: {} } } },
+        sk: {
+          ...emptyTranslation(),
+          title: 'Nápoje',
+          steps: { s1: { title: 'Vaša šálka', text: '', images: {} } },
+          questions: { q1: { text: '', placeholder: '', options: { a: { label: 'Čaj' } }, images: {} } },
+        },
       },
     };
     expect(translationTabs(translated, LANGUAGES)).toEqual([
@@ -52,7 +64,7 @@ describe('the editor while translating', () => {
   });
 
   it('says whose readers get an open survey in its main language: an offered language with a text missing, and no other', () => {
-    const whole = { ...emptyTranslation(), title: 'Nápoje', intro: '<p>Ahoj</p>', steps: { s1: { title: 'Vaša šálka' } } };
+    const whole = { ...emptyTranslation(), title: 'Nápoje', intro: '<p>Ahoj</p>', steps: { s1: { title: 'Vaša šálka', text: '', images: {} } } };
     const questions = {
       q1: { text: '<p>Čaj alebo káva?</p>', placeholder: '', options: { a: { label: 'Čaj' }, b: { label: 'Káva' } }, images: {} },
       q2: { text: '<p>Prečo?</p>', placeholder: 'Pár slov', options: {}, images: {} },
@@ -105,6 +117,12 @@ describe('the editor while translating', () => {
     expect(placeKey({ kind: 'option', questionId: 'a:b', optionId: 'c' })).not.toBe(placeKey({ kind: 'option', questionId: 'a', optionId: 'b:c' }));
     expect(placeKey({ kind: 'text', questionId: 'q' })).not.toBe(placeKey({ kind: 'placeholder', questionId: 'q' }));
     expect(placeKey({ kind: 'image', questionId: 'q', imageId: 'x' })).not.toBe(placeKey({ kind: 'option', questionId: 'q', optionId: 'x' }));
+    // A step's own texts: never one of its question's of the same id, nor its title.
+    const steps = translationPlaces(withTask()).map(placeKey);
+    expect(new Set(steps).size).toBe(steps.length);
+    expect(placeKey({ kind: 'stepText', stepId: 's' })).toBe('["stepText","s"]');
+    expect(placeKey({ kind: 'stepText', stepId: 's' })).not.toBe(placeKey({ kind: 'step', stepId: 's' }));
+    expect(placeKey({ kind: 'stepImage', stepId: 's', imageId: 'x' })).not.toBe(placeKey({ kind: 'image', questionId: 's', imageId: 'x' }));
   });
 
   it('goes to the next missing text after the one last visited, in the order of the survey, and round again', () => {
@@ -127,14 +145,26 @@ describe('the editor while translating', () => {
     expect(nextGap(places, [], null)).toBeNull();
   });
 
-  it('counts what each question and step still has to translate', () => {
+  it('counts what each question and step still has to translate - a step its own texts: its title, its text, its pictures', () => {
     const gaps = translationGaps({ ...survey(), translations: { sk: emptyTranslation() } }, 'sk');
     expect([...questionGaps(gaps)]).toEqual([
       ['q1', 3],
       ['q2', 2],
     ]);
-    expect([...stepGaps(gaps)]).toEqual(['s1']);
+    expect([...stepGaps(gaps)]).toEqual([['s1', 1]]);
     expect(questionGaps([]).size).toBe(0);
+
+    const task = translationGaps({ ...withTask(), translations: { sk: emptyTranslation() } }, 'sk');
+    expect([...stepGaps(task)]).toEqual([
+      ['s0', 3],
+      ['s1', 1],
+    ]);
+    expect([...questionGaps(task)]).toEqual([...questionGaps(gaps)]);
+    // "Next missing" goes through them in the order of the page: the step's title, its text, its picture, then the next step.
+    const places = translationPlaces(withTask());
+    expect(nextGap(places, task, placeKey({ kind: 'step', stepId: 's0' }))).toEqual({ kind: 'stepText', stepId: 's0' });
+    expect(nextGap(places, task, placeKey({ kind: 'stepText', stepId: 's0' }))).toEqual({ kind: 'stepImage', stepId: 's0', imageId: 'p1' });
+    expect(nextGap(places, task, placeKey({ kind: 'stepImage', stepId: 's0', imageId: 'p1' }))).toEqual({ kind: 'step', stepId: 's1' });
   });
 
   it('lists names as a sentence would', () => {

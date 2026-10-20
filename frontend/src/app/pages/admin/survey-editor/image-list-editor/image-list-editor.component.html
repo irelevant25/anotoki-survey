@@ -28,7 +28,7 @@
                     <app-translated-text
                         class="described-text"
                         [compact]="true"
-                        [place]="{ kind: 'image', questionId: questionId(), imageId: entry.image.id }"
+                        [place]="entry.place"
                         [original]="entry.image.alt"
                         [label]="label() + ', picture ' + (entry.index + 1) + ': what it shows'"
                         [maxLength]="200" />

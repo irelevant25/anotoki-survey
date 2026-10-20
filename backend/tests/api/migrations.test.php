@@ -36,6 +36,8 @@ const ENGLISH_007 = 'You are taking surveys without signing in. This browser rem
 const FILE_006 = '006_visitors.sql';
 /** The people (anonymized_at, no address): a database before 006 is one before 011 too. */
 const FILE_011 = '011_people.sql';
+/** A step's own text and pictures: every survey kept before it gets them, empty - and nothing else of it changes. */
+const FILE_016 = '016_step_text_and_pictures.sql';
 /** The anotoki library's words: a file of its set, recorded with the set's name. */
 const LIBRARY_002 = ['set' => 'anotoki_translations', 'name' => '002_library_words.sql'];
 
@@ -522,6 +524,87 @@ test('006 on a database with people and their answers: the Apply runs it, its ga
         'visitors count down from -1; answers are found by person',
     );
     dbExec('DELETE FROM surveys WHERE id = ?', [$survey]);
+});
+
+test('016 on surveys kept before steps had their own text: each step gets no text and no pictures, its gate passes, nothing else of a survey changes - and again over itself', function (): void {
+    current_again();
+    $question = [
+        'id' => 'q',
+        'type' => 'text',
+        'text' => '<p>Why?</p>',
+        'images' => [],
+        'required' => false,
+        'options' => [],
+        'layout' => 'list',
+        'minChoices' => null,
+        'maxChoices' => null,
+        'multiline' => true,
+        'maxLength' => null,
+        'placeholder' => '',
+    ];
+    // As a survey was kept before: its steps a title and questions, its translation's step a title - its revision and day its own.
+    $kept = static fn(string $slug, array $steps): string => (string) dbValue(
+        "INSERT INTO surveys (slug, title, status, content, revision, updated_at) VALUES (?, 'Before', 'open', ?::jsonb, 7, '2026-10-01T10:00:00Z') RETURNING id",
+        [
+            $slug,
+            jsonText([
+                'intro' => '<p>Hi</p>',
+                'thanks' => '',
+                'askAboutYou' => false,
+                'steps' => $steps,
+                'language' => 'en',
+                'translations' => [
+                    'sk' => [
+                        'title' => 'Pred',
+                        'intro' => '<p>Ahoj</p>',
+                        'thanks' => '',
+                        'steps' => ['a' => ['title' => 'Prvý']],
+                        'questions' => ['q' => ['text' => '<p>Prečo?</p>', 'placeholder' => '', 'options' => new stdClass(), 'images' => new stdClass()]],
+                    ],
+                ],
+            ]),
+        ],
+    );
+    $two = $kept('before-016', [['id' => 'a', 'title' => 'First', 'questions' => [$question]], ['id' => 'b', 'title' => '', 'questions' => []]]);
+    $none = $kept('before-016-none', []);
+    $rows = static fn(): array => dbAll('SELECT id, revision, updated_at, content::text AS content FROM surveys WHERE id IN (?, ?) ORDER BY id', [$two, $none]);
+    $before = $rows();
+    behind(FILE_016);
+    assert_same([FILE_016], pending_now());
+
+    $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
+    assert_same([200, ['applied' => [file_entry(FILE_016)], 'failed' => null, 'error' => null, 'note' => 'BACKUP']], [$apply['status'], applied($apply['body'])]);
+    $steps = json_decode((string) dbValue("SELECT content->'steps' FROM surveys WHERE id = ?", [$two]), true);
+    assert_same(
+        [['a', 'First', '', [], 1], ['b', '', '', [], 0]],
+        array_map(static fn(array $step): array => [$step['id'], $step['title'], $step['text'], $step['images'], count($step['questions'])], $steps),
+        'every step: no text, no pictures, in its place',
+    );
+
+    // Nothing else of either: the steps' other fields, the texts, the translation, the revision, the day it was changed.
+    $after = $rows();
+    foreach ($after as $i => $row) {
+        $content = json_decode($row['content'], true);
+        foreach ($content['steps'] as &$step) {
+            unset($step['text'], $step['images']);
+        }
+        unset($step);
+        assert_json_same(json_decode($before[$i]['content'], true), $content, 'the survey as it was, but for its steps\' two fields');
+        assert_same([$before[$i]['revision'], $before[$i]['updated_at']], [$row['revision'], $row['updated_at']]);
+    }
+
+    // People get it whole - its translation's step too, as every map is an object.
+    $taken = as_user(PAT, 'GET', '/api/surveys/before-016');
+    assert_same(200, $taken['status'], test_show($taken['body']));
+    assert_same(['', []], [$taken['body']['survey']['steps'][1]['text'], $taken['body']['survey']['steps'][1]['images']]);
+    assert_true(str_contains($taken['raw'], '"steps":{"a":{"title":"Prvý","text":"","images":{}}}'), $taken['raw']);
+
+    // Applied again over what it did: nothing changes, and its gate passes.
+    behind(FILE_016);
+    $again = as_user(ADA, 'POST', '/api/admin/migrations/apply');
+    assert_same(['applied' => [file_entry(FILE_016)], 'failed' => null, 'error' => null, 'note' => 'BACKUP'], applied($again['body']));
+    assert_same($after, $rows());
+    dbExec('DELETE FROM surveys WHERE id IN (?, ?)', [$two, $none]);
 });
 
 test('a database waiting for 006: the surveys are closed for nobody, a visitor key or a person alike - nor the move at sign-in', function (): void {

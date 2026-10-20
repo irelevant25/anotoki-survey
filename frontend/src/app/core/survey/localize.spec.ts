@@ -16,7 +16,7 @@ import {
   translationProgress,
 } from './localize';
 import { newQuestion, newSurvey } from './survey-factory';
-import { ChoiceOption, Survey, SurveyImage, SurveyTranslation } from './survey.model';
+import { ChoiceOption, StepTranslation, Survey, SurveyImage, SurveyTranslation } from './survey.model';
 
 const picture = (id: string, alt: string): SurveyImage => ({ id, alt, width: 400, height: 300, src: `/api/images/${id}.webp` });
 const option = (id: string, label: string, images: SurveyImage[] = []): ChoiceOption => ({ id, label, other: false, images });
@@ -36,6 +36,8 @@ function english(): Survey {
       {
         id: 's1',
         title: 'First',
+        text: '',
+        images: [],
         questions: [
           {
             ...newQuestion('single'),
@@ -51,6 +53,8 @@ function english(): Survey {
       {
         id: 's2',
         title: '',
+        text: '',
+        images: [],
         questions: [{ ...newQuestion('text'), id: 'q2', text: '<p>Why?</p>', placeholder: 'A few words', maxLength: 200, options: [option('z', 'Left from when it was a choice')] }],
       },
     ],
@@ -63,7 +67,7 @@ function slovak(): SurveyTranslation {
     title: 'Záplata',
     intro: '<p>Vitajte</p>',
     thanks: '<p>Ďakujeme</p>',
-    steps: { s1: { title: 'Prvý' } },
+    steps: { s1: { title: 'Prvý', text: '', images: {} } },
     questions: {
       q1: { text: '<p>Ktorý?</p>', placeholder: '', options: { a: { label: 'Áno' }, b: { label: 'Nie' } }, images: { p1: { alt: 'Mapa' } } },
       q2: { text: '<p>Prečo?</p>', placeholder: 'Pár slov', options: {}, images: {} },
@@ -153,7 +157,7 @@ describe('translationGaps', () => {
         title: odd,
         intro: `<p>${odd}</p>`,
         thanks: `<p>${odd}</p>`,
-        steps: { s1: { title: odd } },
+        steps: { s1: { title: odd, text: '', images: {} } },
         questions: {
           q1: { text: `<p>${odd}</p>`, placeholder: '', options: { a: { label: odd }, b: { label: translation.questions['q1'].options['b'].label } }, images: { p1: { alt: odd } } },
           q2: { text: `<p>${odd}</p>`, placeholder: odd, options: {}, images: {} },
@@ -177,7 +181,9 @@ describe('translationGaps', () => {
     const survey = english();
     const odd: Survey = {
       ...survey,
-      steps: [{ id: 'constructor', title: 'First', questions: [{ ...survey.steps[0].questions[0], id: 'toString', options: [option('valueOf', 'Yes'), option('__proto__', 'No')] }] }],
+      steps: [
+        { id: 'constructor', title: 'First', text: '', images: [], questions: [{ ...survey.steps[0].questions[0], id: 'toString', options: [option('valueOf', 'Yes'), option('__proto__', 'No')] }] },
+      ],
     };
     const empty = { ...odd, translations: { sk: emptyTranslation() } };
     expect(translatedText(translationOf(empty, 'sk'), { kind: 'step', stepId: 'constructor' })).toBe('');
@@ -611,5 +617,136 @@ describe('writing a translation', () => {
   it('writes nothing into a language the survey does not have: a late keystroke brings no language back', () => {
     const survey = english();
     expect(setTranslatedText(survey, 'sk', { kind: 'title' }, 'Záplata')).toBe(survey);
+  });
+});
+
+/** The pictures textSteps() shows: ids the server would have made (MAP and CITY in backend/tests/unit/rules.test.php). */
+const MAP = '0f6c2a52-4c1e-4b55-9d2e-6a1c5e0b7a11';
+const CITY = '5b8e1d7c-2f3a-4e6b-8c9d-0a1b2c3d4e5f';
+
+/**
+ * A step people only read and leave with Next - its own text and three
+ * pictures (the map twice, the city with no description) - then a step that
+ * asks: text_steps() in backend/tests/unit/rules.test.php, the same places in
+ * the same order.
+ */
+function textSteps(): Survey {
+  return {
+    ...newSurvey([]),
+    title: 'Genshin 1.0',
+    intro: '<p>Hello</p>',
+    thanks: '<p>Thanks</p>',
+    steps: [
+      {
+        id: 's1',
+        title: 'The task',
+        text: '<p>Open the <strong>map</strong>, find Mondstadt, then come back.</p>',
+        images: [picture(MAP, 'The map'), picture(CITY, ''), picture(MAP, 'The map')],
+        questions: [],
+      },
+      { id: 's2', title: 'How it went', text: '', images: [], questions: [{ ...newQuestion('single'), id: 'q1', text: '<p>Was it easy?</p>', options: [option('a', 'Yes'), option('b', 'No')] }] },
+    ],
+  };
+}
+
+/** Nothing of textSteps() left to translate (whole_text_steps() in rules.test.php). */
+function wholeTextSteps(): SurveyTranslation {
+  return {
+    title: 'Genshin 1.0',
+    intro: '<p>Ahoj</p>',
+    thanks: '<p>Vďaka</p>',
+    steps: {
+      s1: { title: 'Úloha', text: '<p>Otvorte <strong>mapu</strong>, nájdite Mondstadt a vráťte sa.</p>', images: { [MAP]: { alt: 'Mapa' } } },
+      s2: { title: 'Ako to šlo', text: '', images: {} },
+    },
+    questions: { q1: { text: '<p>Bolo to ľahké?</p>', placeholder: '', options: { a: { label: 'Áno' }, b: { label: 'Nie' } }, images: {} } },
+  };
+}
+
+describe('a step of its own text and pictures', () => {
+  const withSlovak = (translation: SurveyTranslation = wholeTextSteps()): Survey => ({ ...textSteps(), translations: { sk: translation } });
+
+  it('has its text and its pictures’ descriptions to translate, after its title and before its questions - the server’s order', () => {
+    expect(translationPlaces(textSteps())).toEqual<TranslationPlace[]>([
+      { kind: 'title' },
+      { kind: 'intro' },
+      { kind: 'thanks' },
+      { kind: 'step', stepId: 's1' },
+      { kind: 'stepText', stepId: 's1' },
+      // The map twice is one description; the city has none to translate.
+      { kind: 'stepImage', stepId: 's1', imageId: MAP },
+      { kind: 'step', stepId: 's2' },
+      { kind: 'text', questionId: 'q1' },
+      { kind: 'option', questionId: 'q1', optionId: 'a' },
+      { kind: 'option', questionId: 'q1', optionId: 'b' },
+    ]);
+    expect(translationGaps(withSlovak(), 'sk')).toEqual([]);
+    expect(translationProgress(withSlovak(), 'sk')).toEqual({ done: 10, total: 10 });
+  });
+
+  it('finds the step’s text missing when it has no words, and a description of spaces - and an entry from before steps had a text, a title alone', () => {
+    const holes = withSlovak({ ...wholeTextSteps(), steps: { ...wholeTextSteps().steps, s1: { title: 'Úloha', text: '<p> </p>', images: { [MAP]: { alt: ' ' } } } } });
+    const missing: TranslationPlace[] = [
+      { kind: 'stepText', stepId: 's1' },
+      { kind: 'stepImage', stepId: 's1', imageId: MAP },
+    ];
+    expect(translationGaps(holes, 'sk')).toEqual(missing);
+    const old = withSlovak({ ...wholeTextSteps(), steps: { ...wholeTextSteps().steps, s1: { title: 'Úloha' } as unknown as StepTranslation } });
+    expect(translationGaps(old, 'sk')).toEqual(missing);
+    // A step whose text is only an emptied editor's <p></p> has nothing to translate.
+    expect(translationPlaces({ ...textSteps(), steps: [{ ...textSteps().steps[0], text: '<p></p>', images: [] }] }).map((place) => place.kind)).toEqual(['title', 'intro', 'thanks', 'step']);
+  });
+
+  it('shows the people taking it the step’s text and pictures in their language - only when nothing is missing - and the preview text by text', () => {
+    const shown = localizedSurvey(withSlovak(), 'sk', 'complete');
+    expect(shown.language).toBe('sk');
+    const [task] = shown.survey.steps;
+    expect([task.title, task.text]).toEqual(['Úloha', '<p>Otvorte <strong>mapu</strong>, nájdite Mondstadt a vráťte sa.</p>']);
+    expect(task.images.map((image) => [image.id, image.alt])).toEqual([
+      [MAP, 'Mapa'],
+      [CITY, ''],
+      [MAP, 'Mapa'],
+    ]);
+    // The pictures themselves are the survey's.
+    expect(task.images.map((image) => image.src)).toEqual(textSteps().steps[0].images.map((image) => image.src));
+
+    const half = withSlovak({ ...wholeTextSteps(), steps: { ...wholeTextSteps().steps, s1: { ...wholeTextSteps().steps['s1'], text: '' } } });
+    expect(localizedSurvey(half, 'sk', 'complete')).toEqual({ survey: half, language: 'en' });
+    const preview = localizedSurvey(half, 'sk', 'partial').survey.steps[0];
+    expect([preview.title, preview.text, preview.images[0].alt]).toEqual(['Úloha', textSteps().steps[0].text, 'Mapa']);
+  });
+
+  it('writes the step’s text and a picture’s description into the step’s entry, beside its title', () => {
+    let survey = addTranslation(textSteps(), 'sk');
+    survey = setTranslatedText(survey, 'sk', { kind: 'step', stepId: 's1' }, 'Úloha');
+    survey = setTranslatedText(survey, 'sk', { kind: 'stepText', stepId: 's1' }, '<p>Otvorte mapu.</p>');
+    survey = setTranslatedText(survey, 'sk', { kind: 'stepImage', stepId: 's1', imageId: MAP }, 'Mapa');
+    expect(survey.translations['sk'].steps).toEqual({ s1: { title: 'Úloha', text: '<p>Otvorte mapu.</p>', images: { [MAP]: { alt: 'Mapa' } } } });
+    expect(translatedText(translationOf(survey, 'sk'), { kind: 'stepImage', stepId: 's1', imageId: MAP })).toBe('Mapa');
+    expect(translatedText(translationOf(survey, 'sk'), { kind: 'stepText', stepId: 'constructor' })).toBe('');
+  });
+
+  it('drops a picture’s description with the picture, and the step’s whole entry with the step', () => {
+    const survey = withSlovak();
+    expect(pruneTranslations(survey)).toBe(survey);
+    const [task, ask] = survey.steps;
+    const withoutMap = pruneTranslations({ ...survey, steps: [{ ...task, images: [task.images[1]] }, ask] });
+    expect(withoutMap.translations['sk'].steps['s1']).toEqual({ ...wholeTextSteps().steps['s1'], images: {} });
+    expect(withoutMap.translations['sk'].questions).toBe(survey.translations['sk'].questions);
+    const withoutStep = pruneTranslations({ ...survey, steps: [ask] });
+    expect(Object.keys(withoutStep.translations['sk'].steps)).toEqual(['s2']);
+  });
+
+  it('brings two versions’ step texts together text by text, as a question’s', () => {
+    const text: TranslationPlace = { kind: 'stepText', stepId: 's1' };
+    const map: TranslationPlace = { kind: 'stepImage', stepId: 's1', imageId: MAP };
+    const base = withSlovak();
+    const mine = setTranslatedText(withSlovak(), 'sk', text, '<p>Moja úloha</p>');
+    const theirs = setTranslatedText(withSlovak(), 'sk', map, 'Ich mapa');
+    expect(changedTranslations(base, mine)).toEqual(['sk']);
+    for (const saved of ['mine', 'theirs'] as const) {
+      const merged = mergeTranslations(base, mine, theirs, saved)['sk'];
+      expect([translatedText(merged, text), translatedText(merged, map)], saved).toEqual(['<p>Moja úloha</p>', 'Ich mapa']);
+    }
   });
 });

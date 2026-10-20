@@ -18,9 +18,10 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 /** The longest side a picture is kept at: sharp on a phone held close, and on a wide screen. */
 export const MAX_SIDE = 1600;
 
-/** How many pictures a question, and an option, may carry. */
+/** How many pictures a question, an option and a step's own text may carry (SURVEY_MAX_*_IMAGES in backend/api/survey_rules.php). */
 export const MAX_QUESTION_IMAGES = 10;
 export const MAX_OPTION_IMAGES = 4;
+export const MAX_STEP_IMAGES = 10;
 
 export class ImageError extends Error {}
 

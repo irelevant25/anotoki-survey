@@ -5,7 +5,7 @@ import { Survey } from '../../../core/survey/survey.model';
 /**
  * What the editor's translation mode works out from a survey and the site's
  * languages: the tabs of the language switch, which languages can still be
- * added, where "Next missing" goes, and what each question has left.
+ * added, where "Next missing" goes, and what each step and question has left.
  *
  * All of it pure; what a text is and when it is missing is
  * core/survey/localize.ts's to say.
@@ -95,7 +95,10 @@ export function placeKey(place: TranslationPlace): string {
     case 'thanks':
       return JSON.stringify([place.kind]);
     case 'step':
+    case 'stepText':
       return JSON.stringify([place.kind, place.stepId]);
+    case 'stepImage':
+      return JSON.stringify([place.kind, place.stepId, place.imageId]);
     case 'text':
     case 'placeholder':
       return JSON.stringify([place.kind, place.questionId]);
@@ -134,9 +137,19 @@ export function questionGaps(gaps: readonly TranslationPlace[]): Map<string, num
   return counts;
 }
 
-/** The steps whose title is still to translate. */
-export function stepGaps(gaps: readonly TranslationPlace[]): Set<string> {
-  return new Set(gaps.flatMap((gap) => (gap.kind === 'step' ? [gap.stepId] : [])));
+/**
+ * How many of its own texts each step still has to translate - its title,
+ * its text, what its pictures show - by step id; the ones with none are not
+ * in it. (Its questions' are theirs: questionGaps.)
+ */
+export function stepGaps(gaps: readonly TranslationPlace[]): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const gap of gaps) {
+    if ('stepId' in gap) {
+      counts.set(gap.stepId, (counts.get(gap.stepId) ?? 0) + 1);
+    }
+  }
+  return counts;
 }
 
 /** "Slovak", "Slovak and Czech", "Slovak, Czech and German". */

@@ -274,6 +274,21 @@ up - the family's page answers - and the editor now refuses those addresses;
 move such a survey first. **After the upload**: apply on the Migrations page,
 then open `/about` and `/support` signed out.
 
+**The next version** (not released yet; the owner's request of 2026-10-20):
+**a step of text and pictures alone** - a step's own rich text and pictures,
+above its questions or with none (a usability test's task, left with Next),
+translated like a question's texts; a step with nothing at all is "empty".
+It brings the site's `016_step_text_and_pictures.sql`: every survey's steps
+get an empty text and no pictures (nothing else of a survey changes - its gate
+proves it), and the two strings of a picture's "show large" button say in
+their descriptions that a step's pictures use them too. **After the upload**:
+apply on the Migrations page (the site is closed until it is applied); then,
+in the editor, "Add a text step", write it, add a picture, and take the
+survey through it in the preview. Its release adds its entry to What's new.
+Once a survey has a step's own text or pictures, no release from before this
+one goes on the host again - `rollback` included: its editor would save that
+survey without them, and its pages would show such a step empty. Fix forward.
+
 A **release** adds its entry at the top of `frontend/public/changelog.json` -
 what changed for people, in English and its whole formal-Slovak translation
 (`translations.sk`) - and sets `frontend/package.json`'s version (and the two

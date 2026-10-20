@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { IconComponent } from '@anotoki/lib/ui/icon';
 import { plainText } from '../../../../core/survey/plain-text';
-import { currentStatus } from '../../../../core/survey/survey-outline';
+import { currentStatus, stepHasContent } from '../../../../core/survey/survey-outline';
 import { SurveyProblem, problemsHeading } from '../../../../core/survey/survey-problems';
 import { Survey } from '../../../../core/survey/survey.model';
 
@@ -12,11 +12,12 @@ import { Survey } from '../../../../core/survey/survey.model';
  * translation opens that language; "show": a step or a question, in the
  * language the page is on). What the list is called follows the survey's
  * state as people meet it (problemsHeading): nothing "opens" a survey that is
- * open, and a closed one reopens.
+ * open, and a closed one reopens. A step of text and pictures alone says so
+ * where its questions would be.
  *
  * On a translation's tab the outline marks what is still to translate: the
- * questions with texts missing, each with how many, and the steps whose title
- * is.
+ * questions with texts missing, each with how many, and the steps with texts
+ * of their own missing (the title, the step's text, what its pictures show).
  */
 @Component({
   selector: 'app-editor-outline',
@@ -34,8 +35,8 @@ export class EditorOutlineComponent {
   readonly translating = input<string | null>(null);
   /** How many texts each question still has to translate, by question id. */
   readonly questionGaps = input<ReadonlyMap<string, number>>(new Map());
-  /** The steps whose title is still to translate. */
-  readonly stepGaps = input<ReadonlySet<string>>(new Set());
+  /** How many of its own texts each step still has to translate, by step id. */
+  readonly stepGaps = input<ReadonlyMap<string, number>>(new Map());
 
   /** A problem chosen: to where it is fixed. */
   readonly goTo = output<SurveyProblem['target']>();
@@ -49,7 +50,9 @@ export class EditorOutlineComponent {
     this.survey().steps.map((step, index) => ({
       step,
       number: index + this.firstStep(),
-      titleMissing: this.stepGaps().has(step.id),
+      missing: this.stepGaps().get(step.id) ?? 0,
+      /** Text and pictures and no question: people read it and go on. */
+      textOnly: step.questions.length === 0 && stepHasContent(step),
       questions: step.questions.map((question) => ({
         question,
         number: this.numbers().get(question.id) ?? 0,
@@ -59,5 +62,5 @@ export class EditorOutlineComponent {
     })),
   );
   /** The texts of the steps and questions still to translate (the survey's title, welcome and thanks are not in the outline). */
-  protected readonly toTranslate = computed(() => this.stepGaps().size + [...this.questionGaps().values()].reduce((sum, count) => sum + count, 0));
+  protected readonly toTranslate = computed(() => [...this.stepGaps().values(), ...this.questionGaps().values()].reduce((sum, count) => sum + count, 0));
 }

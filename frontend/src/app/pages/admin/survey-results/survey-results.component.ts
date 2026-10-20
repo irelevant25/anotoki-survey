@@ -191,16 +191,24 @@ export class SurveyResultsComponent {
     const responses = this.responses();
     const numbers = new Map(numberedQuestions(survey).map((item) => [item.question.id, item.number]));
     const first = survey.askAboutYou ? 2 : 1;
-    return survey.steps.map((step, index) => ({
-      step,
-      number: index + first,
-      items: step.questions.map((question) => ({
-        question,
-        number: numbers.get(question.id) ?? 0,
-        choice: isChoice(question) ? choiceSummary(question, responses) : null,
-        texts: isChoice(question) ? null : writtenAnswers(question, responses),
-      })),
-    }));
+    // A step of text and pictures alone asked nothing, so it has no results: it is left out - the others keep the
+    // numbers people saw them under.
+    return survey.steps.flatMap((step, index) =>
+      step.questions.length === 0
+        ? []
+        : [
+            {
+              step,
+              number: index + first,
+              items: step.questions.map((question) => ({
+                question,
+                number: numbers.get(question.id) ?? 0,
+                choice: isChoice(question) ? choiceSummary(question, responses) : null,
+                texts: isChoice(question) ? null : writtenAnswers(question, responses),
+              })),
+            },
+          ],
+    );
   });
 
   protected readonly activeTab = computed(() => (this.tab() === 'people' ? 'people' : 'summary'));

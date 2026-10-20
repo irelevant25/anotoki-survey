@@ -3,10 +3,10 @@
 declare(strict_types=1);
 
 /**
- * The HTML of a survey's texts - a question, the welcome, the thanks - as the
- * editor writes it (TipTap: paragraphs, bold, italic, underline, strike, the
- * highlighter, links, lists, and headings on the welcome and thank-you
- * screens), and nothing else.
+ * The HTML of a survey's texts - a question, a step's own text, the welcome,
+ * the thanks - as the editor writes it (TipTap: paragraphs, bold, italic,
+ * underline, strike, the highlighter, links, lists, and headings on the
+ * welcome and thank-you screens), and nothing else.
  *
  * Every text is cleaned here before it is kept, whatever sent it: the
  * frontend shows these texts as HTML to everybody who takes the survey, so

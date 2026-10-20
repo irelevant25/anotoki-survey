@@ -3,36 +3,38 @@ import { IconComponent } from '@anotoki/lib/ui/icon';
 import { SpinnerComponent } from '@anotoki/lib/ui/spinner';
 import { ImageUploader } from '../../../../core/images/image-uploader.service';
 import { IMAGE_TYPES, ImageError, MAX_QUESTION_IMAGES, pictureFiles } from '../../../../core/images/prepare-image';
+import { TranslationPlace } from '../../../../core/survey/localize';
 import { SurveyImage } from '../../../../core/survey/survey.model';
 import { LightboxService } from '../../../../ui/lightbox/lightbox.service';
 import { SurveyImageComponent } from '../../../../ui/survey-image/survey-image.component';
-import { SurveyEditing } from '../survey-editing.service';
+import { ImageTarget, SurveyEditing } from '../survey-editing.service';
 import { TranslatedTextComponent } from '../translated-text/translated-text.component';
 
 /**
- * The pictures of a question or an option, in the editor: a row of
- * thumbnails - each opens large, moves left or right, goes - and the way to
- * add more: the button, files dropped on the row, or (through `addFiles`,
- * which the question's text and the option's field call) a paste.
+ * The pictures of a question or an option - or of a step, under its own
+ * text - in the editor: a row of thumbnails - each opens large, moves left
+ * or right, goes - and the way to add more: the button, files dropped on the
+ * row, or (through `addFiles`, which the question's or the step's text and
+ * the option's field call) a paste.
  *
- * Under a question each picture gets a line for what it shows, for people
- * who cannot see it. `compact`, under an option, is smaller and has none:
- * the option's label says what its pictures show. Empty and compact, it
- * draws nothing at all; the option's picture button opens its file picker
- * (`pick`).
+ * Under a question's or a step's text each picture gets a line for what it
+ * shows, for people who cannot see it. `compact`, under an option, is
+ * smaller and has none: the option's label says what its pictures show.
+ * Empty and compact, it draws nothing at all; the option's picture button
+ * opens its file picker (`pick`).
  *
  * Files are made smaller and sent to the server as they come in
  * (ImageUploader), one after another, with a place held for each until it is
  * there. Every change
- * goes straight to the survey (SurveyEditing), to the question or option it
- * was made for - so pictures still getting ready arrive even if this row is
- * gone by then (its question folded, or moved to another step).
+ * goes straight to the survey (SurveyEditing), to the step, question or
+ * option it was made for - so pictures still getting ready arrive even if
+ * this row is gone by then (its question folded, or moved to another step).
  *
  * On a translation's tab (SurveyEditing.language) the pictures are the
  * survey's own and stay as they are - none added, moved or removed. Under a
- * question each picture is a row with the field for what it shows in that
- * language (the same picture twice is one row: it has one description);
- * under an option they are only shown.
+ * question's or a step's text each picture is a row with the field for what
+ * it shows in that language (the same picture twice is one row: it has one
+ * description); under an option they are only shown.
  */
 @Component({
   selector: 'app-image-list-editor',
@@ -44,11 +46,12 @@ import { TranslatedTextComponent } from '../translated-text/translated-text.comp
 })
 export class ImageListEditorComponent {
   readonly images = input.required<SurveyImage[]>();
-  /** Whose pictures they are: the question, and - for an option's - the option. */
-  readonly questionId = input.required<string>();
+  /** Whose pictures they are: the question, and - for an option's - the option; or (`stepId`) a step, under its own text. */
+  readonly questionId = input<string | null>(null);
   readonly optionId = input<string | null>(null);
+  readonly stepId = input<string | null>(null);
   readonly max = input(MAX_QUESTION_IMAGES);
-  /** "Question 3", "Option 2": for the names of the buttons and fields. */
+  /** "Question 3", "Option 2", "Step 2": for the names of the buttons and fields. */
   readonly label = input('Question');
   readonly compact = input(false, { transform: booleanAttribute });
   /** Words for the large view of a picture that has none - an option's label. */
@@ -62,15 +65,22 @@ export class ImageListEditorComponent {
   protected readonly accept = IMAGE_TYPES.join(',');
   /** A translation is being edited: the pictures cannot be changed, only described in its language. */
   protected readonly translating = computed(() => this._editing.language() !== null);
-  /** Each picture once, with its place in the list - a picture used twice shares one translated description. */
+  /**
+   * Each picture once, with its place in the list - a picture used twice
+   * shares one translated description - and the place of that description in
+   * a translation: under a step's text, or a question's.
+   */
   protected readonly distinct = computed(() => {
     const seen = new Set<string>();
+    const stepId = this.stepId();
+    const questionId = this.questionId() ?? '';
     return this.images().flatMap((image, index) => {
       if (seen.has(image.id)) {
         return [];
       }
       seen.add(image.id);
-      return [{ image, index }];
+      const place: TranslationPlace = stepId !== null ? { kind: 'stepImage', stepId, imageId: image.id } : { kind: 'image', questionId, imageId: image.id };
+      return [{ image, index, place }];
     });
   });
   /** Pictures still being made ready and sent: a place is held for each. */
@@ -97,7 +107,7 @@ export class ImageListEditorComponent {
       return;
     }
     // Where they go is settled now, before anything can move.
-    const target = this._editing.target(this.questionId(), this.optionId());
+    const target = this._target();
     const compact = this.compact();
     const problems: string[] = [];
     const room = this.room();
@@ -194,8 +204,14 @@ export class ImageListEditorComponent {
 
   private _change(change: (images: SurveyImage[]) => SurveyImage[]): void {
     if (!this.translating()) {
-      this._editing.updateImages(this._editing.target(this.questionId(), this.optionId()), change);
+      this._editing.updateImages(this._target(), change);
     }
+  }
+
+  /** Whose pictures these are, as the survey is now: a step's, or a question's (or one of its options'). */
+  private _target(): ImageTarget {
+    const stepId = this.stepId();
+    return stepId !== null ? this._editing.stepTarget(stepId) : this._editing.target(this.questionId() ?? '', this.optionId());
   }
 
   private _focusLater(selector: string): void {

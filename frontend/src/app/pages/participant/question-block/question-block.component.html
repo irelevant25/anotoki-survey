@@ -7,17 +7,7 @@
     </div>
 
     @if (question().images.length) {
-        <div class="gallery" [attr.data-count]="galleryCount()">
-            @for (image of question().images; track image.id; let i = $index) {
-                <button
-                    type="button"
-                    class="gallery-item"
-                    [attr.aria-label]="image.alt ? ('question.showLarge' | translate: { label: image.alt }) : ('question.showLargeNumbered' | translate: { number: i + 1 })"
-                    (click)="lightbox.open(question().images, i, null, lang())">
-                    <app-survey-image [image]="image" [fit]="galleryCount() === 1 ? 'contain' : 'cover'" [natural]="galleryCount() === 1" [decorative]="true" />
-                </button>
-            }
-        </div>
+        <app-image-gallery [images]="question().images" [lang]="lang()" />
     }
 
     @if (rule() || !question().required) {

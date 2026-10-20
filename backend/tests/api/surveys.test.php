@@ -117,10 +117,14 @@ function slovak(array $fields = []): array
     ];
 }
 
-/** slovak() as it comes back, decoded: an empty map is an empty array to PHP. */
+/** slovak() as it comes back, decoded: an empty map is an empty array to PHP - and a step's entry whole, with its own text and pictures. */
 function slovak_kept(array $fields = []): array
 {
     $kept = slovak($fields);
+    foreach ($kept['steps'] as &$step) {
+        $step += ['text' => '', 'images' => []];
+    }
+    unset($step);
     foreach ($kept['questions'] as &$question) {
         $question['options'] = (array) $question['options'];
         $question['images'] = (array) $question['images'];
@@ -492,7 +496,7 @@ test('steps, questions and options called "0" and "1" keep their translations: a
     $made = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => $numbered]);
     assert_same(201, $made['status'], test_show($made['body']));
     $kept =
-        '"translations":{"sk":{"title":"Genshin 1.0","intro":"","thanks":"","steps":{"0":{"title":"Jeden"}},"questions":{' .
+        '"translations":{"sk":{"title":"Genshin 1.0","intro":"","thanks":"","steps":{"0":{"title":"Jeden","text":"","images":{}}},"questions":{' .
         '"0":{"text":"<p>Áno alebo nie?</p>","placeholder":"","options":{"0":{"label":"Áno"},"1":{"label":"Nie"}},"images":{}},' .
         '"1":{"text":"<p>Prečo?</p>","placeholder":"","options":{},"images":{}}}}}';
     assert_true(str_contains($made['raw'], $kept), $made['raw']);
@@ -663,6 +667,111 @@ test('answers say which language the survey was read in - when it is one of the 
 
     assert_same(204, as_user(OWNER, 'DELETE', "/api/admin/surveys/$id")['status']);
     assert_same(200, as_user(OWNER, 'DELETE', '/api/admin/languages/fr')['status']);
+});
+
+test('a step of its own text and pictures, with no question: cleaned on the way in, its pictures the survey\'s, opened, and taken with nothing to answer on it', function (): void {
+    $map = as_user(EDITH, 'POST', '/api/admin/images', png(), ['Content-Type: image/png'])['body']['image'];
+    $shared = as_user(EDITH, 'POST', '/api/admin/images', png(), ['Content-Type: image/png'])['body']['image'];
+    // A usability test's task, written with everything a text must not carry - and a picture a question shows too.
+    $task = [
+        'id' => 'step-task',
+        'title' => 'The task',
+        'text' =>
+            '<p onclick="steal()">Go to <a href="javascript:alert(1)">the genshin site</a>, find <mark>Mondstadt</mark><script>alert(1)</script><img src="x" onerror="alert(1)">, then come back.</p>' .
+            '<style>p{display:none}</style><p><a href="https://genshin.anotoki.eu">genshin.anotoki.eu</a></p>',
+        'images' => [['id' => $map['id'], 'alt' => 'The map', 'width' => 9999, 'height' => 9999, 'src' => 'https://evil.example/x.png'], ['id' => $shared['id'], 'alt' => '']],
+        'questions' => [],
+    ];
+    $clean = '<p>Go to the genshin site, find <mark>Mondstadt</mark>, then come back.</p><p><a target="_blank" rel="noopener noreferrer" href="https://genshin.anotoki.eu">genshin.anotoki.eu</a></p>';
+    $base = draft(['slug' => 'usability']);
+    $base['steps'][0]['questions'][0]['images'] = [['id' => $shared['id'], 'alt' => 'Shared']];
+    $made = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => ['steps' => [$task, $base['steps'][0]]] + $base]);
+    assert_same(201, $made['status'], test_show($made['body']));
+    $survey = $made['body']['survey'];
+    $step = $survey['steps'][0];
+    assert_same($clean, $step['text'], 'no script, handler, style, picture or javascript: link: what the editor makes, and nothing else');
+    assert_json_same(
+        [['id' => $map['id'], 'alt' => 'The map', 'width' => 1, 'height' => 1, 'src' => $map['src']], ['id' => $shared['id'], 'alt' => '', 'width' => 1, 'height' => 1, 'src' => $shared['src']]],
+        $step['images'],
+        'the size and the address are the file\'s',
+    );
+    assert_same([[], 'step-1'], [$step['questions'], $survey['steps'][1]['id']]);
+    assert_same($clean, dbValue("SELECT content->'steps'->0->>'text' FROM surveys WHERE id = ?", [$survey['id']]), 'kept clean');
+    assert_same(2, (int) dbValue('SELECT count(*) FROM survey_images WHERE survey_id = ?', [$survey['id']]), 'its pictures are the survey\'s: the clean-up leaves them');
+    // A step's picture the server does not have: refused, as a question's is.
+    $unknown = $survey;
+    $unknown['steps'][0]['images'][0]['id'] = newUuid();
+    assert_same(
+        [422, 'unknown_image'],
+        (static fn(array $r): array => [$r['status'], $r['body']['code'] ?? null])(as_user(EDITH, 'PUT', "/api/admin/surveys/{$survey['id']}", ['revision' => 1, 'survey' => $unknown])),
+    );
+
+    // A step people only read is nothing to fix: it opens.
+    $opened = as_user(EDITH, 'POST', "/api/admin/surveys/{$survey['id']}/status", ['status' => 'open']);
+    assert_same(200, $opened['status'], test_show($opened['body']));
+
+    // People get it as it is kept - and the step, as any, counts in the survey's steps.
+    $taken = as_user(LOOKER, 'GET', '/api/surveys/usability');
+    assert_same([200, $clean, 2], [$taken['status'], $taken['body']['survey']['steps'][0]['text'], count($taken['body']['survey']['steps'])]);
+    foreach (['<script', 'onclick', 'onerror', 'javascript:', '<style', '<img'] as $never) {
+        assert_false(str_contains($taken['raw'], $never), "nobody taking it is sent $never");
+    }
+    $listed = array_values(array_filter(as_user(EDITH, 'GET', '/api/admin/surveys')['body']['surveys'], static fn(array $row): bool => $row['id'] === $survey['id']))[0];
+    assert_same(['steps' => 2, 'questions' => 2], ['steps' => $listed['steps'], 'questions' => $listed['questions']]);
+
+    // Taken: nothing is asked on the step of text; the answers are the questions'.
+    $sent = as_user(PAT, 'POST', '/api/surveys/usability/responses', [
+        'aboutYou' => ['gender' => 'female', 'age' => '25-34'],
+        'answers' => ['q-element' => ['optionIds' => ['o-anemo']], 'step-task' => ['text' => 'not a question']],
+        'startedAt' => gmdate('Y-m-d\TH:i:s', time() - 300) . '.000Z',
+    ]);
+    assert_same(201, $sent['status'], test_show($sent['body']));
+    assert_same(
+        ['q-element' => ['text' => '', 'other' => '', 'optionIds' => ['o-anemo']]],
+        json_decode((string) dbValue('SELECT answers::text FROM responses WHERE id = ?', [$sent['body']['id']]), true),
+    );
+
+    // The step goes: the picture only it showed goes too (once a day old - an upload may be on its way into a save);
+    // the one a question shows as well stays.
+    dbExec("UPDATE images SET created_at = now() - interval '2 days' WHERE id IN (?, ?)", [$map['id'], $shared['id']]);
+    $without = $opened['body']['survey'];
+    $without['steps'] = [$without['steps'][1]];
+    $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/{$survey['id']}", ['revision' => $without['revision'], 'survey' => $without]);
+    assert_same(200, $saved['status'], test_show($saved['body']));
+    assert_same(404, anonymous('GET', $map['src'])['status'], 'nothing shows it any more');
+    assert_same(200, anonymous('GET', $shared['src'])['status'], 'a question still shows it');
+    assert_same(204, as_user(OWNER, 'DELETE', "/api/admin/surveys/{$survey['id']}")['status']);
+});
+
+test('a step\'s own text and its pictures\' descriptions in another language: cleaned, the step\'s own pictures only, every map an object', function (): void {
+    $map = as_user(EDITH, 'POST', '/api/admin/images', png(), ['Content-Type: image/png'])['body']['image'];
+    $task = ['id' => '0', 'title' => '', 'text' => '<p>Go to the site, then come back.</p>', 'images' => [['id' => $map['id'], 'alt' => 'The map']], 'questions' => []];
+    $base = draft(['slug' => 'usability-sk']);
+    $translation = slovak();
+    $translation['steps'] = (object) [
+        '0' => ['text' => '<p onclick="x()">Choďte na stránku<script>alert(1)</script>, potom sa vráťte.</p>', 'images' => (object) [$map['id'] => ['alt' => 'Mapa'], newUuid() => ['alt' => 'Inde']]],
+        'step-1' => ['title' => 'Záplata'],
+    ];
+    $made = as_user(EDITH, 'POST', '/api/admin/surveys', ['survey' => ['steps' => [$task, $base['steps'][0]], 'translations' => ['sk' => $translation]] + $base]);
+    assert_same(201, $made['status'], test_show($made['body']));
+    $whole = '"steps":{"0":{"title":"","text":"<p>Choďte na stránku, potom sa vráťte.</p>","images":{"' . $map['id'] . '":{"alt":"Mapa"}}},"step-1":{"title":"Záplata","text":"","images":{}}}';
+    assert_true(str_contains($made['raw'], $whole), $made['raw']);
+    assert_same('object', dbValue("SELECT jsonb_typeof(content#>'{translations,sk,steps,step-1,images}') FROM surveys WHERE id = ?", [$made['body']['survey']['id']]), 'in the database too');
+
+    // Whole, it opens - and people reading Slovak are sent it.
+    $opened = as_user(EDITH, 'POST', "/api/admin/surveys/{$made['body']['survey']['id']}/status", ['status' => 'open']);
+    assert_same(200, $opened['status'], test_show($opened['body']));
+    assert_true(str_contains(as_user(LOOKER, 'GET', '/api/surveys/usability-sk')['raw'], $whole));
+
+    // Its text left out: a text still to translate, said as the editor says it - "About you" is step 1.
+    $survey = $opened['body']['survey'];
+    $gap = $survey;
+    $gap['translations']['sk']['steps']['0']['text'] = '<p> </p>';
+    $saved = as_user(EDITH, 'PUT', "/api/admin/surveys/{$survey['id']}", ['revision' => $survey['revision'], 'survey' => $gap]);
+    assert_same(200, $saved['status'], test_show($saved['body']));
+    as_user(EDITH, 'POST', "/api/admin/surveys/{$survey['id']}/status", ['status' => 'closed']);
+    assert_same(['Slovak: step 2 has 1 text to translate.'], as_user(EDITH, 'POST', "/api/admin/surveys/{$survey['id']}/status", ['status' => 'open'])['body']['problems'] ?? null);
+    assert_same(204, as_user(OWNER, 'DELETE', "/api/admin/surveys/{$survey['id']}")['status']);
 });
 
 test('the server said nothing it should not have', function (): void {

@@ -92,6 +92,25 @@
   }
 }
 
+// A step's own text and pictures: read as the welcome is, above the step's questions - set apart from them as
+// they are from each other - or alone.
+.step-own {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: step-in 240ms var(--anotoki-ease);
+
+  + .questions {
+    padding-top: 1.9rem;
+    border-top: 1px solid var(--anotoki-border);
+  }
+}
+
+.step-text {
+  font-size: 1.0625rem;
+  line-height: 1.65;
+}
+
 .step-actions {
   display: flex;
   align-items: center;

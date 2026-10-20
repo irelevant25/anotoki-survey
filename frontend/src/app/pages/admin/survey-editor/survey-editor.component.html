@@ -253,6 +253,20 @@
                                     [label]="'Title of step ' + (i + firstStep())"
                                     [maxLength]="80" />
                             </header>
+                            <!-- The step's own text and what its pictures show, in the language of the tab; the pictures themselves are the survey's. -->
+                            @if (translatesText(step) || step.images.length) {
+                                <div class="step-own">
+                                    @if (translatesText(step)) {
+                                        <app-translated-text [rich]="true" [place]="{ kind: 'stepText', stepId: step.id }" [original]="step.text" [label]="'Text of step ' + (i + firstStep())" />
+                                    }
+                                    @if (step.images.length) {
+                                        <div class="step-pictures">
+                                            <p class="section-label">Pictures under the text: what they show</p>
+                                            <app-image-list-editor [images]="step.images" [stepId]="step.id" [max]="maxStepImages" [label]="'Step ' + (i + firstStep())" />
+                                        </div>
+                                    }
+                                </div>
+                            }
                         } @else {
                             <header class="step-head">
                                 <span class="step-number">Step {{ i + firstStep() }}</span>
@@ -276,6 +290,23 @@
                                     </button>
                                 </div>
                             </header>
+                            <!-- The step's own text and pictures, above its questions - or alone: a step people read and leave with Next. -->
+                            @if (showsText(step)) {
+                                <div class="step-own">
+                                    <app-rich-text-editor
+                                        [value]="step.text"
+                                        (valueChange)="setStepText(step.id, $event)"
+                                        [label]="'Text of step ' + (i + firstStep())"
+                                        placeholder="What people read on this step - a task to do, say - above its questions, or alone…"
+                                        [autofocus]="justAddedText() === step.id"
+                                        [acceptImages]="true"
+                                        (pastedImages)="stepImages.addFiles($event)" />
+                                    <div class="step-pictures">
+                                        <p class="section-label">Pictures under the text</p>
+                                        <app-image-list-editor #stepImages [images]="step.images" [stepId]="step.id" [max]="maxStepImages" [label]="'Step ' + (i + firstStep())" />
+                                    </div>
+                                </div>
+                            }
                         }
 
                         <div
@@ -313,6 +344,8 @@
                             } @empty {
                                 @if (language()) {
                                     <p class="drop-here">No questions in this step.</p>
+                                } @else if (showsText(step)) {
+                                    <p class="drop-here">No questions: people read this step and go on with Next. Add one below, or drag one here.</p>
                                 } @else {
                                     <p class="drop-here">No questions yet - add one below, or drag one here.</p>
                                 }
@@ -328,16 +361,41 @@
                                         {{ type.label }}
                                     </button>
                                 }
+                                @if (!showsText(step)) {
+                                    <span class="add-divider" aria-hidden="true"></span>
+                                    <button
+                                        anotokiButton
+                                        size="sm"
+                                        variant="ghost"
+                                        class="add-text"
+                                        [attr.aria-label]="'Text and pictures for step ' + (i + firstStep()) + ', above its questions'"
+                                        title="A text and pictures of the step's own, above its questions"
+                                        (click)="openStepText(step.id)">
+                                        <anotoki-icon name="fileText" [size]="15" />
+                                        Text and pictures
+                                    </button>
+                                }
                             </div>
                         }
                     </section>
                 }
 
                 @if (!language()) {
-                    <button id="add-step" type="button" class="add-step" (click)="addStep()">
-                        <anotoki-icon name="plus" [size]="18" />
-                        Add a step
-                    </button>
+                    <div class="add-steps">
+                        <button id="add-step" type="button" class="add-step" (click)="addStep()">
+                            <anotoki-icon name="plus" [size]="18" />
+                            Add a step
+                        </button>
+                        <button
+                            id="add-text-step"
+                            type="button"
+                            class="add-step"
+                            title="A step of text and pictures with no question: a task people read and do, and leave with Next"
+                            (click)="addTextStep()">
+                            <anotoki-icon name="fileText" [size]="18" />
+                            Add a text step
+                        </button>
+                    </div>
                 }
 
                 <!-- The thanks -->

@@ -159,7 +159,7 @@ function question(id: string, type: QuestionType, text: string, options: OptionS
 }
 
 function step(id: string, title: string, questions: Question[]): Step {
-  return { id, title, questions };
+  return { id, title, text: '', images: [], questions };
 }
 
 function iso(time: number): string {
