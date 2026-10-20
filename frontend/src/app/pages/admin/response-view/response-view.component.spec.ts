@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { type AdminLanguage } from '@anotoki/lib/translations';
 import { AdminStore } from '../../../core/admin/admin-store.service';
+import { GenderKey } from '../../../core/survey/about-you';
 import { newOption, newQuestion, newStep, newSurvey } from '../../../core/survey/survey-factory';
 import { Survey, SurveyResponse } from '../../../core/survey/survey.model';
 import { ResponseViewComponent } from './response-view.component';
@@ -125,5 +126,44 @@ describe('ResponseViewComponent: a step of text alone', () => {
     // Its text is the survey's to read in the editor: the person's survey lists what they answered.
     expect(host.textContent).not.toContain('Go there');
     expect(host.querySelectorAll('.item')).toHaveLength(1);
+  });
+});
+
+describe('ResponseViewComponent: a gender the question no longer offers', () => {
+  /** The About-you step of a person's survey, their gender `gender`. */
+  async function aboutYouOf(gender: GenderKey): Promise<HTMLElement> {
+    TestBed.configureTestingModule({ providers: [{ provide: AdminStore, useValue: { languages: signal(LANGUAGES) } }] });
+    const fixture = TestBed.createComponent(ResponseViewComponent);
+    fixture.componentRef.setInput('survey', { ...survey(), askAboutYou: true });
+    fixture.componentRef.setInput('response', { ...response('en'), aboutYou: { gender, age: '25-34' } });
+    await fixture.whenStable();
+    return (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('.step')!;
+  }
+
+  /** The gender question's options: each label, and whether it is the one chosen. */
+  const genderOptions = (about: HTMLElement) =>
+    Array.from(about.querySelector('.item')!.querySelectorAll('.option')).map((option) => [
+      option.querySelector('.option-label')?.textContent?.replace('(chosen)', '').trim(),
+      option.classList.contains('is-chosen'),
+    ]);
+
+  it('shows a kept "Non-binary" chosen, under its label, where it stood among the answers', async () => {
+    const about = await aboutYouOf('non-binary');
+    expect(about.querySelector('.step-title')?.textContent).toContain('About you');
+    expect(genderOptions(about)).toEqual([
+      ['Male', false],
+      ['Female', false],
+      ['Non-binary', true],
+      ['Prefer not to say', false],
+    ]);
+    expect(about.querySelector('.item.is-skipped')).toBeNull();
+  });
+
+  it('and the three the question offers for every other answer', async () => {
+    expect(genderOptions(await aboutYouOf('female'))).toEqual([
+      ['Male', false],
+      ['Female', true],
+      ['Prefer not to say', false],
+    ]);
   });
 });

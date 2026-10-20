@@ -18,7 +18,13 @@ declare(strict_types=1);
  * pins the server's side).
  */
 
-const SURVEY_GENDERS = ['male', 'female', 'non-binary', 'undisclosed'];
+/**
+ * What a new answer to the gender question may be: the answers it offers (GENDERS in about-you.ts). "non-binary" was
+ * one until the owner's decision of 2026-10-20: refused in a new answer since, as any value it does not have, and never
+ * rewritten in a kept one - the responses' CHECK (migration 001) still holds it, and the admin area shows it under its
+ * label (ALL_GENDERS).
+ */
+const SURVEY_GENDERS = ['male', 'female', 'undisclosed'];
 const SURVEY_AGES = ['under-18', '18-24', '25-34', '35-44', '45-plus', 'undisclosed'];
 const SURVEY_ABOUT_YOU_IDS = ['about-gender', 'about-age'];
 

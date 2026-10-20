@@ -743,7 +743,7 @@ closing day, the times - are columns beside it. The frontend's
 | `users` | who has signed in: the IAM's user id and name - no address (011) - and the visitors: a negative id, no name, `visitor_key_hash` (the SHA-256 of their key; cleared when the visitor ends, the row and its answers kept) |
 | `visitor_counters` | the limits on new visitors: a count per name (`visitors:new`, `visitors:new:<keyed HMAC of the address>` - a pseudonym, never the address in the clear) and when it starts again |
 | `surveys` | the surveys; `revision` counts the saves; a partial unique index keeps one live (not draft) survey per address |
-| `responses` | one filled survey per person and survey (unique); gender and age as columns (checked lists), the answers as JSONB by question id; `language`: the language the survey was read in, or null |
+| `responses` | one filled survey per person and survey (unique); gender and age as columns (checked lists - the gender's holds `non-binary` too, which answers sent before 2026-10-20 may say: a new one cannot), the answers as JSONB by question id; `language`: the language the survey was read in, or null |
 | `images` | the pictures' bytes (bytea), type and size - never changed once kept |
 | `survey_images` | which survey shows which picture, rewritten with every save |
 | `languages` | the languages the site has: code, name in English, name as its speakers write it, offered or not, order |
@@ -1379,7 +1379,12 @@ survey, whichever language a person read.
   people only the translations into languages that are offered.
 - **Switching the language in the middle of a survey** keeps every answer, the
   step and the draft: the same survey, the same ids. The About-you step is
-  re-worded in place (its ids and option keys do not change).
+  re-worded in place (its ids and option keys do not change). Its gender
+  question offers Male, Female and Prefer not to say (the owner's decision of
+  2026-10-20; "Non-binary" before): only those have strings
+  (`aboutYou.gender.*`, migration 017 deleted the fourth), a draft that chose
+  "Non-binary" asks again, and the admin panel shows an answer kept with it
+  under its English label (`ALL_GENDERS`, `core/survey/about-you.ts`).
 - **Sending** carries the language the texts were shown in; it is kept with the
   answers (`responses.language`) when it is one of the survey's, and the
   admin's response view says "Read in Slovak". It never refuses the answers.

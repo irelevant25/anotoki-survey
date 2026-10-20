@@ -120,7 +120,10 @@ usability tests); written and translated in the editor ("Add a text step",
 "Text and pictures"), counted as a step, left out of the per-question results
 and kept as a line in a person's survey ([docs/architecture.md](docs/architecture.md#a-steps-own-text-and-a-step-of-text-alone)).
 On the hosting it brings `016_step_text_and_pictures.sql`, applied on the
-Migrations page ([docs/operations.md](docs/operations.md)).
+Migrations page ([docs/operations.md](docs/operations.md)). And the gender
+question offers Male, Female and Prefer not to say (the owner's decision of
+2026-10-20): answers sent with "Non-binary" before keep it, and the results
+show them under that label (`017_non_binary_no_longer_offered.sql`).
 
 **1.0** (2026-10-19, on anotoki-lib 0.8.0; its notes for people are
 `frontend/public/changelog.json`'s newest entry): the family's **About** and

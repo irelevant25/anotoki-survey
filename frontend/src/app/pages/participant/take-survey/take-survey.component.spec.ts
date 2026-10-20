@@ -89,7 +89,6 @@ const ENGLISH: Record<string, string> = {
   'aboutYou.ageQuestion': 'How old are you?',
   'aboutYou.gender.male': 'Male',
   'aboutYou.gender.female': 'Female',
-  'aboutYou.gender.non-binary': 'Non-binary',
   'aboutYou.gender.undisclosed': 'Prefer not to say',
   'aboutYou.age.under-18': 'Under 18',
   'aboutYou.age.18-24': '18–24',
@@ -178,7 +177,6 @@ const SLOVAK: Record<string, string> = {
   'aboutYou.ageQuestion': 'Koľko máte rokov?',
   'aboutYou.gender.male': 'Muž',
   'aboutYou.gender.female': 'Žena',
-  'aboutYou.gender.non-binary': 'Nebinárne',
   'aboutYou.gender.undisclosed': 'Nechcem uviesť',
   'aboutYou.age.under-18': 'Menej ako 18',
   'aboutYou.age.18-24': '18–24',
@@ -405,7 +403,9 @@ describe('TakeSurveyComponent', () => {
     expect(text('.step-heading')).toBe('O Vás');
     expect(text('.where')).toBe('Krok 1 / 3');
     expect(blocks().map((block) => text('.text', block))).toEqual(['Aké je Vaše pohlavie?', 'Koľko máte rokov?']);
-    expect(Array.from(blocks()[0].querySelectorAll('.label')).map((label) => label.textContent)).toEqual(['Muž', 'Žena', 'Nebinárne', 'Nechcem uviesť']);
+    // Three answers to the gender question (the owner's decision of 2026-10-20): "Non-binary" is offered no more.
+    expect(Array.from(blocks()[0].querySelectorAll('.label')).map((label) => label.textContent)).toEqual(['Muž', 'Žena', 'Nechcem uviesť']);
+    expect(blocks()[0].querySelector('input[value="non-binary"]')).toBeNull();
     expect(text('button[type=submit]')).toBe('Ďalej');
     expect(text('.step-actions button')).toBe('Späť');
 
@@ -420,6 +420,7 @@ describe('TakeSurveyComponent', () => {
     expect(text('.step-heading')).toBe('About you');
     expect(text('.where')).toBe('Step 1 of 3');
     expect(blocks().map((block) => text('.text', block))).toEqual(['What is your gender?', 'How old are you?']);
+    expect(Array.from(blocks()[0].querySelectorAll('.label')).map((label) => label.textContent)).toEqual(['Male', 'Female', 'Prefer not to say']);
     expect(Array.from(blocks()[1].querySelectorAll('.label')).map((label) => label.textContent)).toEqual(['Under 18', '18–24', '25–34', '35–44', '45 or older', 'Prefer not to say']);
     // The same ids in every language: the answer is still the answer, and the problem is said again.
     expect(blocks()[0].querySelector<HTMLInputElement>('input[value="female"]')?.checked).toBe(true);
@@ -587,6 +588,22 @@ describe('TakeSurveyComponent', () => {
 
     await english();
     expect(text('anotoki-alert .anotoki-alert__text')).toBe('You started this survey 25 minutes ago and got to step 2 of 3. Your answers so far are kept in this browser.');
+  });
+
+  it('carries on from a draft that chose "Non-binary" before it was taken out: nothing is chosen, and the question asks again', async () => {
+    const startedAt = new Date(Date.now() - 25 * 60_000).toISOString();
+    const answers = { [GENDER_ID]: { optionIds: ['non-binary'], other: '', text: '' }, [AGE_ID]: { optionIds: ['25-34'], other: '', text: '' } };
+    localStorage.setItem('anotoki-survey:draft:s1:p1', JSON.stringify({ stepIndex: 0, answers, startedAt, savedAt: startedAt }));
+    await open();
+    await click('anotoki-alert .anotoki-alert__actions button');
+
+    expect(text('.where')).toBe('Krok 1 / 3');
+    expect(Array.from(blocks()[0].querySelectorAll('.label')).map((label) => label.textContent)).toEqual(['Muž', 'Žena', 'Nechcem uviesť']);
+    expect(blocks()[0].querySelectorAll('input:checked')).toHaveLength(0);
+    expect(blocks()[1].querySelector<HTMLInputElement>('input[value="25-34"]')?.checked).toBe(true);
+    await next();
+    expect(texts('.error span')).toEqual(['Vyberte, prosím, odpoveď.']);
+    expect(text('.where')).toBe('Krok 1 / 3');
   });
 
   it('says why a survey cannot be taken: not open yet, or closed - with the day', async () => {

@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input } from '@an
 import { IconComponent } from '@anotoki/lib/ui/icon';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { AGE_ID, GENDER_ID } from '../../../core/survey/about-you';
-import { ABOUT_YOU_QUESTIONS } from '../../../core/survey/about-you-questions';
+import { aboutYouQuestionsFor } from '../../../core/survey/about-you-questions';
 import { isChoice } from '../../../core/survey/answer-rules';
 import { ResultFilter } from '../../../core/survey/results';
 import { numberedQuestions } from '../../../core/survey/survey-outline';
@@ -65,7 +65,8 @@ export class ResponseViewComponent {
     if (!this.survey().askAboutYou) {
       return [];
     }
-    return ABOUT_YOU_QUESTIONS.map((question) => {
+    // A gender the question no longer offers ("Non-binary", kept from before) stands among its options, chosen.
+    return aboutYouQuestionsFor(about?.gender).map((question) => {
       const key = question.id === GENDER_ID ? about?.gender : question.id === AGE_ID ? about?.age : undefined;
       return { question, number: null, answer: key ? { optionIds: [key], other: '', text: '' } : undefined, removed: 0 };
     });

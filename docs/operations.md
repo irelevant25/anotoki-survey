@@ -291,6 +291,13 @@ survey without its steps' text and pictures, and its pages would show a step
 of text alone empty. Fix forward. (A step such a release saved all the same is
 read as having neither - `surveyContent()` - so nothing fails on it; what it
 dropped is gone.)
+It brings `017_non_binary_no_longer_offered.sql` too (the owner's decision of
+2026-10-20): the "About you" gender question offers Male, Female and Prefer
+not to say. The string of "Non-binary" goes and no answer changes - the
+results, a person's survey and the CSV show the ones that said it under that
+label. After the upload, the About-you step offers the three. No release from
+before 017 goes on the host after it either: it would offer "Non-binary"
+again, under its bare key.
 
 A **release** adds its entry at the top of `frontend/public/changelog.json` -
 what changed for people, in English and its whole formal-Slovak translation

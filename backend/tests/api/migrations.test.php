@@ -38,6 +38,8 @@ const FILE_006 = '006_visitors.sql';
 const FILE_011 = '011_people.sql';
 /** A step's own text and pictures: every survey kept before it gets them, empty - and nothing else of it changes. */
 const FILE_016 = '016_step_text_and_pictures.sql';
+/** "Non-binary" no longer offered: its string goes - and no answer that said it changes. */
+const FILE_017 = '017_non_binary_no_longer_offered.sql';
 /** The anotoki library's words: a file of its set, recorded with the set's name. */
 const LIBRARY_002 = ['set' => 'anotoki_translations', 'name' => '002_library_words.sql'];
 
@@ -605,6 +607,51 @@ test('016 on surveys kept before steps had their own text: each step gets no tex
     assert_same(['applied' => [file_entry(FILE_016)], 'failed' => null, 'error' => null, 'note' => 'BACKUP'], applied($again['body']));
     assert_same($after, $rows());
     dbExec('DELETE FROM surveys WHERE id IN (?, ?)', [$two, $none]);
+});
+
+test('017: "Non-binary" no longer offered - its string goes, a reworded one too, and an answer that said it stays as it was, the database still taking it', function (): void {
+    current_again();
+    // As before 017: the key and its two strings - the English as 003 wrote it, the Slovak reworded since.
+    dbExec("INSERT INTO translation_keys (name, description) VALUES ('aboutYou.gender.non-binary', 'About-you step, an answer to the gender question. The last segment is the server''s value.')");
+    dbExec("INSERT INTO translations (key_name, language_code, value) VALUES ('aboutYou.gender.non-binary', 'en', 'Non-binary'), ('aboutYou.gender.non-binary', 'sk', 'Nebinárny')");
+    // And an answer sent with it, while the question offered it.
+    as_user(PAT, 'GET', '/api/surveys');
+    $survey = (string) dbValue("INSERT INTO surveys (slug, title, status, content) VALUES ('before-017', 'Before', 'open', ?::jsonb) RETURNING id", [
+        jsonText(['intro' => '', 'thanks' => '', 'askAboutYou' => true, 'steps' => [], 'language' => 'en', 'translations' => new stdClass()]),
+    ]);
+    $kept = (string) dbValue("INSERT INTO responses (survey_id, user_id, gender, age, answers, started_at) VALUES (?, ?, 'non-binary', '25-34', '{}', now() - interval '5 minutes') RETURNING id", [
+        $survey,
+        PAT,
+    ]);
+    $answer = static fn(): array => dbOne('SELECT gender, age, answers::text AS answers, submitted_at FROM responses WHERE id = ?', [$kept]);
+    $before = $answer();
+    behind(FILE_017);
+    assert_same([FILE_017], pending_now());
+
+    $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
+    assert_same([200, ['applied' => [file_entry(FILE_017)], 'failed' => null, 'error' => null, 'note' => 'BACKUP']], [$apply['status'], applied($apply['body'])]);
+    assert_same(
+        [0, 0],
+        [
+            (int) dbValue("SELECT count(*) FROM translation_keys WHERE name = 'aboutYou.gender.non-binary'"),
+            (int) dbValue("SELECT count(*) FROM translations WHERE key_name = 'aboutYou.gender.non-binary'"),
+        ],
+        'no key, no string - the reworded one neither',
+    );
+    assert_same(3, (int) dbValue("SELECT count(*) FROM translation_keys WHERE name LIKE 'aboutYou.gender.%'"), 'the three the question offers stay');
+
+    // The answer is as it was - and the database takes the value still: its CHECK holds every answer kept with it.
+    assert_same($before, $answer());
+    dbExec("UPDATE responses SET gender = 'non-binary' WHERE id = ?", [$kept]);
+    $results = as_user(ADA, 'GET', "/api/admin/surveys/$survey/responses");
+    assert_same([200, ['gender' => 'non-binary', 'age' => '25-34']], [$results['status'], $results['body']['responses'][0]['aboutYou'] ?? null], test_show($results['body']));
+
+    // Applied again over what it did: nothing to delete, and its gate passes.
+    behind(FILE_017);
+    $again = as_user(ADA, 'POST', '/api/admin/migrations/apply');
+    assert_same(['applied' => [file_entry(FILE_017)], 'failed' => null, 'error' => null, 'note' => 'BACKUP'], applied($again['body']));
+    assert_same($before, $answer());
+    dbExec('DELETE FROM surveys WHERE id = ?', [$survey]);
 });
 
 test('a database waiting for 006: the surveys are closed for nobody, a visitor key or a person alike - nor the move at sign-in', function (): void {

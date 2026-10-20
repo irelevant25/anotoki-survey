@@ -28,7 +28,8 @@ export const DYNAMIC_KEYS: Record<string, readonly string[]> = {
   // The answers of the About-you step, as aboutYouQuestions() asks for them
   // (core/survey/about-you-questions.ts): the keys of GENDERS and AGES
   // (core/survey/about-you.ts), verbatim - the server's SURVEY_GENDERS and SURVEY_AGES.
-  'aboutYou.gender.': ['male', 'female', 'non-binary', 'undisclosed'],
+  // The answers the step offers, that is: "Non-binary", no longer offered, has no string.
+  'aboutYou.gender.': ['male', 'female', 'undisclosed'],
   'aboutYou.age.': ['under-18', '18-24', '25-34', '35-44', '45-plus', 'undisclosed'],
   // The kinds choiceRule() and answerProblem() return (core/survey/answer-rules.ts), worded by
   // answer-words.ts. Every kind with a number is a plural family: its keys end in .one, .few, .other.

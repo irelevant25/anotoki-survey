@@ -392,7 +392,7 @@ function onScale(random: Random, centre: number, spread = 0.9): number {
 }
 
 function aboutYouOf(random: Random, ageWeights: readonly number[]): { gender: GenderKey; age: AgeKey } {
-  return { gender: GENDERS[weightedIndex(random, [0.5, 0.38, 0.05, 0.07])].key, age: AGES[weightedIndex(random, ageWeights)].key };
+  return { gender: GENDERS[weightedIndex(random, [0.5, 0.38, 0.12])].key, age: AGES[weightedIndex(random, ageWeights)].key };
 }
 
 /** Collects a person's answers by question. */

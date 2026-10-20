@@ -14,14 +14,30 @@
  * in about-you-questions.ts; the list in core/i18n/dynamic-keys.ts) - so a
  * key added or renamed here needs its strings, and the same on the server
  * (SURVEY_GENDERS, SURVEY_AGES).
+ *
+ * The gender question offered "Non-binary" too until the owner's decision of
+ * 2026-10-20: it offers Male, Female and Prefer not to say. An answer sent
+ * before keeps what it said - the server takes only the three in a new answer
+ * and never rewrites a kept one - and the admin area shows a kept
+ * "Non-binary" under its label: counted in the results, a filter of its own,
+ * in a person's survey and the CSV. ALL_GENDERS is every answer the question
+ * has had, in its order; GENDERS the ones it offers - the only ones with
+ * strings, for only the page a person answers on says them.
  */
 
-export const GENDERS = [
-  { key: 'male', label: 'Male' },
-  { key: 'female', label: 'Female' },
-  { key: 'non-binary', label: 'Non-binary' },
-  { key: 'undisclosed', label: 'Prefer not to say' },
+/** Every answer the gender question has had, in its order, and whether it offers it now. */
+export const ALL_GENDERS = [
+  { key: 'male', label: 'Male', offered: true },
+  { key: 'female', label: 'Female', offered: true },
+  { key: 'non-binary', label: 'Non-binary', offered: false },
+  { key: 'undisclosed', label: 'Prefer not to say', offered: true },
 ] as const;
+
+type Gender = (typeof ALL_GENDERS)[number];
+type OfferedGender = Extract<Gender, { offered: true }>;
+
+/** The answers the gender question offers - all a new answer may be - in its order. */
+export const GENDERS: readonly OfferedGender[] = ALL_GENDERS.filter((gender): gender is OfferedGender => gender.offered);
 
 export const AGES = [
   { key: 'under-18', label: 'Under 18' },
@@ -32,7 +48,10 @@ export const AGES = [
   { key: 'undisclosed', label: 'Prefer not to say' },
 ] as const;
 
-export type GenderKey = (typeof GENDERS)[number]['key'];
+/** What a kept answer may say: an answer the question offers, or one it offered before. */
+export type GenderKey = Gender['key'];
+/** What a new answer may say. */
+export type OfferedGenderKey = OfferedGender['key'];
 export type AgeKey = (typeof AGES)[number]['key'];
 
 export const GENDER_QUESTION = 'What is your gender?';
@@ -42,15 +61,17 @@ export const AGE_QUESTION = 'How old are you?';
 export const GENDER_ID = 'about-gender';
 export const AGE_ID = 'about-age';
 
+/** A kept answer's label - one the question no longer offers too ("Non-binary"). */
 export function genderLabel(key: string): string {
-  return GENDERS.find((gender) => gender.key === key)?.label ?? key;
+  return ALL_GENDERS.find((gender) => gender.key === key)?.label ?? key;
 }
 
 export function ageLabel(key: string): string {
   return AGES.find((age) => age.key === key)?.label ?? key;
 }
 
-export function isGenderKey(key: string): key is GenderKey {
+/** Whether a new answer may say it: an answer the question offers now. */
+export function isOfferedGender(key: string): key is OfferedGenderKey {
   return GENDERS.some((gender) => gender.key === key);
 }
 

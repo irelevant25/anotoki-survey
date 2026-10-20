@@ -982,6 +982,11 @@ it. What was chosen:
   so since 016); the editor is the admin panel's English. No version yet: the
   next release adds its entry to What's new.
 
+**"Non-binary" is no longer offered (the owner, 2026-10-20).** The "About you"
+gender question offers Male, Female and Prefer not to say. A new answer cannot
+say "Non-binary"; the answers sent before keep it, unchanged, and the results,
+a person's survey, the filters and the CSV show it under its label.
+
 ## Languages
 
 The first five are the owner's, made before any of it was built.

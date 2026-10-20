@@ -259,6 +259,13 @@ test('taking it: people signed in look, and answer - once', function (): void {
     assert_same('Question 1: Please choose an answer.', $missing['body']['error']);
     $noAge = as_user(PAT, 'POST', '/api/surveys/genshin-1-0/responses', ['aboutYou' => ['gender' => 'female', 'age' => '99']] + $answers);
     assert_same('about-age', $noAge['body']['questionId'] ?? null);
+    // "Non-binary", which the gender question no longer offers (the owner's decision of 2026-10-20): refused in a new
+    // answer as any value it does not have. Answers kept with it stay (migrations.test.php, 017).
+    $nonBinary = as_user(PAT, 'POST', '/api/surveys/genshin-1-0/responses', ['aboutYou' => ['gender' => 'non-binary', 'age' => '25-34']] + $answers);
+    assert_same(
+        [422, 'invalid_answer', 'about-gender', 'Please choose an answer.'],
+        [$nonBinary['status'], $nonBinary['body']['code'] ?? null, $nonBinary['body']['questionId'] ?? null, $nonBinary['body']['error'] ?? null],
+    );
     $long = as_user(PAT, 'POST', '/api/surveys/genshin-1-0/responses', ['answers' => ['q-element' => ['optionIds' => ['o-anemo']], 'q-words' => ['text' => str_repeat('x', 201)]]] + $answers);
     assert_same('Question 2: Please keep it under 200 characters.', $long['body']['error']);
 

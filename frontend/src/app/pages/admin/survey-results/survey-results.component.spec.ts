@@ -4,6 +4,7 @@ import { Router, provideRouter } from '@angular/router';
 import { AdminStore } from '../../../core/admin/admin-store.service';
 import { AuthService } from '../../../core/auth/auth.service';
 import { newStep, newSurvey } from '../../../core/survey/survey-factory';
+import { SurveyResponse } from '../../../core/survey/survey.model';
 import { answersOf } from '../../../core/testing/answers-of';
 import { SurveyResultsComponent } from './survey-results.component';
 
@@ -175,5 +176,90 @@ describe('SurveyResultsComponent: a step of text alone', () => {
     expect(steps).toEqual(['Step 1 About them', 'Step 3 How it went']);
     expect(host.querySelectorAll('app-choice-result')).toHaveLength(1);
     expect(host.textContent).not.toContain('Try the genshin site');
+  });
+});
+
+describe('SurveyResultsComponent: a gender the question no longer offers', () => {
+  let fixture: ComponentFixture<SurveyResultsComponent> | null = null;
+
+  afterEach(() => {
+    fixture?.destroy();
+    fixture = null;
+  });
+
+  /** Zuzka's answers kept with "Non-binary" - sent before 2026-10-20 - and a visitor's with "Female", the page given `inputs`. */
+  async function show(inputs: Record<string, string> = {}): Promise<HTMLElement> {
+    const survey = { ...newSurvey([]), id: 's1', askAboutYou: true };
+    const responses: SurveyResponse[] = [
+      { ...answersOf('r1', 'Zuzka', false), aboutYou: { gender: 'non-binary', age: '25-34' } },
+      { ...answersOf('r2', 'Visitor 3', true), aboutYou: { gender: 'female', age: '18-24' } },
+    ];
+    const store = {
+      survey: () => survey,
+      loadError: () => null,
+      responses: () => responses,
+      responsesError: () => null,
+      responseCount: () => responses.length,
+      summaries: signal([]),
+      languages: signal([]),
+      saveStatus: () => ({ state: 'saved', message: null, theirs: null }),
+      load: () => Promise.resolve(),
+      loadSummaries: () => Promise.resolve(),
+      loadResponses: () => Promise.resolve(),
+    };
+    TestBed.configureTestingModule({
+      providers: [provideRouter([]), { provide: AdminStore, useValue: store }, { provide: AuthService, useValue: { isAdmin: () => false, preferences: () => null } }],
+    });
+    fixture = TestBed.createComponent(SurveyResultsComponent);
+    fixture.componentRef.setInput('surveyId', 's1');
+    for (const [name, value] of Object.entries(inputs)) {
+      fixture.componentRef.setInput(name, value);
+    }
+    await fixture.whenStable();
+    return fixture.nativeElement as HTMLElement;
+  }
+
+  /** The gender bars of the summary - the first part of "About them": each label and its count. */
+  const genderBars = (host: HTMLElement) =>
+    [...host.querySelector('#results-panel-summary .about-part')!.querySelectorAll('.row')].map((row) => [
+      row.querySelector('.label-text')?.textContent?.trim(),
+      row.querySelector('.numbers strong')?.textContent,
+    ]);
+
+  it('counts it under its label in the summary, in its old place: the gender bars add up to everybody who answered', async () => {
+    expect(genderBars(await show())).toEqual([
+      ['Male', '0'],
+      ['Female', '1'],
+      ['Non-binary', '1'],
+      ['Prefer not to say', '0'],
+    ]);
+  });
+
+  it('names it in the list of people', async () => {
+    const host = await show({ tab: 'people' });
+    expect([...host.querySelectorAll('tbody td[data-label="Gender"]')].map((cell) => cell.textContent?.trim())).toEqual(['Non-binary', 'Female']);
+  });
+
+  it('is a filter said in words, and the people who chose it are counted against everybody who answered', async () => {
+    const narrowed = await show({ filter: 'about-gender:non-binary' });
+    expect([...narrowed.querySelectorAll('.anotoki-chip-list__label')].map((label) => label.textContent?.trim())).toEqual(['Gender: Non-binary']);
+    expect(genderBars(narrowed)).toEqual([
+      ['Male', '0'],
+      ['Female', '0'],
+      ['Non-binary', '1'],
+      ['Prefer not to say', '0'],
+    ]);
+    fixture!.destroy();
+    TestBed.resetTestingModule();
+
+    const chose = await show({ chose: 'about-gender:non-binary' });
+    expect(chose.querySelector('anotoki-drawer .anotoki-drawer__title')?.textContent?.trim()).toBe('Chose “Non-binary”');
+    expect(chose.querySelector('anotoki-drawer .anotoki-drawer__subtitle')?.textContent?.trim()).toBe('Gender · 1 of the 2 who answered it');
+  });
+
+  it('leaves out a filter for a gender no answer has ever had: no chip, nobody narrowed away', async () => {
+    const host = await show({ filter: 'about-gender:nope' });
+    expect(host.querySelectorAll('.anotoki-chip-list__label')).toHaveLength(0);
+    expect(genderBars(host).map(([, count]) => count)).toEqual(['0', '1', '1', '0']);
   });
 });

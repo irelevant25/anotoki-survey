@@ -1,10 +1,11 @@
 import { exampleData } from '../testing/example-data';
-import { AGE_ID, GENDER_ID } from './about-you';
+import { AGE_ID, GENDER_ID, GenderKey } from './about-you';
 import { ABOUT_YOU_QUESTIONS } from './about-you-questions';
 import { answerProblem } from './answer-rules';
 import { responsesCsv } from './csv';
 import { aboutYouSummary, choiceSummary, describeFilter, filterResponses, medianDuration, writtenAnswers } from './results';
 import { numberedQuestions } from './survey-outline';
+import { SurveyResponse } from './survey.model';
 
 // A fixed "now", so the example data is the same on every run.
 const NOW = Date.parse('2026-09-29T12:00:00Z');
@@ -87,6 +88,45 @@ describe('results', () => {
   it('takes the median time', () => {
     expect(medianDuration([])).toBeNull();
     expect(medianDuration(genshinResponses)).toBeGreaterThan(0);
+  });
+});
+
+/** Somebody's answers to the Genshin survey, their gender `gender` - "non-binary" as kept from before 2026-10-20. */
+function keptWith(id: string, gender: GenderKey): SurveyResponse {
+  return { ...genshinResponses[0], id, person: { ...genshinResponses[0].person, id: `p-${id}`, name: `Person ${id}` }, aboutYou: { gender, age: '25-34' } };
+}
+
+describe('an answer kept with "Non-binary", which the gender question no longer offers', () => {
+  it('is counted under its label - a bar only where somebody gave it - so the bars still add up to everybody who answered', () => {
+    const about = aboutYouSummary([keptWith('a', 'non-binary'), keptWith('b', 'female'), keptWith('c', 'female')]);
+    expect(about.gender.map((tally) => [tally.key, tally.label, tally.count])).toEqual([
+      ['male', 'Male', 0],
+      ['female', 'Female', 2],
+      ['non-binary', 'Non-binary', 1],
+      ['undisclosed', 'Prefer not to say', 0],
+    ]);
+    const kept = about.gender.find((tally) => tally.key === 'non-binary')!;
+    expect([kept.share, kept.responseIds]).toEqual([1 / 3, ['a']]);
+    expect(about.gender.reduce((sum, tally) => sum + tally.count, 0)).toBe(about.answered);
+
+    // Nobody said it: the question's three, as it offers them.
+    expect(aboutYouSummary([keptWith('b', 'female')]).gender.map((tally) => tally.label)).toEqual(['Male', 'Female', 'Prefer not to say']);
+  });
+
+  it('is a filter of its own, said in words - and a gender or an age no answer has ever had is no filter', () => {
+    const filter = { questionId: GENDER_ID, optionId: 'non-binary' };
+    expect(describeFilter(genshin, filter)).toEqual({ question: 'Gender', answer: 'Non-binary' });
+    expect(filterResponses([keptWith('a', 'non-binary'), keptWith('b', 'female')], [filter]).map((response) => response.id)).toEqual(['a']);
+    expect(describeFilter(genshin, { questionId: GENDER_ID, optionId: 'nope' })).toBeNull();
+    expect(describeFilter(genshin, { questionId: AGE_ID, optionId: 'nope' })).toBeNull();
+  });
+
+  it('is in the CSV under its label', () => {
+    const lines = responsesCsv(genshin, [keptWith('a', 'non-binary'), keptWith('b', 'undisclosed')])
+      .trim()
+      .split('\r\n');
+    expect(lines[1]).toContain(',"Person a","Non-binary","25–34",');
+    expect(lines[2]).toContain(',"Person b","Prefer not to say","25–34",');
   });
 });
 

@@ -1,6 +1,6 @@
 import { DYNAMIC_KEYS } from '../i18n/dynamic-keys';
-import { AGES, AGE_ID, GENDERS, GENDER_ID } from './about-you';
-import { ABOUT_YOU_QUESTIONS, aboutYouQuestions } from './about-you-questions';
+import { AGES, AGE_ID, ALL_GENDERS, GENDERS, GENDER_ID, genderLabel, isOfferedGender } from './about-you';
+import { ABOUT_YOU_QUESTIONS, aboutYouQuestions, aboutYouQuestionsFor } from './about-you-questions';
 import { plainText } from './plain-text';
 
 const SLOVAK: Record<string, string> = {
@@ -8,7 +8,6 @@ const SLOVAK: Record<string, string> = {
   'aboutYou.ageQuestion': 'Koľko máte rokov?',
   'aboutYou.gender.male': 'Muž',
   'aboutYou.gender.female': 'Žena',
-  'aboutYou.gender.non-binary': 'Nebinárne',
   'aboutYou.gender.undisclosed': 'Nechcem uviesť',
   'aboutYou.age.under-18': 'Menej ako 18',
   'aboutYou.age.18-24': '18–24',
@@ -22,7 +21,7 @@ describe('ABOUT_YOU_QUESTIONS', () => {
   it('stays English, for the admin area', () => {
     const [gender, age] = ABOUT_YOU_QUESTIONS;
     expect(gender.text).toBe('<p>What is your gender?</p>');
-    expect(gender.options.map((option) => option.label)).toEqual(['Male', 'Female', 'Non-binary', 'Prefer not to say']);
+    expect(gender.options.map((option) => option.label)).toEqual(['Male', 'Female', 'Prefer not to say']);
     expect(age.text).toBe('<p>How old are you?</p>');
     expect(age.options.map((option) => option.label)).toEqual(['Under 18', '18–24', '25–34', '35–44', '45 or older', 'Prefer not to say']);
   });
@@ -36,7 +35,7 @@ describe('aboutYouQuestions', () => {
       return SLOVAK[key] ?? key;
     });
     expect(plainText(gender.text)).toBe('Aké je Vaše pohlavie?');
-    expect(gender.options.map((option) => option.label)).toEqual(['Muž', 'Žena', 'Nebinárne', 'Nechcem uviesť']);
+    expect(gender.options.map((option) => option.label)).toEqual(['Muž', 'Žena', 'Nechcem uviesť']);
     expect(plainText(age.text)).toBe('Koľko máte rokov?');
     expect(age.options.map((option) => option.label)).toEqual(['Menej ako 18', '18–24', '25–34', '35–44', '45 a viac', 'Nechcem uviesť']);
     expect([...asked].sort()).toEqual(Object.keys(SLOVAK).sort());
@@ -65,5 +64,37 @@ describe('aboutYouQuestions', () => {
   it('asks only for keys the key scan is told about', () => {
     expect(DYNAMIC_KEYS['aboutYou.gender.']).toEqual(GENDERS.map((gender) => gender.key));
     expect(DYNAMIC_KEYS['aboutYou.age.']).toEqual(AGES.map((age) => age.key));
+  });
+});
+
+describe('the gender question’s answers (the owner’s decision of 2026-10-20)', () => {
+  it('offers three, in this order - "Non-binary" no more: a new answer may not say it', () => {
+    expect(GENDERS.map((gender) => [gender.key, gender.label])).toEqual([
+      ['male', 'Male'],
+      ['female', 'Female'],
+      ['undisclosed', 'Prefer not to say'],
+    ]);
+    expect(isOfferedGender('non-binary')).toBe(false);
+    expect(GENDERS.every((gender) => isOfferedGender(gender.key))).toBe(true);
+  });
+
+  it('keeps "Non-binary" for the answers that said it: its label, in its old place among every answer the question has had', () => {
+    expect(ALL_GENDERS.map((gender) => gender.key)).toEqual(['male', 'female', 'non-binary', 'undisclosed']);
+    expect(genderLabel('non-binary')).toBe('Non-binary');
+  });
+
+  it('puts a kept "Non-binary" among the options in one person’s survey - where it stood - and leaves the questions as they are for every other answer', () => {
+    const [gender, age] = aboutYouQuestionsFor('non-binary');
+    expect(gender.options.map((option) => [option.id, option.label])).toEqual([
+      ['male', 'Male'],
+      ['female', 'Female'],
+      ['non-binary', 'Non-binary'],
+      ['undisclosed', 'Prefer not to say'],
+    ]);
+    expect({ ...gender, options: [] }).toEqual({ ...ABOUT_YOU_QUESTIONS[0], options: [] });
+    expect(age).toBe(ABOUT_YOU_QUESTIONS[1]);
+    for (const other of ['female', 'undisclosed', null, undefined, 'nope']) {
+      expect(aboutYouQuestionsFor(other)).toBe(ABOUT_YOU_QUESTIONS);
+    }
   });
 });

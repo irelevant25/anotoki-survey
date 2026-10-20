@@ -1,4 +1,4 @@
-import { AGES, AGE_ID, GENDERS, GENDER_ID, ageLabel, genderLabel } from './about-you';
+import { AGES, AGE_ID, ALL_GENDERS, GENDER_ID } from './about-you';
 import { plainText } from './plain-text';
 import { numberedQuestions } from './survey-outline';
 import { Person, Question, Survey, SurveyImage, SurveyResponse } from './survey.model';
@@ -121,8 +121,14 @@ export interface AboutYouSummary {
   age: Tally[];
 }
 
+/**
+ * Gender and age, counted. Every answer the gender question has had is counted
+ * under its label - one it no longer offers ("Non-binary", kept from before
+ * 2026-10-20) like the rest - and that one has a bar only where somebody gave
+ * it, so the bars always add up to the people who answered.
+ */
 export function aboutYouSummary(responses: readonly SurveyResponse[]): AboutYouSummary {
-  const gender = GENDERS.map((item): Tally => ({ key: item.key, label: item.label, other: false, image: null, count: 0, share: 0, responseIds: [] }));
+  const gender = ALL_GENDERS.map((item): Tally => ({ key: item.key, label: item.label, other: false, image: null, count: 0, share: 0, responseIds: [] }));
   const age = AGES.map((item): Tally => ({ key: item.key, label: item.label, other: false, image: null, count: 0, share: 0, responseIds: [] }));
   let answered = 0;
   for (const response of responses) {
@@ -144,16 +150,22 @@ export function aboutYouSummary(responses: readonly SurveyResponse[]): AboutYouS
   for (const tally of [...gender, ...age]) {
     tally.share = answered ? tally.count / answered : 0;
   }
-  return { answered, gender, age };
+  return { answered, gender: gender.filter((tally, index) => ALL_GENDERS[index].offered || tally.count > 0), age };
 }
 
-/** What a filter means, in words: the question and the answer. */
+/**
+ * What a filter means, in words: the question and the answer. Null for one
+ * that means nothing - an option the question does not have, a gender or an
+ * age no answer has ever had - which the page then leaves out.
+ */
 export function describeFilter(survey: Survey, filter: ResultFilter): { question: string; answer: string } | null {
   if (filter.questionId === GENDER_ID) {
-    return { question: 'Gender', answer: genderLabel(filter.optionId) };
+    const gender = ALL_GENDERS.find((item) => item.key === filter.optionId);
+    return gender ? { question: 'Gender', answer: gender.label } : null;
   }
   if (filter.questionId === AGE_ID) {
-    return { question: 'Age', answer: ageLabel(filter.optionId) };
+    const age = AGES.find((item) => item.key === filter.optionId);
+    return age ? { question: 'Age', answer: age.label } : null;
   }
   const found = numberedQuestions(survey).find((item) => item.question.id === filter.questionId);
   const option = found?.question.options.find((item) => item.id === filter.optionId);

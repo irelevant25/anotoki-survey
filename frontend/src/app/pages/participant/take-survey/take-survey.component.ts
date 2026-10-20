@@ -12,7 +12,7 @@ import { ApiError, ApiService, ParticipantSurvey, toApiError } from '../../../co
 import { AuthService } from '../../../core/auth/auth.service';
 import { VisitorKey } from '../../../core/auth/visitor-key';
 import { LocalDatePipe } from '../../../core/i18n/local-date.pipe';
-import { AGE_ID, GENDER_ID, isAgeKey, isGenderKey } from '../../../core/survey/about-you';
+import { AGE_ID, GENDER_ID, isAgeKey, isOfferedGender } from '../../../core/survey/about-you';
 import { aboutYouQuestions } from '../../../core/survey/about-you-questions';
 import { AnswerProblem, answerProblem, cleanAnswer } from '../../../core/survey/answer-rules';
 import { Draft, adoptVisitorDraft, clearDraft, readDraft, writeDraft } from '../../../core/survey/drafts';
@@ -507,7 +507,7 @@ export class TakeSurveyComponent {
     }
     const gender = answers[GENDER_ID]?.optionIds[0] ?? '';
     const age = answers[AGE_ID]?.optionIds[0] ?? '';
-    const aboutYou: AboutYou | null = survey.askAboutYou && isGenderKey(gender) && isAgeKey(age) ? { gender, age } : null;
+    const aboutYou: AboutYou | null = survey.askAboutYou && isOfferedGender(gender) && isAgeKey(age) ? { gender, age } : null;
     const now = new Date().toISOString();
     const response: SurveyResponse = {
       id: newId(),

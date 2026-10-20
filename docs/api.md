@@ -206,6 +206,15 @@ Sending answers is refused with:
 | 422 `invalid_answer` + `questionId` | an answer not good enough, in the page's words: "Question 2: Please choose an answer." (`about-gender`, `about-age` for those) - or not an answer at all (a list for a choice, a number for text) |
 | 429 `too_many_visitors` | nobody's answers, past a limit on new visitors (`Retry-After: 3600`): sign in, or try later |
 
+`aboutYou` is required while the survey asks about the person
+(`askAboutYou`), and ignored otherwise: `gender` is `male`, `female` or
+`undisclosed` ("Prefer not to say"), `age` is `under-18`, `18-24`, `25-34`,
+`35-44`, `45-plus` or `undisclosed`. Anything else is 422 `invalid_answer` on
+`about-gender` or `about-age` - `non-binary` too: the gender question offered
+it until 2026-10-20 (the owner's decision), and answers sent before keep it,
+unchanged, so `aboutYou.gender` in the results
+(`GET /api/admin/surveys/{id}/responses`) may still say `non-binary`.
+
 `startedAt` is the browser's (toISOString); a time in the future is taken as
 now, one before the survey opened as its opening. Control characters in the
 words (a soft line break pasted from a word processor) are dropped, tabs and

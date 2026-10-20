@@ -1,4 +1,4 @@
-import { AGES, AGE_ID, AGE_QUESTION, GENDERS, GENDER_ID, GENDER_QUESTION } from './about-you';
+import { AGES, AGE_ID, AGE_QUESTION, ALL_GENDERS, GENDERS, GENDER_ID, GENDER_QUESTION } from './about-you';
 import { escapeHtml } from './plain-text';
 import { Question } from './survey.model';
 
@@ -34,6 +34,26 @@ function fixedQuestion(id: string, text: string, options: readonly { key: string
  * aboutYouQuestions().
  */
 export const ABOUT_YOU_QUESTIONS: readonly Question[] = [fixedQuestion(GENDER_ID, GENDER_QUESTION, GENDERS), fixedQuestion(AGE_ID, AGE_QUESTION, AGES)];
+
+/**
+ * ABOUT_YOU_QUESTIONS as one person's answers read them: when their gender is
+ * an answer the question no longer offers (a kept "Non-binary"), it stands
+ * among the options in its old place, under its label - so a person's survey
+ * shows what they chose. Otherwise the questions as they are.
+ */
+export function aboutYouQuestionsFor(gender: string | null | undefined): readonly Question[] {
+  if (!ALL_GENDERS.some((item) => item.key === gender && !item.offered)) {
+    return ABOUT_YOU_QUESTIONS;
+  }
+  return [
+    fixedQuestion(
+      GENDER_ID,
+      GENDER_QUESTION,
+      ALL_GENDERS.filter((item) => item.offered || item.key === gender),
+    ),
+    ABOUT_YOU_QUESTIONS[1],
+  ];
+}
 
 /**
  * The same two questions in the reader's language, for the page a person
