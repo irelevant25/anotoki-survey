@@ -340,6 +340,12 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   Once 016 is applied no release from before it goes on the host again -
   `rollback` included, whatever the surveys hold: its editor would save a
   survey without its steps' text and pictures. Fix forward.
+- **The gender question offers Male, Female and Prefer not to say** (the
+  owner's decision of 2026-10-20; migration 017): `GENDERS` and
+  `SURVEY_GENDERS` are what a new answer may say. An answer sent with
+  `non-binary` before keeps it - never rewritten, and the responses' CHECK in
+  001 still holds it - and the admin panel shows it under its label
+  (`ALL_GENDERS`): in the results, the filters, a person's survey and the CSV.
 - **The site's own words are in the database** (`languages`, `translation_keys`,
   `translations`), English and Slovak - kept by the anotoki family's
   translations module (anotoki-lib 0.3.0 and later, the owner's decision; `docs/decisions.md`):

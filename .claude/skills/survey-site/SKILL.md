@@ -161,7 +161,9 @@ backend/
                            fact, legal.feedback.kept, and What's new's six words, whatsNew.*; 016
                            every step's own text and pictures - "" and [] on each step kept before,
                            nothing else of a survey changed, its revision and updated_at neither -
-                           and question.showLarge*'s descriptions naming a step's pictures)
+                           and question.showLarge*'s descriptions naming a step's pictures; 017
+                           aboutYou.gender.non-binary deleted - the gender question offers Male,
+                           Female and Prefer not to say -, no answer changed)
   setup.php                the installer (this computer: nonce, re-runnable; a host: token, lock, self-delete)
   router.php               php -S behaving like the hosting's Apache (+ the built app)
   translations.php         command line only, never uploaded - the library's TranslationsCommand:
@@ -532,8 +534,12 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   `answerClean()`; `survey-problems.ts` ↔ `surveyProblems()` (same sentences,
   same order, the translations' too); `localize.ts` ↔ `surveyTranslationGaps()`
   / `surveyTranslationFromBody()`; `RESERVED_SLUGS` ↔ `SURVEY_RESERVED_SLUGS`;
-  `about-you.ts` ↔ `SURVEY_GENDERS` / `SURVEY_AGES`, the CHECKs in migration 001
-  and the tails of `aboutYou.gender.*` / `aboutYou.age.*`; `MAX_UPLOAD_BYTES` ↔
+  `about-you.ts` (`GENDERS`, what the gender question offers, and `AGES`) ↔
+  `SURVEY_GENDERS` / `SURVEY_AGES` and the tails of `aboutYou.gender.*` /
+  `aboutYou.age.*`; the CHECKs in migration 001 hold those and `non-binary`
+  too - offered until 2026-10-20, refused in a new answer since, never
+  rewritten in a kept one, which the admin panel labels from `ALL_GENDERS`
+  (results, filters, a person's survey, the CSV); `MAX_UPLOAD_BYTES` ↔
   `IMAGE_MAX_BYTES`; and **what a space is**: the browser's `trim()` / `\s` ↔
   `TEXT_SPACE` in `api/helpers.php` (`textTrim()`, `richTextPlain()`),
   character for character - never `\s` or `\p{Z}` in PHP for a survey's text

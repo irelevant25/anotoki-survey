@@ -189,6 +189,13 @@ before it goes on the host again - `rollback` included - whatever the surveys
 hold: its editor would save a survey without its steps' text and pictures.
 Fix forward. (A step such a release saved all the same is read as having
 neither, `surveyContent()`: nothing fails on it, but what it dropped is gone.)
+It brings `017_non_binary_no_longer_offered.sql` as well (the owner's decision
+of 2026-10-20): the "About you" gender question offers Male, Female and Prefer
+not to say; the string of "Non-binary" goes and no answer changes. After the
+upload the About-you step offers the three, and the results of an older survey
+still show "Non-binary" where somebody chose it. No release from before 017
+goes on the host after it either: it would offer "Non-binary" again, under its
+bare key.
 
 ## 2. Release
 
