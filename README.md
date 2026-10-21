@@ -181,7 +181,7 @@ wordmark "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (now 0.8.1, both halves:
+migrations are the shared library's, **anotoki-lib** (now 0.9.1, both halves:
 `anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and
