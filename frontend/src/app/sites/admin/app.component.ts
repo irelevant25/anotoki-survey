@@ -111,8 +111,15 @@ export class AppComponent {
   private readonly _signOut = inject(SignOut);
   private readonly _router = inject(Router);
 
-  /** The panel's name as its bar said it - "anotoki survey · admin panel", the site's words - and its home, the surveys. */
-  protected readonly brand = computed<AdminFrameBrand>(() => ({ name: `anotoki ${this._i18n.t('brand.area')} · ${this._i18n.t('brand.adminPanel')}`, path: '/admin' }));
+  /**
+   * The panel's name as its bar said it - "anotoki survey · admin panel", the site's words - and its home, the surveys.
+   * Too long for one line of the column, it breaks after the dot: the words of "admin panel" are held together by
+   * no-break spaces, as the IAM's are, so it never leaves "panel" alone on the second line.
+   */
+  protected readonly brand = computed<AdminFrameBrand>(() => ({
+    name: `anotoki ${this._i18n.t('brand.area')} · ${this._i18n.t('brand.adminPanel').replace(/ /g, ' ')}`,
+    path: '/admin',
+  }));
 
   /** Who is signed in: the name, and the token's address (the IAM's - shown, never kept by the site). */
   protected readonly person = computed<AdminFramePerson | null>(() => {
