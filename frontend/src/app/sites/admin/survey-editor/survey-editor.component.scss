@@ -31,7 +31,7 @@
 }
 
 // How far the translation is, and the way to the next text it lacks: in view
-// all the way down the survey, under the top bar.
+// all the way down the survey, at the top of the page's column (under the frame's row on a phone).
 .translating {
   position: sticky;
   top: calc(var(--anotoki-topbar-height) + 0.5rem);

@@ -51,7 +51,9 @@ src/
                                      signInFailureGuard), AuthService (the survey's face of the library's
                                      AnotokiAuth: who is signed in, the visitors, the account's
                                      preferences - theme, date order, clock - and saving them), VisitorKey
-                                     (the key - the library's VisitorKeyStore - and the move at sign-in).
+                                     (the key - the library's VisitorKeyStore - and the move at sign-in),
+                                     SignOut (the site's one Sign out - the top bar's and the admin panel's
+                                     frame's: the changes saved first, a question over what would be lost).
                                      The guards (personGuard, personOrVisitorGuard), the interceptor, the
                                      callback page and the screen of a failed sign-in are the library's
                                      (the two screens loaded as they are shown: @anotoki/lib/auth/screens)
@@ -99,10 +101,6 @@ src/
                                      among it -, its cookies and storage, who else
                                      handles data, the anotoki account's pages from the IAM's address -
                                      every address in code; given by the legal pages' frame)
-      top-bar/                       the site's wrapper over the family's bar, <anotoki-top-bar>: its brand,
-                                     sections - System with the count of feedback nobody opened yet -,
-                                     person and menu items, signing in and out; in every frame - the admin
-                                     panel's too, as its area "admin"
       not-found/                     any address the site does not know - under /admin too
       ui/                            the survey's own pieces both halves use: the lightbox, the picture,
                                      What's new (changelog-dialog) - the rest is the family's kit
@@ -117,9 +115,16 @@ src/
                                      /contact, /about and /support - anybody's, no guard - and the facts'
                                      provider); the open surveys (survey-home), a survey to take
                                      (take-survey, with question-block and survey-hero), the visitor
-                                     notice; common/ - its own pieces: the gallery of pictures under a
-                                     question's or a step's text (image-gallery)
-      admin/                         the admin panel: admin.routes.ts; admin-layout (its frame); the
+                                     notice; common/ - its own pieces: top-bar (the site's wrapper over the
+                                     family's bar, <anotoki-top-bar>: its brand, its section, person and
+                                     menu items, signing in and out - the public site's alone) and the
+                                     gallery of pictures under a question's or a step's text (image-gallery)
+      admin/                         the admin panel: admin.routes.ts; app.component (its frame, the
+                                     family's <anotoki-admin-frame>, @anotoki/lib/admin/frame: a column with
+                                     the panel's name, the person, Back to the surveys, Sign out, the theme
+                                     and its pages - System with the count of feedback nobody opened yet -,
+                                     the page on the right; on a phone a row with Menu and a drawer; the
+                                     cards for nobody signed in and no role here stand without it); the
                                      surveys, the editor, the results (a visitor: "Visitor N",
                                      "Not signed in"; nobody's address - the site keeps none);
                                      Translations and Languages are the family's pages
@@ -138,10 +143,10 @@ proxy.conf.json                      /api and /setup.php to the backend on :8500
 
 Components are three files (`.ts`, `.html`, `.scss`); colours come from the
 family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
-every page works at 390 px. The UI kit, the top bar, the theme, the site's
+every page works at 390 px. The UI kit, the top bar, the admin panel's frame, the theme, the site's
 words, signing in, the People page, the admin tools, the feedback form, the
 error reporter, the legal pages, About and Support and the footer are the anotoki family's library
-(`@anotoki/lib`, 0.9.2 - the backend's half the same), configured in
+(`@anotoki/lib`, 0.10.0 - the backend's half the same), configured in
 `app.config.ts`, `shared/kit.ts`,
 `shared/translations.ts`, `shared/auth/auth.config.ts`,
 `shared/admin/admin-tools.ts`, `shared/feedback.ts` and `shared/legal/` - never copied here; each kit piece

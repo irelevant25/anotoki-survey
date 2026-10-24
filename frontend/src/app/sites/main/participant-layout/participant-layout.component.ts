@@ -12,7 +12,7 @@ import { signInOrShowWhy } from '../../../shared/auth/auth.config';
 import { AuthService } from '../../../shared/auth/auth.service';
 import { VisitorKey } from '../../../shared/auth/visitor-key';
 import { Changelog } from '../../../shared/changelog/changelog.service';
-import { TopBarComponent } from '../../../shared/top-bar/top-bar.component';
+import { TopBarComponent } from '../common/top-bar/top-bar.component';
 
 /**
  * The frame of what people see: the top bar and the page below it - for

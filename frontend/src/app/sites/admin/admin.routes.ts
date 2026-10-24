@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 import { anotokiUnsavedChangesGuard } from '@anotoki/lib/translations';
-import { AdminLayoutComponent } from './admin-layout/admin-layout.component';
+import { AppComponent } from './app.component';
 
 /**
  * /admin: the surveys, and for each its editor, its results and each response
@@ -15,12 +15,13 @@ import { AdminLayoutComponent } from './admin-layout/admin-layout.component';
  * /backups, @anotoki/lib/migrations/page), an entry point of its own on a lazy
  * route, configured in shared/admin/admin-tools.ts and shared/migrations.ts. Each
  * says to anybody but the site's ADMIN whose it is, and asks the server
- * nothing; the server refuses them all the same.
+ * nothing; the server refuses them all the same. Every page stands in the
+ * panel's frame (app.component.ts: the family's <anotoki-admin-frame>).
  */
 export const ADMIN_ROUTES: Routes = [
   {
     path: '',
-    component: AdminLayoutComponent,
+    component: AppComponent,
     children: [
       { path: '', title: 'Surveys', loadComponent: () => import('./surveys-list/surveys-list.component').then((m) => m.SurveysListComponent) },
       { path: 'surveys/:surveyId', pathMatch: 'full', redirectTo: 'surveys/:surveyId/edit' },

@@ -1,10 +1,18 @@
+// The frame, or the page of a card and the footer under it: either way the window's height at the least.
 :host {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
   min-height: 100dvh;
-  --topbar-height: 60px;
 }
+
+// The panel's pages in the frame's page column keep the measure they always had, in its middle on a wide window.
+.page-width {
+  max-width: 84rem;
+  margin: 0 auto;
+}
+
+// ── The cards: signed out, no role here - a page of their own ─────────────
 
 .skip-link {
   position: absolute;
@@ -45,8 +53,12 @@
   }
 }
 
-// A response printed from its own page: the page, without the bar above it.
+// A response printed from its own page: the page alone - the frame leaves its column out itself.
 @media print {
+  .page-width {
+    max-width: none;
+  }
+
   .skip-link {
     display: none;
   }

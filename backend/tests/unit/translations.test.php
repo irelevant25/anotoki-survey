@@ -480,7 +480,7 @@ test('the scan as this site has it: the specs and the specs\' helpers are not re
 
 test('the scan reads the real frontend: only the files it should, and their comments are not keys', function (): void {
     $files = surveyKeyScanner()->sourceFiles();
-    assert_true(in_array('app.routes.ts', $files, true) && in_array('shared/top-bar/top-bar.component.html', $files, true), 'the sources are where the scan looks');
+    assert_true(in_array('app.routes.ts', $files, true) && in_array('sites/main/common/top-bar/top-bar.component.html', $files, true), 'the sources are where the scan looks');
     foreach ($files as $file) {
         assert_match('/\.(ts|html)$/', $file);
         assert_no_match('~\.spec\.ts$|^shared/testing/~', $file);

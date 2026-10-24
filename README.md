@@ -47,7 +47,10 @@ person by person.
   admin panel always asks).
   The top bar is the anotoki family's: the site's sections, the language, the
   theme and the person's menu (their account, the admin panel, signing out); on
-  a phone one menu button holds the sections and the person's menu. Signed in,
+  a phone one menu button holds the sections and the person's menu. The admin
+  panel has no bar: it stands in the family's frame - a column on the left (its
+  name, who is signed in, Back to the surveys, Sign out, the theme, its pages),
+  the page on the right; on a phone a row with Menu, the rest in a drawer. Signed in,
   the theme, how dates are written, the clock and the language are the
   person's anotoki account's - the same on every anotoki site, the admin panel
   included - and the bar's theme and language save a choice to the account.
@@ -123,7 +126,12 @@ On the hosting it brings `016_step_text_and_pictures.sql`, applied on the
 Migrations page ([docs/operations.md](docs/operations.md)). And the gender
 question offers Male, Female and Prefer not to say (the owner's decision of
 2026-10-20): answers sent with "Non-binary" before keep it, and the results
-show them under that label (`017_non_binary_no_longer_offered.sql`).
+show them under that label (`017_non_binary_no_longer_offered.sql`). And
+**the admin panel in the anotoki family's frame** (the owner's request of
+2026-10-24, anotoki-lib 0.10.0's `<anotoki-admin-frame>`): its pages in a
+column on the left, the page on the right, and no top bar - the bar is the
+public site's alone; on the hosting it brings `018_admin_frame.sql`, which
+retires the one string only the admin panel's bar said.
 
 **1.0** (2026-10-19, on anotoki-lib 0.8.0; its notes for people are
 `frontend/public/changelog.json`'s newest entry): the family's **About** and
@@ -177,11 +185,11 @@ page signed in first - a visitor goes to the IAM and comes back to the page
 asked for, and the API answers nothing of a survey without a token (but its
 pictures, which an `<img>` loads by their unguessable address), the admin
 area called the admin panel as on every anotoki site (the person's menu, the
-wordmark "anotoki survey · admin panel", the tab's title), the family's
+frame's name "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (now 0.9.2, both halves:
+migrations are the shared library's, **anotoki-lib** (now 0.10.0, both halves:
 `anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and

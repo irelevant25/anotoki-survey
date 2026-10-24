@@ -10,14 +10,14 @@ export interface SystemPage {
   badge?: 'feedback';
 }
 
-/** The System page itself: the top bar's one link for all of them (an ADMIN's). */
+/** The System page itself: the admin frame's one link for all of them (an ADMIN's). */
 export const SYSTEM_PATH = '/admin/system';
 
 /**
  * The ADMIN's System pages, in the order of the list: the anotoki family's
  * (admin.routes.ts) - the people, what they told the site, the logs, the
- * backups and the updates. A file of its own, so the top bar (in the first
- * load) knows their paths without the System page, which is loaded with its
+ * backups and the updates. A file of its own, so the panel's frame (the admin
+ * area's own chunk) knows their paths without the System page, which is loaded with its
  * route.
  */
 export const SYSTEM_PAGES: readonly SystemPage[] = [
@@ -45,5 +45,5 @@ export const SYSTEM_PAGES: readonly SystemPage[] = [
   { label: 'Migrations', path: '/admin/migrations', icon: 'layers', text: 'The database’s updates: what is applied, and what waits.' },
 ];
 
-/** Where the System pages are: the bar's System link stays lit on each of them. */
+/** Where the System pages are: the frame's System link stays lit on each of them. */
 export const SYSTEM_PATHS: readonly string[] = SYSTEM_PAGES.map((page) => page.path);

@@ -145,7 +145,7 @@ export function provideSiteUi(): EnvironmentProviders {
 }
 
 /**
- * The kit's shell - the theme service and switch, the language switcher of the
+ * The kit's shell - the theme service and its switch (the top bar's and the admin panel's frame's), the language switcher of the
  * top bar - wired to the anotoki account and this site's languages:
  *
  * - the theme is the account's while somebody is signed in and the IAM sends

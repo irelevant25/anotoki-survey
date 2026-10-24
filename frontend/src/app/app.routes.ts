@@ -49,7 +49,8 @@ import { MAIN_ROUTES } from './sites/main/main.routes';
  * let through all the same). While the site cannot run and the server said
  * why, they let every page through and send nobody anywhere: the family's
  * page stands instead of the pages (<anotoki-site-gate>). Who of the signed-in
- * may use the admin area - EDITOR or ADMIN - the admin layout says, and the
+ * may use the admin area - EDITOR or ADMIN - the admin panel's frame says
+ * (sites/admin/app.component.ts), and the
  * API decides.
  *
  * Each area's routes are its own: the admin panel's in

@@ -40,6 +40,8 @@ const FILE_011 = '011_people.sql';
 const FILE_016 = '016_step_text_and_pictures.sql';
 /** "Non-binary" no longer offered: its string goes - and no answer that said it changes. */
 const FILE_017 = '017_non_binary_no_longer_offered.sql';
+/** The admin panel in the family's frame: the name the top bar gave the panel's home goes. */
+const FILE_018 = '018_admin_frame.sql';
 /** The anotoki library's words: a file of its set, recorded with the set's name. */
 const LIBRARY_002 = ['set' => 'anotoki_translations', 'name' => '002_library_words.sql'];
 
@@ -652,6 +654,40 @@ test('017: "Non-binary" no longer offered - its string goes, a reworded one too,
     assert_same(['applied' => [file_entry(FILE_017)], 'failed' => null, 'error' => null, 'note' => 'BACKUP'], applied($again['body']));
     assert_same($before, $answer());
     dbExec('DELETE FROM surveys WHERE id = ?', [$survey]);
+});
+
+test('018: the admin panel in the family\'s frame - the name the top bar gave the panel\'s home goes, a reworded one too, and the words the frame says stay', function (): void {
+    current_again();
+    // As before 018: the key and its two strings - the English as 005 reworded it, the Slovak reworded since.
+    dbExec("INSERT INTO translation_keys (name, description) VALUES ('topbar.homeAdmin', 'Accessible name of the mark in the admin area''s top bar: a link to the list of all surveys.')");
+    dbExec(
+        "INSERT INTO translations (key_name, language_code, value) VALUES ('topbar.homeAdmin', 'en', 'anotoki survey admin panel: all surveys'), ('topbar.homeAdmin', 'sk', 'anotoki prieskum, administrácia: všetky prieskumy')",
+    );
+    behind(FILE_018);
+    assert_same([FILE_018], pending_now());
+
+    $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
+    assert_same([200, ['applied' => [file_entry(FILE_018)], 'failed' => null, 'error' => null, 'note' => 'BACKUP']], [$apply['status'], applied($apply['body'])]);
+    assert_same(
+        [0, 0],
+        [(int) dbValue("SELECT count(*) FROM translation_keys WHERE name = 'topbar.homeAdmin'"), (int) dbValue("SELECT count(*) FROM translations WHERE key_name = 'topbar.homeAdmin'")],
+        'no key, no string - the reworded one neither',
+    );
+    // What the frame says with the site's words stays: its name, Back, and the pages the bar linked.
+    assert_same(
+        ['brand.adminPanel', 'brand.area', 'topbar.backToSurveys', 'topbar.languages', 'topbar.surveys', 'topbar.translations'],
+        array_column(
+            dbAll(
+                "SELECT name FROM translation_keys WHERE name IN ('brand.area', 'brand.adminPanel', 'topbar.backToSurveys', 'topbar.surveys', 'topbar.translations', 'topbar.languages') ORDER BY name",
+            ),
+            'name',
+        ),
+    );
+
+    // Applied again over what it did: nothing to delete, and its gate passes.
+    behind(FILE_018);
+    $again = as_user(ADA, 'POST', '/api/admin/migrations/apply');
+    assert_same(['applied' => [file_entry(FILE_018)], 'failed' => null, 'error' => null, 'note' => 'BACKUP'], applied($again['body']));
 });
 
 test('a database waiting for 006: the surveys are closed for nobody, a visitor key or a person alike - nor the move at sign-in', function (): void {

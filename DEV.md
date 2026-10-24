@@ -38,10 +38,10 @@ its README), one version for both halves:
 
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
-| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.9.0"` (on 0.x a `^0.8.0` would never take 0.9) | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`backend/testing/stand-in-iam.php`), and its migration sets (`backend/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.9.2/anotoki-lib-0.9.2.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.10.0"` (on 0.x a `^0.9.0` would never take 0.10) | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`backend/testing/stand-in-iam.php`), and its migration sets (`backend/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.10.0/anotoki-lib-0.10.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-Both halves are at 0.9.2 (0.6.0 brought the legal pages, the kit's new pieces
+Both halves are at 0.10.0 (0.6.0 brought the legal pages, the kit's new pieces
 and the admin pages' fixes; 0.6.1 a sentence of the Privacy page - its
 translations `010`; 0.6.2 three more - `011`, which keeps a site's own
 words - and the feedback form; 0.6.3 the family's footer, `@anotoki/lib/footer`,
@@ -52,7 +52,8 @@ short, "v0.4.0"; 0.7.2 the feedback form saying itself whom its message is
 for - the site's own interceptor gone - and the library's words in the
 reader's language while no bundle is in memory; 0.8.0 the About and Support
 pages and the footer's links to them - translations `013` - and the feedback
-form's kept draft and Clear); a release that changes one half only says so in its CHANGELOG. The
+form's kept draft and Clear; 0.10.0 the admin panel's frame, `@anotoki/lib/admin/frame` -
+the site's admin panel in it, its top bar the public site's alone); a release that changes one half only says so in its CHANGELOG. The
 kit is imported a piece at a time, each from its
 own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
 smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages
@@ -69,6 +70,8 @@ load, with the links to them, `@anotoki/lib/legal`'s `<anotoki-legal-links>`;
 its feedback dialog comes with the press, `@anotoki/lib/feedback/form`'s
 `<anotoki-feedback-dialog>`); the pages' errors
 go to the error log through `@anotoki/lib/error-report` (`app.config.ts`).
+The admin panel's frame is `@anotoki/lib/admin/frame` (`<anotoki-admin-frame>`, in
+the admin area's own chunk, `sites/admin/app.component.ts`).
 The package brings Manrope
 with it (`@fontsource-variable/manrope`, its dependency) and the theme's
 `theme-boot.js` (`angular.json` copies it next to `index.html`).

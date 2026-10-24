@@ -1337,3 +1337,22 @@ as Japanese Academy has run since 2026-10-04 - sends every request into
 PHP finds its state with one rule, `stateRoot()`: with `release.json` in
 `backend/`, the folder above it; in a checkout, `backend/` itself - so the
 development setup and the tests are as they were.
+
+## The admin panel's frame
+
+**The admin panel stands in the anotoki family's frame, never under the top
+bar** (the owner's request of 2026-10-24: "The admin panels in all projects
+should look like the genshin one so it is directly distinguishable if I am on
+the site or the admin panel"). anotoki-lib 0.10.0's `<anotoki-admin-frame>` -
+genshin's frame, for every site - holds the panel's name, the person, Back to
+the surveys, Sign out (the site's one, `SignOut`, which the bar takes too), the
+theme and the pages in a column on the left, the page on the right; the bar is
+the public site's alone (`sites/main/common/top-bar`), its admin area gone. The
+pages, their role checks, the count of new feedback beside System and the
+column of Migrations alone while an update waits are the bar's, unchanged:
+nothing added, nothing taken away. The two cards - signed out, no role here -
+stand alone, without the frame, as genshin's page that tells somebody the panel
+is not theirs does. One string went with the bar's admin area: the name it gave
+the admin panel's home link (`topbar.homeAdmin`; the frame's link is named by
+its own words) - migration 018, so no release from before it goes on the host
+after it.

@@ -22,8 +22,8 @@ export const PEOPLE_PATH = '/admin/people';
  *
  * - Feedback: what people sent through the form (shared/feedback.ts), the
  *   library's kinds and no places of the site; how many nobody opened yet is
- *   the family's FeedbackUnread - beside the bar's System link and on the
- *   System page's card, asked as the admin panel opens (admin layout) and as
+ *   the family's FeedbackUnread - beside the System link in the panel's frame and on the
+ *   System page's card, asked as the admin panel opens (its frame, sites/admin/app.component.ts) and as
  *   the System page does: no mail is sent for a message.
  * - Who is ADMIN is the token's say (AuthService, the IAM's roles here).
  * - A backup is made, downloaded, deleted or restored only after a sign-in of

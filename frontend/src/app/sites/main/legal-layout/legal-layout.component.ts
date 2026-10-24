@@ -5,7 +5,7 @@ import { ANOTOKI_LEGAL_CONFIG } from '@anotoki/lib/legal';
 import { TranslatePipe } from '@anotoki/lib/translations';
 import { Changelog } from '../../../shared/changelog/changelog.service';
 import { surveyLegalPagesConfig } from '../../../shared/legal/legal-facts';
-import { TopBarComponent } from '../../../shared/top-bar/top-bar.component';
+import { TopBarComponent } from '../common/top-bar/top-bar.component';
 
 /**
  * The legal pages' frame - Terms, Privacy and Contact, the anotoki family's

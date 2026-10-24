@@ -28,7 +28,7 @@ development `ng serve` on :4700 proxies `/api` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib 0.9.2, its
+client `survey`, with the anotoki family's library (anotoki-lib 0.10.0, its
 `Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
@@ -117,8 +117,8 @@ a server out of reach) draw without it: while the site cannot run and the server
 the IAM - the family's page stands instead of each, with its own quiet Sign in
 (*A database behind the code*, below); while it could not even ask (out of
 reach as it started) it lets nothing through. A signed-in person without EDITOR or ADMIN
-(MEMBER alone) gets the admin layout's "this part is for the people who write
-the surveys".
+(MEMBER alone) gets the admin panel's own card, without its frame: "this part
+is for the people who write the surveys".
 
 **Blocking somebody** is the IAM's: taking a person's MEMBER away in the
 survey application (Users -> the person -> Roles) makes the IAM refuse their
@@ -300,7 +300,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib 0.9.2, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib 0.10.0, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -345,7 +345,7 @@ answer, every survey's author and every visitor lives in `users`):
 ## The admin tools
 
 The error log, the audit log, feedback and the backups are the anotoki
-family's (anotoki-lib 0.9.2, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
+family's (anotoki-lib 0.10.0, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
 `Feedback`, `Backups` - wired in `api/admin_tools.php`, their routes in
 `routes/admin.php` (feedback's form in `routes/feedback.php`); the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/feedback`, `/backups`, configured in
@@ -473,30 +473,26 @@ and are in every backup).
 
 The bar is the anotoki family's, the library's `<anotoki-top-bar>`
 (`@anotoki/lib/shell`, since anotoki-lib 0.3.0 - built from this site's own bar,
-which the IAM, Japanese, Piano and the build analyzer had copied), and
-`shared/top-bar` is this site's thin wrapper around it: it tells the bar what
-is this site's, worded - its brand, its sections, the person and their role,
-the menu's items, how to sign in and out - and the bar does the rest (its
-row, its widths, its menus and their keys). One row, in this order: the
-brand (`<anotoki-brand>`: the mark, "anotoki" and the site's name, linking home -
-`/`; in the admin panel "anotoki survey · admin panel", linking to `/admin`); the site's sections as links (where
-people take surveys: Surveys; in the admin panel: Surveys, Translations,
-Languages, and Migrations for an ADMIN - only Migrations while a database
-update waits (`SiteStatus.state()`) - `SURVEY_LINKS`, `ADMIN_LINKS`; the one the page is in is marked,
-and `aria-current="page"` on its own address); then the language chooser
-(where people take surveys, when more than one language is offered), the
-theme, and the person's menu - name, address and role, "Your anotoki account"
-(the IAM's account page, in a new tab), "Admin panel" ("Administrátorský
-panel") for EDITOR / ADMIN or "Back to the surveys" in the admin panel, Sign out - or, signed out, Sign in.
+which the IAM, Japanese, Piano and the build analyzer had copied), on the public
+site's pages alone - the surveys people take and the legal pages; the admin
+panel has its frame instead (*The admin panel's frame*, below) - and
+`sites/main/common/top-bar` is this site's thin wrapper around it: it tells the
+bar what is this site's, worded - its brand, its sections, the person and their
+role, the menu's items, how to sign in and out - and the bar does the rest (its
+row, its widths, its menus and their keys). One row, in this order: the brand
+(`<anotoki-brand>`: the mark, "anotoki" and the site's name, linking home -
+`/`); the site's sections as links (Surveys - `SURVEY_LINKS` - marked while the
+page is its own, `aria-current="page"` on its own address); then the language
+chooser (when more than one language is offered), the theme, and the person's
+menu - name, address and role, "Your anotoki account" (the IAM's account page,
+in a new tab), "Admin panel" ("Administrátorský panel") for EDITOR / ADMIN,
+Sign out - or, signed out, Sign in.
 
 Up to 760 px (`PHONE_BAR_MAX`, the bar's `phoneMax`) it is a phone's bar: the brand is the mark and
 the site's name alone, then the language, the theme and a menu
 button; the links and the person's menu (or Sign in) are inside that button's
-menu. From 761 px the links are in the row; up to 960 px (`NARROW_BAR_MAX`)
-the person's button is the initial alone, from 961 px with the name - and
-the admin panel's longer wordmark leaves out "anotoki" up to 960 px too
-("survey" with "admin panel" small under it, as on a phone - `shortBrandMax`),
-or the bar overflows at 761 (and at 360 on one line). Both menus are the
+menu. From 761 px the links are in the row; up to 960 px the person's button
+is the initial alone, from 961 px with the name. Both menus are the
 kit's (`@anotoki/lib/ui/menu`), the family's way: the focus goes to the first item when one opens, arrow keys, Home and
 End move between items, Escape closes it and gives the focus back to its
 button, and so do Tab and Shift+Tab from any item (the browser's own move is
@@ -504,19 +500,60 @@ stopped: it would land on the next item of a menu about to go, and then on
 `<body>`) - the next Tab moves on from the button; a click outside closes it,
 and so does a
 change between the phone's bar and the desktop's, another person, other
-links. No key pressed in the bar reaches the page (`isolateKeys`). Signing
-out saves first (`AdminStore.flushAll()`) and asks when something would be
-lost - a survey's change that cannot be saved, strings or languages typed and
-not saved - while its item waits ("Saving…", the kit's); Sign in waits the
-same way for a visitor's answers on their way. Every word of it is a key -
-the site's own (`topbar.surveys`, `topbar.backToSurveys`, `brand.area`,
-`brand.adminPanel`, ...) and the library's (`anotoki.topbar.*`: the role,
-"Your anotoki account", "Admin panel", the menus' names, Sign in, Sign out;
-`anotoki.theme.*`, `anotoki.language.*`); the admin panel reads them in
-English (`effectiveLanguage`) - but the Migrations link, which only an ADMIN
-in the admin panel ever sees: its English word is written in the code
-(`label`), as the admin panel's pages are. The kit's own words in the bar come
-from the site's database too, through `shared/kit.ts` (*The UI kit*, below).
+links. No key pressed in the bar reaches the page (`isolateKeys`). Signing out
+is the site's one Sign out (`SignOut`, `shared/auth/sign-out.service.ts` - the
+admin panel's frame takes it too): it saves first (`AdminStore.flushAll()`)
+and asks when something would be lost - a survey's change that cannot be saved,
+strings or languages typed and not saved - while its item waits ("Saving…", the
+kit's); Sign in waits the same way for a visitor's answers on their way. Every
+word of it is a key - the site's own (`topbar.surveys`, `brand.area`, ...) and
+the library's (`anotoki.topbar.*`: the role, "Your anotoki account", "Admin
+panel", the menus' names, Sign in, Sign out; `anotoki.theme.*`,
+`anotoki.language.*`), in the reader's language. The kit's own words in the bar
+come from the site's database too, through `shared/kit.ts` (*The UI kit*,
+below).
+
+## The admin panel's frame
+
+The admin panel stands in the anotoki family's frame, `<anotoki-admin-frame>`
+(`@anotoki/lib/admin/frame`, anotoki-lib 0.10.0: genshin's admin frame, for
+every site - the owner's request of 2026-10-24, so that the panel is never
+mistaken for the site), wired in `sites/admin/app.component.*` (`app-admin-root`,
+the admin routes' frame, in the admin area's own chunk - never the first load).
+No top bar. On a computer a column on the left, top to bottom: the panel's
+name, "anotoki survey · admin panel" (`brand.area` and `brand.adminPanel`, the
+words the bar's wordmark said it with), linking to `/admin`; who is signed in -
+the name, and the token's address under it (shown, never kept); "Back to the
+surveys" (`topbar.backToSurveys`), to `/`; Sign out - the site's one
+(`SignOut`), so the same question over what is not saved; the theme, the
+family's switch (`<anotoki-theme-toggle adminFrameTheme />` over the shell's
+`ThemeService`: the account's theme, as on every page); then the panel's
+pages, the kit's side navigation in one group - Surveys, Translations,
+Languages (`topbar.*`, the words the bar linked them with) and System for an
+ADMIN (its English word), with how many feedback messages nobody opened yet
+beside it (the family's `FeedbackUnread`, asked as the panel opens and when an
+ADMIN signs in here - never while the site cannot run; heard "System, 2 new
+feedback messages"). A page is marked as the bar marked it (the frame's
+`current`): a survey's editor in Surveys, each System page in System
+(`SYSTEM_PATHS`), nothing on an address none of them is. While a database
+update waits an ADMIN's column holds Migrations alone - the one page that works
+then (`SiteStatus`) - and every page again once it is applied. On the right the
+page, in the measure the panel's pages always had (84rem), and the family's
+footer under it, in the frame's footer (no Feedback while an update waits: the
+server would refuse it). Nothing stands above the page: while an update waits
+the family's page stands instead, but for the ADMIN on the Migrations page.
+
+Up to 860 px (the frame's own measure) it is a phone's frame: a row with the
+panel's name and Menu, the page in the window under it; Menu opens the side
+navigation's drawer, which holds the person, Back, Sign out, the theme and the
+pages. Its words are the kit's - "Skip to content", "Menu", "Sign out",
+"Saving…", "Theme", "Admin panel" - read through `forKit()` in the admin
+panel's English, whatever the reader chose on the site. The two cards - signed
+out, and no role here - stand alone, without the frame (as genshin's page that
+tells somebody the panel is not theirs), with their own Sign in or the way to
+the surveys, and the footer under them. The name the bar gave the admin
+panel's home link (`topbar.homeAdmin`) went with the bar's admin area:
+migration 018.
 
 ## The UI kit
 
@@ -633,7 +670,7 @@ footer, its order, its words and its top border, on every site and in every
 admin panel), at the foot of each of the site's frames: the survey's pages
 (`sites/main/participant-layout` - under the card of a session that ended too),
 the legal pages (`sites/main/legal-layout`) and the admin panel
-(`sites/admin/admin-layout`, under its cards too). The site's own footer
+(`sites/admin/app.component`: in the frame's footer, and under its cards too). The site's own footer
 (`layouts/site-footer`, the legal links alone) went for it; it had no words of
 its own, so no key went with it. A top border; then one row:
 
@@ -856,8 +893,8 @@ the site's ADMIN, in English, "A database update is waiting" and "Open
 Migrations", which asks again by itself too (another ADMIN may apply the
 update meanwhile). Signed out at the Migrations page's address, the quiet
 Sign in comes back there, to the page. The Migrations page
-(`<anotoki-migrations-page>`, in the admin layout, with only Migrations in the
-bar) lists Pending (by set: the site's own, `survey`, then the library's,
+(`<anotoki-migrations-page>`, in the admin panel's frame, with only Migrations in
+its column) lists Pending (by set: the site's own, `survey`, then the library's,
 `anotoki_translations`), Applied (with each file's SQL) and Missing; its "Apply
 pending" (`POST /api/admin/migrations/apply`, behind a question) runs the
 pending files in order, each in its own transaction, and stops at the first
@@ -1227,8 +1264,8 @@ it.
 **The admin panel is English whatever the person reads.** `effectiveLanguage`
 is `en` while the address is `/admin` or under it (the library's
 `englishOnly`, the site's prefix), and everything that words a
-string goes through it - so the pieces both areas share (the top bar, the UI
-kit, toasts) are English there, and `<html lang>` says `en`. The service cannot
+string goes through it - so the pieces both areas share (the UI kit - the
+admin panel's frame's words among it -, toasts) are English there, and `<html lang>` says `en`. The service cannot
 ask the Router where the page is (the Router builds the title strategy, which
 needs the service - NG0200): `SurveyTitleStrategy` tells it after every
 navigation (`noteAddress()`), and `init()` reads the address for the first page.
@@ -1292,13 +1329,13 @@ or change of a language both pages call `TranslationService.reload()`.
   page away with no navigation, and no guard runs then. The router still asks
   the pages' `anotokiUnsavedChangesGuard` at the next navigation away - with no page,
   which it lets through (there is nobody to ask, and the drafts are not in the
-  page); so the layout's links and Back work in that state. The drafts stay,
+  page); so a navigation away and Back work in that state. The drafts stay,
   and are mirrored to the tab's sessionStorage
   (`anotoki-survey:localization-drafts`, `{owner, strings, languages}` - the
   name and the shape the site always had), because signing in again is a page
   load. Whose they are is the account's id (`account.userKey`): only another
-  person signing in lets go of them. The top bar's "Sign out"
-  asks first (one question, with a survey's unsaved changes when there are
+  person signing in lets go of them. "Sign out" - the site's one (`SignOut`), the
+  top bar's and the admin panel's frame's - asks first (one question, with a survey's unsaved changes when there are
   both; the drafts' entry point is loaded for it, for staff only) and gives
   them up when the answer is to go (`LocalizationDrafts.clear()`); "Leave" at
   the pages' own question gives up that page's. The one `beforeunload`

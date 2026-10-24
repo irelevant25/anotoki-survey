@@ -1,6 +1,6 @@
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, input, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, type Routes, provideRouter } from '@angular/router';
 import { provideAnotokiLegal } from '@anotoki/lib/legal';
@@ -13,13 +13,14 @@ import { ANOTOKI_AUTH_CONFIG, AnotokiAuth, type AnotokiPreferences, personGuard 
 import { AuthService, BootStatus, SignInFailure } from './shared/auth/auth.service';
 import { BOOTED } from './shared/boot/boot';
 import { VisitorKey } from './shared/auth/visitor-key';
+import { provideSiteShell } from './shared/kit';
 import { surveyLegalConfig } from './shared/legal/legal.config';
 import { provideSiteMigrations } from './shared/migrations';
 import { provideTestTranslations } from './shared/testing/test-translations';
-import { AdminLayoutComponent } from './sites/admin/admin-layout/admin-layout.component';
+import { AppComponent as AdminAppComponent } from './sites/admin/app.component';
 import { LegalLayoutComponent } from './sites/main/legal-layout/legal-layout.component';
 import { ParticipantLayoutComponent } from './sites/main/participant-layout/participant-layout.component';
-import { TopBarComponent } from './shared/top-bar/top-bar.component';
+import { TopBarComponent } from './sites/main/common/top-bar/top-bar.component';
 
 @Component({ selector: 'app-test-page', template: '<p class="test-page">A page of the site</p>' })
 class TestPageComponent {
@@ -32,12 +33,11 @@ class TestPageComponent {
 }
 
 /**
- * The bar of the site's frames, standing in: its own spec draws it; here, only whether a frame draws it. The footer is
+ * The bar of the public site's frames, standing in: its own spec draws it; here, only whether a frame draws it. The footer is
  * the family's own (<anotoki-site-footer>, @anotoki/lib/footer), drawn as it is.
  */
 @Component({ selector: 'app-top-bar', changeDetection: ChangeDetectionStrategy.OnPush, template: '<header class="test-bar">The top bar</header>' })
 class TopBarStubComponent {
-  readonly area = input<'survey' | 'admin'>('survey');
   readonly width = input<'wide' | 'narrow'>('wide');
 }
 
@@ -59,7 +59,9 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
   let signedInFrom: string | null = null;
   const auth = {
     status,
-    user: signal(null),
+    // Somebody signed in has a name and the token's address: the admin panel's frame shows them.
+    user: computed(() => (signedIn() ? { email: 'owner@example.test' } : null)),
+    person: computed(() => (signedIn() ? { id: '7', name: 'owner' } : null)),
     signedIn: () => signedIn(),
     visitorsWelcome: () => false,
     isAdmin: () => signedIn() && roles().includes('ADMIN'),
@@ -73,6 +75,7 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
       signedInFrom = TestBed.inject(Router).url;
       return true;
     }),
+    signOut: vi.fn(),
   };
   /** The anotoki family's sign-in as its guard (personGuard) reads it: whose the page is, and nothing to say of a failure. */
   const library = {
@@ -114,6 +117,8 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
           ],
         ),
         provideSiteMigrations(),
+        // The admin panel's frame draws the theme's switch: the shell's, as the app has it (shared/kit.ts).
+        provideSiteShell(),
         // The footer's links, and the legal frame's facts over them, as the app has them (app.config.ts).
         provideAnotokiLegal(surveyLegalConfig),
         { provide: AuthService, useValue: auth },
@@ -125,15 +130,16 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
   }
 
   /**
-   * The site's own frames, as app.routes.ts has them: the pages people take surveys on, the legal pages and the admin
-   * panel, each with the top bar above and the family's footer below - which only a frame draws.
+   * The site's own frames, as app.routes.ts has them: the pages people take surveys on and the legal pages, each with
+   * the top bar above and the family's footer below, and the admin panel in the family's frame (<anotoki-admin-frame>),
+   * the footer in it - which only a frame draws.
    */
   function configureFramed(): void {
     configure('en', [
       { path: 'terms', component: LegalLayoutComponent, children: [{ path: '', component: TestPageComponent }] },
       {
         path: 'admin',
-        component: AdminLayoutComponent,
+        component: AdminAppComponent,
         children: [
           { path: 'migrations', component: MigrationsPageComponent },
           { path: '**', component: TestPageComponent },
@@ -141,7 +147,7 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
       },
       { path: '', component: ParticipantLayoutComponent, children: [{ path: '**', component: TestPageComponent }] },
     ]);
-    for (const frame of [ParticipantLayoutComponent, LegalLayoutComponent, AdminLayoutComponent]) {
+    for (const frame of [ParticipantLayoutComponent, LegalLayoutComponent]) {
       TestBed.overrideComponent(frame, { remove: { imports: [TopBarComponent] }, add: { imports: [TopBarStubComponent] } });
     }
   }
@@ -150,6 +156,10 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
   const frame = () => Array.from(host.querySelectorAll('app-top-bar, anotoki-site-footer, anotoki-top-bar, anotoki-legal-links, header, footer')).map((element) => element.tagName.toLowerCase());
   /** A frame as it is drawn: the bar (standing in) above the page, and the family's footer - its landmark, its links - below. */
   const FRAMED = ['app-top-bar', 'header', 'anotoki-site-footer', 'footer', 'anotoki-legal-links'];
+  /** The admin panel's, for its staff: the family's frame - its column the page's banner - and the footer in it; no bar. */
+  const ADMIN_FRAMED = ['header', 'anotoki-site-footer', 'footer', 'anotoki-legal-links'];
+  /** The admin panel's card for nobody signed in: a page of its own, the footer under it - no bar, no frame. */
+  const ADMIN_CARD = ['anotoki-site-footer', 'footer', 'anotoki-legal-links'];
 
   /** What GET /api/site-status answers when the start asks. */
   async function standing(body: object): Promise<void> {
@@ -448,10 +458,13 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
       expect(frame()).toEqual([]);
 
       await now('ready', true);
-      for (const url of ['/', '/terms', '/admin']) {
+      for (const url of ['/', '/terms']) {
         await at(url);
         expect(frame(), url).toEqual(FRAMED);
       }
+      // The admin panel's own: nobody is signed in here, so its card - a page of its own, no bar, no frame.
+      await at('/admin');
+      expect(frame()).toEqual(ADMIN_CARD);
     });
 
     it('an ADMIN on the Migrations page while the update waits has the admin panel’s frame round it - the site’s pages, not the family’s; anywhere else the family’s page alone; applied, every frame is back', async () => {
@@ -464,10 +477,12 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
       TestBed.inject(HttpTestingController).expectOne('/api/admin/migrations').flush(MIGRATIONS);
       await settle();
       expect(statusPage()).toBeNull();
-      const panel = host.querySelector('app-admin-layout')!;
-      expect(words(panel.querySelector('main anotoki-migrations-page h1'))).toBe('Migrations');
-      expect(panel.querySelector(':scope > app-top-bar')).not.toBeNull();
-      expect(panel.querySelector(':scope > anotoki-site-footer > footer')).not.toBeNull();
+      const panel = host.querySelector('app-admin-root')!;
+      expect(words(panel.querySelector('anotoki-admin-frame main anotoki-migrations-page h1'))).toBe('Migrations');
+      // The family's frame round it - its column linking Migrations alone - and no bar.
+      expect(Array.from(panel.querySelectorAll('anotoki-admin-frame .anotoki-admin-frame__column nav a'), (link) => words(link))).toEqual(['Migrations']);
+      expect(panel.querySelector('app-top-bar')).toBeNull();
+      expect(panel.querySelector('anotoki-admin-frame anotoki-site-footer > footer')).not.toBeNull();
       // No Feedback in it while the update waits: the server would refuse the message (503 update_pending).
       expect(panel.querySelector('anotoki-site-footer [data-open-feedback]')).toBeNull();
 
@@ -487,7 +502,7 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
       for (const url of ['/', '/terms', '/admin']) {
         await at(url);
         expect(statusPage(), url).toBeNull();
-        expect(frame(), url).toEqual(FRAMED);
+        expect(frame(), url).toEqual(url === '/admin' ? ADMIN_FRAMED : FRAMED);
         expect(host.querySelector('anotoki-site-footer [data-open-feedback]'), url).not.toBeNull();
       }
     });

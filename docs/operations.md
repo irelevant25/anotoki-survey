@@ -158,7 +158,7 @@ nor the strings typed with them), and after it reload every admin page that
 was open. A release carries `vendor/anotoki/lib/backend/migrations/`
 (the library's set) in `backend/`, never served.
 
-The version that took anotoki-lib 0.4.1 (both halves; 0.9.2 now, below) takes the rest of what every
+The version that took anotoki-lib 0.4.1 (both halves; 0.10.0 now, below) takes the rest of what every
 anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
 are gone - `api/anotoki_iam.php` stays on the host after the upload, read by
 nothing: delete it over FTP; the browser keeps its session, under the same
@@ -298,6 +298,16 @@ results, a person's survey and the CSV show the ones that said it under that
 label. After the upload, the About-you step offers the three. No release from
 before 017 goes on the host after it either: it would offer "Non-binary"
 again, under its bare key.
+And it brings the admin panel in the anotoki family's frame (the owner's
+request of 2026-10-24; anotoki-lib 0.10.0, both halves - the frontend's
+`@anotoki/lib/admin/frame`): the panel's pages in a column on the left, the
+page on the right, and no top bar - the bar is the public site's alone. Its
+`018_admin_frame.sql` deletes the one string only the admin panel's bar said
+(`topbar.homeAdmin`, the name of its brand's link). **After the upload**:
+apply on the Migrations page; then open /admin on a computer (the column) and
+on a phone (the row with Menu, and its drawer). No release from before 018
+goes on the host after it: its bar would name the admin panel's home by a
+bare key.
 
 A **release** adds its entry at the top of `frontend/public/changelog.json` -
 what changed for people, in English and its whole formal-Slovak translation
@@ -562,7 +572,7 @@ SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 
 
 Everything is in the database, pictures and the site's reworded strings
 included. The site backs it up itself - the anotoki family's backups
-(anotoki-lib 0.9.2), on the admin panel's System → **Backups** page, for its
+(anotoki-lib 0.10.0), on the admin panel's System → **Backups** page, for its
 ADMIN: every table by COPY through PDO in one snapshot (no `pg_dump` on the
 host), each a file `storage/backups/<id>.anotoki-backup` (`ANOTOKI-BACKUP 1`,
 a JSON header, then a gzip'd tar of the manifest, the applied migrations' SQL

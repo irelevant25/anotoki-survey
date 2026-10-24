@@ -12,7 +12,7 @@ import { SYSTEM_PAGES } from './system-pages';
 
 /**
  * /admin/system: what keeps the site running, for its ADMIN - the way to each
- * of the System pages (SYSTEM_PAGES, system-pages.ts), the top bar's one link
+ * of the System pages (SYSTEM_PAGES, system-pages.ts), the admin frame's one link
  * for all of them, each a card that is one link as a whole (the kit's link
  * card, anotoki-lib 0.6.0). Feedback's card says how many messages nobody
  * opened yet (the family's FeedbackUnread, asked again as the page opens: no

@@ -5,7 +5,7 @@
 ///
 /// The colours are the family's palette, which the survey has no colours of
 /// its own against: every token is --anotoki-*, light written on :root, dark
-/// under `data-theme="dark"` (the switch in the top bar, or theme-boot.js
+/// under `data-theme="dark"` (the switch in the top bar or the admin panel's frame, or theme-boot.js
 /// before the app loads) and under the system preference for as long as
 /// nothing has said "light". Text, muted text, links and the status colours
 /// clear WCAG AA (4.5:1) on the surfaces they sit on, and the edges of fields

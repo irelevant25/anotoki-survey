@@ -46,7 +46,7 @@ export const CHANGELOG_URL = 'changelog.json';
  *
  * It opens when asked - by the What's new link of the family's footer
  * (<anotoki-site-footer>, anotoki-lib 0.6.3: its `(whatsNew)`, in each frame -
- * sites/main/participant-layout and legal-layout, sites/admin/admin-layout) - and never by
+ * sites/main/participant-layout and legal-layout, sites/admin/app.component) - and never by
  * itself: nothing about what a browser has seen is kept, so nothing new is
  * stored in it (the Privacy page lists every item the site keeps there). The
  * list is asked for once a page load, as the site starts (boot(), never waited

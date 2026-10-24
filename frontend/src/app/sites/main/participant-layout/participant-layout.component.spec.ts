@@ -13,13 +13,12 @@ import { provideSiteFeedback } from '../../../shared/feedback';
 import { surveyLegalConfig } from '../../../shared/legal/legal.config';
 import { provideTestTranslations } from '../../../shared/testing/test-translations';
 import { FORMAL_SLOVAK } from '../../../shared/translations';
-import { TopBarComponent } from '../../../shared/top-bar/top-bar.component';
+import { TopBarComponent } from '../common/top-bar/top-bar.component';
 import { ParticipantLayoutComponent } from './participant-layout.component';
 
 /** The top bar has its own spec; here it is only a place at the top. */
 @Component({ selector: 'app-top-bar', changeDetection: ChangeDetectionStrategy.OnPush, template: '' })
 class TopBarStubComponent {
-  readonly area = input<'survey' | 'admin'>('survey');
   readonly width = input<'wide' | 'narrow'>('wide');
 }
 

@@ -6,7 +6,7 @@ import { AdminDates } from './admin/admin-dates.service';
 import { signInOrShowWhy } from './auth/auth.config';
 import { AuthService } from './auth/auth.service';
 
-/** The admin panel's Migrations page: the anotoki family's (<anotoki-migrations-page>), in the admin layout. */
+/** The admin panel's Migrations page: the anotoki family's (<anotoki-migrations-page>), in the admin panel's frame. */
 export const MIGRATIONS_PATH = '/admin/migrations';
 
 /**
