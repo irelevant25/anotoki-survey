@@ -211,7 +211,7 @@ Then the house style:
 - Angular: three files per component, OnPush, signals, `inject()`, inputs for
   route/query parameters, colours from tokens (light and dark), 390 px; no
   logic duplicated from `shared/` into a component. The UI kit is the family's
-  (`@anotoki/lib` 0.9.2): a copy of a kit piece in `src/app/shared/ui/` (or a
+  (`@anotoki/lib` 0.10.0): a copy of a kit piece in `src/app/shared/ui/` (or a
   half's own, `sites/main/common/`, `sites/admin/shared/`), a global
   style a kit component would meet, an import from the `@anotoki/lib/ui`
   barrel instead of the piece's own entry point (the first load), or a

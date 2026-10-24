@@ -35,7 +35,7 @@ Working conventions:
   `FORMAL_SLOVAK`. One wire format, the IAM's (snake_case). Who may do what
   with the words is this site's (EDITOR / ADMIN; deleting a language
   ADMIN's). A string is text, never HTML. The
-  admin panel (`sites/admin`, `sites/admin/admin-layout`) is English, written in its
+  admin panel (`sites/admin`, its frame `sites/admin/app.component` too) is English, written in its
   templates. `tests/unit/translations.test.php` fails on a key no migration
   wrote, or one nothing uses.
 - A survey holds its texts in more than one language (`language`,
@@ -52,7 +52,7 @@ Working conventions:
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
 - Signing in, the people and the admin tools are the anotoki family's library's
-  (anotoki-lib 0.9.2, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
+  (anotoki-lib 0.10.0, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
   module, feedback - the form the footer's Feedback and the Contact page open, `POST /api/feedback`,
   the Feedback page -, the error log - the pages' errors too,
   `@anotoki/lib/error-report` -, the audit log, the backups) - wired in
@@ -95,7 +95,7 @@ Working conventions:
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
   (light and dark); every page works at 390 px. The UI kit, the top bar and the
-  footer are the anotoki family's (`@anotoki/lib` 0.9.2, wired in `shared/kit.ts`;
+  footer, and the admin panel's frame (`<anotoki-admin-frame>`, never the bar there), are the anotoki family's (`@anotoki/lib` 0.10.0, wired in `shared/kit.ts`;
   `<anotoki-site-footer>` at the foot of each frame, the admin panel's too) - use
   them, each piece from its own entry point (`@anotoki/lib/ui/button`, ...,
   never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come

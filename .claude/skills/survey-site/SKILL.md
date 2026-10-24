@@ -51,7 +51,7 @@ backend/
                            and only hands the key in; nothing of a survey
                            without a token while sign-in is required, but its pictures (an
                            <img> sends none; UUID addresses)
-  api/auth.php             signing in through the family's library (anotoki-lib 0.9.2, Anotoki\Lib\Auth -
+  api/auth.php             signing in through the family's library (anotoki-lib 0.10.0, Anotoki\Lib\Auth -
                            the IAM's SDK is gone): surveyIam() (IamClient), surveySignInRule() /
                            authLoginRequired() (the IAM's "Sign-in required", relayed by
                            /api/auth/config with visitor_days), surveyIdentify() (only Bearer claims to
@@ -112,7 +112,7 @@ backend/
                            languagesForSurveys() / languagesOffered() (what survey_rules.php reads)
   api/rich_text.php        richTextClean(): the editor's HTML and nothing else
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.9.2's PHP half - never edited here; DEV.md: how it is updated):
+                           anotoki-lib 0.10.0's PHP half - never edited here; DEV.md: how it is updated):
                            surveyMigrationSet(), surveyMigrationSets() (the library's `anotoki_admin`,
                            the site's `survey`, then the library's `anotoki_translations` and
                            `anotoki_people` - recorded as <set>/NNN.sql), surveyMigrator($pdo,
@@ -204,7 +204,7 @@ frontend/src/app/
                            database / AdminDates' dates / reload the strings when up to date),
                            MIGRATIONS_PATH; siteStatusInterceptor in app.config.ts; SiteStatus
                            (state, blocked, check, checkForReload, markReady) is the library's
-  shared/auth/             signing in through the family's library (anotoki-lib 0.9.2, @anotoki/lib/auth -
+  shared/auth/             signing in through the family's library (anotoki-lib 0.10.0, @anotoki/lib/auth -
                            the vendored SDK is gone): auth.config.ts (provideSiteAuth() - the boot
                            configuration AuthService read, the site's API (/api/, its status, auth
                            config, strings and pictures skipped), the visitors (VisitorKey, the key
@@ -277,7 +277,7 @@ frontend/src/app/
                            the code's own names, the hosting company and Cloudflare; the anotoki
                            account's pages from AnotokiAuth.issuer() / accountUrl() - never a string;
                            SURVEY_LEGAL_UPDATED; surveyLegalPagesConfig(), the frame's provider)
-  shared/kit.ts            the family's UI kit (anotoki-lib 0.9.2, each piece from its own entry point)
+  shared/kit.ts            the family's UI kit (anotoki-lib 0.10.0, each piece from its own entry point)
                            wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
                            the language on the page and the kit's words from the database - the
                            library's keys, anotoki.* - and SURVEY_ICONS) + provideSiteShell() (the
@@ -308,18 +308,11 @@ frontend/src/app/
                            library's test translations - @anotoki/lib/translations/testing - with the
                            site's kit wiring and formal Slovak), answersOf() (a person's answers, or a
                            visitor's)
-  shared/top-bar/          the site's wrapper over the family's <anotoki-top-bar>, in every frame - the
-                           admin panel's too, as its area "admin": the brand,
-                           the links - SURVEY_LINKS / ADMIN_LINKS (System for an ADMIN, lit on each
-                           System page, with the count of feedback nobody opened yet - the library's
-                           FeedbackUnread, asked by the admin layout as it opens), UPDATE_LINKS
-                           (Migrations alone while an update waits) -, the
-                           person (name; the token's address, shown, never kept) and their role, the
-                           menu's items, signIn / signOut -
-                           saved first, asked when something would be lost - the drafts of the
-                           Translations and Languages pages through the library's
-                           LocalizationDrafts, its entry point loaded only then and only for staff;
-                           docs/architecture.md "The top bar"
+  shared/auth/sign-out.service.ts   SignOut: the site's one Sign out - the top bar's and the admin panel's
+                           frame's -, saved first (AdminStore.flushAll()), asked when something would
+                           be lost - the drafts of the Translations and Languages pages through the
+                           library's LocalizationDrafts, its entry point loaded only then and only for
+                           staff
   shared/boot/             load-error (its "Try again" also opens the page that was asked for): drawn
                            instead of the site when the status answered and the sign-in's settings
                            did not (app.component.ts decides; everything else that keeps the site
@@ -330,7 +323,7 @@ frontend/src/app/
                            fixed, in the language on the page, English where an entry has no
                            Slovak) - the rest is the family's kit (@anotoki/lib/ui/<piece>, /shell)
   sites/                   the two halves, each in its frames. Each of the three frames - sites/main's
-                           participant-layout and legal-layout, sites/admin's admin-layout - ends with
+                           participant-layout and legal-layout, sites/admin's app.component - ends with
                            the family's footer (<anotoki-site-footer>,
                            @anotoki/lib/footer, anotoki-lib 0.6.3): [version]="changelog.current()",
                            [whatsNew] while there is a list, (whatsNew)="changelog.open()", feedback -
@@ -354,8 +347,18 @@ frontend/src/app/
                            survey-home, take-survey (+ question-block, survey-hero, send-failure.ts,
                            shown-language.ts), visitor-notice (what a visitor is told, with Sign in);
                            common/image-gallery (the pictures under a question's text or a
-                           step's own, as people meet them: each a button that opens it large)
-  sites/admin/             admin.routes.ts; admin-layout
+                           step's own, as people meet them: each a button that opens it large);
+                           common/top-bar (the site's wrapper over the family's <anotoki-top-bar>,
+                           the public site's alone: the brand, the links - SURVEY_LINKS -, the
+                           person (name; the token's address, shown, never kept) and their role, the
+                           menu's items, signIn / signOut - SignOut; docs/architecture.md "The top bar")
+  sites/admin/             admin.routes.ts; app.component - the frame: the family's <anotoki-admin-frame>
+                           (@anotoki/lib/admin/frame, anotoki-lib 0.10.0), a column with the panel's
+                           name, the person, Back to the surveys, Sign out (SignOut), the theme and its
+                           pages - PANEL_PAGES (System for an ADMIN, marked on each System page, with
+                           the count of feedback nobody opened yet - the library's FeedbackUnread,
+                           asked as the panel opens), UPDATE_PAGES (Migrations alone while an update
+                           waits); docs/architecture.md "The admin panel's frame"; without it
                            (English; "You are signed out" for a session that ended in place, the
                            no-access card for somebody signed in without a role); surveys-list,
                            survey-editor (+ parts, SurveyEditing, the translation mode:
@@ -508,7 +511,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   a new admin route that changes something writes its entry, by the token's
   person, inside the change's transaction where there is one.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib 0.9.2,
+  applies it - the anotoki family's way, the library's** (anotoki-lib 0.10.0,
   both halves; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
@@ -663,11 +666,11 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   brace that is not a `{placeholder}` (422 `invalid_placeholder`), and one
   with nothing in it to see is an empty one (the library's `Text::blank()`).
 - **The admin panel is English**: literal words in the templates under
-  `sites/admin` and `sites/admin/admin-layout`, no `translate` pipe there. The
-  pieces both areas share (top bar, UI kit, toasts, the family's footer) read
+  `sites/admin` (its frame, `app.component`, among it), no `translate` pipe there. The
+  pieces both areas share (UI kit - the admin panel's frame's words too -, toasts, the family's footer) read
   through `effectiveLanguage`, which is `en` under `/admin` - the kit's own
   words too (`shared/kit.ts`), and the family's page at an admin address.
-- **The UI kit is the family's** (anotoki-lib 0.9.2 - its 0.6.0 pieces taken
+- **The UI kit is the family's** (anotoki-lib 0.10.0 - its 0.6.0 pieces taken
   where the site drew its own: the link cards of the home page and the System
   page, the results' removable filter chips; what stays the site's and why,
   `docs/decisions.md`): a new piece of a page
@@ -710,9 +713,9 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   conflict is what differs from `_server` - keep it what the server has
   (loaded, saved, settled, a change of status).
 - **Anything typed and not saved in the admin panel lives outside its page**:
-  the admin layout draws the outlet only for staff, so a session that ends
+  the admin panel's frame component draws the outlet only for staff, so a session that ends
   takes the page away with no navigation - no guard runs, and a component's
-  state and its `beforeunload` listener go with it (the layout then says "You
+  state and its `beforeunload` listener go with it (its card then says "You
   are signed out"). Surveys are in
   `AdminStore`, the strings' cells and the languages' rows in the library's
   `LocalizationDrafts`; both keep them across a sign-out and let go only when
@@ -1042,8 +1045,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   notices and tags that said what its readers see went by the stored status
   and spoke of readers there are none of; everything that says "open" to an
   editor goes by `currentStatus()` (`problemsHeading()` too).
-- **A `canDeactivate` guard under the admin layout gets `null` for the page**:
-  once the layout has taken its page away (session ended), or never drew it
+- **A `canDeactivate` guard under the admin panel's frame gets `null` for the page**:
+  once the frame component has taken its page away (session ended), or never drew it
   (no role), the route is still the active one and the next navigation runs
   the guard with no component. `page.canLeave()` threw, and every link of that
   state was dead - `page?.canLeave() ?? true` (the library's
@@ -1097,10 +1100,9 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   the fold the words beside the mark went at three different widths and
   "Sign in" was squeezed at 390. A new state of the bar is measured at its
   phone widths (`expectBar`), not assumed - and at 360 px, the narrowest.
-  In the admin panel the wordmark is longer: "anotoki survey · admin panel"
-  from 961 px; up to 960 (`NARROW_BAR_MAX`, the bar's `shortBrandMax`) and on
-  a phone "survey" with "admin panel" small under it - in one row the bar
-  overflowed at 761 and at 360. Measured at 360, 390, 761, 960 and 961.
+  The admin panel has no bar: its frame is the family's - a column from 861
+  px, a row with the name and Menu up to 860 (the frame's measure, measured by
+  the library; the browser check looks at 861 and 860).
   The family's bar is sticky inside its host: `app-top-bar` is
   `display: contents`, or the bar would stick inside the wrapper and scroll
   away with it.

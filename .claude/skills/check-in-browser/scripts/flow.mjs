@@ -19,7 +19,11 @@
 // family's top bar - brand, links, language, theme, the person's menu - at
 // 360, 390 and 1280 px, light and dark; on a phone the links and the person's
 // menu are inside one menu button (focus in, arrow keys, Escape back, a click
-// outside, Tab and Shift+Tab back to the button from any item). A sign-in the
+// outside, Tab and Shift+Tab back to the button from any item). The admin
+// panel has no bar: its frame is the family's (<anotoki-admin-frame>,
+// anotoki-lib 0.10.0) - a column with its name, the person, Back, Sign out,
+// the theme and its pages, and on a phone (up to 860 px) a row with the name
+// and Menu, whose drawer holds the rest. A sign-in the
 // IAM turns down (the stand-in's `deny`) ends on the anotoki family's screen of
 // a failed sign-in (anotoki-lib 0.4.1, on /auth/callback: why, in the site's
 // words - formal Slovak too -, Try again and Back); "signed out" is a session
@@ -411,10 +415,23 @@ async function expectNoKeys(where) {
  * and the person (or the sign-in button) side by side, each inside the window
  * and inside the bar's own padding, none over another, the button's words on
  * one line and not pressed into its padding (a bar with too much in it
- * squeezes the button before anything scrolls).
+ * squeezes the button before anything scrolls). In the admin panel, which has
+ * no bar, its frame (<anotoki-admin-frame>, anotoki-lib 0.10.0): on a computer
+ * the column inside the window; on a phone the row's name and Menu side by
+ * side inside it.
  */
 const barFits = () =>
   js(`(() => {
+    const frame = document.querySelector('anotoki-admin-frame');
+    if (frame) {
+      const row = frame.querySelector('.anotoki-admin-frame__row');
+      const parts = row ? [row.querySelector('.anotoki-admin-frame__brand'), row.querySelector('.anotoki-admin-frame__menu')] : [frame.querySelector('.anotoki-admin-frame__column')];
+      const rects = parts.filter(Boolean).map((el) => el.getBoundingClientRect());
+      const width = window.innerWidth;
+      const inside = rects.length === parts.length && rects.every((r) => r.left >= 0 && r.right <= width + 0.5);
+      const apart = rects.every((r, i) => i === 0 || r.left >= rects[i - 1].right - 0.5);
+      return { ok: inside && apart, frame: true, detail: (row ? 'the row: ' : 'the column: ') + rects.map((r) => Math.round(r.left) + '-' + Math.round(r.right)).join(', ') + ' of ' + width };
+    }
     const inner = document.querySelector('app-top-bar .anotoki-top-bar__row');
     if (!inner) return { ok: false, detail: 'no top bar' };
     const names = ['anotoki-brand', '.anotoki-top-bar__nav', 'anotoki-language-switcher', 'anotoki-theme-toggle', '.anotoki-top-bar__person-button', '.anotoki-top-bar__menu-button', 'button.anotoki-top-bar__sign-in'];
@@ -444,7 +461,7 @@ const barFits = () =>
   })()`);
 async function expectBar(where) {
   const bar = await barFits();
-  expect(`${where}: the top bar fits`, bar.ok, bar.detail);
+  expect(`${where}: ${bar.frame ? "the admin panel's frame fits" : 'the top bar fits'}`, bar.ok, bar.detail);
   expect(`${where}: no sideways scroll`, await js('document.documentElement.scrollWidth <= window.innerWidth'), await js('document.documentElement.scrollWidth + " of " + window.innerWidth'));
 }
 /** A menu that is open (the person's, the chooser's) is inside the window. */
@@ -500,11 +517,48 @@ async function openUserMenu() {
   await js("(document.querySelector('app-top-bar .anotoki-top-bar__person-button') ?? document.querySelector('app-top-bar .anotoki-top-bar__menu-button')).click(); true");
   await sleep(300);
 }
-/** The site holds a session (the SDK's stored tokens) and the bar is drawn. */
+/**
+ * The site holds a session (the SDK's stored tokens) and the bar is drawn - or, in the admin panel, its frame
+ * (<anotoki-admin-frame>, drawn for staff alone).
+ */
 const SIGNED_IN =
-  "Object.keys(localStorage).some((name) => name.startsWith('anotoki-auth:') && !!JSON.parse(localStorage.getItem(name) || 'null')?.access_token) && !!document.querySelector('app-top-bar .anotoki-top-bar__person-button, app-top-bar .anotoki-top-bar__menu-button')";
-/** Who the bar says is signed in: the name on its button, or - on a phone - at the head of the menu; null for nobody. */
+  "Object.keys(localStorage).some((name) => name.startsWith('anotoki-auth:') && !!JSON.parse(localStorage.getItem(name) || 'null')?.access_token) && !!document.querySelector('app-top-bar .anotoki-top-bar__person-button, app-top-bar .anotoki-top-bar__menu-button, app-admin-root anotoki-admin-frame')";
+
+// ── The admin panel's frame (<anotoki-admin-frame>, anotoki-lib 0.10.0) ─────
+// A column on a computer - the panel's name, who is signed in, Back, Sign out, the theme, then its pages - and on a
+// phone (up to 860 px) a row with the name and Menu, whose drawer holds the rest. The admin panel has no top bar.
+
+/** The frame's column, or - on a phone, its drawer open - the drawer: its parts in order, each as it is named. */
+const frameParts = (root = 'app-admin-root anotoki-admin-frame header') =>
+  js(`(() => {
+    const root = document.querySelector(${JSON.stringify(root)});
+    if (!root) return null;
+    return [...root.querySelectorAll('a.anotoki-admin-frame__brand, .anotoki-admin-frame__name, .anotoki-admin-frame__email, a.anotoki-admin-frame__back, button.anotoki-admin-frame__sign-out, [role=radiogroup], nav')].map((part) =>
+      part.matches('nav') ? 'navigation: ' + part.getAttribute('aria-label') : part.matches('[role=radiogroup]') ? 'theme: ' + part.getAttribute('aria-label') : part.textContent.replace(/\\s+/g, ' ').trim());
+  })()`);
+/** The frame's pages (its column's, or its drawer's), with " (page)" after the one marked as the page's. */
+const framePages = (root = 'app-admin-root anotoki-admin-frame header') =>
+  js(
+    `[...(document.querySelector(${JSON.stringify(root)})?.querySelectorAll('nav a.anotoki-side-nav__link') ?? [])].map((a) => a.querySelector('.anotoki-side-nav__label').textContent.trim() + (a.getAttribute('aria-current') === 'page' ? ' (page)' : ''))`,
+  );
+/** The phone's drawer: Menu pressed, and the drawer open. */
+async function openDrawer() {
+  await js("document.querySelector('app-admin-root .anotoki-admin-frame__menu').click(); true");
+  await waitFor(page, "!!document.querySelector('app-admin-root anotoki-admin-frame dialog[open]')", 5000);
+  await sleep(300);
+}
+
+/** Who the bar - or the admin panel's frame - says is signed in: the name on its button, or - on a phone - at the head of the menu (the drawer); null for nobody. */
 async function whoIsIn() {
+  if (await js("!!document.querySelector('app-admin-root anotoki-admin-frame')")) {
+    if (await js("!!document.querySelector('app-admin-root .anotoki-admin-frame__account-column .anotoki-admin-frame__name')")) {
+      return text('app-admin-root .anotoki-admin-frame__account-column .anotoki-admin-frame__name');
+    }
+    await openDrawer();
+    const name = await text('app-admin-root anotoki-admin-frame dialog[open] .anotoki-admin-frame__name');
+    await escape();
+    return name;
+  }
   if (await js("!!document.querySelector('app-top-bar .anotoki-top-bar__person-button')")) {
     return text('app-top-bar .anotoki-top-bar__person-name');
   }
@@ -589,7 +643,8 @@ async function refusedOn(path) {
  * Nobody signed in any more, on `path`: signed in there first (whoever the stand-in signs in now), then the session
  * ends the way another tab ends it - the stored tokens gone, with the storage event the library listens for - so the
  * page is taken away where it is, with no navigation, and the layout's card stands in its place; the bar offers Sign
- * in. A page load from here goes to the IAM again (and back at once, unless the stand-in is told to deny).
+ * in (the admin panel's card stands alone, its own Sign in the only one). A page load from here goes to the IAM again
+ * (and back at once, unless the stand-in is told to deny).
  */
 async function sessionEndsOn(path) {
   await setIam({ deny: false });
@@ -598,7 +653,7 @@ async function sessionEndsOn(path) {
   await js(
     "(() => { for (const key of Object.keys(localStorage).filter((name) => name.startsWith('anotoki-auth:') && !name.includes(':login:'))) { localStorage.removeItem(key); window.dispatchEvent(new StorageEvent('storage', { key })); } return true; })()",
   );
-  await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state, app-admin-layout anotoki-empty-state')", 15000);
+  await waitFor(page, "!!document.querySelector('app-participant-layout anotoki-empty-state, app-admin-root anotoki-empty-state')", 15000);
   await sleep(500);
 }
 
@@ -692,7 +747,7 @@ expect(
     same(screenSays.buttons, [EN.retry, EN.back]) &&
     screenSays.lang === 'en' &&
     (await js('location.pathname')) === '/auth/callback' &&
-    !(await js("!!document.querySelector('app-admin-layout, app-surveys-list')")),
+    !(await js("!!document.querySelector('app-admin-root, app-surveys-list')")),
   `${JSON.stringify(screenSays)} at ${await js('location.pathname')}`,
 );
 expect(
@@ -777,40 +832,40 @@ expect('the owner is signed in', (await whoIsIn()) === 'owner');
 expect('the admin area shows the surveys (no survey yet)', (await text('app-surveys-list'))?.includes('No surveys yet'), (await text('app-surveys-list'))?.slice(0, 120));
 expect('no language chooser in the admin area', !(await js("!!document.querySelector('anotoki-language-switcher')")));
 expect(
-  "the admin area's bar: its sections as links - System too, for an ADMIN - Surveys the page",
-  same(await barRow(), ['anotoki-brand', 'links: Surveys (page) Translations Languages System', 'anotoki-theme-toggle', 'person']),
-  JSON.stringify(await barRow()),
+  "the admin panel's frame, not the top bar: the column - its name, the owner and the token's address, Back, Sign out, the theme, then its pages (System too, for an ADMIN; Surveys the page)",
+  same(await frameParts(), ['anotoki survey · admin panel', 'owner', 'owner@example.test', 'Back to the surveys', 'Sign out', 'theme: Theme', 'navigation: Admin panel']) &&
+    same(await framePages(), ['Surveys (page)', 'Translations', 'Languages', 'System']) &&
+    !(await js("!!document.querySelector('app-top-bar, anotoki-top-bar')")),
+  `${JSON.stringify(await frameParts())} / ${JSON.stringify(await framePages())}`,
 );
 expect(
-  'the admin panel\'s brand: "anotoki survey · admin panel", linking to /admin and named after what it shows',
-  same(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span'), ['anotoki', 'survey', '·', 'admin panel']) &&
-    (await js("document.querySelector('app-top-bar anotoki-brand a').getAttribute('href')")) === '/admin' &&
-    (await js("document.querySelector('app-top-bar anotoki-brand a').getAttribute('aria-label')")) === 'anotoki survey admin panel: all surveys',
-  `${JSON.stringify(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span'))} / ${await js("document.querySelector('app-top-bar anotoki-brand a')?.getAttribute('aria-label')")}`,
+  "the panel's name links to /admin, Back to the surveys to /",
+  (await js("document.querySelector('app-admin-root a.anotoki-admin-frame__brand').getAttribute('href')")) === '/admin' &&
+    (await js("document.querySelector('app-admin-root a.anotoki-admin-frame__back').getAttribute('href')")) === '/',
+  `${await js("document.querySelector('app-admin-root a.anotoki-admin-frame__brand')?.getAttribute('href')")} / ${await js("document.querySelector('app-admin-root a.anotoki-admin-frame__back')?.getAttribute('href')")}`,
 );
 expect("the admin panel's tab: the page, the admin panel, the site", (await js('document.title')) === 'Surveys · Admin panel · anotoki survey', await js('document.title'));
 await screenshot('admin-empty');
-// The narrowest desktop bar (761 px) holds an ADMIN's four links, the theme and the person beside "survey" with "admin
-// panel" small under it; "anotoki" and the row "anotoki survey · admin panel" come back with the person's name, from 961 px.
-for (const [width, words] of [
-  [761, ['survey', '·', 'admin panel']],
-  [960, ['survey', '·', 'admin panel']],
-  [961, ['anotoki', 'survey', '·', 'admin panel']],
+// The frame is a computer's from 861 px - the column beside the page - and a phone's up to 860: a row with the panel's
+// name and Menu (anotoki-lib 0.10.0's measure).
+for (const [width, phone] of [
+  [861, false],
+  [860, true],
 ]) {
   await viewport(width);
   await sleep(400);
   await expectBar(`the admin panel, ${width} px`);
   expect(
-    `the admin panel, ${width} px: the wordmark is ${words.join(' ')}`,
-    same(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span'), words),
-    JSON.stringify(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span')),
+    `the admin panel, ${width} px: ${phone ? 'the row - the name and Menu' : 'the column beside the page'}`,
+    (await js("!!document.querySelector('app-admin-root .anotoki-admin-frame__row')")) === phone &&
+      (await js("!!document.querySelector('app-admin-root .anotoki-admin-frame__account-column')")) === !phone,
   );
-  await screenshot(`admin-${width}-bar`);
+  await screenshot(`admin-${width}-frame`);
 }
 await viewport(1280);
 await sleep(300);
 
-// ── The user menu ───────────────────────────────────────────────────────────
+// ── The user menu: the top bar's, on the public site's pages (the admin panel's way out is its frame's) ───────
 /** The element that has the focus, as "tag.class text". */
 const focused = () =>
   js("(() => { const e = document.activeElement; return e ? e.tagName.toLowerCase() + '.' + [...e.classList].join('.') + ' ' + e.textContent.replace(/\\s+/g, ' ').trim() : null; })()");
@@ -821,11 +876,12 @@ const press = async (key, shift = false) => {
   await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, modifiers });
   await sleep(150);
 };
+await go('/');
 await openUserMenu();
 const menu = await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]');
 expect(
-  'the menu: name, address, role, account, back to the surveys, sign out',
-  ['owner', 'owner@example.test', 'Administrator', 'Your anotoki account', 'Back to the surveys', 'Sign out'].every((part) => menu?.includes(part)),
+  'the menu: name, address, role, account, the admin panel, sign out',
+  ['owner', 'owner@example.test', 'Administrator', 'Your anotoki account', 'Admin panel', 'Sign out'].every((part) => menu?.includes(part)),
   menu,
 );
 expect(
@@ -839,7 +895,7 @@ expect(
   await focused(),
 );
 await press('ArrowDown');
-expect('ArrowDown: the next item', (await focused())?.includes('Back to the surveys'), await focused());
+expect('ArrowDown: the next item', (await focused())?.includes('Admin panel'), await focused());
 await press('End');
 expect('End: the last item', (await focused())?.includes('Sign out'), await focused());
 await press('ArrowDown');
@@ -874,9 +930,10 @@ expect(
   await focused(),
 );
 await openUserMenu();
-await js("document.querySelector('app-surveys-list').click(); true");
+await js("document.querySelector('app-survey-home').click(); true");
 await sleep(200);
 expect('a click outside closes it', !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]')")));
+await go('/admin');
 
 // ── A new survey, written and saved ─────────────────────────────────────────
 expect('new survey', (await clickText('button', 'New survey')) === true);
@@ -965,13 +1022,13 @@ await waitFor(page, "!!document.querySelector('.message-heading')", 15000);
 expect('again: already taken', (await text('.message-heading')) === 'You have taken this survey');
 
 await go('/admin');
-expect('the admin area is not for Pat', (await text('app-admin-layout anotoki-empty-state'))?.includes('for the people who write the surveys'), await text('app-admin-layout anotoki-empty-state'));
+expect('the admin area is not for Pat', (await text('app-admin-root anotoki-empty-state'))?.includes('for the people who write the surveys'), await text('app-admin-root anotoki-empty-state'));
 await screenshot('no-access');
 // The same card on a page that asks before it is left (the Translations page): the page was never drawn, so the
 // router asks the guard with no page at all - and the card's link must still go somewhere.
 await go('/admin/translations');
-expect('the no-access card on the Translations page too', (await text('app-admin-layout anotoki-empty-state'))?.includes('no editor role here'), await text('app-admin-layout anotoki-empty-state'));
-await clickText('app-admin-layout anotoki-empty-state a', 'See the open surveys');
+expect('the no-access card on the Translations page too', (await text('app-admin-root anotoki-empty-state'))?.includes('no editor role here'), await text('app-admin-root anotoki-empty-state'));
+await clickText('app-admin-root anotoki-empty-state a', 'See the open surveys');
 await waitFor(page, "location.pathname === '/' && !!document.querySelector('app-survey-home h1')", 15000).catch(() => null);
 expect(
   '... and its "See the open surveys" leaves it: the home page',
@@ -1016,9 +1073,9 @@ await waitFor(page, "!!document.querySelector('app-surveys-list .survey')", 1500
 expect('an editor sees the surveys', (await text('app-surveys-list .title')) === 'Genshin 6.1 - what next?');
 expect('but no Delete button', !(await js("!![...document.querySelectorAll('app-surveys-list button')].find(b => b.getAttribute('aria-label') === 'Delete')")));
 expect(
-  "nor System in the bar: the people, the logs, the backups and the database's updates are an ADMIN's",
-  (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' ') === 'Surveys Translations Languages',
-  (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' '),
+  "nor System in the frame's column: the people, the logs, the backups and the database's updates are an ADMIN's",
+  (await framePages()).join(' ') === 'Surveys (page) Translations Languages',
+  (await framePages()).join(' '),
 );
 await go('/admin/migrations');
 await waitFor(page, "!!document.querySelector('anotoki-migrations-page')", 15000);
@@ -1454,8 +1511,8 @@ await screenshot('sk-360-not-found', true);
 await go('/admin');
 expect(
   'the admin area is English for somebody reading Slovak: <html lang="en">, the no-access page',
-  (await pageLanguage()) === 'en' && (await text('app-admin-layout anotoki-empty-state'))?.includes('for the people who write the surveys'),
-  `${await pageLanguage()}, ${await text('app-admin-layout anotoki-empty-state')}`,
+  (await pageLanguage()) === 'en' && (await text('app-admin-root anotoki-empty-state'))?.includes('for the people who write the surveys'),
+  `${await pageLanguage()}, ${await text('app-admin-root anotoki-empty-state')}`,
 );
 await screenshot('sk-360-no-access', true);
 
@@ -1481,18 +1538,27 @@ expect(
   (await text('app-surveys-list'))?.includes('New survey') && (await js('document.title')) === 'Surveys · Admin panel · anotoki survey',
   `${(await text('app-surveys-list'))?.slice(0, 80)} / ${await js('document.title')}`,
 );
-await openUserMenu();
-const menuAdmin = await text('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menu]');
+// The admin panel's frame on a phone: a row with its name and Menu, no top bar; the drawer holds the person, Back, Sign
+// out, the theme and the pages - in English, whatever the tab reads.
 expect(
-  '/admin as the owner: the shared top bar in English',
-  ['Administrator', 'Your anotoki account', 'Surveys', 'Translations', 'Languages', 'Back to the surveys', 'Sign out'].every((part) => menuAdmin?.includes(part)) &&
-    (await js("document.querySelector('app-top-bar anotoki-theme-toggle [role=radiogroup]').getAttribute('aria-label')")) === 'Theme',
-  menuAdmin,
+  "/admin as the owner, 360 px: the frame's row - the panel's name and Menu - and no top bar",
+  (await text('app-admin-root .anotoki-admin-frame__row a.anotoki-admin-frame__brand')) === 'anotoki survey · admin panel' &&
+    (await text('app-admin-root .anotoki-admin-frame__menu')) === 'Menu' &&
+    !(await js("!!document.querySelector('app-top-bar, anotoki-top-bar')")),
+  await text('app-admin-root .anotoki-admin-frame__row'),
 );
 await expectBar('/admin, 360 px');
+await openDrawer();
+const drawerAdmin = 'app-admin-root anotoki-admin-frame dialog[open]';
+expect(
+  "/admin as the owner: the frame's drawer in English - the owner, Back, Sign out, the theme, then the pages",
+  same(await frameParts(drawerAdmin), ['owner', 'owner@example.test', 'Back to the surveys', 'Sign out', 'theme: Theme', 'navigation: Admin panel']) &&
+    same(await framePages(drawerAdmin), ['Surveys (page)', 'Translations', 'Languages', 'System']),
+  `${JSON.stringify(await frameParts(drawerAdmin))} / ${JSON.stringify(await framePages(drawerAdmin))}`,
+);
 await expectNoKeys('/admin');
 await screenshot('sk-360-admin-menu');
-await clickText('app-top-bar .anotoki-top-bar__actions > anotoki-menu a', 'Back to the surveys');
+await js(`document.querySelector(${JSON.stringify(drawerAdmin + ' a.anotoki-admin-frame__back')}).click(); true`);
 await waitFor(page, "location.pathname === '/' && !!document.querySelector('app-survey-home h1')", 15000);
 await sleep(400);
 expect(
@@ -1511,9 +1577,9 @@ expect(
 );
 await expectBar('/admin, 390 px');
 expect(
-  '/admin, 390 px: the brand is the mark and "survey", "admin panel" under it',
-  same(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span'), ['survey', '·', 'admin panel']),
-  JSON.stringify(await texts('app-top-bar anotoki-brand .anotoki-brand__wordmark > span')),
+  '/admin, 390 px: the frame\'s row - "anotoki survey · admin panel" and Menu',
+  (await text('app-admin-root .anotoki-admin-frame__row a.anotoki-admin-frame__brand')) === 'anotoki survey · admin panel' && (await text('app-admin-root .anotoki-admin-frame__menu')) === 'Menu',
+  await text('app-admin-root .anotoki-admin-frame__row'),
 );
 await screenshots('sk-390-admin');
 
@@ -1706,13 +1772,17 @@ const marks = () =>
   );
 const storedSk = await boxValue(DRAFT_SK[0], 'sk');
 const storedEn = await boxValue(DRAFT_EN[0], 'en');
-/** The bar Save is in, and what it says became of the save, are inside the window - on a page scrolled away from its top. */
+/**
+ * The bar Save is in, and what it says became of the save, are inside the window - on a page scrolled away from its
+ * top: the window on a phone, and on a computer the admin panel's frame's page column, which is what scrolls there.
+ */
 const saidInView = () =>
   js(`(() => {
     const bar = document.querySelector('anotoki-translations-page .anotoki-translations-page__save-bar')?.getBoundingClientRect();
     const said = document.querySelector('anotoki-translations-page .anotoki-translations-page__save-refused')?.getBoundingClientRect();
     const inside = (r) => !!r && r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight && r.left >= 0 && r.right <= window.innerWidth + 0.5;
-    return { ok: inside(bar) && inside(said) && window.scrollY > 400, detail: 'scrolled ' + Math.round(window.scrollY) + ', the bar ' + (bar ? Math.round(bar.top) + '-' + Math.round(bar.bottom) : 'missing') + ' of ' + window.innerHeight };
+    const scrolled = Math.max(window.scrollY, document.querySelector('app-admin-root .anotoki-admin-frame__page-column')?.scrollTop ?? 0);
+    return { ok: inside(bar) && inside(said) && scrolled > 400, detail: 'scrolled ' + Math.round(scrolled) + ', the bar ' + (bar ? Math.round(bar.top) + '-' + Math.round(bar.bottom) : 'missing') + ' of ' + window.innerHeight };
   })()`);
 const saidOfTheSave = async (words) => {
   await clickText('anotoki-translations-page [data-save]', 'Save');
@@ -1796,18 +1866,18 @@ await js(`(() => {
 })()`);
 // The next thing the person does needs a token: they press Save.
 await clickText('anotoki-translations-page [data-save]', 'Save');
-await waitFor(page, "!document.querySelector('anotoki-translations-page') && !!document.querySelector('app-top-bar button.anotoki-top-bar__sign-in')", 15000);
+await waitFor(page, "!document.querySelector('anotoki-translations-page') && !!document.querySelector('app-admin-root anotoki-empty-state button')", 15000);
 await sleep(400);
 const iamLog = await iamTrips();
 expect(
-  'the session ended - the IAM refused to renew it: the page is gone, where it was, and the bar offers to sign in',
+  'the session ended - the IAM refused to renew it: the page is gone, where it was, the frame with it - the card stands alone, with its own Sign in',
   (await js('location.pathname')) === '/admin/translations' &&
-    !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__person-button')")) &&
+    !(await js("!!document.querySelector('app-admin-root anotoki-admin-frame, app-top-bar, anotoki-top-bar')")) &&
     iamLog.slice(-3).includes('POST /api/oidc/token'),
   `${await js('location.pathname')}; the IAM was asked: ${iamLog.slice(-3).join(', ')}`,
 );
 expect('... and what was typed is kept for the tab, for the person it was typed by', (await draftsKept()) === `${OWNER.id}: ${DRAFT_SK[0]} sk, ${DRAFT_EN[0]} en`, await draftsKept());
-const signedOutCard = async () => text('app-admin-layout anotoki-empty-state');
+const signedOutCard = async () => text('app-admin-root anotoki-empty-state');
 expect(
   'the admin area says so: "You are signed out", and that the boxes are kept - not that the account has no editor role',
   (await signedOutCard())?.includes('You are signed out') &&
@@ -1818,31 +1888,25 @@ expect(
 await screenshot('admin-session-ended');
 await viewport(390);
 await sleep(400);
-await expectBar('signed out in the admin area, 390 px');
 expect(
-  "signed out in the admin area, 390 px: the brand, the theme, the menu button - and the card's own Sign in",
-  same(await barRow(), ['anotoki-brand', 'anotoki-theme-toggle', 'phone-menu']) && (await text('app-admin-layout anotoki-empty-state button')) === 'Sign in',
-  JSON.stringify(await barRow()),
+  'signed out in the admin area, 390 px: the card alone - no top bar, no frame - with its own Sign in',
+  !(await js("!!document.querySelector('app-admin-root anotoki-admin-frame, app-top-bar, anotoki-top-bar')")) && (await text('app-admin-root anotoki-empty-state button')) === 'Sign in',
+  await text('app-admin-root anotoki-empty-state button'),
 );
+await expectNoSideways('signed out in the admin area, 390 px');
 await screenshots('admin-session-ended-390');
-await openUserMenu();
-expect(
-  "... its menu: the admin area's sections, then Sign in",
-  same(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]'), ['Surveys', 'Translations', 'Languages', 'Sign in']),
-  JSON.stringify(await texts('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]')),
-);
-await escape();
 await viewport(1280);
 await sleep(400);
-// The site's links and Back still work from here: the page is gone, so the router asks the Translations page's guard
-// with no page - which lets the navigation through (it threw, and every link of this state was dead). The admin
+// Navigations still work from here: the page is gone, so the router asks the Translations page's guard with no page -
+// which lets the navigation through (it threw, and every link of this state was dead). The card's page holds no link of
+// the panel (its frame went with the page), so the router is moved as a link moves it: to /admin, then Back. The admin
 // area's own sign-in guard does not run again for a page inside it: the card stays, and nobody is sent to the IAM.
-await js("document.querySelector('app-top-bar anotoki-brand a').click(); true");
+await js("history.pushState(null, '', '/admin'); window.dispatchEvent(new PopStateEvent('popstate', { state: null })); true");
 await waitFor(page, "location.pathname === '/admin'", 10000).catch(() => null);
 await sleep(400);
 expect(
-  'signed out: the brand link goes to /admin - the card stays, still signed out',
-  (await js('location.pathname')) === '/admin' && (await signedOutCard())?.includes('You are signed out') && !(await js("!!document.querySelector('app-top-bar .anotoki-top-bar__person-button')")),
+  'signed out: a navigation to /admin goes through - the card stays, still signed out',
+  (await js('location.pathname')) === '/admin' && (await signedOutCard())?.includes('You are signed out') && !(await js("!!document.querySelector('app-admin-root anotoki-admin-frame')")),
   `${await js('location.pathname')} / ${await signedOutCard()}`,
 );
 await js('history.back(); true');
@@ -1858,7 +1922,7 @@ await setIam({ refuse: false });
 // on the way: nobody is signed in, and the family's drafts wait in the tab for the same person (anotoki-lib 0.4.0 -
 // 0.3.0 asked "Leave site?" here, whenever boxes waited).
 const askedBeforeSignIn = leaving.length;
-await clickText('app-top-bar button', 'Sign in');
+await clickText('app-admin-root anotoki-empty-state button', 'Sign in');
 await sleep(1500);
 await settle();
 await waitFor(page, `location.pathname === '/admin/translations' && ${GRID_DRAWN}`, 15000);
@@ -1870,10 +1934,7 @@ expect(
 );
 expect(
   'signed in again: both boxes hold what was typed, and are marked as changed',
-  (await text('app-top-bar .anotoki-top-bar__person-name')) === OWNER.username &&
-    (await boxValue(DRAFT_SK[0], 'sk')) === DRAFT_SK[2] &&
-    (await boxValue(DRAFT_EN[0], 'en')) === DRAFT_EN[2] &&
-    same(await marks(), BOTH),
+  (await whoIsIn()) === OWNER.username && (await boxValue(DRAFT_SK[0], 'sk')) === DRAFT_SK[2] && (await boxValue(DRAFT_EN[0], 'en')) === DRAFT_EN[2] && same(await marks(), BOTH),
   `${await boxValue(DRAFT_SK[0], 'sk')} / ${await boxValue(DRAFT_EN[0], 'en')} / ${JSON.stringify(await marks())}`,
 );
 expect('... and the bar counts them, with Save ready', (await saveState()) === '2 strings changed, not saved yet' && (await saveReady()) === true, await saveState());
@@ -1886,8 +1947,8 @@ const question = () =>
   js(
     "(() => { const d = document.querySelector('dialog[open]'); return d ? { title: d.querySelector('.anotoki-dialog__title').textContent.trim(), message: d.querySelector('.anotoki-confirm-host__message, .anotoki-dialog__description')?.textContent.trim() ?? '', buttons: [...d.querySelectorAll('.anotoki-dialog__footer button')].map((b) => b.textContent.trim()).join(' | ') } : null; })()",
   );
-await openUserMenu();
-await clickText('app-top-bar .anotoki-top-bar__actions > anotoki-menu [role=menuitem]', EN.signOut);
+// The admin panel's Sign out is its frame's - the site's one, the top bar's too.
+await js("document.querySelector('app-admin-root button.anotoki-admin-frame__sign-out').click(); true");
 await waitFor(page, "!!document.querySelector('dialog[open]')", 15000);
 await sleep(300);
 let asking = await question();
@@ -1910,10 +1971,7 @@ await clickText('dialog[open] button', 'Stay');
 await sleep(500);
 expect(
   '"Stay": still signed in, still on the page, the boxes as they were',
-  !(await js("!!document.querySelector('dialog[open]')")) &&
-    (await text('app-top-bar .anotoki-top-bar__person-name')) === OWNER.username &&
-    (await boxValue(DRAFT_SK[0], 'sk')) === DRAFT_SK[2] &&
-    same(await marks(), BOTH),
+  !(await js("!!document.querySelector('dialog[open]')")) && (await whoIsIn()) === OWNER.username && (await boxValue(DRAFT_SK[0], 'sk')) === DRAFT_SK[2] && same(await marks(), BOTH),
   JSON.stringify(await marks()),
 );
 
@@ -2022,11 +2080,10 @@ expect(
   `${hiddenBundle.language}: ${hiddenBundle.languages?.map((l) => l.code).join(' ')}`,
 );
 await screenshot('admin-languages-1280-slovak-hidden');
-// The page that hid it has the site's languages again at once: through the menu, with no page load, the pages
+// The page that hid it has the site's languages again at once: through the frame's Back, with no page load, the pages
 // people take surveys on are English already.
 const toTheSurveys = async () => {
-  await openUserMenu();
-  await clickText('app-top-bar .anotoki-top-bar__actions > anotoki-menu a', 'Back to the surveys');
+  await clickText('app-admin-root a.anotoki-admin-frame__back', 'Back to the surveys');
   await waitFor(page, "location.pathname === '/' && !!document.querySelector('app-survey-home h1')", 15000);
   await sleep(400);
 };
@@ -3095,13 +3152,13 @@ const setupLink = () => js("[...document.querySelectorAll('a')].filter((a) => (a
 const statusHeading = () => text('anotoki-site-status h1');
 const statusActions = async () => (await texts('anotoki-site-status button, anotoki-site-status a')).join(' | ');
 /**
- * The site's frames counted - the top bar, the family's footer (<anotoki-site-footer>, its legal links), the layouts
- * that hold them: a page drawn instead of the site is bare, none of them (the gate makes no routed frame while it
- * shows its page).
+ * The site's frames counted - the top bar, the admin panel's frame (<anotoki-admin-frame>), the family's footer
+ * (<anotoki-site-footer>, its legal links), the layouts that hold them: a page drawn instead of the site is bare, none
+ * of them (the gate makes no routed frame while it shows its page).
  */
 const framesDrawn = () =>
   js(
-    "document.querySelectorAll('app-top-bar, anotoki-top-bar, anotoki-shell, anotoki-site-footer, anotoki-legal-links, app-participant-layout, app-admin-layout, app-legal-layout, header, footer').length",
+    "document.querySelectorAll('app-top-bar, anotoki-top-bar, anotoki-shell, anotoki-admin-frame, anotoki-site-footer, anotoki-legal-links, app-participant-layout, app-admin-root, app-legal-layout, header, footer').length",
   );
 /** The family's footer's first row as it is read - each part's words and the dots between them - under `frame`. */
 const footerRow = (frame) => texts(`${frame} anotoki-site-footer .anotoki-site-footer__row > *`);
@@ -3235,20 +3292,24 @@ const pendingRows = async () =>
   (await js("[...document.querySelectorAll('anotoki-migrations-page [data-pending] li')].map((row) => [...row.children].map((child) => child.textContent.trim()).join(' '))")).join(' | ');
 // One list in the order the files run (anotoki-lib 0.4.0): the site's own by their names alone, the library's with their set.
 const PENDING = [FILE_004, FILE_011, FILE_012, ...LIBRARY_FILES].map((file) => `${file} pending`).join(' | ');
-const barLinks = async () => (await texts('app-top-bar .anotoki-top-bar__nav a')).join(' ');
+/** The admin panel's pages in its frame's column, by their words. */
+const columnPages = async () => (await texts('app-admin-root anotoki-admin-frame header nav .anotoki-side-nav__label')).join(' ');
 expect(
-  "a signed-out ADMIN: Sign in on the family's page, and back at the address - the Migrations page, the files pending in the order they will run, the site's before the library's, and in the bar the one page that works",
-  ownerTrips === 0 && ownerPressed === true && (await pendingRows()) === PENDING && (await barLinks()) === 'Migrations' && (await js('document.title')).startsWith('Migrations · '),
-  `${ownerTrips} / ${await pendingRows()} / bar: ${await barLinks()} / ${await js('document.title')}`,
+  "a signed-out ADMIN: Sign in on the family's page, and back at the address - the Migrations page, the files pending in the order they will run, the site's before the library's, and in the frame's column the one page that works",
+  ownerTrips === 0 && ownerPressed === true && (await pendingRows()) === PENDING && (await columnPages()) === 'Migrations' && (await js('document.title')).startsWith('Migrations · '),
+  `${ownerTrips} / ${await pendingRows()} / column: ${await columnPages()} / ${await js('document.title')}`,
 );
-// The site's pages for the ADMIN there, so the admin panel's frame round them: the bar, and the family's footer - the
-// version and What's new, but no Feedback while the update waits (the server would refuse the message: 503).
+// The site's pages for the ADMIN there, so the admin panel's frame round them: its column, and the family's footer
+// under the page - the version and What's new, but no Feedback while the update waits (the server would refuse the
+// message: 503).
 expect(
-  "... in the admin panel's frame: its bar and the family's footer under it, English - the version and What's new, no Feedback while the update waits",
-  (await js("!!document.querySelector('app-admin-layout > app-top-bar') && !!document.querySelector('app-admin-layout > anotoki-site-footer > footer')")) &&
-    same(await footerRow('app-admin-layout'), FOOTER_ROW.en.slice(0, 3)) &&
+  "... in the admin panel's frame: its column, no top bar, and the family's footer under the page, English - the version and What's new, no Feedback while the update waits",
+  (await js(
+    "!!document.querySelector('app-admin-root > anotoki-admin-frame') && !document.querySelector('app-top-bar') && !!document.querySelector('app-admin-root .anotoki-admin-frame__page-column > anotoki-site-footer > footer')",
+  )) &&
+    same(await footerRow('app-admin-root'), FOOTER_ROW.en.slice(0, 3)) &&
     !(await js("!!document.querySelector('anotoki-site-footer [data-open-feedback]')")),
-  JSON.stringify(await footerRow('app-admin-layout')),
+  JSON.stringify(await footerRow('app-admin-root')),
 );
 await screenshot('admin-migrations-behind-1280', true);
 
@@ -3310,9 +3371,9 @@ expect(
 );
 expect("... with a backup of the database made before anything ran (the library's backups, before every update)", /backup/i.test((await backupNote()) ?? ''), await backupNote());
 expect(
-  '... and the database is still behind: everything still pending, the bar the same',
-  (await pendingRows()) === PENDING && (await barLinks()) === 'Migrations',
-  `${await pendingRows()} / ${await barLinks()}`,
+  "... and the database is still behind: everything still pending, the frame's column the same",
+  (await pendingRows()) === PENDING && (await columnPages()) === 'Migrations',
+  `${await pendingRows()} / ${await columnPages()}`,
 );
 await screenshot('admin-migrations-failed-1280', true);
 await viewport(390);
@@ -3324,17 +3385,17 @@ await viewport(1280);
 // What was in the way is dealt with (here: 004's work is there, so its row goes back): the next Apply goes through.
 sql(`INSERT INTO migrations (filename) VALUES ('${FILE_004}') ON CONFLICT DO NOTHING`);
 await applyPending('Up to date');
-await waitFor(page, "document.querySelectorAll('app-top-bar .anotoki-top-bar__nav a').length === 4", 15000);
+await waitFor(page, "document.querySelectorAll('app-admin-root anotoki-admin-frame header nav a.anotoki-side-nav__link').length === 4", 15000);
 await sleep(500);
 expect(
-  'a good Apply: "Up to date", what was applied - the site\'s files, then the library\'s - nothing pending, and the site runs where it stands, every section in the bar',
+  "a good Apply: \"Up to date\", what was applied - the site's files, then the library's - nothing pending, and the site runs where it stands, every page in the frame's column",
   (await text('anotoki-migrations-page [data-result] .anotoki-alert__heading')) === 'Up to date' &&
     (await text('anotoki-migrations-page [data-result] .anotoki-migrations-page__result-text')) === `Applied: ${FILE_011}, ${FILE_012}, ${LIBRARY_FILES.join(', ')}.` &&
     (await text('anotoki-migrations-page [data-pending]')).includes('Nothing pending') &&
-    (await barLinks()) === 'Surveys Translations Languages System',
-  `${await text('anotoki-migrations-page [data-result]')} / ${await barLinks()}`,
+    (await columnPages()) === 'Surveys Translations Languages System',
+  `${await text('anotoki-migrations-page [data-result]')} / ${await columnPages()}`,
 );
-expect('... and the footer offers Feedback again: the site runs', same(await footerRow('app-admin-layout'), FOOTER_ROW.en), JSON.stringify(await footerRow('app-admin-layout')));
+expect('... and the footer offers Feedback again: the site runs', same(await footerRow('app-admin-root'), FOOTER_ROW.en), JSON.stringify(await footerRow('app-admin-root')));
 const afterStrings = await (await fetch(`${origin}/api/translations/en`)).json();
 expect(
   "... and the owner's rewording of the sign-in's word survived the release - under the library's key now, the site's key gone",
@@ -3348,7 +3409,7 @@ await sleep(400);
 await expectBar('the Migrations page, up to date, 390 px');
 await screenshots('admin-migrations-up-to-date-390');
 await viewport(1280);
-await clickText('app-top-bar .anotoki-top-bar__nav a', 'Surveys');
+await clickText('app-admin-root anotoki-admin-frame header nav a', 'Surveys');
 await waitFor(page, "location.pathname === '/admin' && !!document.querySelector('app-surveys-list')", 15000);
 await sleep(500);
 expect('the rest of the admin panel works again, with no reload', !(await js("!!document.querySelector('anotoki-site-status')")), await js('location.pathname'));
@@ -3608,7 +3669,7 @@ await waitFor(page, 'location.origin === ' + JSON.stringify(origin) + ' && ' + F
 screenSays = await failureScreen();
 expect(
   "switched off all the same, /admin goes to the IAM: turned down, the screen of a failed sign-in, why in the owner's words - nothing of the admin panel",
-  screenSays.heading === EN.failedTitle && screenSays.message === OWNERS_NOT_COMPLETED && !(await js("!!document.querySelector('app-surveys-list, app-admin-layout')")),
+  screenSays.heading === EN.failedTitle && screenSays.message === OWNERS_NOT_COMPLETED && !(await js("!!document.querySelector('app-surveys-list, app-admin-root')")),
   JSON.stringify(screenSays),
 );
 await go(`/preview/${visitIds['visit-one']}`);
@@ -3768,18 +3829,19 @@ expect(
   editorAnswers.join(', '),
 );
 
-// The owner: the System page, from the bar.
+// The owner: the System page, from the frame's column.
 await signInAs(OWNER);
 await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list')", 15000);
-expect('the System link in the bar', (await clickText('app-top-bar .anotoki-top-bar__nav a', 'System')) === true);
+expect("the System link in the frame's column", (await clickText('app-admin-root anotoki-admin-frame header nav a', 'System')) === true);
 await waitFor(page, "location.pathname === '/admin/system' && !!document.querySelector('app-system a.item')", 15000);
 expect(
-  'the System page: the way to the people, feedback, the error log, the audit log, the backups and the migrations - System lit in the bar (no feedback yet: no count beside it)',
+  "the System page: the way to the people, feedback, the error log, the audit log, the backups and the migrations - System marked in the frame's column (no feedback yet: no count beside it)",
   same(await systemLinks(), ['People /admin/people', 'Feedback /admin/feedback', 'Error log /admin/errors', 'Audit log /admin/audit', 'Backups /admin/backups', 'Migrations /admin/migrations']) &&
-    same(await barRow(), ['anotoki-brand', 'links: Surveys Translations Languages System (page)', 'anotoki-theme-toggle', 'person']) &&
+    same(await framePages(), ['Surveys', 'Translations', 'Languages', 'System (page)']) &&
+    !(await js("!!document.querySelector('app-admin-root anotoki-admin-frame header nav .anotoki-side-nav__badge')")) &&
     (await js('document.title')) === 'System · Admin panel · anotoki survey',
-  `${JSON.stringify(await systemLinks())} / ${JSON.stringify(await barRow())} / ${await js('document.title')}`,
+  `${JSON.stringify(await systemLinks())} / ${JSON.stringify(await framePages())} / ${await js('document.title')}`,
 );
 await expectNoKeys('the System page');
 await screenshots('admin-system-1280', false);
@@ -4354,11 +4416,11 @@ for (const width of [1280, 390]) {
   await waitFor(page, "!!document.querySelector('app-surveys-list')", 15000);
   await sleep(400);
   expect(
-    `the admin panel, ${width} px, from a Slovak tab: the family's footer under it, in English - "${FOOTER_ROW.en.filter((part) => part !== '·').join(' · ')}", then About · Support · Terms · Privacy · Contact`,
-    same(await footerRow('app-admin-layout'), FOOTER_ROW.en) &&
-      same(await footerLinks('app-admin-layout'), LEGAL.en.links) &&
-      (await js("!!document.querySelector('app-admin-layout > main + anotoki-site-footer')")),
-    `${JSON.stringify(await footerRow('app-admin-layout'))} / ${JSON.stringify(await footerLinks('app-admin-layout'))}`,
+    `the admin panel, ${width} px, from a Slovak tab: the family's footer under the page, in the frame, in English - "${FOOTER_ROW.en.filter((part) => part !== '·').join(' · ')}", then About · Support · Terms · Privacy · Contact`,
+    same(await footerRow('app-admin-root'), FOOTER_ROW.en) &&
+      same(await footerLinks('app-admin-root'), LEGAL.en.links) &&
+      (await js("!!document.querySelector('app-admin-root anotoki-admin-frame .anotoki-admin-frame__page + anotoki-site-footer')")),
+    `${JSON.stringify(await footerRow('app-admin-root'))} / ${JSON.stringify(await footerLinks('app-admin-root'))}`,
   );
   await expectNoKeys(`the admin panel's footer, ${width} px`);
   await expectNoSideways(`the admin panel's footer, ${width} px`);
@@ -4369,8 +4431,8 @@ for (const width of [1280, 390]) {
   await theme('light');
 }
 await viewport(1280);
-await focus('app-admin-layout anotoki-site-footer [data-whats-new]');
-await js("document.querySelector('app-admin-layout anotoki-site-footer [data-whats-new]').click(); true");
+await focus('app-admin-root anotoki-site-footer [data-whats-new]');
+await js("document.querySelector('app-admin-root anotoki-site-footer [data-whats-new]').click(); true");
 await waitFor(page, "!!document.querySelector('app-changelog-dialog .release')", 15000).catch(() => null);
 await sleep(400);
 expect(
@@ -4386,34 +4448,37 @@ await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h
 
 // ═══ Feedback, on the admin panel ══════════════════════════════════════════
 // The message nobody sent from the Contact page: no mail goes out, so the admin panel says it - how many messages
-// nobody opened yet beside the bar's System link (the family's FeedbackUnread, asked as the panel opens) and on the
+// nobody opened yet beside the System link of the frame's column (the family's FeedbackUnread, asked as the panel opens) and on the
 // System page's card. The Feedback page (the family's, @anotoki/lib/admin/feedback) lists it - nobody's, from
 // /contact; opened, it is read; marked resolved and deleted after its question, each in the audit log.
 await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list')", 15000);
-await waitFor(page, '!!document.querySelector(\'app-top-bar .anotoki-top-bar__nav a[href="/admin/system"] .anotoki-top-bar__badge\')', 15000).catch(() => null);
-/** The count beside System in the bar, as seen and as heard. */
-const systemCount = () =>
+await waitFor(page, '!!document.querySelector(\'app-admin-root anotoki-admin-frame header nav a[href="/admin/system"] .anotoki-side-nav__badge\')', 15000).catch(() => null);
+/** The count beside System in the frame's column (or in its drawer, `within` it), as seen and as heard. */
+const systemCount = (within = 'app-admin-root anotoki-admin-frame header') =>
   js(
-    "(() => { const link = document.querySelector('app-top-bar .anotoki-top-bar__nav a[href=\"/admin/system\"]'); return link ? [link.querySelector('.anotoki-top-bar__badge')?.textContent.trim() ?? null, link.querySelector('.anotoki-visually-hidden')?.textContent.trim() ?? null] : null; })()",
+    `(() => { const link = document.querySelector(${JSON.stringify(within + ' nav a[href="/admin/system"]')}); return link ? [link.querySelector('.anotoki-side-nav__badge')?.textContent.trim() ?? null, link.querySelector('.anotoki-visually-hidden')?.textContent.trim() ?? null] : null; })()`,
   );
 expect(
-  'the bar: beside System, how many feedback messages nobody opened yet - "1", heard as "1 new feedback message"',
+  'the frame\'s column: beside System, how many feedback messages nobody opened yet - "1", heard as "1 new feedback message"',
   same(await systemCount(), ['1', ', 1 new feedback message']),
   JSON.stringify(await systemCount()),
 );
-for (const width of [761, 960, 961]) {
-  await viewport(width);
-  await sleep(400);
-  await expectBar(`the admin panel with the count beside System, ${width} px`);
-  await screenshot(`admin-${width}-bar-feedback-count`);
-}
+await viewport(861);
+await sleep(400);
+await expectBar('the admin panel with the count beside System, 861 px');
+await screenshot('admin-861-frame-feedback-count');
+// On a phone the count is in the drawer, beside System as in the column.
 await viewport(390);
 await sleep(400);
 await expectBar('the admin panel with the count beside System, 390 px');
-await screenshots('admin-390-bar-feedback-count', false);
+await openDrawer();
+const drawerCount = await systemCount('app-admin-root anotoki-admin-frame dialog[open]');
+expect('390 px: in the drawer, the count beside System too', same(drawerCount, ['1', ', 1 new feedback message']), JSON.stringify(drawerCount));
+await screenshots('admin-390-frame-feedback-count', false);
+await escape();
 await viewport(1280);
-await clickText('app-top-bar .anotoki-top-bar__nav a', 'System');
+await clickText('app-admin-root anotoki-admin-frame header nav a', 'System');
 await waitFor(page, "location.pathname === '/admin/system' && !!document.querySelector('app-system a.item')", 15000);
 await waitFor(page, '!!document.querySelector(\'app-system a.item[href="/admin/feedback"] anotoki-badge\')', 15000).catch(() => null);
 expect('the System page: Feedback\'s card says "1 new"', (await text('app-system a.item[href="/admin/feedback"] anotoki-badge')) === '1 new', await text('app-system a.item[href="/admin/feedback"]'));
@@ -4423,11 +4488,11 @@ await waitFor(page, "location.pathname === '/admin/feedback' && !!document.query
 await sleep(500);
 const feedbackItems = await texts('anotoki-feedback-page [data-messages] [data-message]');
 expect(
-  'the Feedback page: the message nobody sent - new, its words, from nobody ("Anonymous"), on /contact - "1 new" above the list, and the tab says the page',
+  'the Feedback page: the message nobody sent - new, its words, from nobody ("Not signed in", the library\'s words since 0.8.1), on /contact - "1 new" above the list, and the tab says the page',
   feedbackItems.length === 1 &&
     feedbackItems[0].startsWith('New') &&
     feedbackItems[0].includes(FEEDBACK_SENT) &&
-    feedbackItems[0].includes('From Anonymous · on /contact') &&
+    feedbackItems[0].includes('Not signed in · on /contact') &&
     (await text('anotoki-feedback-page [data-counts]')) === '1 new' &&
     (await js('document.title')) === 'Feedback · Admin panel · anotoki survey',
   `${JSON.stringify(feedbackItems)} / ${await text('anotoki-feedback-page [data-counts]')} / ${await js('document.title')}`,
@@ -4444,9 +4509,9 @@ const feedbackFacts = () =>
   );
 const openedFacts = await feedbackFacts();
 expect(
-  'opened: its words whole, from nobody ("Anonymous"), its page and language - no address, for none was written - and it is read now: nothing new beside System',
+  'opened: its words whole, from nobody ("Not signed in"), its page and language - no address, for none was written - and it is read now: nothing new beside System',
   (await text('anotoki-feedback-page [data-viewer] [data-words]')) === FEEDBACK_SENT &&
-    openedFacts.includes('From: Anonymous') &&
+    openedFacts.includes('From: Not signed in') &&
     openedFacts.includes('Page: /contact') &&
     openedFacts.includes('Language: en') &&
     !openedFacts.some((fact) => fact.startsWith('Answer at')) &&

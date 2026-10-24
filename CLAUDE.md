@@ -66,7 +66,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   day (`settingsSaid()`) by its kind and line, its start or its byte count -
   never its text, nor what PHP said of it.
 - **While the site cannot run, the anotoki family's library decides what
-  happens** (anotoki-lib 0.9.2, both halves - `anotoki/lib` in `backend/vendor/`,
+  happens** (anotoki-lib 0.10.0, both halves - `anotoki/lib` in `backend/vendor/`,
   `@anotoki/lib` in the frontend -, one release line: a patch
   that changes one half alone leaves the other where it is; the owner's decision of
   2026-10-07, `docs/decisions.md`; DEV.md says how it is updated - from
@@ -141,7 +141,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   `storage/anotoki-lib.key`), the error log's `client` likewise - a stable
   pseudonym of the address while that key lasts (whoever holds the key can
   try every IPv4 address against it), never a secret.
-- **Signing in is the anotoki family's library's** (anotoki-lib 0.9.2, the
+- **Signing in is the anotoki family's library's** (anotoki-lib 0.10.0, the
   `Auth` module on both halves - the IAM's SDKs are gone from this site):
   `Anotoki\Lib\Auth` on the server (`api/auth.php`, `meddleware/auth.php`),
   `@anotoki/lib/auth` in the browser (`AnotokiAuth`, its interceptor, guards,
@@ -226,8 +226,8 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   People page's Delete does the same, the library's). Its words are the
   library's (`anotoki.feedback.*`), formal in Slovak where they speak to the
   reader (migration 014 and `FORMAL_SLOVAK`). The count nobody opened yet
-  stands beside the bar's System link and on the System page's card (the
-  family's `FeedbackUnread`, asked by the admin layout and the System page,
+  stands beside the System link of the admin panel's frame and on the System page's card (the
+  family's `FeedbackUnread`, asked by the admin panel's frame and the System page,
   never while the site cannot run): no mail is sent for a message.
 - **Who a request is is decided when it is issued** (frontend, the library's
   `anotokiAuthInterceptor`): `ApiService` marks the surveys' requests
@@ -398,15 +398,33 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   parameters in every query, identifiers only from literals. `setup.php` stays
   parseable by PHP 7.4.
 - **The top bar is the anotoki family's** - the library's `<anotoki-top-bar>`
-  (`@anotoki/lib/shell`), told by the site's thin wrapper `shared/top-bar`
-  what is this site's: its brand, its sections (System - the people, the
-  feedback, the logs, the backups, the migrations - for an ADMIN, with the
-  count of new feedback beside it; Migrations alone while an update waits),
-  the person and their role, "Your anotoki account" and the
-  way into the admin panel or back, signing in and out (saved first, asked
-  when something would be lost). One row - brand, links, language, theme, the
-  person's menu; up to 760 px (`PHONE_BAR_MAX`, its `phoneMax`) one menu
-  button holds the links and the person's menu.
+  (`@anotoki/lib/shell`), on the public site's pages alone, told by the site's
+  thin wrapper `sites/main/common/top-bar` what is this site's: its brand, its
+  section (Surveys), the person and their role, "Your anotoki account" and the
+  way into the admin panel, signing in and out (the site's one `SignOut`,
+  `shared/auth/sign-out.service.ts`: saved first, asked when something would be
+  lost). One row - brand, links, language, theme, the person's menu; up to
+  760 px (`PHONE_BAR_MAX`, its `phoneMax`) one menu button holds the links and
+  the person's menu.
+- **The admin panel stands in the family's frame, never under the bar**
+  (anotoki-lib 0.10.0's `<anotoki-admin-frame>`, `@anotoki/lib/admin/frame` -
+  genshin's, for every site; the owner's request of 2026-10-24,
+  `docs/decisions.md`): `sites/admin/app.component.*` (`app-admin-root`, the
+  admin routes' frame, out of the first load). A column on the left - the
+  panel's name ("anotoki survey · admin panel": `brand.area` and
+  `brand.adminPanel`, linking to `/admin`), the person (the name and the
+  token's address, shown, never kept), "Back to the surveys" (to `/`), Sign
+  out (`SignOut`, the bar's too), the theme (`<anotoki-theme-toggle
+  adminFrameTheme />`, the account's), then its pages in one group: Surveys,
+  Translations, Languages, and System for an ADMIN with the count of new
+  feedback beside it - Migrations alone while an update waits -, a page
+  marked in its section as the bar marked it (the frame's `current`). The
+  page on the right, in the measure it always had, the family's footer under
+  it (`[adminFrameFooter]`); up to 860 px a row with the name and Menu, the
+  rest in the drawer. The cards for nobody signed in and no role here stand
+  without the frame, the footer under them. Its words are the kit's, English
+  in the admin panel (`forKit()`); the bar's name for the admin brand's link
+  (`topbar.homeAdmin`) went with its admin area (migration 018).
 - **The theme, the date order, the clock and the language are the anotoki
   account's** for somebody signed in (the IAM's migration 015, the owner's
   decision of 2026-10-06; the library's `AnotokiAuth` - `AuthService.preferences`,
@@ -424,7 +442,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
 - **Angular components are three files** (`.ts`, `.html`, `.scss`) - never an
   inline template or styles. Standalone, OnPush, signals, zoneless; route and
   query parameters arrive as inputs. **The UI kit is the anotoki family's**
-  (anotoki-lib 0.9.2: each piece from its own entry point -
+  (anotoki-lib 0.10.0: each piece from its own entry point -
   `@anotoki/lib/ui/button`, `/ui/icon`, `/ui/config`, `/ui/link-card` (the
   survey home's and the System page's cards that are one link),
   `/ui/chips` (the results' filters, `<anotoki-chip-list>`), ... - never the
@@ -444,7 +462,7 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   they meet) is a key, never a sentence in a template or in state - state holds
   keys, kinds and `ApiError`s, and the wording happens in the template (the
   pipes) or in a `computed()` / `effect()`. English in the templates: everything
-  under `sites/admin` and `sites/admin/admin-layout`, the preview's own chrome, and
+  under `sites/admin` (its frame, `sites/admin/app.component`, among it), the preview's own chrome, and
   the load error card's fallback beside its keys (`shared/boot/kept-word.ts`). The
   kit's words (Sign in, the menus' names, the theme's, a toast's X) and the
   family's page's (`anotoki.siteStatus.*`) are the library's keys in the

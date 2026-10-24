@@ -49,9 +49,9 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   "You are not signed in", Sign in in the bar;
 - then the English pass on a desktop window (the admin panel, the user menu,
   the editor, the welcome, the thanks, the no-access page, the results);
-  `admin-761-bar`, `admin-960-bar`, `admin-961-bar`: the admin panel's bar on
-  a narrow desktop - "survey" with "admin panel" small under it up to 960 px,
-  "anotoki survey · admin panel" from 961 - with the three links, the theme, the person;
+  `admin-861-frame`, `admin-860-frame`: the admin panel's frame (anotoki-lib
+  0.10.0's `<anotoki-admin-frame>`) where a computer's column (861 px) turns
+  into a phone's row with the panel's name and Menu (860);
 - `en-360-*`, `en-390-*`: English on a phone, each page `-light` and `-dark`;
   `en-390-home-*` and `en-390-phone-menu-*` the phone's bar and its menu (the
   links, then the person's menu), `en-360-home-signed-out-*` and
@@ -78,7 +78,7 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   blame, said in the bar Save is in (the server's 500 at `1280`, no answer at
   all at `390`); `admin-session-ended`, `admin-session-ended-390-*`: what is
   left of the Translations page when the session ends - "You are signed out",
-  with its own Sign in, the menu button at 390; `admin-translations-1280-drafts-back-*`: the two boxes
+  the card alone with its own Sign in - no bar, no frame; `admin-translations-1280-drafts-back-*`: the two boxes
   holding what was typed, after signing in again; `admin-sign-out-unsaved-*`
   and `sk-360-sign-out-unsaved-*`: the question before signing out over them,
   in English in the admin panel and in Slovak where people take surveys;
@@ -114,8 +114,8 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   `en-1280-behind-admin` ("A database update is waiting" and "Open
   Migrations", in English on a Slovak page too);
   `admin-migrations-behind-1280` (the family's Migrations page in the admin
-  layout: six files pending in one list, in the order they run - the site's by
-  their names, the library's with their set - only Migrations in the bar),
+  panel's frame: six files pending in one list, in the order they run - the site's by
+  their names, the library's with their set - only Migrations in its column),
   `admin-migrations-failed-1280` / `-390-*` ("Stopped at
   004_response_language.sql" and the database's error in its box, the backup
   made before it named under it - look at the
@@ -136,7 +136,7 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   visitor side by side);
 - the ADMIN's System pages, each the anotoki family's: `admin-system-1280-*` /
   `-390-*` (the way to People, Feedback, the error log, the audit log, the
-  backups and Migrations; System lit in the bar), `admin-people-1280-*` / `-390-*` (who
+  backups and Migrations; System marked in the frame's column), `admin-people-1280-*` / `-390-*` (who
   signed in, how many surveys each answered and wrote, "you", the visitors'
   line - Delete pressable only where there are answers),
   `admin-people-scrubbed-1280-*` ("deleted-101", "Deleted at the IAM on …",
@@ -173,11 +173,11 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   a Slovak tab), `admin-1280-footer-light` / `-dark`, `admin-390-…` (up
   close), `admin-1280-whats-new-light` (What's new from the admin panel, in
   English);
-- that message on the admin panel: `admin-761-bar-feedback-count`,
-  `admin-960-…`, `admin-961-…`, `admin-390-bar-feedback-count-*` (the count
-  beside System, the bar fitting), `admin-system-feedback-count-1280-*`
+- that message on the admin panel: `admin-861-frame-feedback-count`,
+  `admin-390-frame-feedback-count-*` (the count beside System in the frame's
+  column, and in its drawer on a phone), `admin-system-feedback-count-1280-*`
   (Feedback's card, "1 new"), `admin-feedback-1280-*` (the family's Feedback
-  page listing it: New, from Anonymous, on /contact), `admin-feedback-open-1280`
+  page listing it: New, from "Not signed in", on /contact), `admin-feedback-open-1280`
   (opened: its words, page and language, no address, Mark as and Delete),
   `admin-feedback-390-*` (nothing left after the delete, on a phone);
 - `en-390-not-set-up-*` (never installed: "This site is not set up yet", the
@@ -272,10 +272,12 @@ which holds for the tab and is taken out of the address:
    card and the bar's Sign in, which signs in. The browser refusing the site
    the storage the sign-in needs (a script makes the client's `setItem`
    throw): the screen, saying why - not a blank page. `/admin` signs in
-   through the IAM and comes back; no chooser there, its links Surveys,
-   Translations, Languages and - the owner is an ADMIN - System (the bar
-   measured at 761, 960 and 961 px with all four).
-2. The user menu: focus on its first item, ArrowDown, End, round to the
+   through the IAM and comes back - in the family's frame, no top bar: its
+   column the panel's name, the owner and the address, Back to the surveys,
+   Sign out, the theme, then Surveys, Translations, Languages and - the owner
+   is an ADMIN - System (the frame at 861 and 860 px: the column, then the
+   row with Menu).
+2. The user menu (the top bar's, on `/`): focus on its first item, ArrowDown, End, round to the
    first, Escape gives the focus back to the button; Tab from the first, a
    middle and the last item (and Shift+Tab) closes it with the focus on the
    button, and the next Tab moves on (never to `<body>`); a click outside
@@ -284,7 +286,7 @@ which holds for the tab and is taken out of the address:
    is not theirs - on the Translations page too, whose "See the open surveys"
    still leaves it). The owner's menu has the way in; the owner reads the answer
    and may delete it. Edith sees everything but the deletes - and no
-   System: not in her bar, at the Migrations page's address the page says it
+   System: not in her frame's column, at the Migrations page's address the page says it
    is for administrators (and asks the server nothing), and the API refuses her.
 4. A phone, 360 and 390 px, signed in and signed out: the top bar fits (brand
    with "survey" alone, chooser, theme, menu button), no sideways scroll, a
@@ -322,8 +324,8 @@ In Slovak:
    attributes or the tab's title.
 7. The admin panel from a Slovak tab: the no-access page for Nina, then the
    owner - through the menu's "Administrátorský panel" and by the address - English,
-   `<html lang="en">`, no chooser, the shared top bar in English; back to `/`
-   it is Slovak again.
+   `<html lang="en">`, no chooser, the frame's row and its drawer in English (the
+   owner, Back, Sign out, the theme, the pages); its Back to `/`: Slovak again.
 8. Storage cleared, Zuzana (her token says `locale: sk`): English while
    turned down (the browser's: the screen in English), Slovak once signed in
    with its Try again, and nothing stored; her
@@ -350,10 +352,10 @@ cleared, `/?lang=en`), the owner in the admin panel:
     `PUT` answered 500 by the check) and one that reaches nobody are said in
     the bar Save is in, in view, at 1280 and 390 px - nothing at the top of
     the page. Two boxes typed and not saved; the session ends (the IAM
-    refuses to renew it) and the page is gone: the layout says "You are
-    signed out" (not "no editor role") with its own Sign in, the bar fits at
-    390 px (brand, theme, the menu button - its menu the sections and Sign in), the
-    brand link and Back still navigate (the guard is asked with no page);
+    refuses to renew it) and the page is gone, the frame with it: the card says
+    "You are signed out" (not "no editor role") with its own Sign in, alone
+    at 390 px (no bar, no frame), and a navigation to /admin and Back still
+    go (the guard is asked with no page);
     the browser asks nothing on the way to the sign-in (nobody is signed in:
     the family's drafts wait in the tab - anotoki-lib 0.4.0; 0.3.0 asked
     "Leave site?" here); signed in again, both boxes
@@ -466,8 +468,8 @@ A database behind the code - the one stage that changes the database itself
     out at `/admin/migrations`, signs in from it: back there, on the family's
     Migrations page - the six files pending in one list in the order they
     run (the site's by their names, the library's with their set, anotoki-lib
-    0.4.0), only "Migrations" in the bar, the tab "Migrations · …" - in the
-    admin panel's frame, its bar and the family's footer, which offers the
+    0.4.0), only "Migrations" in the frame's column, the tab "Migrations · …" - in the
+    admin panel's frame, no top bar, and the family's footer, which offers the
     version and What's new but no Feedback while the update waits (and offers
     it again once the Apply is up to date). On a
     Slovak page the owner reads "A database update is waiting" (English,
@@ -479,7 +481,7 @@ A database behind the code - the one stage that changes the database itself
     exists", with the statement) in its box - at 1280 and 390. 004's row put
     back; Apply again: "Up to date - Applied: 011_people.sql,
     012_sign_in_words.sql, anotoki_translations/003_…, anotoki_translations/004_…,
-    anotoki_people/001_….", nothing pending, the bar's four links back, the
+    anotoki_people/001_….", nothing pending, the column's four pages back, the
     strings read again - the owner's rewording under the library's key now
     (012 moved it), and a sign-in turned down afterwards says it on the
     family's screen - no key on the page; at 1280 and 390; Surveys opens the
@@ -522,9 +524,9 @@ backups' makers; 0.6.2's Feedback), English:
     `/admin/people`: "People are for administrators.", at `/admin/feedback`:
     "Feedback is for the administrators of the survey site.", nothing asked;
     the API refuses her the people, feedback, the error log, the audit log and
-    the backups (403). The owner: System in the bar opens the System page -
+    the backups (403). The owner: System in the frame's column opens the System page -
     the way to People, Feedback, the error log, the audit log, the backups and
-    Migrations, System lit in the bar, no count beside it (no feedback yet) -
+    Migrations, System marked in the column, no count beside it (no feedback yet) -
     at 1280 and 390 px. People: the columns (name, IAM id, first and last
     seen, surveys answered and written), "you" on the owner's row, the
     visitors' line in the site's words, no Delete to press for Edith (nothing
@@ -593,12 +595,13 @@ Terms, Privacy and Contact (anotoki-lib 0.6.0's legal pages, this site's facts;
     new the same list, in English.
 
 26. That message on the admin panel, the owner signed in again: beside System
-    in the bar the count nobody opened yet ("1", heard as ", 1 new feedback
-    message"), the bar fitting at 761, 960, 961 and 390 px; the System page's
-    Feedback card "1 new". The family's Feedback page lists it - New, its
-    words, "From Anonymous · on /contact", "1 new" above the list, the tab
-    "Feedback · Admin panel · anotoki survey", no key on the page. Opened: its
-    words whole, from Anonymous, its page and language, no reply address - and
+    in the frame's column the count nobody opened yet ("1", heard as ", 1 new
+    feedback message"), the frame fitting at 861 px, and at 390 px in its
+    drawer; the System page's Feedback card "1 new". The family's Feedback
+    page lists it - New, its words, "Not signed in · on /contact" (the
+    library's words since 0.8.1), "1 new" above the list, the tab "Feedback ·
+    Admin panel · anotoki survey", no key on the page. Opened: its words
+    whole, from "Not signed in", its page and language, no reply address - and
     read now: no count beside System. Marked Resolved: said in the page, "Last
     marked … by owner". Deleted after its question: "No feedback yet"; the
     audit log has `feedback.status_changed` and `feedback.deleted`, by the
