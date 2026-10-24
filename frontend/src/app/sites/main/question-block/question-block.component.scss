@@ -1,0 +1,438 @@
+@use "fields";
+
+// The fields this page draws itself (src/styles/_fields.scss): first, so its own rules below win.
+@include fields.styles;
+
+:host {
+  display: block;
+}
+
+.question {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  scroll-margin-top: 1.5rem;
+}
+
+// A question still missing something gets a red rule down its left side -
+// seen at a glance when scrolling back up the step.
+.question.has-error::before {
+  content: "";
+  position: absolute;
+  left: -1.1rem;
+  top: 0.15rem;
+  bottom: 0.15rem;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--anotoki-danger);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.number {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.4rem;
+  border-radius: 8px;
+  background: var(--anotoki-primary-soft);
+  color: var(--anotoki-primary-soft-text);
+  font-size: 0.875rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 0.1rem;
+  font-size: 1.0625rem;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.rule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  margin-top: -0.35rem;
+  color: var(--anotoki-muted);
+  font-size: 0.875rem;
+}
+
+.count {
+  color: var(--anotoki-primary-soft-text);
+  font-weight: 700;
+}
+
+.optional {
+  padding: 0 0.5rem;
+  border: 1px solid var(--anotoki-border);
+  border-radius: 999px;
+  background: var(--anotoki-surface-2);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The options: cards with a radio or a checkbox drawn inside
+// ─────────────────────────────────────────────────────────────────────────────
+
+.options {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.options[data-layout="columns"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+// A scale reads left to right: the options in one row, the mark above the words.
+.options[data-layout="scale"] {
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+}
+
+// Options with pictures: cards in as many columns as fit, the pictures on top.
+.options[data-layout="media"] {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.75rem), 1fr));
+}
+
+.cell {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.option {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  min-height: 3.1rem;
+  padding: 0.65rem 0.95rem;
+  border: 1.5px solid var(--anotoki-border-strong);
+  border-radius: var(--anotoki-radius);
+  background: var(--anotoki-surface);
+  cursor: pointer;
+  user-select: none;
+  transition:
+    border-color var(--anotoki-duration) var(--anotoki-ease),
+    background-color var(--anotoki-duration) var(--anotoki-ease),
+    box-shadow var(--anotoki-duration) var(--anotoki-ease),
+    opacity var(--anotoki-duration) var(--anotoki-ease);
+
+  &:hover {
+    border-color: color-mix(in srgb, var(--anotoki-primary) 50%, var(--anotoki-border-strong));
+    background: color-mix(in srgb, var(--anotoki-primary) 4%, var(--anotoki-surface));
+  }
+
+  &.is-chosen {
+    border-color: var(--anotoki-primary);
+    background: var(--anotoki-primary-soft);
+    box-shadow: inset 0 0 0 0.5px var(--anotoki-primary);
+  }
+
+  &:has(input:focus-visible) {
+    box-shadow: 0 0 0 3px var(--anotoki-ring);
+  }
+
+  &.is-waiting {
+    opacity: 0.5;
+    cursor: not-allowed;
+
+    &:hover {
+      border-color: var(--anotoki-border-strong);
+      background: var(--anotoki-surface);
+    }
+  }
+}
+
+.caption {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.options[data-layout="scale"] .option {
+  justify-content: center;
+  min-height: 5.25rem;
+  padding: 0.75rem 0.4rem;
+  text-align: center;
+
+  .caption {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .label {
+    font-size: 0.875rem;
+  }
+}
+
+.options[data-layout="media"] .option {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+  padding: 0.45rem 0.45rem 0.65rem;
+
+  .caption {
+    padding: 0 0.35rem;
+    gap: 0.55rem;
+  }
+}
+
+// Up to three pictures side by side, whole, on the card's own ground.
+.media {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 3px;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: calc(var(--anotoki-radius) - 4px);
+  background: var(--anotoki-surface-2);
+
+  app-survey-image {
+    height: 100%;
+    background: var(--anotoki-surface-2);
+  }
+}
+
+.no-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--anotoki-subtle);
+}
+
+.more {
+  position: absolute;
+  right: 0.35rem;
+  bottom: 0.35rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: rgb(3 8 21 / 60%);
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+// Beside the card, over its pictures: looking closer does not choose.
+.zoom {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(3 8 21 / 55%);
+  color: #ffffff;
+  cursor: zoom-in;
+  opacity: 0.85;
+  transition:
+    opacity var(--anotoki-duration) var(--anotoki-ease),
+    background-color var(--anotoki-duration) var(--anotoki-ease);
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+    background: rgb(3 8 21 / 78%);
+  }
+}
+
+// The pictures under the question are the gallery's (sites/main/common/image-gallery), as a step's are.
+
+.has-error .option:not(.is-chosen) {
+  border-color: color-mix(in srgb, var(--anotoki-danger) 45%, var(--anotoki-border-strong));
+}
+
+input[type="radio"],
+input[type="checkbox"] {
+  position: absolute;
+  top: 50%;
+  left: 1rem;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border: 2px solid var(--anotoki-border-strong);
+  background: var(--anotoki-surface);
+  color: transparent;
+  transition:
+    border-color var(--anotoki-duration) var(--anotoki-ease),
+    background-color var(--anotoki-duration) var(--anotoki-ease);
+}
+
+.mark-radio {
+  border-radius: 50%;
+
+  &::after {
+    content: "";
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--anotoki-primary);
+    transform: scale(0);
+    transition: transform var(--anotoki-duration) var(--anotoki-ease);
+  }
+}
+
+.mark-check {
+  border-radius: 6px;
+}
+
+.is-chosen .mark {
+  border-color: var(--anotoki-primary);
+}
+
+.is-chosen .mark-radio::after {
+  transform: scale(1);
+}
+
+.is-chosen .mark-check {
+  background: var(--anotoki-primary);
+  color: var(--anotoki-primary-contrast);
+}
+
+.label {
+  min-width: 0;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+// The field for "Other", right under it - across both columns when there are two.
+.other {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: 1rem;
+  color: var(--anotoki-muted);
+  animation: other-in 180ms var(--anotoki-ease);
+
+  .field-control {
+    flex: 1;
+  }
+}
+
+.clear {
+  align-self: flex-start;
+  margin-top: -0.35rem;
+  padding: 0.15rem 0;
+  border: 0;
+  background: none;
+  color: var(--anotoki-link);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Text answers
+// ─────────────────────────────────────────────────────────────────────────────
+
+.text-control textarea.field-input {
+  min-height: 7rem;
+}
+
+.length {
+  margin-top: -0.5rem;
+  color: var(--anotoki-subtle);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+
+  &.is-near {
+    color: var(--anotoki-warning);
+    font-weight: 700;
+  }
+}
+
+.error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  color: var(--anotoki-danger);
+  font-size: 0.875rem;
+  font-weight: 650;
+
+  anotoki-icon {
+    margin-top: 0.1rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .options[data-layout="columns"] {
+    grid-template-columns: 1fr;
+  }
+
+  // On a phone a scale of five would be five slivers: it becomes a list.
+  .options[data-layout="scale"] {
+    grid-auto-flow: row;
+    grid-auto-columns: auto;
+  }
+
+  .options[data-layout="scale"] .option {
+    justify-content: flex-start;
+    min-height: 3.1rem;
+    padding: 0.65rem 0.95rem;
+    text-align: left;
+
+    .caption {
+      flex-direction: row;
+      gap: 0.75rem;
+    }
+
+    .label {
+      font-size: 0.9375rem;
+    }
+  }
+
+  // Two cards side by side still show their pictures well on a phone.
+  .options[data-layout="media"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .question.has-error::before {
+    left: -0.75rem;
+  }
+}
+
+@keyframes other-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}

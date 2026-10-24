@@ -26,7 +26,7 @@ use Anotoki\Lib\Translations\Placeholders;
  * the other anotoki sites do. This site speaks formally (Vy), so it takes each
  * of them over in its own words (migrations 010, 012 and 014 - the kit's, the
  * sign-in's, the feedback form's), and the pages keep the same words for the
- * time they have no strings (FORMAL_SLOVAK, core/translations.ts).
+ * time they have no strings (FORMAL_SLOVAK, shared/translations.ts).
  */
 const ADDRESSING_THE_READER = [
     'anotoki.ui.copyFailed',
@@ -63,7 +63,7 @@ const ADDRESSING_THE_READER = [
 const INFORMAL_SLOVAK = '/\b(ty|teba|tebe|ťa|ti|tvoj[a-záéíóúý]*|máš|chceš|môžeš|nemôžeš|pošli|napíš|doplň|skús|prihlás|skontroluj|nechaj|označ|povoľ)\b/iu';
 
 /** Where the pages keep the formal Slovak of the library's words, for the time they have no strings. */
-const FRONTEND_FORMAL_WORDS = '/core/translations.ts';
+const FRONTEND_FORMAL_WORDS = '/shared/translations.ts';
 
 /**
  * The migrations that write strings. Until the first of them is there the
@@ -166,7 +166,7 @@ function migration_keys(string $file): array
 
 /**
  * The formal Slovak the pages keep for the library's words (FORMAL_SLOVAK in
- * core/translations.ts), read from the file's text: key => words.
+ * shared/translations.ts), read from the file's text: key => words.
  *
  * @return array<string, string>
  */
@@ -446,11 +446,11 @@ test(
 
 test('the scan as this site has it: the specs and the specs\' helpers are not read; keys put together at run time are declared', function (): void {
     $root = sources([
-        'pages/home/home.component.html' => "<h1>{{ 'home.title' | translate }}</h1>\n<p>{{ 'home.questions' | translatePlural: n }}</p>\n<p [innerHTML]=\"'home.title' | translate\"></p>\n",
-        'pages/home/home.component.ts' => "const refused = this.i18n.t('take.refused.' + kind);\nconst gender = this.i18n.t(`aboutYou.gender.\${key}`);\n",
-        'pages/home/home.component.spec.ts' => "expect(text).toBe('home.onlyInASpec');\n",
-        'core/testing/example.ts' => "export const example = 'home.onlyInTesting';\n",
-        'core/i18n/dynamic-keys.ts' => "export const DYNAMIC_KEYS = {\n  'aboutYou.gender.': ['male', 'female'],\n};\n",
+        'sites/main/home/home.component.html' => "<h1>{{ 'home.title' | translate }}</h1>\n<p>{{ 'home.questions' | translatePlural: n }}</p>\n<p [innerHTML]=\"'home.title' | translate\"></p>\n",
+        'sites/main/home/home.component.ts' => "const refused = this.i18n.t('take.refused.' + kind);\nconst gender = this.i18n.t(`aboutYou.gender.\${key}`);\n",
+        'sites/main/home/home.component.spec.ts' => "expect(text).toBe('home.onlyInASpec');\n",
+        'shared/testing/example.ts' => "export const example = 'home.onlyInTesting';\n",
+        'shared/i18n/dynamic-keys.ts' => "export const DYNAMIC_KEYS = {\n  'aboutYou.gender.': ['male', 'female'],\n};\n",
     ]);
     $database = [
         'home.title',
@@ -466,23 +466,23 @@ test('the scan as this site has it: the specs and the specs\' helpers are not re
     ];
     $scan = surveyKeyScanner($root)->scan($database);
 
-    assert_same(['core/i18n/dynamic-keys.ts', 'pages/home/home.component.html', 'pages/home/home.component.ts'], surveyKeyScanner($root)->sourceFiles());
-    assert_same(['home.onlyInASpec', 'home.onlyInTesting', 'take.start'], $scan['unused'], 'the specs and core/testing/ do not count; the library\'s keys are never unused');
+    assert_same(['shared/i18n/dynamic-keys.ts', 'sites/main/home/home.component.html', 'sites/main/home/home.component.ts'], surveyKeyScanner($root)->sourceFiles());
+    assert_same(['home.onlyInASpec', 'home.onlyInTesting', 'take.start'], $scan['unused'], 'the specs and shared/testing/ do not count; the library\'s keys are never unused');
     assert_same(
         ['aboutYou.gender.female', 'aboutYou.gender.male', 'home.questions.few', 'home.questions.one', 'home.questions.other', 'home.title'],
         array_keys($scan['used']),
         'a plural by its family\'s name; the declared keys',
     );
     assert_same(2, count($scan['problems']), test_show($scan['problems']));
-    assert_match('/^pages\\/home\\/home\\.component\\.html:3: innerHTML is given a translated string/', $scan['problems'][0]);
-    assert_match("/^pages\\/home\\/home\\.component\\.ts:1: a key is put together from 'take\\.refused\\.', which core\\/i18n\\/dynamic-keys\\.ts does not declare/", $scan['problems'][1]);
+    assert_match('/^sites\\/main\\/home\\/home\\.component\\.html:3: innerHTML is given a translated string/', $scan['problems'][0]);
+    assert_match("/^sites\\/main\\/home\\/home\\.component\\.ts:1: a key is put together from 'take\\.refused\\.', which shared\\/i18n\\/dynamic-keys\\.ts does not declare/", $scan['problems'][1]);
 });
 
 test('the scan reads the real frontend: only the files it should, and their comments are not keys', function (): void {
     $files = surveyKeyScanner()->sourceFiles();
-    assert_true(in_array('app.routes.ts', $files, true) && in_array('layouts/top-bar/top-bar.component.html', $files, true), 'the sources are where the scan looks');
+    assert_true(in_array('app.routes.ts', $files, true) && in_array('shared/top-bar/top-bar.component.html', $files, true), 'the sources are where the scan looks');
     foreach ($files as $file) {
         assert_match('/\.(ts|html)$/', $file);
-        assert_no_match('~\.spec\.ts$|^core/testing/~', $file);
+        assert_no_match('~\.spec\.ts$|^shared/testing/~', $file);
     }
 });

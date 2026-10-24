@@ -63,7 +63,7 @@ api/
                        the header pinned - CF-Connecting-IP alone, never a setting - and, with the
                        origin secret, believed only on a request carrying it (X-Anotoki-Origin)
   survey_rules.php     what a survey and an answer must be - the twin of
-                       ../frontend/src/app/core/survey/
+                       ../frontend/src/app/shared/survey/
   rich_text.php        richTextClean(): the editor's HTML and nothing else
   helpers.php          JSON in and out, text, and afterAnswer* (work done after the answer:
                        the visitors' clean-up)

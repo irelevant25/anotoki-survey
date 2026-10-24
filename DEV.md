@@ -26,13 +26,13 @@ drawn while the site cannot run and the admin panel's Migrations page - the
 site's words - the tables' one implementation on the server (the bundle, the
 admin routes, the command line), the language and the strings in the browser,
 the admin panel's Translations and Languages pages (`backend/api/translations.php`
-and the frontend's `core/translations.ts` wire them in) - the UI kit - the
+and the frontend's `shared/translations.ts` wire them in) - the UI kit - the
 family's styles and tokens, its components, the top bar and the theme (the
-frontend's `core/kit.ts` wires it in) - signing in through the IAM (both
-halves' `Auth`: `backend/api/auth.php`, the frontend's `core/auth/`), the
+frontend's `shared/kit.ts` wires it in) - signing in through the IAM (both
+halves' `Auth`: `backend/api/auth.php`, the frontend's `shared/auth/`), the
 people (`backend/api/people.php`, the People page) and the admin tools (the
 error log, the audit log, the backups: `backend/api/admin_tools.php`, the
-frontend's `core/admin/admin-tools.ts`) - are
+frontend's `shared/admin/admin-tools.ts`) - are
 the shared library **anotoki-lib** (`https://github.com/irelevant25/anotoki-lib`,
 its README), one version for both halves:
 
@@ -62,7 +62,7 @@ points of their own (`@anotoki/lib/translations/admin`,
 `/backups`), and so do the sign-in's callback page and its failure's screen
 (`@anotoki/lib/auth/screens`, loaded as they are shown) and the legal pages
 (`@anotoki/lib/legal/pages` - Terms, Privacy, Contact -, with their frame and
-the site's facts: `layouts/legal-layout`, `core/legal/legal-facts.ts`) and
+the site's facts: `sites/main/legal-layout`, `shared/legal/legal-facts.ts`) and
 About and Support (`@anotoki/lib/legal/about`, `/support`, in the same frame); the
 family's footer is `@anotoki/lib/footer` (`<anotoki-site-footer>`, in the first
 load, with the links to them, `@anotoki/lib/legal`'s `<anotoki-legal-links>`;
@@ -304,7 +304,7 @@ library's own (`anotoki.*`), which its Angular half asks for from
 The same scan fails what would show a key although it "exists", each with its
 file and line: a plural family asked for as one string (`'home.questions' |
 translate`) or one string as a family (`translatePlural`, `.plural()`); a key
-put together from a prefix that `core/i18n/dynamic-keys.ts` does not declare
+put together from a prefix that `shared/i18n/dynamic-keys.ts` does not declare
 (`'take.refused.' + kind`, or a template literal going on with `${…}`); and
 `innerHTML` given a translated string. `php translations.php --status` runs it
 against your own database and ends with 1 when it is not clean.
@@ -466,6 +466,6 @@ rollback --go`, then see anotoki-lib's `deploy/README.md`.
 | `tests/run.php` stops before any test | No `config/database.local.php` to borrow the PostgreSQL server from: run the setup first. |
 | A page shows `home.title` (a key) where a word should be | The database has no string for it: no migration writes that key yet. `php translations.php --status` lists what the frontend uses and the database lacks. |
 | `translations.test.php` fails on a key | The frontend uses a key no migration writes, or a migration writes one nothing uses any more. If the migration was edited just now, the tests' template still has the old one: `php tests/tools/testdb.php template --fresh`. |
-| `translations.test.php` fails with "is a plural family and is asked for as one string", "is asked for as a plural", or "a key is put together from '…', which core/i18n/dynamic-keys.ts does not declare" | The key is in the database, and the page would still show it as a key: ask for a family with `translatePlural` / `.plural()` and for one string with `translate` / `.t()`; declare the prefix and its tails in `dynamic-keys.ts`. |
+| `translations.test.php` fails with "is a plural family and is asked for as one string", "is asked for as a plural", or "a key is put together from '…', which shared/i18n/dynamic-keys.ts does not declare" | The key is in the database, and the page would still show it as a key: ask for a family with `translatePlural` / `.plural()` and for one string with `translate` / `.t()`; declare the prefix and its tails in `dynamic-keys.ts`. |
 | The Languages page: a language just added is not in the chooser | It starts hidden: its row's switch offers it (or the form's "Offer it to readers right away", before adding). |
 | Port 4700 is busy | Another `ng serve` is still running (on Windows the child of `npx` can outlive its window). Find it with `netstat -ano \| findstr :4700` and end that process. |

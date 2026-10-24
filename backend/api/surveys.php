@@ -7,7 +7,7 @@ declare(strict_types=1);
  * admin area, written by editors.
  *
  * A survey goes out in one shape everywhere - the frontend's Survey
- * (core/survey/survey.model.ts), plus `revision`: the number of its last save.
+ * (shared/survey/survey.model.ts), plus `revision`: the number of its last save.
  * An editor sends back the revision their changes were made to; a survey saved
  * by somebody else in between is refused (409 conflict, with the version that
  * is there now) rather than overwritten.

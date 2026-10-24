@@ -3,11 +3,11 @@ import { RouterOutlet } from '@angular/router';
 import { SiteGateComponent, SitePagesDirective, SiteStatus } from '@anotoki/lib/migrations';
 import { ConfirmHostComponent } from '@anotoki/lib/ui/dialog';
 import { ToastHostComponent } from '@anotoki/lib/ui/toast';
-import { LoadErrorComponent } from './boot/load-error/load-error.component';
-import { AuthService } from './core/auth/auth.service';
-import { BOOTED } from './core/boot';
-import { LightboxComponent } from './ui/lightbox/lightbox.component';
-import { LightboxService } from './ui/lightbox/lightbox.service';
+import { LoadErrorComponent } from './shared/boot/load-error/load-error.component';
+import { AuthService } from './shared/auth/auth.service';
+import { BOOTED } from './shared/boot/boot';
+import { LightboxComponent } from './shared/ui/lightbox/lightbox.component';
+import { LightboxService } from './shared/ui/lightbox/lightbox.service';
 
 /** What stands in the page: the site (behind the family's gate), the card saying the server is out of reach, or - while the very first start runs - nothing. */
 type Drawn = 'site' | 'load-error' | 'nothing';

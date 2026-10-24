@@ -207,7 +207,7 @@ function richTextEscape(string $text, bool $attribute): string
 
 /**
  * The words of the HTML, one space between them: what a reader of it would
- * read - plainText() in core/survey/plain-text.ts, with the browser's own
+ * read - plainText() in shared/survey/plain-text.ts, with the browser's own
  * spaces (TEXT_SPACE), so both sides find the same texts blank.
  */
 function richTextPlain(string $html): string

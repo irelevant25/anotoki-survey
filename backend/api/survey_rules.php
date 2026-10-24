@@ -6,11 +6,11 @@ declare(strict_types=1);
  * What a survey may hold, what keeps it from opening, and what counts as an
  * answer - the server's copy of the frontend's rules:
  *
- *   frontend/src/app/core/survey/survey.model.ts     the shape
- *   frontend/src/app/core/survey/survey-problems.ts  surveyProblems()
- *   frontend/src/app/core/survey/localize.ts         translationGaps(), pruneTranslations()
- *   frontend/src/app/core/survey/answer-rules.ts     answerProblem(), cleanAnswer()
- *   frontend/src/app/core/survey/about-you.ts        the gender and age keys
+ *   frontend/src/app/shared/survey/survey.model.ts     the shape
+ *   frontend/src/app/shared/survey/survey-problems.ts  surveyProblems()
+ *   frontend/src/app/shared/survey/localize.ts         translationGaps(), pruneTranslations()
+ *   frontend/src/app/shared/survey/answer-rules.ts     answerProblem(), cleanAnswer()
+ *   frontend/src/app/shared/survey/about-you.ts        the gender and age keys
  *
  * The browser checks first, so people are told at once; the server checks
  * again, because the browser is not the only thing that can send a request.

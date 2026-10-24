@@ -34,13 +34,13 @@ then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
 
 - `AuthService.init()` runs before the first page (the app initializer,
-  `boot()` in `core/boot.ts`), right after the start has asked where the site
+  `boot()` in `shared/boot/boot.ts`), right after the start has asked where the site
   stands (`SiteStatus.check()`, *A database behind the code*, below): it reads
   `GET /api/auth/config` (the library's `AuthRoutes`: `{issuer, client_id,
   login_required, sign_in_available}` and the site's `visitor_days` - or 503
   `not_set_up`, and the family's page says so; answered while a migration is
   pending too), hands it to the library's `AnotokiAuth` (`bootConfig()`, the
-  `config` of `provideSiteAuth()` in `core/auth/auth.config.ts`) and starts
+  `config` of `provideSiteAuth()` in `shared/auth/auth.config.ts`) and starts
   it: a callback finished (`/auth/callback`; the address the person came from
   put back before the router reads it) or the stored session restored.
   `login_required` (the IAM's switch, below) becomes
@@ -222,7 +222,7 @@ visitor: true}`), else nobody - and `visiting` that it is the visitor.
   `sign_in_required` to `/api/surveys` means the switch went on since the page
   loaded (`AuthService.noteLoginRequired()`: the pages stop welcoming visitors
   until the next load) - and keeps the key.
-- **`VisitorKey`** (`core/auth/visitor-key.ts`, the analyzer's pattern): the
+- **`VisitorKey`** (`shared/auth/visitor-key.ts`, the analyzer's pattern): the
   key in `localStorage` (`anotoki-survey:visitor`), read as each call leaves
   and kept in step across tabs by the `storage` event; the first key a browser
   got stays (two tabs that each sent first answers: the second key is
@@ -284,7 +284,7 @@ database cannot be read) - Try again (the sign-in once more, back where it
 started) and Back (there, without signing in; it puts the failure away). The
 library's guards send the browser there instead of to the IAM - straight back,
 it would go round for ever - and `signInFailureGuard`
-(`core/auth/auth.config.ts`) sends the pages its guards let through all the
+(`shared/auth/auth.config.ts`) sends the pages its guards let through all the
 same: a visitor's, and those of somebody still signed in from before (the
 backups' "Sign in again" that came back without one). A Sign in button whose
 sign-in could not start opens it too (`signInOrShowWhy()`). The search engines
@@ -349,7 +349,7 @@ family's (anotoki-lib 0.9.2, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
 `Feedback`, `Backups` - wired in `api/admin_tools.php`, their routes in
 `routes/admin.php` (feedback's form in `routes/feedback.php`); the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/feedback`, `/backups`, configured in
-`core/admin/admin-tools.ts`), for the site's ADMIN alone (the owner's
+`shared/admin/admin-tools.ts`), for the site's ADMIN alone (the owner's
 decision): ADMIN from the token, both sides; an EDITOR is told whose the pages
 are, and the API refuses. The admin panel's System page (`/admin/system`, the
 top bar's System link - each way a card that is one link, the kit's
@@ -363,7 +363,7 @@ and are in every backup).
 
 - **Feedback** (the owner's wish of 2026-10-18; before it, none) - the
   library's form (`@anotoki/lib/feedback/form`, its code loaded with the first
-  press; set up in `core/feedback.ts`) opened from the family's footer's
+  press; set up in `shared/feedback.ts`) opened from the family's footer's
   Feedback under every page (its dialog the library's `<anotoki-feedback-dialog>`
   in the same entry point since anotoki-lib 0.8.0, loaded with the press) and
   from the Contact page, sending `POST /api/feedback` for anybody - a person, a visitor,
@@ -474,7 +474,7 @@ and are in every backup).
 The bar is the anotoki family's, the library's `<anotoki-top-bar>`
 (`@anotoki/lib/shell`, since anotoki-lib 0.3.0 - built from this site's own bar,
 which the IAM, Japanese, Piano and the build analyzer had copied), and
-`layouts/top-bar` is this site's thin wrapper around it: it tells the bar what
+`shared/top-bar` is this site's thin wrapper around it: it tells the bar what
 is this site's, worded - its brand, its sections, the person and their role,
 the menu's items, how to sign in and out - and the bar does the rest (its
 row, its widths, its menus and their keys). One row, in this order: the
@@ -516,7 +516,7 @@ the site's own (`topbar.surveys`, `topbar.backToSurveys`, `brand.area`,
 English (`effectiveLanguage`) - but the Migrations link, which only an ADMIN
 in the admin panel ever sees: its English word is written in the code
 (`label`), as the admin panel's pages are. The kit's own words in the bar come
-from the site's database too, through `core/kit.ts` (*The UI kit*, below).
+from the site's database too, through `shared/kit.ts` (*The UI kit*, below).
 
 ## The UI kit
 
@@ -532,7 +532,8 @@ class names are the library's own (`.anotoki-<piece>__<part>`,
 `anotoki-<piece>--<state>`): a spec or the browser check that reads the kit's
 markup reads those. The
 survey keeps only its own: the rich text editor, the lightbox, a survey's
-picture and the strip of pictures (`src/app/ui/`), the layouts' states, and
+picture and the strip of pictures (`src/app/shared/ui/`, and each half's
+own: `sites/main/common/`, `sites/admin/shared/`), the layouts' states, and
 the look of the raw fields a page draws itself (`src/styles/_fields.scss`,
 inside each such component's styles).
 
@@ -546,16 +547,16 @@ inside each such component's styles).
 - **The words**: the kit has its own (Sign in, the menus' names, a toast's X,
   "Saving…"), built in for English and informal Slovak - and each is a key of
   the library's in the site's database too, `anotoki.<word>` (the library's
-  migration set writes them; *The site's own words*, below). `core/kit.ts`
+  migration set writes them; *The site's own words*, below). `shared/kit.ts`
   gives the kit `TranslationService.forKit()`: the language on the page
   (English in the admin panel) and a `lookup` that reads the database's
   string of `anotoki.<word>` - so an administrator's rewording on the
   Translations page shows, and every word the site said before the library
   still does (migration 010 moved the site's strings under those keys) - and,
   while the database cannot be read, this site's formal Slovak
-  (`FORMAL_SLOVAK`, `core/translations.ts`) - never the kit's ty.
+  (`FORMAL_SLOVAK`, `shared/translations.ts`) - never the kit's ty.
 - **The icons** the site's templates name beyond the kit's own are
-  registered in `core/kit.ts` (`SURVEY_ICONS`, from `@anotoki/lib/ui/icons`):
+  registered in `shared/kit.ts` (`SURVEY_ICONS`, from `@anotoki/lib/ui/icons`):
   an icon nobody registered draws nothing.
 - **The theme** is the kit's `ThemeService` (*The account's preferences*,
   below), told the site's storage key and the account.
@@ -577,9 +578,9 @@ the owner's decisions of 2026-10-13): their structure and the family's words
 Slovak addressing nobody - so it reads well beside this site's formal Slovak)
 are the library's, the facts this site's.
 
-- **Anybody's.** `/terms`, `/privacy` and `/contact` (app.routes.ts) have no
+- **Anybody's.** `/terms`, `/privacy` and `/contact` (sites/main/main.routes.ts) have no
   guard: what the site keeps is said before anybody signs in. Each is a path
-  of its own whose parent is the frame (`layouts/legal-layout`: the skip link,
+  of its own whose parent is the frame (`sites/main/legal-layout`: the skip link,
   the bar - Sign in for nobody -, the column of the survey's pages, one
   stylesheet with them, `styles/_participant-frame.scss`); one parent with an
   empty path took `/` for itself (`app.routes.spec.ts`). Nothing of a survey
@@ -592,7 +593,7 @@ are the library's, the facts this site's.
   tab's title is the page's heading, the library's `anotoki.about.title` /
   `anotoki.support.title`. Their words are the library's (`anotoki.about.*`,
   `anotoki.support.*`, its translations `013`), none of the site's facts.
-- **The facts** (`core/legal/legal-facts.ts`, given by the frame - out of the
+- **The facts** (`shared/legal/legal-facts.ts`, given by the frame - out of the
   first load): the site's name; what it is; three parts of its own - the
   record of a person (the account's id and name, first and last seen), their
   answers (seen with their name by the editors and administrators, deleted
@@ -610,9 +611,9 @@ are the library's, the facts this site's.
   account page from the IAM's address the site signs in with
   (`AnotokiAuth.issuer()` + `/privacy`, `accountUrl()`), the operator,
   the authority and Cloudflare from the library - never a string, which an
-  administrator may reword (`core/legal/legal-facts.spec.ts` holds it, and
+  administrator may reword (`shared/legal/legal-facts.spec.ts` holds it, and
   the backend's test that no `legal.*` string holds an address).
-- **Words and language**: the root configuration (`core/legal/legal.config.ts`,
+- **Words and language**: the root configuration (`shared/legal/legal.config.ts`,
   `provideAnotokiLegal()` in `app.config.ts`) gives the language on the page
   and the database's string of each library key (`libraryWord()`): an owner's
   rewording on the Translations page shows. Contact opens the feedback form
@@ -630,9 +631,9 @@ The anotoki family's footer (`<anotoki-site-footer>`, anotoki-lib 0.6.3's
 `@anotoki/lib/footer`; the owner's choice of 2026-10-18 - the build analyzer's
 footer, its order, its words and its top border, on every site and in every
 admin panel), at the foot of each of the site's frames: the survey's pages
-(`layouts/participant-layout` - under the card of a session that ended too),
-the legal pages (`layouts/legal-layout`) and the admin panel
-(`layouts/admin-layout`, under its cards too). The site's own footer
+(`sites/main/participant-layout` - under the card of a session that ended too),
+the legal pages (`sites/main/legal-layout`) and the admin panel
+(`sites/admin/admin-layout`, under its cards too). The site's own footer
 (`layouts/site-footer`, the legal links alone) went for it; it had no words of
 its own, so no key went with it. A top border; then one row:
 
@@ -647,7 +648,7 @@ its own, so no key went with it. A top border; then one row:
 - **Feedback** - the family's form in the kit's dialog, opened by the footer
   itself (its code with the press, `<anotoki-feedback-dialog>` of
   `@anotoki/lib/feedback/form` since anotoki-lib 0.8.0), set up by
-  the site's `provideAnotokiFeedback()` (`core/feedback.ts`): anybody's here,
+  the site's `provideAnotokiFeedback()` (`shared/feedback.ts`): anybody's here,
   so under every frame for anybody, the message marked whom it is for by
   the form itself (anotoki-lib 0.7.2); in the admin panel only while the site runs
   (round the Migrations page while an update waits the server would refuse it);
@@ -668,13 +669,13 @@ The owner's wish of 2026-10-18 (before it, no changelog): `frontend/public/chang
 lists the survey's versions, newest first, in the other anotoki sites' shape -
 `{version, date, changes: {added?, fixed?, updated?}}`, each sentence about
 something people notice - with each version's formal-Slovak translation
-beside it (`translations.sk`). `Changelog` (`core/changelog/changelog.service.ts`)
+beside it (`translations.sk`). `Changelog` (`shared/changelog/changelog.service.ts`)
 asks for it once a page load, as the site starts (`boot()`, beside everything
 else and never waited for; never the API: the file is shipped beside
 `index.html`); the newest entry is the site's version (`current()`), which the
 family's footer shows - one source, `frontend/package.json`'s held to it by a
 spec. What's new (`Changelog.open()`) is the kit's dialog
-(`ui/changelog-dialog`, loaded with the first press): every version, newest
+(`shared/ui/changelog-dialog`, loaded with the first press): every version, newest
 first, its day in the account's date order, its lists under the site's words
 (`whatsNew.*`, migration 015) - in the reader's language where the version's
 translation is whole (`changesIn()`), in English otherwise, marked
@@ -701,7 +702,7 @@ its own settings exactly as before, and saves nothing to the account.
 the answer into `user()` at once, in every tab, and the next token carries it.
 
 - **The theme** (the family's `ThemeService`, `@anotoki/lib/shell`, told the
-  account's theme and how to save it in `core/kit.ts`; the switch in the top bar):
+  account's theme and how to save it in `shared/kit.ts`; the switch in the top bar):
   the account's while it has one - adopted at sign-in and whenever it changes
   (a refresh after a change on another site, a save in another tab), but not
   while a choice made here is still being saved, whose earlier answer would
@@ -714,9 +715,9 @@ the answer into `user()` at once, in every tab, and the next token carries it.
   before the app has loaded.
 - **Dates and times**: the pages people take surveys on write dates through
   `localDate`, the admin panel through `AdminDates`
-  (`core/admin/admin-dates.service.ts`, the English `core/util/dates.ts` with
+  (`shared/admin/admin-dates.service.ts`, the English `shared/util/dates.ts` with
   the account's choices) - both in the account's order when it has chosen one
-  (`core/util/date-patterns.ts`), the admin panel's times on its clock too
+  (`shared/util/date-patterns.ts`), the admin panel's times on its clock too
   ("2026-09-29 2:30 pm"; a date and a time side by side when either is
   chosen). Nothing chosen - or nobody signed in - is each language's own way.
   The pages people take surveys on write no time of day. The answers' CSV
@@ -735,7 +736,7 @@ gave every step kept before it none of either, and `surveyContent()` reads a
 step kept without them since as having neither); what the database
 must look things up by - the address (`slug`), the title, the status, the
 closing day, the times - are columns beside it. The frontend's
-`core/survey/survey.model.ts` is the shape the API sends and takes
+`shared/survey/survey.model.ts` is the shape the API sends and takes
 ([api](api.md#the-survey-document)).
 
 | Table | Holds |
@@ -827,7 +828,7 @@ stamp in `storage/cache`) by its kind and line, that it does not start with
 `<?php`, or the bytes the file printed - never its text, nor what PHP said of
 it.
 
-In the browser (`@anotoki/lib/migrations`, wired in `core/migrations.ts`) the
+In the browser (`@anotoki/lib/migrations`, wired in `shared/migrations.ts`) the
 start asks first (`SiteStatus.check()` in `boot()`), and `siteStatusInterceptor`
 hears any later answer that says the site cannot run. Nothing in the start stops
 on it: the sign-in's settings and the strings answer while an update waits.
@@ -872,7 +873,7 @@ is not available right now", asking again by itself.
 ## The rules, on both sides
 
 What an answer must be and what keeps a survey from opening are written twice,
-in the same words: in the frontend (`core/survey/answer-rules.ts`,
+in the same words: in the frontend (`shared/survey/answer-rules.ts`,
 `survey-problems.ts`, `localize.ts`), so people are told at once, and in the
 backend (`api/survey_rules.php`), because the browser is not the only thing
 that can send a request. Change one, change the other - and the tests on both
@@ -882,7 +883,7 @@ sides (`frontend/.../answer-rules.spec.ts`, `survey-problems.spec.ts`,
 In the frontend a rule ("choose up to 3") and a problem ("please choose an
 answer") are a kind and its numbers (`{kind: 'upTo', params: {max: 3}}`), not a
 sentence, because the page a person answers on says them in that person's
-language (`core/i18n/answer-words.ts`). The English sentences are
+language (`shared/i18n/answer-words.ts`). The English sentences are
 `choiceRuleText()` and `answerProblemText()` beside them: the admin panel quotes
 those, and they are what keeps the pair - `answerProblemText(answerProblem(...))`
 says what PHP's `answerProblem()` says for the same case. The server's
@@ -926,7 +927,7 @@ sentences stay English and are never shown to somebody taking a survey.
 
 ## Saving in the editor
 
-`AdminStore` (`frontend/src/app/core/admin/admin-store.service.ts`) holds the
+`AdminStore` (`frontend/src/app/shared/admin/admin-store.service.ts`) holds the
 admin panel's surveys, summaries and answers while pages come and go:
 
 - Every change goes through `updateSurvey(id, change)` (in the editor, through
@@ -947,7 +948,7 @@ admin panel's surveys, summaries and answers while pages come and go:
   results and entered again settles a conflict exactly as the page that made
   the changes would have.
 - Either way the **translations are brought together text by text**
-  (`mergeTranslations(base, mine, theirs, saved)` in `core/survey/localize.ts`,
+  (`mergeTranslations(base, mine, theirs, saved)` in `shared/survey/localize.ts`,
   `saved` naming whose document the result is saved with; the editor's alone -
   the server settles nothing). The store remembers each survey as the server
   last had it from this page (`_server`: as loaded, as the last save that went
@@ -1013,7 +1014,7 @@ address offers to carry on.
 
 ## Pictures
 
-- The editor prepares a file in the browser (`core/images/prepare-image.ts`):
+- The editor prepares a file in the browser (`sites/admin/shared/images/prepare-image.ts`):
   PNG, JPEG, WebP, GIF or AVIF up to 15 MB in; no side longer than 1600 px,
   saved as WebP (PNG or JPEG where the browser cannot); a GIF as it is (up to
   10 MB), an AVIF always re-encoded. `ImageUploader` sends the bytes to
@@ -1027,7 +1028,7 @@ address offers to carry on.
   picture it does not have, and records every picture the survey shows
   (`survey_images`) - a step's as a question's.
 - People see the pictures under a question's or a step's text in one gallery
-  (`ui/image-gallery`: one whole, two or three side by side, each opening
+  (`sites/main/common/image-gallery`: one whole, two or three side by side, each opening
   large with arrows through the others); the editor adds them with the same
   row (`image-list-editor`: a file, a drop, a paste into the text).
 - Served with `Cache-Control: public, max-age=31536000, immutable` (the address
@@ -1059,7 +1060,7 @@ presses Next, the step after it asks about it; [decisions](decisions.md)).
   descriptions are pairs like a question's (`stepText`, `stepImage` places),
   counted on the tab, the outline's step and "Next missing".
 - **People** (`take-survey`): the step's title, its text (`[innerHTML]` with
-  the class `rich`, as a question's text) and its pictures (`ui/image-gallery`,
+  the class `rich`, as a question's text) and its pictures (`sites/main/common/image-gallery`,
   the question's own), then its questions if it has any; Next and Back as
   ever - a step of text alone has nothing to check. It counts as a step in the
   welcome's "N questions in M steps", the hero's progress and a draft (which
@@ -1097,7 +1098,7 @@ site: the languages it is released in (`en`, `sk`), what deleting a language
 would leave behind (`SurveyLanguageUsage`: a survey written in it), who saved a
 string (`translationWriter()`), its error body (`respondRefusal()`). In the
 browser `@anotoki/lib/translations` - the `TranslationService`, the pipes, the
-kit's words, the language switcher's - configured in `core/translations.ts`,
+kit's words, the language switcher's - configured in `shared/translations.ts`,
 and the admin pages, `@anotoki/lib/translations/admin`. One wire format, the
 IAM's (snake_case). Who may do what is this site's: the library checks
 nobody (*Editing them*, below). The library has words of its own, under
@@ -1117,7 +1118,7 @@ token goes with it. It is answered with an `ETag`, so asking again is a 304. A
 code with a region that is not offered itself is answered by its language
 (`sk-sk` by `sk`), so a Slovak browser's first visit is one request.
 
-**The start** (`boot()` in `core/boot.ts`, the app initializer): the theme
+**The start** (`boot()` in `shared/boot/boot.ts`, the app initializer): the theme
 (the one shown last, until the sign-in brings the account's),
 `await status.check()` (where the site stands, `SiteStatus`), `await auth.init()`,
 `await i18n.init()`, then a failed sign-in's toast - worded now that there are
@@ -1130,7 +1131,7 @@ was opened with when the router never got anywhere (its first navigation was
 refused by the sign-in guard while the server was out of reach, which would
 leave a blank page), the address in the bar otherwise.
 
-The library's `TranslationService.init()` (as `core/translations.ts` configures
+The library's `TranslationService.init()` (as `shared/translations.ts` configures
 it - the site's storage names, the account, `canAsk`):
 
 - takes `?lang=` out of the address (before the router reads it) and keeps it
@@ -1167,7 +1168,7 @@ it - the site's storage names, the account, `canAsk`):
   where it is - nobody is signed in, so the token's wish is not known, and
   those are the reader's own words from the last visit. The load error card
   takes the cached string when there is one and the English written in the page
-  otherwise (`boot/kept-word.ts`); the family's page reads the library's keys
+  otherwise (`shared/boot/kept-word.ts`); the family's page reads the library's keys
   (`anotoki.siteStatus.*`) from that cached bundle, else this site's formal
   Slovak (`FORMAL_SLOVAK`), else the library's own words.
 
@@ -1214,11 +1215,11 @@ it.
   space).
 - Keys put together at run time (`error.*`, `answer.rule.*`, `answer.problem.*`,
   `aboutYou.gender.*`, `aboutYou.age.*`) come from closed sets declared in
-  `core/i18n/dynamic-keys.ts`, through a table with a fallback key - never from
+  `shared/i18n/dynamic-keys.ts`, through a table with a fallback key - never from
   an address, the IAM's answer or what a person typed. A failed request is
   worded from its code (`error-text.ts`), never with the server's sentence.
 - Dates and "5 minutes ago" go through `Intl` in the language on the page
-  (`localDate`); `core/util/dates.ts` keeps the English ones for the admin panel
+  (`localDate`); `shared/util/dates.ts` keeps the English ones for the admin panel
   (through `AdminDates`). Both take the order - and the admin panel the clock -
   the person's anotoki account has chosen, when it has (*The account's
   preferences*, above).
@@ -1240,7 +1241,7 @@ site after it: "Results · Admin panel · anotoki survey". Every anotoki site
 calls its admin area the admin panel.
 
 **The chooser** (the family's language switcher, in the top bar where people take
-surveys, when more than one language is on offer - `core/kit.ts` gives it the
+surveys, when more than one language is on offer - `shared/kit.ts` gives it the
 service's `forShell()`: the site's languages and `setLanguage()`): a button with the code
 ("SK") and a menu of the languages under the names their speakers give them.
 Its accessible name holds the code it shows ("Jazyk: Slovenčina (SK)", `language.button`
@@ -1266,8 +1267,8 @@ its way to the account.
 
 **Editing them** (the family's pages - `TranslationsPageComponent` and
 `LanguagesPageComponent` from `@anotoki/lib/translations/admin`, a lazy entry
-point, routed in `pages/admin/admin.routes.ts`; for EDITOR and ADMIN,
-`admin.allows` in `core/translations.ts`): *Translations*
+point, routed in `sites/admin/admin.routes.ts`; for EDITOR and ADMIN,
+`admin.allows` in `shared/translations.ts`): *Translations*
 is a grid - a key a row, a language a column, the library's own keys among the
 site's - that saves only the cells that
 changed; the server checks all of them before it writes any
@@ -1360,7 +1361,7 @@ survey, whichever language a person read.
   labels and the descriptions of the pictures under its text. Nothing else is
   translated: ids, structure, pictures and limits are the survey's own, and an
   answer is the id of an option, not its words.
-- **The functions** are pure, in `core/survey/localize.ts`, and written again
+- **The functions** are pure, in `shared/survey/localize.ts`, and written again
   in PHP in the same order: `translationGaps()` (where the survey has a text
   and the translation has none - a question counts what its type shows: option
   labels for a choice, the hint for own words), `localizedSurvey()`,
@@ -1384,7 +1385,7 @@ survey, whichever language a person read.
   2026-10-20; "Non-binary" before): only those have strings
   (`aboutYou.gender.*`, migration 017 deleted the fourth), a draft that chose
   "Non-binary" asks again, and the admin panel shows an answer kept with it
-  under its English label (`ALL_GENDERS`, `core/survey/about-you.ts`).
+  under its English label (`ALL_GENDERS`, `shared/survey/about-you.ts`).
 - **Sending** carries the language the texts were shown in; it is kept with the
   answers (`responses.language`) when it is one of the survey's, and the
   admin's response view says "Read in Slovak". It never refuses the answers.

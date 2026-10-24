@@ -8,18 +8,18 @@ import { ANOTOKI_MIGRATIONS_CONFIG, SiteStatus, siteStatusInterceptor } from '@a
 import { MigrationsPageComponent } from '@anotoki/lib/migrations/page';
 import { firstValueFrom } from 'rxjs';
 import { AppComponent } from './app.component';
-import { AdminDates } from './core/admin/admin-dates.service';
+import { AdminDates } from './shared/admin/admin-dates.service';
 import { ANOTOKI_AUTH_CONFIG, AnotokiAuth, type AnotokiPreferences, personGuard } from '@anotoki/lib/auth';
-import { AuthService, BootStatus, SignInFailure } from './core/auth/auth.service';
-import { BOOTED } from './core/boot';
-import { VisitorKey } from './core/auth/visitor-key';
-import { surveyLegalConfig } from './core/legal/legal.config';
-import { provideSiteMigrations } from './core/migrations';
-import { provideTestTranslations } from './core/testing/test-translations';
-import { AdminLayoutComponent } from './layouts/admin-layout/admin-layout.component';
-import { LegalLayoutComponent } from './layouts/legal-layout/legal-layout.component';
-import { ParticipantLayoutComponent } from './layouts/participant-layout/participant-layout.component';
-import { TopBarComponent } from './layouts/top-bar/top-bar.component';
+import { AuthService, BootStatus, SignInFailure } from './shared/auth/auth.service';
+import { BOOTED } from './shared/boot/boot';
+import { VisitorKey } from './shared/auth/visitor-key';
+import { surveyLegalConfig } from './shared/legal/legal.config';
+import { provideSiteMigrations } from './shared/migrations';
+import { provideTestTranslations } from './shared/testing/test-translations';
+import { AdminLayoutComponent } from './sites/admin/admin-layout/admin-layout.component';
+import { LegalLayoutComponent } from './sites/main/legal-layout/legal-layout.component';
+import { ParticipantLayoutComponent } from './sites/main/participant-layout/participant-layout.component';
+import { TopBarComponent } from './shared/top-bar/top-bar.component';
 
 @Component({ selector: 'app-test-page', template: '<p class="test-page">A page of the site</p>' })
 class TestPageComponent {
@@ -93,7 +93,7 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
   const heading = () => words(statusPage()?.querySelector('h1'));
   const buttons = () => Array.from(host.querySelectorAll('anotoki-site-status button, anotoki-site-status a')).map(words);
 
-  /** The site with the reader's language: the family's module wired as the app wires it (core/migrations.ts). */
+  /** The site with the reader's language: the family's module wired as the app wires it (shared/migrations.ts). */
   function configure(language = 'en', routes?: Routes): void {
     TestBed.configureTestingModule({
       providers: [
@@ -343,7 +343,7 @@ describe('AppComponent: what is drawn - the site behind the anotoki family’s g
       statusPage()!.querySelector<HTMLButtonElement>('button')!.click();
       await fixture.whenStable();
       // To the IAM, and back to where the button was pressed (AuthService.signIn()'s own default) - the library says the
-      // reader's language to the IAM itself (core/auth/auth.config.ts).
+      // reader's language to the IAM itself (shared/auth/auth.config.ts).
       expect(auth.signIn).toHaveBeenCalledTimes(1);
       expect(auth.signIn.mock.calls[0][0]).toBeUndefined();
       expect(signedInFrom).toBe('/admin/migrations');

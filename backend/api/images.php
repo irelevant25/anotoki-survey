@@ -7,7 +7,7 @@ declare(strict_types=1);
  * served to everybody.
  *
  * The browser makes a picture small before it sends it (frontend
- * core/images/prepare-image.ts: at most 1600 pixels a side, WebP; a GIF as it
+ * sites/admin/shared/images/prepare-image.ts: at most 1600 pixels a side, WebP; a GIF as it
  * is, so it keeps moving), so what arrives here is checked, not changed: it
  * must be one of the web's picture formats, by what the file itself says it
  * is - never by what the request calls it. SVG never is: it can carry script.

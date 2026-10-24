@@ -8,10 +8,10 @@ import { type TestAnotokiAuthOptions, provideTestAnotokiAuth, testAnotokiAuth } 
 import { ANOTOKI_ERROR_REPORT, AnotokiErrorReporter, provideAnotokiErrorReport } from '@anotoki/lib/error-report';
 import { firstValueFrom } from 'rxjs';
 import { SITE_INTERCEPTORS, appConfig } from './app.config';
-import { siteAuthConfig } from './core/auth/auth.config';
-import { AuthService } from './core/auth/auth.service';
-import { provideSiteMigrations } from './core/migrations';
-import { provideTestTranslations } from './core/testing/test-translations';
+import { siteAuthConfig } from './shared/auth/auth.config';
+import { AuthService } from './shared/auth/auth.service';
+import { provideSiteMigrations } from './shared/migrations';
+import { provideTestTranslations } from './shared/testing/test-translations';
 
 /**
  * The browser's errors reach the site's error log (anotoki-lib 0.5.0's
@@ -31,7 +31,7 @@ describe("app.config.ts: the browser's errors, into the site's error log", () =>
         provideTestTranslations(),
         provideSiteMigrations(),
         { provide: AuthService, useValue: { isAdmin: () => false, signedIn: () => options.user != null, preferences: () => null } },
-        // The site's own API settings (core/auth/auth.config.ts): which paths are its API, which a visitor's key goes to.
+        // The site's own API settings (shared/auth/auth.config.ts): which paths are its API, which a visitor's key goes to.
         ...provideTestAnotokiAuth({ ...options, config: { api: siteAuthConfig().api } }, testAnotokiAuth()),
         provideAnotokiErrorReport(),
       ],
@@ -86,7 +86,7 @@ describe("app.config.ts: the browser's errors, into the site's error log", () =>
 });
 
 /**
- * The feedback form's message (POST /api/feedback, the family's form - core/feedback.ts) through the app's own
+ * The feedback form's message (POST /api/feedback, the family's form - shared/feedback.ts) through the app's own
  * HttpClient and its interceptors, marked as the form marks it - anybody's (issuedAs('anybody'), anotoki-lib 0.7.2):
  * the person's while somebody is signed in, nobody's otherwise - never kept back as a person's with no token to send
  * (the Contact page is anybody's, and so is its form), and never with a visitor's key, which goes to the surveys' routes

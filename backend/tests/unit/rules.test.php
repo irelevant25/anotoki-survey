@@ -2,7 +2,7 @@
 
 // api/survey_rules.php: what a survey may hold, what keeps it from opening,
 // and what counts as an answer - the same as the frontend says it
-// (core/survey/answer-rules.ts, survey-problems.ts), sentence for sentence.
+// (shared/survey/answer-rules.ts, survey-problems.ts), sentence for sentence.
 
 declare(strict_types=1);
 
@@ -61,7 +61,7 @@ const LANGUAGES = [
 
 /**
  * Three questions in two steps, with "About you" before them - the survey
- * frontend/src/app/core/survey/survey-problems.spec.ts checks the same
+ * frontend/src/app/shared/survey/survey-problems.spec.ts checks the same
  * sentences on, in the same order (threeQuestions() there).
  */
 function three_questions(array $translations = [], array $fields = []): array
@@ -102,7 +102,7 @@ const CITY = '5b8e1d7c-2f3a-4e6b-8c9d-0a1b2c3d4e5f';
  * A step people only read and leave with Next - its own text and three
  * pictures (the map twice, the city with no description) - then a step that
  * asks, with "About you" before them: the survey
- * frontend/src/app/core/survey/survey-problems.spec.ts and localize.spec.ts
+ * frontend/src/app/shared/survey/survey-problems.spec.ts and localize.spec.ts
  * check the same places and sentences on (textSteps() there).
  */
 function text_steps(array $translations = []): array
@@ -227,7 +227,7 @@ test('control characters pasted into words are dropped, not refused - line break
 });
 
 test('a space is what the browser\'s trim() takes for one - the same characters, so both sides find the same texts blank', function (): void {
-    // String.prototype.trim() and \s in the browser: these and no others (core/survey/localize.spec.ts pins the other side).
+    // String.prototype.trim() and \s in the browser: these and no others (shared/survey/localize.spec.ts pins the other side).
     $spaces = [0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20, 0xa0, 0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff, ...range(0x2000, 0x200a)];
     $space = static fn(string $character): bool => textTrim($character) === '';
     $found = [];
@@ -436,7 +436,7 @@ test('a step\'s own text is cleaned as a question\'s is, and its pictures are ta
 });
 
 test('the addresses the site keeps for itself are the same on both sides - SURVEY_RESERVED_SLUGS and the frontend\'s RESERVED_SLUGS - the legal frame\'s among them', function (): void {
-    $source = (string) file_get_contents(dirname(TEST_BACKEND) . '/frontend/src/app/core/survey/survey-factory.ts');
+    $source = (string) file_get_contents(dirname(TEST_BACKEND) . '/frontend/src/app/shared/survey/survey-factory.ts');
     assert_true((bool) preg_match('/export const RESERVED_SLUGS\b[^=]*=\s*new Set\(\[([^\]]*)\]\)/', $source, $m), 'RESERVED_SLUGS could be read from survey-factory.ts');
     preg_match_all("/'([^']+)'/", $m[1], $slugs);
     assert_same(SURVEY_RESERVED_SLUGS, $slugs[1], 'the same addresses, in the same order');

@@ -18,10 +18,10 @@ use Anotoki\Lib\Translations\Cli\KeyScanner;
  * recognised; what is this site's:
  *
  *   - the sources are frontend/src/app, every .ts and .html but the specs and
- *     core/testing/ (the specs' helpers) - signing in is the library's
+ *     shared/testing/ (the specs' helpers) - signing in is the library's
  *     (@anotoki/lib/auth), no vendored SDK is left to leave out;
  *   - the keys put together at run time are declared in
- *     core/i18n/dynamic-keys.ts, prefix -> every tail;
+ *     shared/i18n/dynamic-keys.ts, prefix -> every tail;
  *   - the pipes are the library's (translate one string, translatePlural a
  *     family), and so are the calls (.t(), .around(), .has() one string;
  *     .plural(), .aroundPlural() a family) and the forms of a family (.one,
@@ -36,7 +36,7 @@ use Anotoki\Lib\Translations\Cli\KeyScanner;
 const TRANSLATION_PLURAL_FORMS = ['one', 'few', 'other'];
 
 /** Where the keys put together at run time are declared, under the frontend's src/app. */
-const TRANSLATION_DYNAMIC_KEYS_FILE = 'core/i18n/dynamic-keys.ts';
+const TRANSLATION_DYNAMIC_KEYS_FILE = 'shared/i18n/dynamic-keys.ts';
 
 /** The frontend's sources, seen from backend/tools/. */
 function translationKeysFrontendRoot(): string
@@ -49,7 +49,7 @@ function surveyKeyScanner(?string $root = null): KeyScanner
 {
     return new KeyScanner(
         $root ?? translationKeysFrontendRoot(),
-        exclude: ['core/testing/**'],
+        exclude: ['shared/testing/**'],
         dynamicKeys: TRANSLATION_DYNAMIC_KEYS_FILE,
         pluralForms: TRANSLATION_PLURAL_FORMS,
         innerHtml: 'translated',

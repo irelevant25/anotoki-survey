@@ -4,7 +4,7 @@ import { Route, Router, RouterOutlet, Routes, provideRouter } from '@angular/rou
 import { RouterTestingHarness } from '@angular/router/testing';
 import { personOrVisitorGuard } from '@anotoki/lib/auth';
 import { routes } from './app.routes';
-import { ParticipantLayoutComponent } from './layouts/participant-layout/participant-layout.component';
+import { ParticipantLayoutComponent } from './sites/main/participant-layout/participant-layout.component';
 
 @Component({ selector: 'app-test-frame', imports: [RouterOutlet], changeDetection: ChangeDetectionStrategy.OnPush, template: '<router-outlet />' })
 class FrameStandInComponent {}

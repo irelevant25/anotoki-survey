@@ -96,7 +96,7 @@ anotoki-lib 0.6.3, taken the same day - *One footer, the family's*, below):
 - **One source for the version**: the newest entry's - what the footer
   shows (`Changelog.current()`); `frontend/package.json`'s own version is held
   to it by a spec, as Japanese Academy's is.
-- **What's new** is the kit's dialog (`ui/changelog-dialog`, loaded with the
+- **What's new** is the kit's dialog (`shared/ui/changelog-dialog`, loaded with the
   first press) - opened only when asked, never by itself after a new version
   as the build analyzer's is: so nothing about what a browser has seen is kept
   in it, and the Privacy page's list of what the site keeps in a browser
@@ -192,7 +192,7 @@ family's*, below; the PHP half stays 0.1.0):
   because they must read while the database that holds the strings is what is
   not ready. (Since 0.3.0 they are the library's keys in the database too,
   `anotoki.siteStatus.*`, that sentence formal there by migration 010, and
-  `FORMAL_SLOVAK` in `core/translations.ts` while the database cannot be read.)
+  `FORMAL_SLOVAK` in `shared/translations.ts` while the database cannot be read.)
   The site's "not set up yet" card and its four strings went (migration 009).
 - **Nobody is sent to the IAM while the site cannot run**: the guards let every
   page through, the family's page stands instead of each, and its quiet Sign in
@@ -456,7 +456,7 @@ own - this site's were the IAM's, the family's, so it overrides none;
 segmented theme switch**; the admin wordmark **"anotoki survey · admin
 panel"**. And because the kit's built-in Slovak says "ty" and this site says
 "Vy": **every word the site showed before still shows** - each kit word the
-site has a string for is read from it (`lookup`, `core/kit.ts`: reworded in
+site has a string for is read from it (`lookup`, `shared/kit.ts`: reworded in
 the admin panel, it shows reworded), and the rest are said formally
 (`words`). So the site's copies went - `src/app/ui/`'s kit pieces, the top
 bar's insides, the theme service, `theme-boot.js`, the tokens, the base and
@@ -738,14 +738,14 @@ the trusted proxy - the file's own secret beside it - is the edge).
 **Terms, Privacy and Contact (anotoki-lib 0.6.0's legal pages, the owner's
 decisions of 2026-10-13) are anybody's, and their facts are the code's.**
 The pages are the family's (`@anotoki/lib/legal/pages`); the survey gives its
-facts (`core/legal/legal-facts.ts`, the words `legal.*` of migration 013). The
+facts (`shared/legal/legal-facts.ts`, the words `legal.*` of migration 013). The
 choices made here:
 
 - **No sign-in in front of them.** Every other page is for somebody signed in
   (unless the IAM lets visitors in), but what a site keeps must be readable
   before anybody signs in to it - so `/terms`, `/privacy` and `/contact` have
   no guard, in a frame of their own that draws the survey's (the skip link,
-  the bar, the column; `layouts/legal-layout`). Nothing of a survey is on
+  the bar, the column; `sites/main/legal-layout`). Nothing of a survey is on
   them or asked of the API; while the site cannot run, the family's page
   stands instead of them as of every page. Each is a path of its own with the
   frame as its parent: one parent with an empty path for the three took `/`
@@ -834,7 +834,7 @@ admin page. The choices made here:
   clear); this site keeps no address - the IAM is the only holder of
   anybody's (*People*, above) - so its form writes none in, and a reply
   address is kept only when the sender types one. Writing it in is one line
-  (`email:` in `core/feedback.ts`), should the owner want the family's way
+  (`email:` in `shared/feedback.ts`), should the owner want the family's way
   here too.
 - **Kept**, the library's numbers: spam 30 days, resolved 365, the rest until
   an ADMIN deletes it - each at the next clean-up, which runs at most once a
@@ -938,7 +938,7 @@ it. What was chosen:
   the same way (`[innerHTML]`, Angular's sanitizer once more, nothing
   bypassed). The same pictures: uploaded and checked by their bytes, at most
   ten, opening large with arrows (the gallery is one component now,
-  `ui/image-gallery`, the question's and the step's), recorded as the
+  `sites/main/common/image-gallery`, the question's and the step's), recorded as the
   survey's in `survey_images` so the clean-up keeps them while anything shows
   them and takes them a day after nothing does - a step removed takes its
   own. A picture is not tied to the survey that first showed it, as a
@@ -1279,7 +1279,7 @@ for it:
   The library's Languages page has no separate permission for deleting, so it
   offers Delete to an EDITOR as well, and shows the server's refusal.
 - **Every rewording an owner made survives the move.** The kit used to read
-  its words from the site's own keys (`lookup`, `core/kit.ts`); now it reads
+  its words from the site's own keys (`lookup`, `shared/kit.ts`); now it reads
   the library's, `anotoki.<word>`, from the same tables
   (`TranslationService.forKit()`). Migration 010 moves the site's strings for
   them under the library's keys before the library's set first runs - every
@@ -1298,7 +1298,7 @@ for it:
   "try again in a few minutes") 010 writes - and where the library's set ran
   first, it replaces the library's words only while they are still exactly
   the library's. While the database cannot be read, `FORMAL_SLOVAK`
-  (`core/translations.ts`) says them; a test holds the two to each other.
+  (`shared/translations.ts`) says them; a test holds the two to each other.
 - **The site's own hold before a reload went** (`PAGES_CLOSED`,
   `AppComponent.held`): since 0.2.0 the family's page asks with
   `SiteStatus.checkForReload()`, whose answer the gate is never told, so no

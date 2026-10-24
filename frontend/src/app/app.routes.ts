@@ -1,8 +1,7 @@
 import { Routes } from '@angular/router';
-import { AuthCallbackComponent, personGuard, personOrVisitorGuard } from '@anotoki/lib/auth';
-import { CALLBACK_PATH } from './core/auth/auth.service';
-import { signInFailureGuard } from './core/auth/auth.config';
-import { ParticipantLayoutComponent } from './layouts/participant-layout/participant-layout.component';
+import { personGuard } from '@anotoki/lib/auth';
+import { signInFailureGuard } from './shared/auth/auth.config';
+import { MAIN_ROUTES } from './sites/main/main.routes';
 
 /**
  * Two areas, and the pages around them:
@@ -23,8 +22,9 @@ import { ParticipantLayoutComponent } from './layouts/participant-layout/partici
  *                               that came back without one, or could not start
  *   /terms, /privacy, /contact  the anotoki family's legal pages
  *                               (@anotoki/lib/legal/pages) with the survey's
- *                               facts (core/legal/legal-facts.ts), in the frame
- *                               of the survey's pages (layouts/legal-layout) -
+ *                               facts (shared/legal/legal-facts.ts), in the
+ *                               frame of the survey's pages
+ *                               (sites/main/legal-layout) -
  *                               for anybody: no guard, nothing of a survey
  *                               on them; tried before the survey's own area,
  *                               whose /{slug} would take them. Each is a path
@@ -52,66 +52,25 @@ import { ParticipantLayoutComponent } from './layouts/participant-layout/partici
  * may use the admin area - EDITOR or ADMIN - the admin layout says, and the
  * API decides.
  *
+ * Each area's routes are its own: the admin panel's in
+ * sites/admin/admin.routes.ts, loaded with the first /admin address; every
+ * other address is the public site's, sites/main/main.routes.ts, spread in
+ * here after /admin as they stand and in their order.
+ *
  * A survey lives at /{slug} - one segment - so every other path of the site
  * has two segments or a name the editor may not give a survey
- * (RESERVED_SLUGS in survey-factory.ts).
+ * (RESERVED_SLUGS in shared/survey/survey-factory.ts).
  *
  * A `title` here is a translation key: the title strategy words it in the
- * language on the page (core/title.strategy.ts). The admin area's titles are
- * plain English (admin.routes.ts).
+ * language on the page (shared/title.strategy.ts). The admin area's titles are
+ * plain English (sites/admin/admin.routes.ts).
  */
-
-/** The legal pages' frame, loaded with the first of them that is opened (and its facts with it, out of the first load). */
-const legalFrame = () => import('./layouts/legal-layout/legal-layout.component').then((m) => m.LegalLayoutComponent);
 
 export const routes: Routes = [
   {
     path: 'admin',
     canActivate: [personGuard, signInFailureGuard],
-    loadChildren: () => import('./pages/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
+    loadChildren: () => import('./sites/admin/admin.routes').then((m) => m.ADMIN_ROUTES),
   },
-  { path: CALLBACK_PATH.slice(1), component: AuthCallbackComponent, title: 'title.signingIn' },
-  {
-    path: 'terms',
-    loadComponent: legalFrame,
-    children: [{ path: '', title: 'title.terms', loadComponent: () => import('@anotoki/lib/legal/pages').then((m) => m.TermsPageComponent) }],
-  },
-  {
-    path: 'privacy',
-    loadComponent: legalFrame,
-    children: [{ path: '', title: 'title.privacy', loadComponent: () => import('@anotoki/lib/legal/pages').then((m) => m.PrivacyPageComponent) }],
-  },
-  {
-    path: 'contact',
-    loadComponent: legalFrame,
-    children: [{ path: '', title: 'title.contact', loadComponent: () => import('@anotoki/lib/legal/pages').then((m) => m.ContactPageComponent) }],
-  },
-  {
-    path: 'about',
-    loadComponent: legalFrame,
-    children: [{ path: '', title: 'anotoki.about.title', loadComponent: () => import('@anotoki/lib/legal/about').then((m) => m.AboutPageComponent) }],
-  },
-  {
-    path: 'support',
-    loadComponent: legalFrame,
-    children: [{ path: '', title: 'anotoki.support.title', loadComponent: () => import('@anotoki/lib/legal/support').then((m) => m.SupportPageComponent) }],
-  },
-  {
-    path: '',
-    component: ParticipantLayoutComponent,
-    canActivateChild: [personOrVisitorGuard, signInFailureGuard],
-    children: [
-      { path: '', title: 'title.surveys', loadComponent: () => import('./pages/participant/survey-home/survey-home.component').then((m) => m.SurveyHomeComponent) },
-      {
-        // No title: the survey page writes its own ("Preview: ..."), and is the only writer there.
-        // The editor's: signed in even while visitors are welcome (the layout draws its card for nobody here too).
-        path: 'preview/:surveyId',
-        canActivate: [personGuard],
-        data: { preview: true },
-        loadComponent: () => import('./pages/participant/take-survey/take-survey.component').then((m) => m.TakeSurveyComponent),
-      },
-      { path: ':slug', loadComponent: () => import('./pages/participant/take-survey/take-survey.component').then((m) => m.TakeSurveyComponent) },
-      { path: '**', title: 'title.pageNotFound', loadComponent: () => import('./pages/not-found/not-found.component').then((m) => m.NotFoundComponent) },
-    ],
-  },
+  ...MAIN_ROUTES,
 ];

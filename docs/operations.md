@@ -230,7 +230,7 @@ up - the legal page answers - and the editor now refuses those addresses;
 move such a survey first. **After the upload**: apply on the Migrations page,
 then open `/privacy` signed out - its "anotoki account" links go to the IAM's
 own Privacy page and account page - and that it names the hosting company
-(WebSupport s.r.o., the owner's word of 2026-10-18: `core/legal/legal-facts.ts`).
+(WebSupport s.r.o., the owner's word of 2026-10-18: `shared/legal/legal-facts.ts`).
 
 Version **0.4.0** (the owner's wishes of 2026-10-18), on anotoki-lib 0.7.2
 (both halves): **the family's footer** (`<anotoki-site-footer>`) under every

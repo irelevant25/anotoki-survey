@@ -14,7 +14,7 @@ every request) is not looked at, and the request is nobody's (401
 on the surveys' own routes and only while the IAM says sign-in is not
 required; the one other route that reads it, `POST /api/visitor/move`, needs a
 person's token as well and only hands the key in. The frontend's
-side is `frontend/src/app/core/api/api.service.ts`.
+side is `frontend/src/app/api/api.service.ts`.
 
 ### While the site cannot run
 
@@ -33,7 +33,7 @@ the library's shape (`{code, message, ...}`, not this API's `error`):
 `GET /api/site-status` answers in every state. Every 503 of the gate carries
 `Cache-Control: no-store`. The frontend's side is the library's too
 (`@anotoki/lib/migrations`: `SiteStatus`, `siteStatusInterceptor`,
-`<anotoki-site-gate>`; `frontend/src/app/core/migrations.ts`).
+`<anotoki-site-gate>`; `frontend/src/app/shared/migrations.ts`).
 
 ## Anybody
 
@@ -261,7 +261,7 @@ What `POST /api/admin/surveys` takes as `survey` and `PUT
 /api/admin/surveys/{id}` as `survey` (beside `revision`), and what every route
 that answers a survey sends - the admin routes, and the people's
 (`GET /api/surveys`, `GET /api/surveys/{slug}`, with only the translations into
-offered languages). The frontend's `core/survey/survey.model.ts` is the same
+offered languages). The frontend's `shared/survey/survey.model.ts` is the same
 shape. The server keeps what is listed here, checked and cleaned
 (`surveyFromBody()`), and drops every other field; the survey's `id`,
 `status`, `revision` and times are its own (a new survey is a draft, whatever
