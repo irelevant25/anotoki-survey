@@ -48,7 +48,7 @@ Security and correctness first:
   and one read cleanly that names no usable secret (blank, not an array, a misspelt key, a value
   that is not a string with something in it), or a folder in its place, read as "no secret" - only
   a deleted file switches the secret off (the decision of 2026-10-18).
-  **The legal pages' facts** (`core/legal/legal-facts.ts`, `legal.*`): a statement the code does not
+  **The legal pages' facts** (`shared/legal/legal-facts.ts`, `legal.*`): a statement the code does not
   keep, a change to what the site keeps without its fact, or an address in a string (an
   administrator could reword where a link goes) is a finding.
   **A People delete is done again by a restore**: its hook (`peopleDelete()`) - and any scrub hook -
@@ -114,7 +114,7 @@ Security and correctness first:
   survey's row, then its languages; strings by key, then language). Its test
   goes through the real server against a second connection, and fails with the
   lock taken out.
-- **The two sides agree**: a changed rule in `core/survey/` has its twin in
+- **The two sides agree**: a changed rule in `shared/survey/` has its twin in
   `api/survey_rules.php` (and the reverse), with the same sentence, and tests
   on both sides. Blank is the same on both: PHP trims and collapses with
   `TEXT_SPACE` (the browser's `trim()` set), never `\s` or `\p{Z}`; a PCRE
@@ -154,7 +154,7 @@ Security and correctness first:
     is drawn only when its third answer says the cut was made;
   - no key built from an address, the IAM's answer, a server's code or what a
     person typed: run-time keys come from a closed set listed in
-    `core/i18n/dynamic-keys.ts`, through a table with a fallback key, and are
+    `shared/i18n/dynamic-keys.ts`, through a table with a fallback key, and are
     put together only from a prefix declared there; a plural family is asked
     for with `translatePlural` / `.plural()`, one string with `translate` /
     `.t()` - a key that reaches the pipe through a variable or a table is
@@ -210,8 +210,9 @@ Then the house style:
 
 - Angular: three files per component, OnPush, signals, `inject()`, inputs for
   route/query parameters, colours from tokens (light and dark), 390 px; no
-  logic duplicated from `core/` into a component. The UI kit is the family's
-  (`@anotoki/lib` 0.9.2): a copy of a kit piece in `src/app/ui/`, a global
+  logic duplicated from `shared/` into a component. The UI kit is the family's
+  (`@anotoki/lib` 0.9.2): a copy of a kit piece in `src/app/shared/ui/` (or a
+  half's own, `sites/main/common/`, `sites/admin/shared/`), a global
   style a kit component would meet, an import from the `@anotoki/lib/ui`
   barrel instead of the piece's own entry point (the first load), or a
   selector of the kit's 0.2.0 class names in a spec or the browser check

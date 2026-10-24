@@ -4050,7 +4050,7 @@ await setIam({ anonymized: [] });
 
 // ═══ Terms, Privacy and Contact ════════════════════════════════════════════
 // The anotoki family's legal pages (@anotoki/lib/legal/pages, anotoki-lib 0.6.0) around the survey's facts
-// (core/legal/legal-facts.ts), and its About and Support pages (anotoki-lib 0.8.0) in the same frame: anybody's -
+// (shared/legal/legal-facts.ts), and its About and Support pages (anotoki-lib 0.8.0) in the same frame: anybody's -
 // nobody signed in and the IAM requiring a sign-in here (and told to turn one down: a trip there would end on the
 // screen of a failed sign-in), each opens with no trip to the IAM and asks nothing of a survey. The family's footer
 // (<anotoki-site-footer>, anotoki-lib 0.6.3) under them, under the survey's own pages (the card of a session that
@@ -4133,7 +4133,7 @@ for (const code of ['en', 'sk']) {
   }
 }
 
-// The footer's What's new: the survey's own dialog (ui/changelog-dialog, loaded with the press) - every version, the
+// The footer's What's new: the survey's own dialog (shared/ui/changelog-dialog, loaded with the press) - every version, the
 // newest first and marked, in the reader's language (the 0.4.0 entry whole in formal Slovak). And its Feedback: the
 // family's form in the kit's dialog, named by the button - for nobody signed in too, the IAM requiring a sign-in and
 // told to turn one down: no "without my name", no address written in, no trip to the IAM; Cancel closes it.

@@ -21,12 +21,12 @@ page for the area you touch.
 Working conventions:
 
 - A rule an answer or a survey must keep lives in two places in the same words:
-  `frontend/src/app/core/survey/` and `backend/api/survey_rules.php`. Change
+  `frontend/src/app/shared/survey/` and `backend/api/survey_rules.php`. Change
   both, and both sides' tests.
 - What the site says to somebody taking a survey is a key, not a sentence in a
   template or in state: `'home.title' | translate` (the anotoki family's
   translations module, `@anotoki/lib/translations`, wired in
-  `core/translations.ts`; on the server `Anotoki\Lib\Translations`, wired in
+  `shared/translations.ts`; on the server `Anotoki\Lib\Translations`, wired in
   `api/translations.php` - never copied or edited here), with the key,
   its English and its formal Slovak string in a migration
   (`003_site_strings.sql` is the pattern). The kit's words are the library's
@@ -35,11 +35,11 @@ Working conventions:
   `FORMAL_SLOVAK`. One wire format, the IAM's (snake_case). Who may do what
   with the words is this site's (EDITOR / ADMIN; deleting a language
   ADMIN's). A string is text, never HTML. The
-  admin panel (`pages/admin`, `layouts/admin-layout`) is English, written in its
+  admin panel (`sites/admin`, `sites/admin/admin-layout`) is English, written in its
   templates. `tests/unit/translations.test.php` fails on a key no migration
   wrote, or one nothing uses.
 - A survey holds its texts in more than one language (`language`,
-  `translations`; `core/survey/localize.ts` and its twin in
+  `translations`; `shared/survey/localize.ts` and its twin in
   `survey_rules.php`): a text people read on a survey has its place in the
   translations on both sides, and a save always sends both fields.
 - The editor changes surveys only through `AdminStore.updateSurvey()` /
@@ -57,8 +57,8 @@ Working conventions:
   the Feedback page -, the error log - the pages' errors too,
   `@anotoki/lib/error-report` -, the audit log, the backups) - wired in
   `api/auth.php`, `api/people.php`, `api/admin_tools.php`,
-  `api/routes/feedback.php`, `core/auth/auth.config.ts`,
-  `core/admin/admin-tools.ts`, `core/feedback.ts` (no address handed to the
+  `api/routes/feedback.php`, `shared/auth/auth.config.ts`,
+  `shared/admin/admin-tools.ts`, `shared/feedback.ts` (no address handed to the
   form: the site keeps none); never copied or
   edited here. Who a request is comes only from the verified token (the
   library's `Identify` in front of each route group); roles through
@@ -75,7 +75,7 @@ Working conventions:
   a failed sign-in is the library's screen, never a card or a toast. The legal
   pages (`/terms`, `/privacy`, `/contact`, the family's) and About and Support
   (`/about`, `/support`, the family's, in the same frame) are anybody's - no
-  guard - and the legal pages' facts (`core/legal/legal-facts.ts`, `legal.*`) must stay
+  guard - and the legal pages' facts (`shared/legal/legal-facts.ts`, `legal.*`) must stay
   true of the code: a change to what the site keeps changes them, every
   address in them stays in the code. Every `config/*.local.php` is read
   through `settingsFileReadCleanly()`, never a plain `require`: one that does
@@ -95,7 +95,7 @@ Working conventions:
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
   (light and dark); every page works at 390 px. The UI kit, the top bar and the
-  footer are the anotoki family's (`@anotoki/lib` 0.9.2, wired in `core/kit.ts`;
+  footer are the anotoki family's (`@anotoki/lib` 0.9.2, wired in `shared/kit.ts`;
   `<anotoki-site-footer>` at the foot of each frame, the admin panel's too) - use
   them, each piece from its own entry point (`@anotoki/lib/ui/button`, ...,
   never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come
@@ -103,7 +103,7 @@ Working conventions:
   (`.anotoki-<piece>__<part>`) - in a spec too.
 - The site's version is `frontend/package.json`'s, and a release has its entry
   first in `frontend/public/changelog.json`, in English and formal Slovak
-  (`core/changelog/`; the family's footer shows the version and opens What's new).
+  (`shared/changelog/`; the family's footer shows the version and opens What's new).
 - Tests and experiments use throwaway `survey_test_` databases
   (`backend/tests/tools/`), never `anotoki_survey`; the browser check
   (`check-in-browser` skill) signs in through the library's stand-in IAM, never the real one.

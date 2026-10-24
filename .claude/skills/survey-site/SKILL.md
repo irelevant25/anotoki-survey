@@ -197,14 +197,14 @@ frontend/src/app/
                            site runs again is the library's (SiteStatus.checkForReload() never opens
                            the gate first); the load error card; the kit's toasts and confirm, the
                            lightbox over everything
-  core/migrations.ts       the family's library (@anotoki/lib/migrations) wired to this site:
+  shared/migrations.ts     the family's library (@anotoki/lib/migrations) wired to this site:
                            provideSiteMigrations() (isAdmin / isSignedIn / signIn - signInOrShowWhy -
                            / language - effectiveLanguage, English in the admin panel / the words -
                            siteStatusWords(i18n): the library's anotoki.siteStatus.* from the
                            database / AdminDates' dates / reload the strings when up to date),
                            MIGRATIONS_PATH; siteStatusInterceptor in app.config.ts; SiteStatus
                            (state, blocked, check, checkForReload, markReady) is the library's
-  core/auth/               signing in through the family's library (anotoki-lib 0.9.2, @anotoki/lib/auth -
+  shared/auth/             signing in through the family's library (anotoki-lib 0.9.2, @anotoki/lib/auth -
                            the vendored SDK is gone): auth.config.ts (provideSiteAuth() - the boot
                            configuration AuthService read, the site's API (/api/, its status, auth
                            config, strings and pictures skipped), the visitors (VisitorKey, the key
@@ -225,34 +225,34 @@ frontend/src/app/
                            preview, personOrVisitorGuard on the participant layout's children - each
                            lets everything through while SiteStatus.blocked()), SavesInFlight, the
                            callback page and the screen of a failed sign-in are the library's
-  core/admin/admin-tools.ts   provideSiteAdmin(): the family's admin tools (provideAnotokiAdmin: ADMIN from
+  shared/admin/admin-tools.ts   provideSiteAdmin(): the family's admin tools (provideAnotokiAdmin: ADMIN from
                            the token, signInAgain - prompt=login - for a backup's proof, the
                            Migrations page, the account's dates) and People page
                            (provideAnotokiPeople: me, the lead, Delete their answers with its
                            question - deleteQuestion() -, visitorsLine())
-  core/feedback.ts         provideSiteFeedback(): the family's feedback form (@anotoki/lib/feedback,
+  shared/feedback.ts       provideSiteFeedback(): the family's feedback form (@anotoki/lib/feedback,
                            its form @anotoki/lib/feedback/form loaded with the press - the footer's
                            Feedback and the Contact page open it) - the language
                            on the page, the library's words through libraryWord() (formal Slovak),
                            signedIn; no email: the site keeps nobody's address, so none is filled in.
                            The form marks its message anybody's itself (anotoki-lib 0.7.2: the
                            person's while somebody is signed in, else nobody's - app.config.spec.ts)
-  core/changelog/          Changelog (changelog.json read once, asked by boot() at the start and never
+  shared/changelog/        Changelog (changelog.json read once, asked by boot() at the start and never
                            waited for - public/changelog.json, each release's entry first, English and
                            formal Slovak in it -, entries, current - the version in the footer -, open():
-                           the What's new dialog, ui/changelog-dialog, loaded with the press - the
+                           the What's new dialog, shared/ui/changelog-dialog, loaded with the press - the
                            footer's What's new, (whatsNew) in each frame)
-  core/api/api.service.ts  one method a route; the surveys' marked issuedAs('caller') as they are made,
+  api/api.service.ts       one method a route; the surveys' marked issuedAs('caller') as they are made,
                            the move issuedAs('person') + CARRIES_VISITOR_KEY (the library's);
                            ApiError {status, code, message, body, retryAfter} - toApiError() reads
                            {error, code} and the library's {code, message}
-  core/boot.ts             boot(): the theme, the changelog asked for (Changelog.load(), never waited
+  shared/boot/boot.ts      boot(): the theme, the changelog asked for (Changelog.load(), never waited
                            for: the footer's version), where the site stands (SiteStatus.check() - never stops
                            the start), the sign-in (VisitorKey made before the first await;
                            a visitor's drafts adopted right after a sign-in), then the language and
                            its strings, then BOOTED - the app initializer, and the load error
                            page's "Try again"
-  core/translations.ts     the family's translations module (@anotoki/lib/translations) wired to
+  shared/translations.ts   the family's translations module (@anotoki/lib/translations) wired to
                            this site: provideSiteTranslations() / siteTranslationsConfig() - the
                            storage names the site always had (anotoki-survey:language, -cache,
                            :localization-drafts), the account (its language, whether it decides, the
@@ -263,11 +263,11 @@ frontend/src/app/
                            (language, effectiveLanguage, t / plural / around / has, setLanguage,
                            init, reload, noteAddress, forKit, forShell) and the translate /
                            translatePlural pipes are the library's
-  core/i18n/               the site's own beside it: the localDate pipe (the account's date order),
+  shared/i18n/             the site's own beside it: the localDate pipe (the account's date order),
                            error-text.ts (a failed request's key), answer-words.ts (a rule or a
                            problem in the reader's language), dynamic-keys.ts (keys put together at
                            run time - the backend's scan reads it)
-  core/legal/              the family's legal pages wired to this site (anotoki-lib 0.6.0's @anotoki/lib/legal):
+  shared/legal/            the family's legal pages wired to this site (anotoki-lib 0.6.0's @anotoki/lib/legal):
                            legal.config.ts (surveyLegalConfig() for provideAnotokiLegal() in
                            app.config.ts - the language on the page, libraryWord() for the library's
                            keys, no facts), legal-facts.ts (surveyLegalFacts() - the site's name,
@@ -277,7 +277,7 @@ frontend/src/app/
                            the code's own names, the hosting company and Cloudflare; the anotoki
                            account's pages from AnotokiAuth.issuer() / accountUrl() - never a string;
                            SURVEY_LEGAL_UPDATED; surveyLegalPagesConfig(), the frame's provider)
-  core/kit.ts              the family's UI kit (anotoki-lib 0.9.2, each piece from its own entry point)
+  shared/kit.ts            the family's UI kit (anotoki-lib 0.9.2, each piece from its own entry point)
                            wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
                            the language on the page and the kit's words from the database - the
                            library's keys, anotoki.* - and SURVEY_ICONS) + provideSiteShell() (the
@@ -285,31 +285,31 @@ frontend/src/app/
                            bar's switch, the device's signed out, THEME_KEY for the kit's
                            theme-boot.js; the chooser: forShell(), a choice of the language already
                            on the page changing nothing)
-  core/util/               dates.ts (the admin panel's English dates, with the account's choices when
+  shared/util/             dates.ts (the admin panel's English dates, with the account's choices when
                            passed), date-patterns.ts (the four date orders, the two clocks), storage.ts
-  core/title.strategy.ts   the tab's title in the language on the page (the site's name alone while
+  shared/title.strategy.ts   the tab's title in the language on the page (the site's name alone while
                            there are no strings); tells the service where the page is - which is also
                            when a page without its strings asks for them again
-  core/admin/admin-store.service.ts   the admin panel's cache and the editor's saving (revision, conflict
+  shared/admin/admin-store.service.ts   the admin panel's cache and the editor's saving (revision, conflict
                            - keepMine / keepMyTranslations bring translations together against
                            _server, the survey as the server last had it from this page;
                            unsavedChanges() says what kind of change is unsaved, from the documents;
                            mineWouldBeRefused(), removedHereLanguages() / removedThereLanguages() for
                            what the notice says); the site's languages (languages, loadLanguages -
                            again with each fresh load, and for a code a conflict brings)
-  core/admin/admin-dates.service.ts   AdminDates: core/util/dates.ts bound to the account's date order
+  shared/admin/admin-dates.service.ts   AdminDates: shared/util/dates.ts bound to the account's date order
                            and clock - what every admin page writes its dates with
                            (`formatDateTime = inject(AdminDates).formatDateTime`)
-  core/survey/             the model and every rule (pure TS, unit-tested); localize.ts: a survey's
+  shared/survey/           the model and every rule (pure TS, unit-tested); localize.ts: a survey's
                            translations (translationGaps, localizedSurvey, pruneTranslations, the
                            writers, mergeTranslations for a conflict); drafts.ts (by survey and
                            taker - VISITOR_SLOT for a visitor; adoptVisitorDraft(s) at a sign-in)
-  core/images/             prepareImage (browser-side), ImageUploader
-  core/testing/            for the unit tests only: example data, provideTestTranslations() (the
+  shared/testing/          for the unit tests only: example data, provideTestTranslations() (the
                            library's test translations - @anotoki/lib/translations/testing - with the
                            site's kit wiring and formal Slovak), answersOf() (a person's answers, or a
                            visitor's)
-  layouts/                 top-bar (the site's wrapper over the family's <anotoki-top-bar>: the brand,
+  shared/top-bar/          the site's wrapper over the family's <anotoki-top-bar>, in every frame - the
+                           admin panel's too, as its area "admin": the brand,
                            the links - SURVEY_LINKS / ADMIN_LINKS (System for an ADMIN, lit on each
                            System page, with the count of feedback nobody opened yet - the library's
                            FeedbackUnread, asked by the admin layout as it opens), UPDATE_LINKS
@@ -319,14 +319,31 @@ frontend/src/app/
                            saved first, asked when something would be lost - the drafts of the
                            Translations and Languages pages through the library's
                            LocalizationDrafts, its entry point loaded only then and only for staff;
-                           docs/architecture.md "The top bar"),
-                           participant ("You are not signed in" where the page would be - a session
-                           that ended in place; for a visitor only on the preview; the toasts of
-                           the move and of a lost visit), admin
-                           (English; "You are signed out" for a session that ended in place, the
-                           no-access card for somebody signed in without a role). A sign-in that
+                           docs/architecture.md "The top bar"
+  shared/boot/             load-error (its "Try again" also opens the page that was asked for): drawn
+                           instead of the site when the status answered and the sign-in's settings
+                           did not (app.component.ts decides; everything else that keeps the site
+                           from running is the family's page); kept-word.ts (the cached string, or
+                           the English written in the page)
+  shared/ui/               the survey's own pieces both halves use: lightbox, survey-image,
+                           changelog-dialog (What's new: each release's added / changed /
+                           fixed, in the language on the page, English where an entry has no
+                           Slovak) - the rest is the family's kit (@anotoki/lib/ui/<piece>, /shell)
+  sites/                   the two halves, each in its frames. Each of the three frames - sites/main's
+                           participant-layout and legal-layout, sites/admin's admin-layout - ends with
+                           the family's footer (<anotoki-site-footer>,
+                           @anotoki/lib/footer, anotoki-lib 0.6.3): [version]="changelog.current()",
+                           [whatsNew] while there is a list, (whatsNew)="changelog.open()", feedback -
+                           in the admin frame [feedback]="!siteStatus.blocked()" (no Feedback round
+                           the Migrations page while an update waits: the server refuses it); no fan
+                           clause; under the cards too. The site's own footer (layouts/site-footer)
+                           is gone - a part the family's lacks goes to the library
+  sites/main/              main.routes.ts (the public site's routes, spread into app.routes.ts after
+                           /admin); participant-layout ("You are not signed in" where the page would
+                           be - a session that ended in place; for a visitor only on the preview; the
+                           toasts of the move and of a lost visit). A sign-in that
                            came back without one, or could not start, is the library's screen on
-                           /auth/callback (AuthCallbackComponent, app.routes.ts), never a card.
+                           /auth/callback (AuthCallbackComponent, main.routes.ts), never a card.
                            legal-layout: the frame of /terms, /privacy and /contact, and of the
                            family's /about and /support (@anotoki/lib/legal/about, /support; their
                            tabs' titles the library's anotoki.about.title / anotoki.support.title)
@@ -334,21 +351,14 @@ frontend/src/app/
                            guard; each its own path with this frame as parent - an empty-path
                            parent took "/" itself, app.routes.spec.ts), the facts' provider - the
                            participant and legal frames one stylesheet, src/styles/_participant-frame.scss.
-                           Each of the three frames ends with the family's footer (<anotoki-site-footer>,
-                           @anotoki/lib/footer, anotoki-lib 0.6.3): [version]="changelog.current()",
-                           [whatsNew] while there is a list, (whatsNew)="changelog.open()", feedback -
-                           in the admin frame [feedback]="!siteStatus.blocked()" (no Feedback round
-                           the Migrations page while an update waits: the server refuses it); no fan
-                           clause; under the cards too. The site's own footer (layouts/site-footer)
-                           is gone - a part the family's lacks goes to the library
-  boot/                    load-error (its "Try again" also opens the page that was asked for): drawn
-                           instead of the site when the status answered and the sign-in's settings
-                           did not (app.component.ts decides; everything else that keeps the site
-                           from running is the family's page); kept-word.ts (the cached string, or
-                           the English written in the page)
-  pages/participant/       survey-home, take-survey (+ question-block, survey-hero, send-failure.ts,
-                           shown-language.ts), visitor-notice (what a visitor is told, with Sign in)
-  pages/admin/             surveys-list, survey-editor (+ parts, SurveyEditing, the translation mode:
+                           survey-home, take-survey (+ question-block, survey-hero, send-failure.ts,
+                           shown-language.ts), visitor-notice (what a visitor is told, with Sign in);
+                           common/image-gallery (the pictures under a question's text or a
+                           step's own, as people meet them: each a button that opens it large)
+  sites/admin/             admin.routes.ts; admin-layout
+                           (English; "You are signed out" for a session that ended in place, the
+                           no-access card for somebody signed in without a role); surveys-list,
+                           survey-editor (+ parts, SurveyEditing, the translation mode:
                            editor-languages, translated-text, translating.ts; ?language= opens a tab),
                            survey-results, response-view, response-page (a visitor everywhere
                            there: "Visitor N", "Not signed in" under the name - Person.visitor; a
@@ -361,13 +371,9 @@ frontend/src/app/
                            (@anotoki/lib/people/page), /admin/feedback, /admin/errors, /admin/audit,
                            /admin/backups (@anotoki/lib/admin/*), /admin/migrations
                            (<anotoki-migrations-page>: Pending in the order the files run, Applied
-                           with each file's SQL, Missing, Apply pending)
-  ui/                      the survey's own pieces: rich-text-editor (TipTap), lightbox, survey-image,
-                           image-strip, image-gallery (the pictures under a question's text or a
-                           step's own, as people meet them: each a button that opens it large),
-                           changelog-dialog (What's new: each release's added / changed /
-                           fixed, in the language on the page, English where an entry has no
-                           Slovak) - the rest is the family's kit (@anotoki/lib/ui/<piece>, /shell)
+                           with each file's SQL, Missing, Apply pending); shared/ - its own pieces:
+                           rich-text-editor (TipTap), image-strip, images/ (below)
+  sites/admin/shared/images/   prepareImage (browser-side), ImageUploader
 frontend/public/           changelog.json: the releases, the newest first - its first entry's version
                            is package.json's (the one version; changelog.service.spec.ts holds them)
 frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles: root, fonts, base,
@@ -398,7 +404,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   are random UUIDs - `docs/decisions.md`). Only the pages drawn while the site
   cannot run (the family's page, the load error card) and the legal pages
   (`/terms`, `/privacy`, `/contact`, and About and Support, `/about`,
-  `/support`: anybody's, in `layouts/legal-layout`,
+  `/support`: anybody's, in `sites/main/legal-layout`,
   nothing of a survey on them or asked of the API) draw without a sign-in.
   A new page goes under one of the two layouts (their guard), a new route
   behind `$identify` and `RequirePerson` (and `$recordPerson` where it touches
@@ -449,7 +455,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   logged once a day by its kind and line, its start (one that does not start
   with `<?php` is never compiled) or its byte count, never its text; the site
   keeps running.
-- **The legal pages' facts are the code's** (`core/legal/legal-facts.ts`,
+- **The legal pages' facts are the code's** (`shared/legal/legal-facts.ts`,
   the words `legal.*`): a change to what the site keeps or for how long, to a
   cookie or a stored item's name, to who else handles data, changes them -
   the strings by a migration (English and formal Slovak, no address in any:
@@ -458,7 +464,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   account's pages from the IAM's address the site signs in with), never in a
   string an administrator rewords.
 - **Feedback is the family's, and anybody's** (anotoki-lib 0.6.2's Feedback,
-  `api/routes/feedback.php`, `core/feedback.ts`): the family's footer's
+  `api/routes/feedback.php`, `shared/feedback.ts`): the family's footer's
   Feedback under every frame and the Contact page open the form for anybody -
   signed in, a visitor, nobody - whether sign-in is required or not (the
   form marks its message anybody's itself, the library's `issuedAs('anybody')`; not in the admin
@@ -472,7 +478,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   opened) - `legal.feedback.kept` says so, and changes with it. A People
   delete forgets the person on their messages (`peopleForgetFeedback()`).
 - **One version, and What's new** (`frontend/public/changelog.json`,
-  `core/changelog/`): the newest entry's version is the site's -
+  `shared/changelog/`): the newest entry's version is the site's -
   `frontend/package.json`'s, held to it by a spec - and every release adds its
   entry first: what changed for people, in English and whole in formal Slovak
   (`translations.sk`), no address. What's new is the kit's dialog over it,
@@ -553,7 +559,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   numbers, and `answerProblemText()` / `choiceRuleText()` must say in English
   exactly what PHP says. The admin panel shows the server's sentences; somebody
   taking a survey never sees one - the page words its own
-  (`core/i18n/answer-words.ts`, `take-survey/send-failure.ts`).
+  (`shared/i18n/answer-words.ts`, `take-survey/send-failure.ts`).
 - **A new field on a survey or question**: the model (`survey.model.ts`), the
   factory (`newQuestion`, `copyQuestion`...), the editor, `surveyFromBody()` /
   `surveyQuestionFromBody()` (else the server drops it - it keeps only what it
@@ -579,7 +585,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   needs a default. The text is a
   question's text in every way - `richTextClean()` on the way in, drawn
   through the same `[innerHTML]` in `.rich` (`take-survey`), never another
-  way - and the pictures are `ui/image-gallery`, a question's too. A step with
+  way - and the pictures are `sites/main/common/image-gallery`, a question's too. A step with
   text or a picture needs no question (`stepHasContent()`); with none of the
   three it is a problem, "Step N is empty - add a question, text or a picture,
   or remove the step." (`stepIsEmpty()` and `surveyStepIsEmpty()`). In the
@@ -621,7 +627,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   (`.one`, `.few`, `.other`, the number always `{count}`, asked for with
   `translatePlural` / `plural()`); those three suffixes are for nothing else.
   A key built at run time comes from a closed set listed in
-  `core/i18n/dynamic-keys.ts`, through a table with a fallback key - never from
+  `shared/i18n/dynamic-keys.ts`, through a table with a fallback key - never from
   an address, the IAM's answer or what a person typed. The scan holds the code
   to it: a literal that ends in a dot (`'take.refused.' + kind`) or a template
   literal that goes on with `${…}`, in a namespace the database has, must be a
@@ -642,7 +648,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   `effect()` that calls the service - they run again when the language
   changes. Toasts and confirm dialogs are finished sentences when raised.
   Sentences are constants on purpose in one place: `FORMAL_SLOVAK` in
-  `core/translations.ts`, the library's words that speak to the reader, said
+  `shared/translations.ts`, the library's words that speak to the reader, said
   formally - given to the library (`libraryWords`) for the moments the
   database cannot be read (the family's page shows when the database holding
   the keys is what is not ready); the database has the same words (010), and a
@@ -657,10 +663,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   brace that is not a `{placeholder}` (422 `invalid_placeholder`), and one
   with nothing in it to see is an empty one (the library's `Text::blank()`).
 - **The admin panel is English**: literal words in the templates under
-  `pages/admin` and `layouts/admin-layout`, no `translate` pipe there. The
+  `sites/admin` and `sites/admin/admin-layout`, no `translate` pipe there. The
   pieces both areas share (top bar, UI kit, toasts, the family's footer) read
   through `effectiveLanguage`, which is `en` under `/admin` - the kit's own
-  words too (`core/kit.ts`), and the family's page at an admin address.
+  words too (`shared/kit.ts`), and the family's page at an admin address.
 - **The UI kit is the family's** (anotoki-lib 0.9.2 - its 0.6.0 pieces taken
   where the site drew its own: the link cards of the home page and the System
   page, the results' removable filter chips; what stays the site's and why,
@@ -668,7 +674,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   is the kit's (`anotoki-*`, `anotokiButton`) unless the kit has none,
   imported from its own entry point (`@anotoki/lib/ui/button`, ...) - never
   from the `@anotoki/lib/ui` barrel, which puts every piece into the first
-  load; never a copy of one in `src/app/ui/`, never a change to the library
+  load; never a copy of one in `src/app/shared/ui/` (or a half's own,
+  `sites/main/common/`, `sites/admin/shared/`), never a change to the library
   here. Its markup's classes are its own (`.anotoki-<piece>__<part>`): a spec
   or the browser check that reads them uses those. Its words are the
   library's keys in the database (`forKit()`): nothing to add for a new kit
@@ -685,7 +692,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   with the latest choice last, and lets no earlier save's answer turn the page
   back. A new place that writes a date or a time for somebody signed in takes
   the account's order (and clock): `localDate` where people take surveys,
-  `AdminDates` in the admin panel - never `core/util/dates.ts`'s functions bare
+  `AdminDates` in the admin panel - never `shared/util/dates.ts`'s functions bare
   in a page. Data stays ISO (the CSV, a file's name, an `<input type="date">`).
 - **A language code from an address** is checked with `languageCodeOk()` before
   any query (the library's routes check their own); **who saved a string** is
@@ -693,7 +700,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   do what with the site's words is this site's**: the library's route groups
   get the site's checks (`routes/admin.php`: `requireStaff()`, and
   `requireFor('DELETE', requireAdmin())` on the languages) and the pages
-  `admin.allows` (`core/translations.ts`) - never the library's to decide.
+  `admin.allows` (`shared/translations.ts`) - never the library's to decide.
   The System's routes (people, feedback, error log, audit log, backups) are ADMIN's:
   the site's `requireAdmin()`, and the library's groups check the token's
   ADMIN again themselves.
@@ -834,7 +841,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   the start, a choice, `reload()`, asking again. A choice takes its turn even
   when it needs no request (back to the language on the page), or the slower
   choice it was meant to cancel lands after it. The chooser counts its own
-  choices for the same reason (`shellConfig()` in `core/kit.ts`: a choice of
+  choices for the same reason (`shellConfig()` in `shared/kit.ts`: a choice of
   the language on the page with none on its way changes nothing) - an
   overtaken one answers false, which is no failure to say. A spec of a race
   needs two loads really in flight; with one pending request the guards can
@@ -1107,7 +1114,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
 - **Every anotoki site calls its admin area the admin panel**: "Admin panel"
   ("Administrátorský panel") in the person's menu (`anotoki.topbar.admin`),
   `brand.adminPanel` after the wordmark, "<page> · Admin panel · anotoki
-  survey" in the tab (`core/title.strategy.ts`). The wordmark's spans are
+  survey" in the tab (`shared/title.strategy.ts`). The wordmark's spans are
   laid out by CSS `gap` (the kit puts a space between them for a screen
   reader and copied text): a test reads them one by one.
 - **A sign-in that came back without one goes to the screen that says why**,
@@ -1393,7 +1400,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
          to it only while it sends preferences, one save at a time;
    - [ ] the family's library is used, never copied or edited: the kit a piece
          at a time from its own entry point, the site's words through
-         `core/translations.ts` and the library's routes, who may do what
+         `shared/translations.ts` and the library's routes, who may do what
          this site's own checks; a library word that speaks to the reader is
          formal Slovak in the database and in `FORMAL_SLOVAK`;
    - [ ] every new test fails with its fix taken out;
