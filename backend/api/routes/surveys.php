@@ -29,15 +29,22 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  *                                        carries its key in the X-Visitor-Key header (nowhere else),
  *                                        or it is 429 too_many_visitors and nothing is kept
  *
+ * Page access (the site settings' third part, api/site_settings.php) may
+ * govern these pages - the list (/) and a survey (/{slug}) - and refuse their
+ * API paths with them: 423 page_locked to whoever the page is not shown to,
+ * after the caller's own check (the library's PageAccessGate, $pageAccess).
+ *
  * @var \Slim\App $app
  * @var \Anotoki\Lib\Auth\Http\Identify $identifyTaker   Identify that reads a visitor's key (api/index.php)
  * @var \Anotoki\Lib\People\Http\RecordPerson $recordPerson
+ * @var \Anotoki\Lib\SiteSettings\Http\PageAccessGate $pageAccess
  */
 
 $app->get('/api/surveys', function (Request $request, Response $response): Response {
     return respondJson($response, ['surveys' => surveysOpen(currentUser($request)?->id)]);
 })
     ->add(sweepVisitorsSoon())
+    ->add($pageAccess)
     ->add(new RequireCaller(RequireCaller::EMPTY))
     ->add($recordPerson)
     ->add($identifyTaker);
@@ -46,6 +53,7 @@ $app->get('/api/surveys/{slug}', function (Request $request, Response $response,
     return respondJson($response, surveyForParticipant((string) $args['slug'], currentUser($request)?->id));
 })
     ->add(sweepVisitorsSoon())
+    ->add($pageAccess)
     ->add(new RequireCaller(RequireCaller::EMPTY))
     ->add($recordPerson)
     ->add($identifyTaker);
@@ -60,6 +68,7 @@ $app->post('/api/surveys/{slug}/responses', function (Request $request, Response
     return $response;
 })
     ->add(sweepVisitorsSoon())
+    ->add($pageAccess)
     ->add(new RequireCaller(RequireCaller::MAKE))
     ->add($recordPerson)
     ->add($identifyTaker);

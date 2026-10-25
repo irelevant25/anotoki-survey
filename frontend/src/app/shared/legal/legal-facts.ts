@@ -5,6 +5,7 @@ import { TranslationService, translationSettings } from '@anotoki/lib/translatio
 import { AuthService } from '../auth/auth.service';
 import { VISITOR_STORAGE_KEY } from '../auth/visitor-key';
 import { THEME_KEY } from '../kit';
+import { ANNOUNCEMENT_STORAGE_KEY } from '../site-settings';
 import { DRAFT_PREFIX } from '../survey/drafts';
 import { SURVEY_STORAGE_PREFIX } from '../translations';
 
@@ -14,7 +15,7 @@ import { SURVEY_STORAGE_PREFIX } from '../translations';
  * the site keeps or for how long - and the strings that say so (`legal.*`,
  * migration 013).
  */
-export const SURVEY_LEGAL_UPDATED = '2026-10-18';
+export const SURVEY_LEGAL_UPDATED = '2026-10-25';
 
 /**
  * How many days a visitor unseen is kept when the server does not say: the
@@ -88,8 +89,10 @@ export function surveyLegalPagesConfig(): AnotokiLegalConfig {
  *   `anotoki-auth:{client id}`), the theme (THEME_KEY), the language and its
  *   cached strings (SURVEY_STORAGE_PREFIX), the visitor's key
  *   (VISITOR_STORAGE_KEY), the drafts of a survey begun (DRAFT_PREFIX), the
- *   admin pages' unsaved words; the IAM's hint cookie, which reaches this site
- *   and is never read here;
+ *   admin pages' unsaved words, the mark of an announcement its reader hid
+ *   (ANNOUNCEMENT_STORAGE_KEY - the site settings', anotoki-lib 0.11.0: a
+ *   mark of its words, never the words); the IAM's hint cookie, which reaches
+ *   this site and is never read here;
  * - counting visits: the family's Umami (src/index.html: umami.anotoki.eu, the
  *   query and the fragment left out) - the library's words;
  * - who else handles data: the hosting company (WebSupport s.r.o., named by
@@ -144,6 +147,8 @@ export function surveyLegalFacts(i18n: TranslationService, anotoki: AnotokiAuth,
       { preset: 'visitorKey', name: VISITOR_STORAGE_KEY, kept: i18n.t('legal.storage.visitorKey.kept') },
       { name: `${DRAFT_PREFIX}…`, kind: 'local', purpose: i18n.t('legal.storage.draft.purpose'), kept: i18n.t('legal.storage.draft.kept') },
       { name: words.drafts, kind: 'session', purpose: i18n.t('legal.storage.wordDrafts.purpose'), kept: i18n.t('legal.storage.untilTabClosed') },
+      // The announcement's Hide: a mark of it, never its words (the library's words, anotoki.legal.storageAnnouncementPurpose).
+      { preset: 'announcement', name: ANNOUNCEMENT_STORAGE_KEY },
     ],
     // The hosting company, named by the owner on 2026-10-18: the servers, the database and the mail.
     processors: [{ preset: 'hosting', name: 'WebSupport s.r.o.', url: 'https://www.websupport.sk' }, { preset: 'cloudflare' }],

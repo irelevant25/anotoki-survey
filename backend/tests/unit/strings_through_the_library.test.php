@@ -239,7 +239,7 @@ test('010\'s gate: a string that would not move fails the file loudly, and nothi
 
     $result = surveyMigrator($pdo)->apply();
     assert_same(
-        [['anotoki_admin/001_audit_log.sql', 'anotoki_admin/002_feedback.sql'], ['set' => 'survey', 'name' => FILE_010]],
+        [['anotoki_admin/001_audit_log.sql', 'anotoki_admin/002_feedback.sql', 'anotoki_admin/003_site_settings.sql'], ['set' => 'survey', 'name' => FILE_010]],
         [applied_names($result), $result['failed']],
         'the library\'s admin set (first, and no words) - then 010, refused',
     );

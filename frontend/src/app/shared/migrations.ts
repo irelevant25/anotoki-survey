@@ -9,6 +9,9 @@ import { AuthService } from './auth/auth.service';
 /** The admin panel's Migrations page: the anotoki family's (<anotoki-migrations-page>), in the admin panel's frame. */
 export const MIGRATIONS_PATH = '/admin/migrations';
 
+/** Where the site's administrators sign in while it is closed for maintenance: the closed sign offers Sign in there alone. */
+export const STAFF_PATH = '/staff';
+
 /**
  * The anotoki family's migrations module (@anotoki/lib/migrations, the owner's
  * decision of 2026-10-07) wired into this site - one behaviour for every
@@ -26,10 +29,18 @@ export const MIGRATIONS_PATH = '/admin/migrations';
  *   does; the setup page only while the site was never installed. Once the
  *   site runs again, that page reloads itself - without telling the gate
  *   first (anotoki-lib 0.2.0), so no page of the site is made in between;
- * - the admin panel's Migrations page is the family's (admin.routes.ts).
+ * - the admin panel's Migrations page is the family's (admin.routes.ts);
+ * - while the site's ADMIN has closed it for maintenance (the site settings'
+ *   "Getting in", anotoki-lib 0.11.0 - shared/site-settings.ts) the gate draws
+ *   the family's closed sign for everybody else - the administrators' words in
+ *   the page's language - but on the sign-in's way back, the legal pages,
+ *   About and Support; at /staff (STAFF_PATH, a route of its own -
+ *   sites/main/main.routes.ts) it offers Sign in, back to the home page, where
+ *   an administrator sees the site as it is.
  *
  * Who is ADMIN is the token's say (AuthService, the IAM's roles for this
- * site); a Sign in comes back to the page it was pressed on; the family's
+ * site); a Sign in comes back to the page it was pressed on - the staff one's
+ * to the home page; the family's
  * page reads the language on the page and its words from the site's database
  * - the library's `anotoki.siteStatus.*`, reworded on the Translations page
  * like any other string, and in this site's formal Slovak (migration 010;
@@ -51,7 +62,8 @@ export function provideSiteMigrations(): EnvironmentProviders {
       migrationsRoute: MIGRATIONS_PATH,
       isAdmin: () => auth.isAdmin(),
       isSignedIn: () => auth.signedIn(),
-      signIn: () => signInOrShowWhy(auth, router),
+      signIn: (returnTo?: string) => signInOrShowWhy(auth, router, undefined, returnTo),
+      staffRoute: STAFF_PATH,
       // The language on the page: the reader's, English in the admin panel - the words below are in it.
       language: () => i18n.effectiveLanguage(),
       // Read whenever the page draws: it follows a change of language or of the strings.

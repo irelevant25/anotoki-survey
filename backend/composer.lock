@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ae7d97e9caf218e2be252012f7e786e5",
+    "content-hash": "f38e04ca80409f184a13c9d639615c17",
     "packages": [
         {
             "name": "anotoki/lib",

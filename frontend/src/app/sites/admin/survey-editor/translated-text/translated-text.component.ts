@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, inject, input } from '@angular/core';
+import { HtmlEditorComponent } from '@anotoki/lib/ui/html-editor';
 import { IconComponent } from '@anotoki/lib/ui/icon';
+import { RichHtmlComponent, richHtmlIsBlank } from '@anotoki/lib/ui/rich-html';
 import { TranslationPlace } from '../../../../shared/survey/localize';
-import { isBlankHtml } from '../../../../shared/survey/plain-text';
-import { RichTextEditorComponent } from '../../shared/rich-text-editor/rich-text-editor.component';
+import { SURVEY_TEXT_HEADINGS, SURVEY_TEXT_TOOLS } from '../../shared/text-tools';
 import { SurveyEditing } from '../survey-editing.service';
 import { placeKey } from '../translating';
 
@@ -28,7 +29,7 @@ import { placeKey } from '../translating';
  */
 @Component({
   selector: 'app-translated-text',
-  imports: [IconComponent, RichTextEditorComponent],
+  imports: [HtmlEditorComponent, IconComponent, RichHtmlComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './translated-text.component.html',
   styleUrl: './translated-text.component.scss',
@@ -50,6 +51,9 @@ export class TranslatedTextComponent {
   readonly maxLength = input<number | null>(null);
 
   protected readonly editing = inject(SurveyEditing);
+  /** The text editor's buttons and headings: the survey's (sites/admin/shared/text-tools.ts). */
+  protected readonly textTools = SURVEY_TEXT_TOOLS;
+  protected readonly textHeadings = SURVEY_TEXT_HEADINGS;
 
   /** What the field carries as `data-place`: the page finds it by this, for "Next missing". */
   protected readonly key = computed(() => placeKey(this.place()));
@@ -71,6 +75,6 @@ export class TranslatedTextComponent {
   }
 
   private _blank(text: string): boolean {
-    return this.rich() ? isBlankHtml(text) : !text.trim();
+    return this.rich() ? richHtmlIsBlank(text) : !text.trim();
   }
 }

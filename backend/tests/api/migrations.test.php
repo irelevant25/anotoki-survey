@@ -42,6 +42,15 @@ const FILE_016 = '016_step_text_and_pictures.sql';
 const FILE_017 = '017_non_binary_no_longer_offered.sql';
 /** The admin panel in the family's frame: the name the top bar gave the panel's home goes. */
 const FILE_018 = '018_admin_frame.sql';
+/** The library's dates take this site's two words of "how long ago" over; the audit log's fact names the site settings. */
+const FILE_019 = '019_library_dates_and_site_settings.sql';
+/** The audit log's fact as 013 wrote it, in English and Slovak: what 019 rewords. */
+const AUDIT_FACT_013 = [
+    'en' =>
+        'What the site\'s editors and administrators do in its admin panel - surveys made, opened, closed and deleted, answers deleted, the site\'s words and languages changed, backups and the database\'s updates - and what the site does there by itself, such as the daily backup: who did what, and when. Never an IP address.',
+    'sk' =>
+        'Čo robia redaktori a správcovia stránky v jej administrátorskom paneli – vytvorené, otvorené, zatvorené a zmazané prieskumy, zmazané odpovede, zmeny textov a jazykov stránky, zálohy a aktualizácie databázy – a čo tam stránka robí sama, napríklad dennú zálohu: kto čo urobil a kedy. IP adresu nikdy.',
+];
 /** The anotoki library's words: a file of its set, recorded with the set's name. */
 const LIBRARY_002 = ['set' => 'anotoki_translations', 'name' => '002_library_words.sql'];
 
@@ -358,7 +367,7 @@ test('a migration waiting: 503 update_pending with Retry-After everywhere - but 
 
     $list = as_user(ADA, 'GET', '/api/admin/migrations');
     assert_same(200, $list['status']);
-    assert_same([['set' => 'survey', 'name' => FILE_007, 'ready' => true, 'blocked' => false]], $list['body']['pending']);
+    assert_same([['set' => 'survey', 'name' => FILE_007, 'ready' => true, 'blocked' => false, 'duplicates' => []]], $list['body']['pending']);
     assert_false(in_array(FILE_007, array_column($list['body']['applied'], 'name'), true));
     assert_same(200, as_user(ADA, 'GET', '/api/admin/migrations/file?set=survey&name=' . FILE_007)['status']);
 
@@ -465,7 +474,7 @@ test('the anotoki library\'s files wait as the site\'s own do: the site closed, 
     assert_same([503, UPDATING], [as_user(PAT, 'GET', '/api/surveys')['status'], as_user(PAT, 'GET', '/api/surveys')['body']]);
 
     $list = as_user(ADA, 'GET', '/api/admin/migrations');
-    assert_same([LIBRARY_002 + ['ready' => true, 'blocked' => false]], $list['body']['pending']);
+    assert_same([LIBRARY_002 + ['ready' => true, 'blocked' => false, 'duplicates' => []]], $list['body']['pending']);
     $file = as_user(ADA, 'GET', '/api/admin/migrations/file?set=anotoki_translations&name=002_library_words.sql');
     assert_same(200, $file['status']);
     assert_match('/^-- anotoki_translations 002/', (string) $file['body']['sql'], 'its SQL, from the library\'s folder');
@@ -689,6 +698,55 @@ test('018: the admin panel in the family\'s frame - the name the top bar gave th
     $again = as_user(ADA, 'POST', '/api/admin/migrations/apply');
     assert_same(['applied' => [file_entry(FILE_018)], 'failed' => null, 'error' => null, 'note' => 'BACKUP'], applied($again['body']));
 });
+
+test(
+    '019: the library\'s dates take the site\'s two words over - every string with who saved it, a reworded one too, an owner\'s rewording on the library\'s key kept - and the audit log\'s fact names the site settings where it is 013\'s',
+    function (): void {
+        current_again();
+        // As an installed site meets it, the library's 014 having run already (this file's template applied it): the
+        // site's own two keys back - the English as 003 wrote it, the Slovak of time.justNow reworded by its owner, and
+        // time.onDate with no Slovak at all -, the library's words on its keys where the owner did nothing, and one of
+        // them reworded on the library's key by the owner since; the audit log's fact as 013 wrote it in English, and
+        // reworded in Slovak.
+        as_user(ADA, 'GET', '/api/admin/surveys'); // the owner's row in users: who saved the Slovak below
+        dbExec(
+            "INSERT INTO translation_keys (name, description) VALUES ('time.justNow', 'The localDate pipe''s ''ago'' style for anything under a minute old.'), ('time.onDate', 'The localDate pipe''s ''ago'' style from 14 days on.')",
+        );
+        dbExec(
+            "INSERT INTO translations (key_name, language_code, value, updated_by) VALUES ('time.justNow', 'en', 'just now', NULL), ('time.justNow', 'sk', 'pred chvíľkou', 1), ('time.onDate', 'en', 'on {date}', NULL)",
+        );
+        dbExec("UPDATE translations SET value = 'dňa {date}' WHERE key_name = 'anotoki.dates.onDate' AND language_code = 'sk'");
+        dbExec("UPDATE translations SET value = ? WHERE key_name = 'legal.auditLog.what' AND language_code = 'en'", [AUDIT_FACT_013['en']]);
+        dbExec("UPDATE translations SET value = 'Kto čo zmenil v administrátorskom paneli a kedy.' WHERE key_name = 'legal.auditLog.what' AND language_code = 'sk'");
+        behind(FILE_019);
+        assert_same([FILE_019], pending_now());
+
+        $apply = as_user(ADA, 'POST', '/api/admin/migrations/apply');
+        assert_same([200, ['applied' => [file_entry(FILE_019)], 'failed' => null, 'error' => null, 'note' => 'BACKUP']], [$apply['status'], applied($apply['body'])]);
+        $strings = static fn(string $key): array => array_column(dbAll('SELECT language_code, value FROM translations WHERE key_name = ? ORDER BY language_code', [$key]), 'value', 'language_code');
+        assert_same(
+            [0, 0],
+            [(int) dbValue("SELECT count(*) FROM translation_keys WHERE name LIKE 'time.%'"), (int) dbValue("SELECT count(*) FROM translations WHERE key_name LIKE 'time.%'")],
+            'the site\'s keys go',
+        );
+        assert_same(['en' => 'just now', 'sk' => 'pred chvíľkou'], $strings('anotoki.dates.justNow'), 'its words under the library\'s key - the owner\'s Slovak with them');
+        assert_same(1, (int) dbValue("SELECT updated_by FROM translations WHERE key_name = 'anotoki.dates.justNow' AND language_code = 'sk'"), 'who saved it, with it');
+        assert_same(['en' => 'on {date}', 'sk' => 'dňa {date}'], $strings('anotoki.dates.onDate'), 'the English moved; the owner\'s rewording on the library\'s key stays');
+        assert_same(['en' => 'in a moment', 'sk' => 'o chvíľu'], $strings('anotoki.dates.soon'), 'a library word the site never had: the library\'s');
+        $fact = $strings('legal.auditLog.what');
+        assert_true(str_contains($fact['en'], 'the site\'s words, languages and settings changed'), 'the English, 013\'s, names the site settings: ' . $fact['en']);
+        assert_same('Kto čo zmenil v administrátorskom paneli a kedy.', $fact['sk'], 'the owner\'s Slovak stays');
+
+        // Applied again over what it did: nothing to move, and its gate passes.
+        behind(FILE_019);
+        $again = as_user(ADA, 'POST', '/api/admin/migrations/apply');
+        assert_same(['applied' => [file_entry(FILE_019)], 'failed' => null, 'error' => null, 'note' => 'BACKUP'], applied($again['body']));
+        assert_same(['en' => 'just now', 'sk' => 'pred chvíľkou'], $strings('anotoki.dates.justNow'));
+        // Back as the template has it, for the tests after this one.
+        dbExec("UPDATE translations SET value = 'práve teraz', updated_by = NULL WHERE key_name = 'anotoki.dates.justNow' AND language_code = 'sk'");
+        dbExec("UPDATE translations SET value = '{date}' WHERE key_name = 'anotoki.dates.onDate' AND language_code = 'sk'");
+    },
+);
 
 test('a database waiting for 006: the surveys are closed for nobody, a visitor key or a person alike - nor the move at sign-in', function (): void {
     current_again();

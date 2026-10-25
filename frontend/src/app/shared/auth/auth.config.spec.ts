@@ -37,10 +37,10 @@ describe('siteAuthConfig(): the anotoki family’s sign-in, wired to this site',
     expect(TestBed.runInInjectionContext(() => config.visitors!())).toBe(visitor);
   });
 
-  it('hands the token to the site’s API alone - never to the status, the settings, the strings or the pictures - and the visitor key to the surveys’ routes alone', () => {
+  it('hands the token to the site’s API alone - never to the status, the settings, the strings, the site settings or the pictures - and the visitor key to the surveys’ routes alone', () => {
     expect(siteAuthConfig().api).toEqual({
       prefixes: ['/api/'],
-      skip: ['/api/site-status', '/api/auth/config', '/api/translations/', '/api/images/'],
+      skip: ['/api/site-status', '/api/auth/config', '/api/translations/', '/api/site-settings', '/api/images/'],
       visitorPrefixes: ['/api/surveys'],
     });
   });

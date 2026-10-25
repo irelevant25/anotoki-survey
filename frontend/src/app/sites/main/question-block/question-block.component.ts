@@ -3,6 +3,7 @@ import { TranslatePipe, TranslatePluralPipe, TranslationService } from '@anotoki
 import { AutofocusDirective } from '@anotoki/lib/ui/autofocus';
 import { uniqueId } from '@anotoki/lib/ui/dom';
 import { IconComponent } from '@anotoki/lib/ui/icon';
+import { RichHtmlComponent } from '@anotoki/lib/ui/rich-html';
 import { problemText, ruleText } from '../../../shared/i18n/answer-words';
 import { AnswerProblem, choiceLimits, choiceRule, emptyAnswer, textLimit, withoutControls } from '../../../shared/survey/answer-rules';
 import { Answer, ChoiceOption, Question } from '../../../shared/survey/survey.model';
@@ -37,7 +38,7 @@ import { SurveyImageComponent } from '../../../shared/ui/survey-image/survey-ima
  */
 @Component({
   selector: 'app-question-block',
-  imports: [IconComponent, AutofocusDirective, ImageGalleryComponent, SurveyImageComponent, TranslatePipe, TranslatePluralPipe],
+  imports: [IconComponent, AutofocusDirective, ImageGalleryComponent, RichHtmlComponent, SurveyImageComponent, TranslatePipe, TranslatePluralPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './question-block.component.html',
   styleUrl: './question-block.component.scss',

@@ -1,7 +1,7 @@
 <article class="card" [id]="'result-' + question().id">
     <header class="head">
         <span class="number">{{ number() }}</span>
-        <div class="text rich" [innerHTML]="question().text"></div>
+        <anotoki-rich-html class="text rich" [html]="question().text" />
         <span class="kind" [title]="kind().label">
             <anotoki-icon [name]="kind().icon" [size]="15" />
             <span class="kind-label">{{ kind().label }}</span>

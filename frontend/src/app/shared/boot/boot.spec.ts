@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { Router, TitleStrategy, provideRouter } from '@angular/router';
 import { SiteStatus } from '@anotoki/lib/migrations';
+import { SiteSettings } from '@anotoki/lib/site-settings';
 import { TranslationService } from '@anotoki/lib/translations';
 import { ToastService } from '@anotoki/lib/ui/toast';
 import { ApiService } from '../../api/api.service';
@@ -58,6 +59,14 @@ describe('boot(): the whole start', () => {
       return new Promise<void>(() => undefined);
     }),
   };
+  /** What every page is told of the site settings (shared/site-settings.ts): answered at once, unless a test holds it. */
+  let settingsAnswered: Promise<void> = Promise.resolve();
+  const siteSettings = {
+    load: vi.fn(() => {
+      order.push('site settings');
+      return settingsAnswered;
+    }),
+  };
 
   beforeEach(() => {
     order.length = 0;
@@ -68,12 +77,15 @@ describe('boot(): the whole start', () => {
     auth.init.mockClear();
     siteStatus.check.mockClear();
     changelog.load.mockClear();
+    siteSettings.load.mockClear();
+    settingsAnswered = Promise.resolve();
     TestBed.configureTestingModule({
       providers: [
         provideTestTranslations(SLOVAK, { language: 'sk', english: ENGLISH }),
         { provide: AuthService, useValue: auth },
         { provide: SiteStatus, useValue: siteStatus },
         { provide: Changelog, useValue: changelog },
+        { provide: SiteSettings, useValue: siteSettings },
         // Made by the start itself, before anything is awaited: its effect is there for the first sign-in.
         {
           provide: VisitorKey,
@@ -95,8 +107,23 @@ describe('boot(): the whole start', () => {
 
   it('asks where the site stands first, then signs in, then settles the language - which needs to know who it is', async () => {
     await TestBed.runInInjectionContext(boot);
-    expect(order).toEqual(['visitor key', 'changelog', 'status: ready', 'auth', 'i18n']);
+    expect(order).toEqual(['visitor key', 'changelog', 'site settings', 'status: ready', 'auth', 'i18n']);
     expect(TestBed.inject(ToastService).toasts()).toEqual([]);
+  });
+
+  it('asks what every page is told of the site settings at the start, beside the rest - and the start ends only once it came: the first navigation is the guard’s (pageAccessGuard)', async () => {
+    let answer!: () => void;
+    settingsAnswered = new Promise<void>((done) => (answer = done));
+    const started = TestBed.runInInjectionContext(boot);
+    // Asked before anything is awaited...
+    expect(order).toEqual(['visitor key', 'changelog', 'site settings', 'status: ready']);
+    await vi.waitFor(() => expect(order).toContain('i18n'));
+    // ...and waited for: the sign-in and the strings are there, and still the start has not ended.
+    expect(TestBed.inject(BOOTED)()).toBe(false);
+    answer();
+    await started;
+    expect(TestBed.inject(BOOTED)()).toBe(true);
+    expect(siteSettings.load).toHaveBeenCalledTimes(1);
   });
 
   it('asks for the survey’s versions at the very start, beside everything else, and never waits for them: the start ends while they have not come', async () => {
@@ -113,7 +140,7 @@ describe('boot(): the whole start', () => {
       order.length = 0;
       standing = state;
       await TestBed.runInInjectionContext(boot);
-      expect(order).toEqual(['changelog', 'status: ' + state, 'auth', 'i18n']);
+      expect(order).toEqual(['changelog', 'site settings', 'status: ' + state, 'auth', 'i18n']);
       expect(TestBed.inject(BOOTED)()).toBe(true);
     }
   });
@@ -150,7 +177,7 @@ describe('boot(): the whole start', () => {
       order.push(readDraft('survey-a', '12') ? 'i18n, the draft adopted' : 'i18n, no draft yet');
     });
     await TestBed.runInInjectionContext(boot);
-    expect(order).toEqual(['visitor key', 'changelog', 'status: ready', 'auth', 'i18n, the draft adopted']);
+    expect(order).toEqual(['visitor key', 'changelog', 'site settings', 'status: ready', 'auth', 'i18n, the draft adopted']);
     expect(readDraft('survey-a', VISITOR_SLOT)).toBeNull();
   });
 

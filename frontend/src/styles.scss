@@ -74,16 +74,25 @@
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Rich text: what the editor writes (question texts, the welcome and thank-you
-// screens), wherever it is shown - the survey, the editor itself, the results.
+// Rich text: what the editor writes (question texts, a step's own text, the
+// welcome and thank-you screens), wherever it is shown - the survey, the
+// editor's originals, the results. Drawn by the family's safe view
+// (<anotoki-rich-html class="rich">, anotoki-lib 0.11.0), whose own typography
+// is the family's: every rule here is one class stronger than the view's (each
+// of its rules as weak as one class), so a survey reads as it always did - the
+// view's line height, ink, margins, heading sizes and highlighter give way.
 // ─────────────────────────────────────────────────────────────────────────────
 
-.rich {
+.rich.anotoki-rich-html {
   overflow-wrap: anywhere;
+  // The block's own, as before the view: its line height and ink are the text's around it.
+  min-width: auto;
+  color: inherit;
+  line-height: inherit;
 
-  // The browser's own margins go, weightless (:where), so that the spacing
-  // between blocks below is the one that counts.
-  :where(p, ul, ol, h2, h3, blockquote) {
+  // The browser's own margins go, and the view's, so that the spacing between
+  // blocks below is the one that counts.
+  :where(p, div, ul, ol, li, h2, h3, h4) {
     margin: 0;
   }
 
@@ -100,6 +109,11 @@
     margin-top: 0.2em;
   }
 
+  // The family's headings (styles' base), never the view's taller lines.
+  :where(h2, h3, h4) {
+    line-height: 1.25;
+  }
+
   h2 {
     font-size: 1.25em;
   }
@@ -112,10 +126,17 @@
     font-weight: 750;
   }
 
-  blockquote {
-    padding-left: 0.9em;
-    border-left: 3px solid var(--rule-strong);
-    color: var(--anotoki-muted);
+  // The family's link (styles' base): the view's own underline sits closer.
+  a {
+    text-underline-offset: 0.18em;
+  }
+
+  // The survey's highlighter, never the view's warning ground.
+  mark {
+    padding: 0 0.15em;
+    border-radius: 3px;
+    background: var(--mark-bg);
+    color: var(--mark-fg);
   }
 }
 

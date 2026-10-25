@@ -1,32 +1,15 @@
-import { type DateChoices } from './date-patterns';
-import { calendarDays, formatDate, formatDateTime, formatDay, timeAgo } from './dates';
+import { type AnotokiDateChoices } from '@anotoki/lib/ui/config';
+import { formatDate, formatDateTime, formatDay, formatDuration, timeAgo, todayIsoDay } from './dates';
 
 /**
- * Every moment here is built with the local-time constructor and read back by
- * the same clock, so the days are the same ones in any time zone.
+ * The admin panel's English dates - the anotoki family's (@anotoki/lib/ui/dates)
+ * in British English. Every moment here is built with the local-time
+ * constructor and read back by the same clock, so the days are the same ones in
+ * any time zone.
  */
 function ago(then: Date, now: Date): string {
   return timeAgo(then.toISOString(), now.getTime());
 }
-
-describe('calendarDays(): the midnights between two moments', () => {
-  it('is 0 within a day and 1 from any time yesterday to any time today', () => {
-    expect(calendarDays(new Date(2026, 8, 28, 0, 10), new Date(2026, 8, 28, 23, 50))).toBe(0);
-    expect(calendarDays(new Date(2026, 8, 28, 23, 59), new Date(2026, 8, 29, 0, 1))).toBe(1);
-    expect(calendarDays(new Date(2026, 8, 28, 0, 1), new Date(2026, 8, 29, 23, 59))).toBe(1);
-  });
-
-  it('counts across a month and a year', () => {
-    expect(calendarDays(new Date(2026, 8, 28, 21, 0), new Date(2026, 9, 1, 8, 0))).toBe(3);
-    expect(calendarDays(new Date(2025, 11, 31, 12, 0), new Date(2026, 0, 1, 12, 0))).toBe(1);
-  });
-
-  it('takes a day the clocks change for one day', () => {
-    // Where the clocks go back on 25 October 2026 and forward on 29 March, these days are 25 and 23 hours long.
-    expect(calendarDays(new Date(2026, 9, 24, 12, 0), new Date(2026, 9, 26, 12, 0))).toBe(2);
-    expect(calendarDays(new Date(2026, 2, 28, 12, 0), new Date(2026, 2, 30, 12, 0))).toBe(2);
-  });
-});
 
 describe('timeAgo(): how long ago, in English', () => {
   const NOW = new Date(2026, 8, 30, 10, 0, 0);
@@ -35,12 +18,14 @@ describe('timeAgo(): how long ago, in English', () => {
   const HOUR = 60 * MINUTE;
   const DAY = 24 * HOUR;
 
-  it('counts minutes and hours up to a day', () => {
+  it('counts minutes and hours up to a day - rounded down, the family’s count', () => {
     expect(before(0)).toBe('just now');
     expect(before(59_000)).toBe('just now');
-    expect(before(MINUTE)).toBe('a minute ago');
+    expect(before(MINUTE)).toBe('1 minute ago');
+    expect(before(MINUTE + 50_000)).toBe('1 minute ago');
     expect(before(5 * MINUTE)).toBe('5 minutes ago');
-    expect(before(HOUR)).toBe('an hour ago');
+    expect(before(HOUR)).toBe('1 hour ago');
+    expect(before(HOUR + 40 * MINUTE)).toBe('1 hour ago');
     expect(before(3 * HOUR)).toBe('3 hours ago');
     // Over midnight, and still hours.
     expect(before(23 * HOUR)).toBe('23 hours ago');
@@ -64,8 +49,8 @@ describe('timeAgo(): how long ago, in English', () => {
     expect(ago(new Date(2026, 8, 28, 8, 0), new Date(2026, 8, 29, 23, 59))).toBe('yesterday');
   });
 
-  it('never calls the same day "yesterday": its last half hour is 24 hours ago', () => {
-    expect(ago(new Date(2026, 8, 28, 0, 10), new Date(2026, 8, 28, 23, 50))).toBe('24 hours ago');
+  it('never calls the same day "yesterday": its last half hour is hours ago', () => {
+    expect(ago(new Date(2026, 8, 28, 0, 10), new Date(2026, 8, 28, 23, 50))).toBe('23 hours ago');
   });
 
   it('gives back what is not a date as it came', () => {
@@ -76,7 +61,7 @@ describe('timeAgo(): how long ago, in English', () => {
 describe('the admin panel’s dates in the order and on the clock the anotoki account has chosen', () => {
   /** 29 September 2026, 14:30 by this computer's clock. */
   const MOMENT = new Date(2026, 8, 29, 14, 30).toISOString();
-  const chosen = (dateFormat: NonNullable<DateChoices>['date_format'], timeFormat: NonNullable<DateChoices>['time_format']): DateChoices => ({ date_format: dateFormat, time_format: timeFormat });
+  const chosen = (dateFormat: AnotokiDateChoices['date_format'], timeFormat: AnotokiDateChoices['time_format']): AnotokiDateChoices => ({ date_format: dateFormat, time_format: timeFormat });
 
   it('writes a date, and a day in full, in the order chosen - and English’s own way with none', () => {
     expect(formatDate(MOMENT)).toBe('29 Sept 2026');
@@ -106,5 +91,17 @@ describe('the admin panel’s dates in the order and on the clock the anotoki ac
     expect(timeAgo(new Date(2026, 8, 30, 7, 0).toISOString(), now, chosen('ymd_dash', '12'))).toBe('3 hours ago');
     expect(timeAgo(new Date(2026, 8, 16, 10, 0).toISOString(), now, chosen('ymd_dash', null))).toBe('2026-09-16');
     expect(timeAgo(new Date(2026, 8, 16, 10, 0).toISOString(), now)).toBe('16 Sept 2026');
+  });
+});
+
+describe('the site’s own: how long a survey took, and today for a date field', () => {
+  it('writes a duration in seconds, minutes and hours', () => {
+    expect(formatDuration(45)).toBe('45 s');
+    expect(formatDuration(260)).toBe('4 min 20 s');
+    expect(formatDuration(3900)).toBe('1 h 5 min');
+  });
+
+  it('gives today as a date field takes it', () => {
+    expect(todayIsoDay(new Date(2026, 0, 5, 23, 59))).toBe('2026-01-05');
   });
 });

@@ -41,13 +41,18 @@ test('an empty database gets every migration, recorded once - in the table the s
         'the sets in the order they run: the library\'s admin set first, the site\'s, then the library\'s words and people',
     );
     assert_same(
-        [['set' => 'anotoki_admin', 'name' => '001_audit_log.sql'], ['set' => 'anotoki_admin', 'name' => '002_feedback.sql'], ['set' => 'survey', 'name' => '001_initial_schema.sql']],
-        array_slice($entries, 0, 3),
+        [
+            ['set' => 'anotoki_admin', 'name' => '001_audit_log.sql'],
+            ['set' => 'anotoki_admin', 'name' => '002_feedback.sql'],
+            ['set' => 'anotoki_admin', 'name' => '003_site_settings.sql'],
+            ['set' => 'survey', 'name' => '001_initial_schema.sql'],
+        ],
+        array_slice($entries, 0, 4),
         'the files, in the order they run',
     );
     $survey = array_keys(array_filter($entries, static fn(array $entry): bool => $entry['set'] === 'survey'));
     assert_same(range($survey[0], $survey[count($survey) - 1]), $survey, 'the site\'s own one after the other');
-    assert_same(['set' => 'survey', 'name' => '018_admin_frame.sql'], $entries[end($survey)], 'the site\'s last file before the library\'s words');
+    assert_same(['set' => 'survey', 'name' => '019_library_dates_and_site_settings.sql'], $entries[end($survey)], 'the site\'s last file before the library\'s words');
     assert_same(['set' => 'anotoki_people', 'name' => '001_people.sql'], $entries[count($entries) - 1], 'the people\'s tables last: after 011 adds the column the scrub writes');
     $name = test_empty_db('fresh');
     $migrator = surveyMigrator(server_pdo($name));
@@ -71,6 +76,8 @@ test('an empty database gets every migration, recorded once - in the table the s
             'translations',
             'anotoki_audit_log',
             'anotoki_feedback',
+            'anotoki_site_settings',
+            'anotoki_page_access',
             'anotoki_people_sync',
             'anotoki_people_anonymized',
         ]

@@ -113,6 +113,8 @@ describe('AppComponent: the admin panel in the family’s frame', () => {
   const frame = () => host.querySelector<HTMLElement>('app-admin-root anotoki-admin-frame');
   const column = () => frame()!.querySelector<HTMLElement>('header.anotoki-admin-frame__column')!;
   const signOutButton = () => host.querySelector<HTMLButtonElement>('button.anotoki-admin-frame__sign-out')!;
+  /** The column's group headings, in their order: none above the site's own pages. */
+  const headings = () => Array.from(column().querySelectorAll('nav .anotoki-side-nav__heading'), (heading) => clean(heading.textContent));
   /** The column's pages as "words href", with " [page]" for the one it marks as the page's. */
   const pages = () =>
     Array.from(column().querySelectorAll<HTMLAnchorElement>('nav a.anotoki-side-nav__link')).map(
@@ -224,28 +226,49 @@ describe('AppComponent: the admin panel in the family’s frame', () => {
       expect(host.querySelector('anotoki-empty-state')).toBeNull();
     });
 
-    it('its pages, in English whatever the reader reads: Surveys, Translations, Languages, System - a survey’s editor in Surveys, each System page in System', async () => {
+    /** Every page of an ADMIN's column, in its order: the family's one shape (the owner, 2026-10-25). */
+    const ALL = [
+      'Surveys /admin',
+      'Translations /admin/translations',
+      'Languages /admin/languages',
+      'Site settings /admin/site-settings',
+      'People /admin/people',
+      'Feedback /admin/feedback',
+      'Error log /admin/errors',
+      'Audit log /admin/audit',
+      'Backups /admin/backups',
+      'Migrations /admin/migrations',
+    ];
+
+    it('its pages in the family’s one shape, in English whatever the reader reads: Surveys with no heading, then Localization, then System - each System page its own link, a survey’s editor in Surveys', async () => {
       await panel(['ADMIN'], '/admin');
-      const all = (page: string) =>
-        ['Surveys /admin', 'Translations /admin/translations', 'Languages /admin/languages', 'System /admin/system'].map((link) => (link.startsWith(`${page} `) ? `${link} [page]` : link));
+      const all = (page: string) => ALL.map((link) => (link.startsWith(`${page} `) ? `${link} [page]` : link));
+      expect(headings()).toEqual(['Localization', 'System']);
       expect(pages()).toEqual(all('Surveys'));
       await at('/admin/surveys/abc/edit?language=sk');
       expect(pages()).toEqual(all('Surveys'));
       await at('/admin/languages');
       expect(pages()).toEqual(all('Languages'));
-      await at('/admin/system');
-      expect(pages()).toEqual(all('System'));
-      for (const page of ['/admin/people', '/admin/feedback', '/admin/errors', '/admin/audit?action=backup.*', '/admin/backups', '/admin/migrations']) {
+      for (const [page, name] of [
+        ['/admin/site-settings', 'Site settings'],
+        ['/admin/people', 'People'],
+        ['/admin/feedback', 'Feedback'],
+        ['/admin/errors', 'Error log'],
+        ['/admin/audit?action=backup.*', 'Audit log'],
+        ['/admin/backups', 'Backups'],
+        ['/admin/migrations', 'Migrations'],
+      ]) {
         await at(page);
-        expect(pages(), page).toEqual(all('System'));
+        expect(pages(), page).toEqual(all(name));
       }
       // An address that is none of them: nothing marked.
       await at('/admin/nowhere');
       expect(pages()).toEqual(all('-'));
     });
 
-    it('System is an ADMIN’s alone: an EDITOR’s column has the other three', async () => {
+    it('System is an ADMIN’s alone: an EDITOR’s column has Surveys and Localization', async () => {
       await panel(['EDITOR'], '/admin');
+      expect(headings()).toEqual(['Localization']);
       expect(pages()).toEqual(['Surveys /admin [page]', 'Translations /admin/translations', 'Languages /admin/languages']);
     });
 
@@ -256,28 +279,28 @@ describe('AppComponent: the admin panel in the family’s frame', () => {
       // Applied (the Migrations page marks the site ready): every page again, without being drawn anew.
       state.set('ready');
       await settle();
-      expect(pages()).toEqual(['Surveys /admin', 'Translations /admin/translations', 'Languages /admin/languages', 'System /admin/system [page]']);
+      expect(pages()).toEqual(ALL.map((link) => (link.startsWith('Migrations ') ? `${link} [page]` : link)));
     });
 
-    it('beside System, an ADMIN reads how many feedback messages nobody opened yet - seen as a number, heard in English as what it counts; nothing for none', async () => {
+    it('beside Feedback, an ADMIN reads how many feedback messages nobody opened yet - seen as a number, heard in English as what it counts; nothing for none', async () => {
       await panel(['ADMIN'], '/admin/feedback');
       TestBed.inject(HttpTestingController).expectOne('/api/admin/feedback/unread').flush({ unread: 0 });
       await settle();
-      const system = () => Array.from(column().querySelectorAll('nav a')).find((link) => link.getAttribute('href') === '/admin/system')!;
-      expect(system().querySelector('.anotoki-side-nav__badge')).toBeNull();
+      const feedback = () => Array.from(column().querySelectorAll('nav a')).find((link) => link.getAttribute('href') === '/admin/feedback')!;
+      expect(feedback().querySelector('.anotoki-side-nav__badge')).toBeNull();
 
       TestBed.inject(FeedbackUnread).set(2);
       await settle();
-      expect(clean(system().querySelector('.anotoki-side-nav__badge')?.textContent)).toBe('2');
-      expect(heard(system())).toBe('System , 2 new feedback messages');
-      expect(system().getAttribute('aria-current'), 'the Feedback page is one of System’s').toBe('page');
+      expect(clean(feedback().querySelector('.anotoki-side-nav__badge')?.textContent)).toBe('2');
+      expect(heard(feedback())).toBe('Feedback , 2 new feedback messages');
+      expect(feedback().getAttribute('aria-current'), 'the Feedback page').toBe('page');
 
       TestBed.inject(FeedbackUnread).set(1);
       await settle();
-      expect(heard(system())).toBe('System , 1 new feedback message');
+      expect(heard(feedback())).toBe('Feedback , 1 new feedback message');
       TestBed.inject(FeedbackUnread).set(0);
       await settle();
-      expect(system().querySelector('.anotoki-side-nav__badge')).toBeNull();
+      expect(feedback().querySelector('.anotoki-side-nav__badge')).toBeNull();
     });
 
     it('shows the anotoki account’s theme - one for every site and every part of each - and saves a choice to it', async () => {
@@ -306,7 +329,7 @@ describe('AppComponent: the admin panel in the family’s frame', () => {
       const drawer = host.querySelector<HTMLDialogElement>('dialog')!;
       expect(drawer.open).toBe(true);
       expect(partsOf(drawer)).toEqual(['owner', 'owner@example.test', 'Back to the surveys', 'Sign out', 'theme: Theme', 'navigation: Admin panel']);
-      expect(Array.from(drawer.querySelectorAll('nav .anotoki-side-nav__label'), (label) => clean(label.textContent))).toEqual(['Surveys', 'Translations', 'Languages', 'System']);
+      expect(Array.from(drawer.querySelectorAll('nav .anotoki-side-nav__label'), (label) => clean(label.textContent))).toEqual(ALL.map((link) => link.slice(0, link.lastIndexOf(' '))));
     });
   });
 

@@ -1,5 +1,5 @@
+import { richHtmlText } from '@anotoki/lib/ui/rich-html';
 import { ageLabel, genderLabel } from './about-you';
-import { plainText } from './plain-text';
 import { durationSeconds } from './results';
 import { numberedQuestions } from './survey-outline';
 import { Survey, SurveyResponse } from './survey.model';
@@ -17,7 +17,7 @@ import { Survey, SurveyResponse } from './survey.model';
  */
 export function responsesCsv(survey: Survey, responses: readonly SurveyResponse[]): string {
   const questions = numberedQuestions(survey);
-  const header = ['Submitted', 'Name', ...(survey.askAboutYou ? ['Gender', 'Age'] : []), ...questions.map(({ number, question }) => `${number}. ${plainText(question.text)}`), 'Seconds taken'];
+  const header = ['Submitted', 'Name', ...(survey.askAboutYou ? ['Gender', 'Age'] : []), ...questions.map(({ number, question }) => `${number}. ${richHtmlText(question.text)}`), 'Seconds taken'];
 
   const rows = responses.map((response) => {
     const cells = [response.submittedAt, response.person.name];

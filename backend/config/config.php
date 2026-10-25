@@ -69,6 +69,16 @@ declare(strict_types=1);
  *   its edge (originSecretFile()). Switching the secret off is deleting the
  *   file. The secret is never printed or logged.
  *
+ * And a fifth, optional, by hand too - setup.php never writes it:
+ *
+ *   site.local.php   the site's own public address, for robots.txt and
+ *                    sitemap.xml (siteAddress()) - only where it is not the
+ *                    one the code's place gives: a release's
+ *                    https://survey.anotoki.eu, a checkout's
+ *                    http://localhost:4700
+ *
+ *       return ['address' => 'https://survey.example'];
+ *
  * The tests run against throwaway databases with settings of their own:
  * SURVEY_TEST_CONFIG names a folder holding the same two files, and it is only
  * honoured while the database named there is a survey_test_ one.
@@ -423,9 +433,54 @@ function originSecretNobodyCarries(): string
     return $secret ??= bin2hex(random_bytes(32));
 }
 
+/** Where a release is served: the address composer.json's extra["anotoki-deploy"] deploys it to (`url` - tests/unit/config.test.php holds the two together). */
+const SURVEY_RELEASE_ADDRESS = 'https://survey.anotoki.eu';
+
+/** Where a checkout is served on this computer: ng serve (CLAUDE.md's development addresses). */
+const SURVEY_DEVELOPMENT_ADDRESS = 'http://localhost:4700';
+
+/**
+ * The site's own public address, as its origin ('https://survey.anotoki.eu'):
+ * robots.txt's Sitemap line and every address in sitemap.xml (anotoki-lib
+ * 0.11.0's Robots, api/site_settings.php) - never one read off a request, whose
+ * Host header is anybody's to write. Where the code runs says it: a release
+ * (release.json beside backend/ - anotoki-deploy put it on the host) is
+ * SURVEY_RELEASE_ADDRESS, the one address the deploy tool puts a release at; a
+ * checkout is SURVEY_DEVELOPMENT_ADDRESS. The fifth file, optional and by hand
+ * - setup.php never writes it - names another (a host of its own, the tests,
+ * the browser check): `return ['address' => 'https://survey.example'];`.
+ *
+ * A file there that cannot be read cleanly (settingsFileReadCleanly()), or that
+ * names no usable address - an http(s) origin, nothing after its host and port -
+ * is passed over, said at most once a day (by its fault, never its text), and the
+ * address of where the code runs holds: robots.txt keeps its Sitemap line.
+ */
+function siteAddress(): string
+{
+    $fallback = is_file(dirname(__DIR__) . '/release.json') ? SURVEY_RELEASE_ADDRESS : SURVEY_DEVELOPMENT_ADDRESS;
+    $file = localConfigFile('site');
+    if (!file_exists($file)) {
+        return $fallback;
+    }
+    $read = is_file($file) ? settingsFileReadCleanly($file) : ['value' => null, 'problem' => 'is no file (a folder in its place?)'];
+    if ($read['problem'] !== null) {
+        settingsSaid('site', "config/site.local.php {$read['problem']}: the address where the code runs holds.");
+
+        return $fallback;
+    }
+    $address = is_array($read['value']) ? $read['value']['address'] ?? null : null;
+    if (!is_string($address) || !preg_match('~^https?://[A-Za-z0-9.-]+(:\d{1,5})?/?$~D', trim($address))) {
+        settingsSaid('site', 'config/site.local.php names no usable address (an http(s) origin, nothing after it): the address where the code runs holds.');
+
+        return $fallback;
+    }
+
+    return rtrim(trim($address), '/');
+}
+
 /**
  * Requires a *.local.php - every one is read this way: database, iam,
- * visitors, cloudflare - read cleanly, or not at all.
+ * visitors, cloudflare, site - read cleanly, or not at all.
  *
  * A file that does not start with <?php - saved with a byte-order mark, a
  * blank line or a space before it, or without that line at all - is passed

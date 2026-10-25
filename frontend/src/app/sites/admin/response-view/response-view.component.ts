@@ -1,6 +1,7 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { IconComponent } from '@anotoki/lib/ui/icon';
+import { RichHtmlComponent } from '@anotoki/lib/ui/rich-html';
 import { AdminStore } from '../../../shared/admin/admin-store.service';
 import { AGE_ID, GENDER_ID } from '../../../shared/survey/about-you';
 import { aboutYouQuestionsFor } from '../../../shared/survey/about-you-questions';
@@ -35,7 +36,7 @@ interface Item {
  */
 @Component({
   selector: 'app-response-view',
-  imports: [NgTemplateOutlet, IconComponent, ImageStripComponent, SurveyImageComponent],
+  imports: [NgTemplateOutlet, IconComponent, ImageStripComponent, RichHtmlComponent, SurveyImageComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './response-view.component.html',
   styleUrl: './response-view.component.scss',

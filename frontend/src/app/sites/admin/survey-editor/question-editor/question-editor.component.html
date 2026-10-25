@@ -119,13 +119,17 @@
                 }
             </div>
 
-            <app-rich-text-editor
+            <anotoki-html-editor
                 [value]="question().text"
                 (valueChange)="set({ text: $event })"
                 [label]="'Question ' + number()"
+                hideLabel
                 placeholder="Write the question…"
+                [tools]="textTools"
+                highlight
+                [rows]="3"
                 [autofocus]="focusText()"
-                [acceptImages]="true"
+                images
                 (pastedImages)="questionImages.addFiles($event)" />
 
             <div class="section">

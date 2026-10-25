@@ -56,7 +56,8 @@ person by person.
   included - and the bar's theme and language save a choice to the account.
   **EDITOR**s write and translate surveys, open and close them, read the
   answers and reword the site's strings; **ADMIN**s also delete surveys,
-  answers and languages, and have the site's System pages: the people who
+  answers and languages, and have the site's System pages: the site settings
+  (below), the people who
   signed in (and deleting a person's answers), what people sent through the
   feedback form, the error log, the audit log of what was done in the admin
   panel, the backups of the database, and its updates. The roles are given in
@@ -73,6 +74,22 @@ person by person.
   in English and Slovak - at the foot of every page, in the anotoki family's
   footer: "v{version} · What's new · Feedback" (a screen reader hears "Version
   {version}"), then About · Support · Terms · Privacy · Contact.
+- **Site settings**: switches the site's ADMIN throws on the admin panel's
+  Site settings page, without a deploy, as on every anotoki site - the site
+  closed for maintenance (everybody but its administrators reads the closed
+  sign, in their language, with the administrators' own words; an
+  administrator signs in at `/staff` and uses the site as it is), an
+  announcement across the top of every page (hidden by its reader until its
+  words change), and Page access: the list of open surveys or a survey's
+  page switched off, or kept for people signed in, for editors or for
+  administrators - the server refusing the API paths a row names too.
+- **Search engines**: `/robots.txt` keeps robots out of the admin panel, the
+  API, the sign-in's way back, the editor's preview and `/staff`, and
+  `/sitemap.xml` lists the pages anybody may read - Terms, Privacy, Contact,
+  About, Support, and while visitors are welcome (the IAM's "Sign-in
+  required" off) the list of open surveys and each open survey's page;
+  never a draft or a closed survey, nor a page Page access keeps from
+  anybody.
 
 | Part | Folder | Stack |
 | --- | --- | --- |
@@ -131,7 +148,26 @@ show them under that label (`017_non_binary_no_longer_offered.sql`). And
 2026-10-24, anotoki-lib 0.10.0's `<anotoki-admin-frame>`): its pages in a
 column on the left, the page on the right, and no top bar - the bar is the
 public site's alone; on the hosting it brings `018_admin_frame.sql`, which
-retires the one string only the admin panel's bar said.
+retires the one string only the admin panel's bar said. And **anotoki-lib
+0.11.0** (the owner's requests of 2026-10-25, both halves): the **site
+settings** (above - maintenance with `/staff`, the announcement, Page access
+over the list of open surveys and a survey's page), **robots.txt and
+sitemap.xml** from the site's PHP (by its own address: `config/site.local.php`
+names it where it is not `https://survey.anotoki.eu`), the library's **HTML
+editor** in place of TipTap (headings, highlighting, links and the survey's
+own picture handling) and its **rich text** both ways - `RichHtml::clean()`
+on the server, `<anotoki-rich-html>` on the pages -, its **dates** (a date,
+and how long ago, in the page's language) and its search's **folding** of
+letters, and the
+admin panel's **menu in the family's one shape**: Surveys; Localization -
+Translations, Languages; System - Site settings, People, Feedback (its count
+beside it), Error log, Audit log, Backups, Migrations, each its own link (the
+System page is gone: `/admin/system` goes on to Site settings). On the
+hosting it brings the library's `anotoki_admin/003_site_settings.sql`, then
+`019_library_dates_and_site_settings.sql`, then the library's
+`anotoki_translations/014_editor_and_piece_words.sql` and
+`015_site_settings_words.sql`, applied on the Migrations page
+([docs/operations.md](docs/operations.md)).
 
 **1.0** (2026-10-19, on anotoki-lib 0.8.0; its notes for people are
 `frontend/public/changelog.json`'s newest entry): the family's **About** and
@@ -189,7 +225,7 @@ frame's name "anotoki survey · admin panel", the tab's title), the family's
 Migrations page in the admin panel (an ADMIN's: what the database has and
 lacks, and "Apply pending", which shows the database's own error when a file
 fails) - and a README in `backend/` and `frontend/`. The database's
-migrations are the shared library's, **anotoki-lib** (now 0.10.0, both halves:
+migrations are the shared library's, **anotoki-lib** (now 0.11.0, both halves:
 `anotoki/lib` from Composer, `@anotoki/lib` from its release - which makes the pages only
 while the site is open, and brings the family's UI kit and its translations,
 below): one engine, one gate and

@@ -2,10 +2,10 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject } from '@a
 import { TranslatePipe, TranslationService } from '@anotoki/lib/translations';
 import { BadgeComponent } from '@anotoki/lib/ui/badge';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
+import { AnotokiDatePipe } from '@anotoki/lib/ui/dates';
 import { ANOTOKI_DIALOG_DATA, AnotokiDialogRef, DialogFooterDirective } from '@anotoki/lib/ui/dialog';
 import { IconComponent } from '@anotoki/lib/ui/icon';
 import { type ChangeKind, type ChangelogEntry, changesIn } from '../../changelog/changelog.service';
-import { LocalDatePipe } from '../../i18n/local-date.pipe';
 
 /** Each kind of change: the key of its heading, and its icon (the kit's own). */
 const KINDS: readonly { kind: ChangeKind; key: string; icon: string }[] = [
@@ -38,7 +38,7 @@ interface ShownVersion {
  */
 @Component({
   selector: 'app-changelog-dialog',
-  imports: [BadgeComponent, ButtonComponent, DialogFooterDirective, IconComponent, LocalDatePipe, TranslatePipe],
+  imports: [BadgeComponent, ButtonComponent, DialogFooterDirective, IconComponent, AnotokiDatePipe, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './changelog-dialog.component.html',
   styleUrl: './changelog-dialog.component.scss',

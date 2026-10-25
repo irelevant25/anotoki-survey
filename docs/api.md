@@ -27,6 +27,7 @@ the library's shape (`{code, message, ...}`, not this API's `error`):
 | --- | --- | --- |
 | `not_set_up` | `config/database.local.php` or `iam.local.php` missing, incomplete or not read cleanly (nothing of it is ever printed) | 503 `{code: "not_set_up", installed, message}` - with `setup: "/setup.php"` only while the site was never installed (`storage/installed.lock`, which `setup.php` writes when it finishes on a real host) |
 | `update_pending` | a migration file waits to be applied | 503 `{code: "update_pending", message: "The site is being updated. Try again in a few minutes."}` and `Retry-After: 60` - but `GET /api/auth/config`, `GET /api/translations/{code}` (one segment after it: the library's `TranslationsRoutes::openPath()`), `GET /api/health` and the Migrations page's three routes (`/api/admin/migrations`, `/file` and `/apply`, ADMIN, below) answer as ever, and so do the error log's and the backups' (`/api/admin/errors`, `/errors/{12 hex}`; `/api/admin/backups`, `/proof`, `/{id}`, `/{id}/ticket`, `/file`, `/preview` - the library's `openPaths()`; ADMIN, below; a restore stays closed) (`siteOpenWhileUpdating()`). Those addresses exactly, read as the routes read them (unescaped, dot segments as written): any other under them is closed too |
+| `maintenance` | the site's ADMIN closed it (the site settings' Getting in, below) - a ready site underneath | 503 `{code: "maintenance", message: "The site is closed for maintenance. Try again later.", maintenance_message: {en?, sk?, ...}}` (the administrators' own words, a language each; `{}` when they wrote none) and `Retry-After: 300` - to everybody but the site's ADMIN, known by a verified token alone (`surveyTokenPerson()`: a forged, expired or another site's token is nobody's), who uses the site as it is. The addresses open while an update waits (above) answer as ever, and so do the site settings' reserved paths, each with everything under it: the status, the bundles, `/api/site-settings`, `/api/admin/site-settings`, `/api/auth/config` - an administrator signs in with it - and `/api/images` (an `<img>` carries no token). The surveys' own routes are not among them: an answer being written stays in the browser's draft and goes once the site takes it |
 | `unavailable` | the settings are there, the database cannot be reached | the route's own answer (503 `database_unavailable` where it needs the database) |
 | `ready` | otherwise | the route's own answer |
 
@@ -35,14 +36,30 @@ the library's shape (`{code, message, ...}`, not this API's `error`):
 (`@anotoki/lib/migrations`: `SiteStatus`, `siteStatusInterceptor`,
 `<anotoki-site-gate>`; `frontend/src/app/shared/migrations.ts`).
 
+### Page access
+
+A row of the site settings' Page access (the admin panel's Site settings
+page, below) may switch the list of open surveys (`/`) or a survey (`/{slug}`)
+off, or keep it for people signed in, for editors or for administrators;
+where the row names API paths, those answer 423 `page_locked` ("That part of
+the site is not available.", in this API's error body) to everybody the page
+is not shown to - the anotoki library's `PageAccessGate`, right inside the
+`Identify` of each group whose data a page holds (`routes/surveys.php`,
+`visitor.php`, `feedback.php`, and the editors' groups of `admin.php` after
+their roles' check) - but never to the site's ADMIN, and never on a reserved
+path (the maintenance row above). A visitor is nobody here: a row for people
+signed in refuses them.
+
 ## Anybody
 
 | Route | Answers |
 | --- | --- |
 | `GET /api/health` | `{ok}` - and, asked from this computer, `problem`, `database`, `pending` (the migration files not applied). While the settings are missing the gate answers it (503 `not_set_up`, above), so `ok` is true and `problem` null whenever this route itself answers |
-| `GET /api/site-status` | `{state, installed}`: where the site stands - `ready`, `not_set_up`, `update_pending` or `unavailable` - and whether its installer finished on a real host. Answered in every state and to anybody - nothing it carries is read (a token, good or not, a visitor's key), whatever the IAM says of signing in: the pages ask it before anybody can sign in. It says nothing else |
+| `GET /api/site-status` | `{state, installed}`: where the site stands - `ready`, `not_set_up`, `update_pending`, `unavailable` or `maintenance` (a ready site its ADMIN closed, with `maintenance_message`: the administrators' words, a language each) - and whether its installer finished on a real host. Answered in every state and to anybody - nothing it carries is read (a token, good or not, a visitor's key), whatever the IAM says of signing in: the pages ask it before anybody can sign in. It says nothing else |
 | `GET /api/auth/config` | `{issuer, client_id, login_required, sign_in_available, visitor_days}` - the anotoki library's `AuthRoutes` (its wire format, snake_case; the camelCase this site answered before, `clientId`, `loginRequired`, `visitorDays`, the library's browser half reads too): how the browser signs in, and whether it must - `login_required` is the IAM's "Sign-in required" switch for this site (below); `sign_in_available`, whether the IAM knows the site; `visitor_days`, this site's own: how many days a visitor's browser is remembered after its last visit (`keep_days`, `config/visitors.local.php`). No token is read. Answered while a migration is pending too: the site's ADMIN signs in to apply it |
 | `GET /api/images/{id}.{ext}` | a picture: its bytes, cached for a year; `If-None-Match` → 304; 404 when there is none |
+| `GET /api/site-settings` | what every page is told of the site settings - the anotoki library's `SiteSettingsRoutes::public` (`api/site_settings.php`): `{maintenance, announcement, pages}` - `maintenance` whether the site is closed (for the line its ADMIN reads above each page; the gate reads the status, never this), `announcement` `{level: "info" \| "warning" \| "danger", message: {en?, sk?, ...}}` or null, `pages` `[{path, visibility: "PUBLIC" \| "USER" \| "EDITOR" \| "ADMIN", blocked}]`: every page a row governs, never its API paths. Nothing a request carries is read; answered while the site is closed too |
+| `GET /robots.txt`, `GET /sitemap.xml` | not under `/api/`, but the site's PHP all the same (the anotoki library's `RobotsRoutes`, `routes/public.php`; `router.php` and the release's `.htaccess` send them to the front controller): `robots.txt` (`text/plain`) - `User-agent: *`, `Disallow:` `/admin`, `/api`, `/auth`, `/preview`, `/staff`, and `Sitemap:` the sitemap's address; `sitemap.xml` (`application/xml`) - Terms, Privacy, Contact, About and Support always, and while the IAM says sign-in is not required the list of open surveys (`/`) and each survey taking answers (`/{slug}`, its `lastmod` the survey's last save) - never a draft, a closed survey or one past its last day, nor a page Page access keeps from somebody signed out. Both by the site's configured address (`siteAddress()`: `config/site.local.php`, else `https://survey.anotoki.eu` in a release and `http://localhost:4700` here), never a request's `Host`; `Cache-Control: public, max-age=3600`; made afresh each time |
 | `GET /api/translations/{code}` | the site's own words in a language: `{language, languages, values, english?}`; `If-None-Match` → 304; 404 `not_found` for a code that is not one; 503 `translations_unavailable` (`Retry-After: 60`) while the tables are not there or the database cannot be asked - the pages then read what they have |
 | `POST /api/client-errors` | a page's own error into the site's error log - the anotoki library's `ErrorLogRoutes::client`, sent by its browser reporter (`@anotoki/lib/error-report`, at most five a page load): `{type?, message, page?, stack?, status?}` → 204, nothing in the body. JSON only (415), 8 KB at most (413), a message (422 `message_required`); 20 an hour from one sender - a person signed in by their account (a `Bearer` token, checked as everywhere; one that does not check out makes the report nobody's, never a refusal), anybody else by an HMAC of their address bucket - and 500 a day from the visitors, as many apart from the people signed in (429 `too_many`, `retry_after` and `Retry-After`). Every text redacted again on the server (no token, address, `password=`-like secret, query string); written `source: client`, with the page's path alone. A visitor's key is never read here. 503 `update_pending` while a migration waits, as every route `siteOpenWhileUpdating()` does not name |
 | `POST /api/feedback` | a message through the feedback form - the anotoki library's `FeedbackRoutes::public` (`routes/feedback.php`), sent by its form (`@anotoki/lib/feedback/form`): `{kind: "bug" \| "idea" \| "other", subject?, message, email?, page?, language?, anonymous?, website}` → 201 `{ok: true}`, no id. Anybody's - a person, a visitor, nobody - whether the IAM requires signing in here or not. Who sent it is the token's alone: the library's `Identify` in front (a `Bearer` token that does not check out is 401 `invalid_token`; another scheme, or none, is nobody; a visitor's key is never read), the person's id kept (their row too: `RecordPerson`) unless `anonymous` (then no id and no address); the reply address only the `email` the form sent. Kept with it: the page as a path (never its query or fragment), the language, the browser's name - nothing of where it came from. 422 `kind_unknown`, `message_required`, `too_long` (+ `field`, `max`: 10 000 characters), `subject_too_long` (200), `email_invalid` (an address a mail link would read as more: `? & = % #`, a space); 415 not JSON, 413 over 64 KB, 400 `invalid_json`; 429 `too_many` (`retry_after`) past 5 an hour or 20 a day from one sender - a person by their account, anybody else (and a message "without my name") by an HMAC of their address bucket - or past 300 a day from the visitors together, and as many from the people signed in. The robots' field `website` filled: the same 201, nothing kept. No mail is sent. 503 `update_pending` while a migration waits |
@@ -318,13 +335,21 @@ is sent).
 
 - **Rich text** - `intro`, `thanks`, a question's `text` and a step's `text` -
   is cleaned on the way in, the same way for all four (`richTextClean()`,
-  `api/rich_text.php`): `p br strong b em i u s mark a ul ol li h2 h3` and
-  nothing else, a link's address only to `http(s):` or `mailto:` (and always a
-  new tab), a list's `start`; a `<script>`, a `<style>`, a picture, a frame or
-  a form go with what is inside them, any other element is unwrapped to its
-  words, every other attribute (`onclick`, `onerror`, `style`) goes, a
-  `javascript:` link becomes its words. At most 50 000 bytes of UTF-8; no
-  words at all (an emptied editor's `<p></p>`) is `""`.
+  `api/rich_text.php`: the anotoki library's `RichHtml::clean()`, the same
+  rules as the pages' `<anotoki-rich-html>`, anotoki-lib 0.11.0): the editor
+  writes `p br strong em u s mark a ul ol li h2 h3`, and the library keeps
+  those and `div b i strike span font h4` - the family's editors' - and
+  nothing else; a link's address only a web address with its host or a mail
+  address (and always a new tab, no way back to the page), a list's `start`,
+  `<font>`'s size, face and colour, and inline styles of five properties
+  alone (`color`, `background-color`, `font-size`, `font-family`,
+  `margin-left`), each bounded; a `<script>`, a `<style>`, a picture, a frame
+  or a form go with what is inside them, any other element is unwrapped to its
+  words, every other attribute (`onclick`, `onerror`) goes, a `javascript:`
+  link becomes its words, and control characters (but tab and line feed) and
+  those that turn the text's direction are dropped. At most 50 000 bytes of
+  UTF-8 (422 `invalid_survey`, as a text that is not text); no words at all (an emptied editor's
+  `<p></p>`) is `""`.
 - **A picture** is one uploaded first (`POST /api/admin/images`, above:
   checked by its own bytes - PNG, JPEG, WebP, GIF or AVIF, never SVG - at most
   10 MB and 10 000 px a side): a survey sends its `id` (a UUID) and what it
@@ -522,7 +547,7 @@ while the settings are missing (there is no database to update then:
 
 | Route | Answers |
 | --- | --- |
-| `GET /api/admin/migrations` | `{sets: ["anotoki_admin", "survey", "anotoki_translations", "anotoki_people"], applied: [{set, name, applied_at}], pending: [{set, name, ready, blocked}], missing: [{set, name, applied_at}]}` - applied in the order they ran (`applied_at` ISO 8601, UTC), pending in the order they will run, missing: recorded as applied with no file here. Writes nothing |
+| `GET /api/admin/migrations` | `{sets: ["anotoki_admin", "survey", "anotoki_translations", "anotoki_people"], applied: [{set, name, applied_at}], pending: [{set, name, ready, blocked, duplicates}], missing: [{set, name, applied_at}]}` - applied in the order they ran (`applied_at` ISO 8601, UTC), pending in the order they will run (`duplicates`: the other files of its set with its number - it and every file after it wait, and an Apply stops before it; anotoki-lib 0.11.0), missing: recorded as applied with no file here. Writes nothing |
 | `GET /api/admin/migrations/file?set=survey&name=NNN_x.sql` | `{set, name, sql}`: the file's text, for the page's View (`set=anotoki_translations` and the others for the library's); 404 `{code: "not_found", message}` for anything that is not a file of a set (a path, another folder) |
 | `POST /api/admin/migrations/apply` | `{applied: [{set, name}], failed: {set, name} \| null, error: string \| null, note: string \| null}` - first a backup of the database as it is (the library's backups, `before-migration`; `note` names it - one that cannot be made stops the Apply, nothing run), then every pending file in order, each in its own transaction, stopping at the first that fails: that one is rolled back whole and named, and `error` is the database's whole error (`statement n of m: SQLSTATE[...]: ...` and the statement's first lines) - it is logged too (`[db] the migration ... failed`). A failure is a 200 with `failed` set; `{applied: [], failed: null, ...}`: nothing was pending. Audited (`migrations.applied`); the audit entries kept in a file while the audit log's table waited go in after it |
 
@@ -530,11 +555,11 @@ while the settings are missing (there is no database to update then:
 | --- | --- |
 | 409 `busy` | `{code: "busy", message}`: another update is running - another Apply, `setup.php`'s Save, `php migration.php` or a backup: all take one PostgreSQL advisory lock, and the second applies nothing |
 
-### The System: the people, feedback, the error log, the audit log, the backups
+### The System: the site settings, the people, feedback, the error log, the audit log, the backups
 
-The anotoki family's routes (anotoki-lib 0.10.0: `PeopleRoutes`,
+The anotoki family's routes (anotoki-lib 0.11.0: `SiteSettingsRoutes`, `PeopleRoutes`,
 `FeedbackRoutes`, `ErrorLogRoutes`, `AuditRoutes`, `BackupsRoutes` - wired in
-`routes/admin.php`, `api/people.php` and `api/admin_tools.php`), behind this site's
+`routes/admin.php`, `api/site_settings.php`, `api/people.php` and `api/admin_tools.php`), behind this site's
 `requireAdmin()` and guarding themselves as well (the library asks the token's
 ADMIN itself): ADMIN alone - nobody 401 `sign_in_required`, a token that does
 not check out 401 `invalid_token`, a MEMBER and an EDITOR 403 `forbidden` (in
@@ -543,12 +568,17 @@ pages are the library's (admin panel: System).
 
 | Route | Answers |
 | --- | --- |
+| `GET /api/admin/site-settings` | `{parts, settings, pages, levels, visibilities, reserved: {pages, api_paths}, limits}` - the Site settings page's whole (every write below answers it again): the three parts this site offers (`getting_in`, `announcement`, `page_access`), each switch with its value and who changed it last and when, every page's row with its API paths, the API paths and pages no row may claim (the library's, and this site's: `/api/auth/config`, `/api/images`, the preview `/preview`), the messages' limits; 503 `feature_unavailable` while the library's `anotoki_admin/003` waits |
+| `PUT /api/admin/site-settings` | `{settings: {name: value}}` (the switches that changed) → the whole: `maintenance_mode`, `maintenance_message` (`{en?, sk?, ...}`), `announcement_enabled`, `announcement_level` (`info`, `warning`, `danger`), `announcement_message`; audited `site_settings.changed` (each name, from and to); 422 `invalid_setting` (+ `setting`), `unknown_setting`, `invalid_body` |
+| `POST /api/admin/site-settings/pages` | `{path, visibility, blocked, api_paths}` → 201 the whole: a page's row - the list of open surveys (`/`) or a survey (`/{slug}`); audited `page_access.added`; 409 `page_exists`; 422 `invalid_page` (a reserved page - `/auth`, `/staff`, `/admin`, the legal pages, About, Support, the preview - or a row that would cover one, as `/:x` covers `/staff`), `invalid_visibility`, `invalid_api_path` / `invalid_api_paths` (one touching a reserved path, either way round), `too_many_pages` |
+| `PUT /api/admin/site-settings/pages` | `{pages: [{id, visibility, blocked, api_paths}]}` (the rows that changed) → the whole; audited `page_access.changed`; 422 `unknown_page` and the rest as above |
+| `DELETE /api/admin/site-settings/pages/{id}` | the row gone → the whole; audited `page_access.removed`; 404 `not_found` |
 | `GET /api/admin/people?q=&page=` | `{people: [{sub, name, first_seen_at, last_seen_at, anonymized_at, iam_url, answered, written}], columns, total, page, page_size, visitors: {count, active}, sync, ready, problems}` - everybody who signed in, 50 a page, the most recently seen first; `q` a name (any case, anywhere in it) or an IAM id (422 `invalid_query` for one that cannot be a name); `answered` / `written`: how many surveys each answered and wrote here; `visitors`: those listed as "Visitor N", and how many of them still have their key; `sync`: where the scrub of the IAM's deleted accounts stands; 503 while the tables wait for an update |
 | `DELETE /api/admin/people/{sub}` | `{deleted: {"Answers": n}}` - every answer of the person's (their row and the surveys they wrote stay; asked first on the page, no proof of a recent sign-in - the owner's decision); 404 `not_found` for nobody there; audited `person.data_deleted` inside the delete's own transaction (its details name it, `_txid`): no delete without its entry - one that cannot be written undoes the delete, and while the audit log's table waits for an update, 503 `feature_unavailable` (`Retry-After: 60`) and nothing deleted. A restore does the delete again by that entry |
 | `POST /api/admin/people/sync` | `{run: {state, handled, scrubbed, error, problems}, sync}` - the scrub now: the IAM's deleted accounts since the last one, each named by the IAM's placeholder `deleted-{id}` here, `anonymized_at` set, the feedback they sent left without its reply address and browser, everything else kept; audited `people.synced` |
 | `GET /api/admin/feedback?kind=&status=&section=&search=&page=` | `{total, page, pageSize: 25, items: [{id, created_at, updated_at, kind, status, section, subject, message, details, contact_email, user_id, user_name, page, language, user_agent, handled_by, handled_by_name, handled_at}]}` - newest first; each sender and handler named from `users`; `search` in the subject, the message, the address and the extra fields; 503 `feature_unavailable` while its table waits. Spam older than 30 days and resolved messages older than 365 go at a clean-up run at most once a day, after this answer or a message's |
 | `GET /api/admin/feedback/facets` | `{kinds, statuses, sections, fields, byStatus, byKind}` - for the page's filters |
-| `GET /api/admin/feedback/unread` | `{unread}` - how many nobody opened yet: the admin bar's count beside System, and the System page's |
+| `GET /api/admin/feedback/unread` | `{unread}` - how many nobody opened yet: the count beside Feedback in the admin panel's column |
 | `GET /api/admin/feedback/{id}` | `{message}` - reading changes nothing (anotoki-lib 0.8.1); 404 `not_found` |
 | `PUT /api/admin/feedback/{id}/read` | no body (or `{}`) → `{message}`: a `new` one becomes `read`, any other status stays as it is (nobody named for it, nothing audited) - the page sends it as it opens a new message; 404 `not_found` |
 | `PUT /api/admin/feedback/{id}/status` | `{status: "new" \| "read" \| "resolved" \| "spam"}` → `{message}` with `handled_by` the token's person; 422 `status_unknown`; audited `feedback.status_changed` (`{from, to}`) |

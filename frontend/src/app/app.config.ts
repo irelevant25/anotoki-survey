@@ -13,6 +13,7 @@ import { provideSiteFeedback } from './shared/feedback';
 import { provideSiteKit } from './shared/kit';
 import { surveyLegalConfig } from './shared/legal/legal.config';
 import { provideSiteMigrations } from './shared/migrations';
+import { provideSiteSettings } from './shared/site-settings';
 import { SurveyTitleStrategy } from './shared/title.strategy';
 import { provideSiteTranslations } from './shared/translations';
 
@@ -51,6 +52,9 @@ export const appConfig: ApplicationConfig = {
     provideSiteMigrations(),
     // The anotoki family's admin tools and People page, for the site's ADMIN - see shared/admin/admin-tools.ts.
     provideSiteAdmin(),
+    // The anotoki family's site settings - maintenance, the announcement, Page access on the participant's pages,
+    // read as the site starts (boot()) - see shared/site-settings.ts.
+    provideSiteSettings(),
     // The anotoki family's feedback form (its code loaded with the first press: the footer's Feedback, the Contact
     // page's), in the site's words and formal Slovak, no address written in for anybody - see shared/feedback.ts.
     provideSiteFeedback(),

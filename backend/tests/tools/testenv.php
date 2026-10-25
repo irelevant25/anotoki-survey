@@ -6,7 +6,7 @@ declare(strict_types=1);
  * A throwaway copy of the site to try things on by hand or in a browser - its
  * own survey_test_ database and settings folder, never your data:
  *
- *   php tests/tools/testenv.php FOLDER [--db=survey_test_manual] [--issuer=URL] [--jwks=FILE]
+ *   php tests/tools/testenv.php FOLDER [--db=survey_test_manual] [--issuer=URL] [--jwks=FILE] [--address=URL]
  *
  * makes the database (a copy of survey_test_template; php tests/run.php keeps
  * that up to date) unless it exists, and writes FOLDER/database.local.php and
@@ -18,7 +18,9 @@ declare(strict_types=1);
  * The IAM is --issuer: the anotoki library's stand-in IAM,
  * vendor/anotoki/lib/backend/testing/stand-in-iam.php (its header says how
  * to run it), never the real one; --jwks gives it a key set on disk instead
- * of the one it would download.
+ * of the one it would download. --address is the site's own public address,
+ * for robots.txt and the sitemap (FOLDER/site.local.php, siteAddress()): the
+ * address it is served at - http://127.0.0.1:8590 above.
  */
 
 if (PHP_SAPI !== 'cli') {
@@ -30,14 +32,14 @@ if (PHP_SAPI !== 'cli') {
 $folder = '';
 $options = [];
 foreach (array_slice($argv, 1) as $argument) {
-    if (preg_match('/^--(db|issuer|jwks)=(.*)$/', $argument, $m)) {
+    if (preg_match('/^--(db|issuer|jwks|address)=(.*)$/', $argument, $m)) {
         $options[$m[1]] = $m[2];
     } elseif ($folder === '' && !str_starts_with($argument, '--')) {
         $folder = $argument;
     }
 }
 if ($folder === '') {
-    fwrite(STDERR, "usage: php tests/tools/testenv.php FOLDER [--db=survey_test_manual] [--issuer=URL] [--jwks=FILE]\n");
+    fwrite(STDERR, "usage: php tests/tools/testenv.php FOLDER [--db=survey_test_manual] [--issuer=URL] [--jwks=FILE] [--address=URL]\n");
     exit(1);
 }
 
@@ -77,4 +79,7 @@ if (isset($options['jwks'])) {
 }
 file_put_contents("$folder/database.local.php", '<?php return ' . var_export(['name' => $database] + $server, true) . ";\n");
 file_put_contents("$folder/iam.local.php", '<?php return ' . var_export($iam, true) . ";\n");
+if (isset($options['address'])) {
+    file_put_contents("$folder/site.local.php", '<?php return ' . var_export(['address' => (string) $options['address']], true) . ";\n");
+}
 echo "settings in $folder (IAM {$iam['issuer']}, database $database)\n";

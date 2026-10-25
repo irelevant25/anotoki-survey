@@ -4,7 +4,9 @@ import { Router, RouterLink } from '@angular/router';
 import { AlertComponent } from '@anotoki/lib/ui/alert';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
+import { HtmlEditorComponent } from '@anotoki/lib/ui/html-editor';
 import { IconComponent } from '@anotoki/lib/ui/icon';
+import { richHtmlIsBlank } from '@anotoki/lib/ui/rich-html';
 import { SpinnerComponent } from '@anotoki/lib/ui/spinner';
 import { ConfirmService } from '@anotoki/lib/ui/dialog';
 import { ToastService } from '@anotoki/lib/ui/toast';
@@ -14,12 +16,11 @@ import { AuthService } from '../../../shared/auth/auth.service';
 import { MAX_STEP_IMAGES } from '../shared/images/prepare-image';
 import { AGES, GENDERS } from '../../../shared/survey/about-you';
 import { TranslationPlace, addTranslation, removeTranslation, translationCodes, translationGaps, translationOf, translationPlaces } from '../../../shared/survey/localize';
-import { isBlankHtml } from '../../../shared/survey/plain-text';
 import { duplicateQuestion, newQuestion, newStep } from '../../../shared/survey/survey-factory';
 import { currentStatus, numberedQuestions, stepHasContent } from '../../../shared/survey/survey-outline';
 import { SurveyProblem, surveyProblems } from '../../../shared/survey/survey-problems';
 import { Question, QuestionType, Step, Survey } from '../../../shared/survey/survey.model';
-import { RichTextEditorComponent } from '../shared/rich-text-editor/rich-text-editor.component';
+import { SURVEY_TEXT_HEADINGS, SURVEY_TEXT_TOOLS } from '../shared/text-tools';
 import { SurveyHeaderComponent } from '../survey-header/survey-header.component';
 import { EditorLanguagesComponent } from './editor-languages/editor-languages.component';
 import { EditorOutlineComponent } from './editor-outline/editor-outline.component';
@@ -91,8 +92,8 @@ import { languageName, listOfNames, nextGap, placeKey, questionGaps, stepGaps, t
     AlertComponent,
     ButtonComponent,
     EmptyStateComponent,
+    HtmlEditorComponent,
     IconComponent,
-    RichTextEditorComponent,
     SpinnerComponent,
     SurveyHeaderComponent,
     EditorLanguagesComponent,
@@ -131,6 +132,9 @@ export class SurveyEditorComponent {
   protected readonly types = QUESTION_TYPES;
   protected readonly tooLarge = SURVEY_TOO_LARGE;
   protected readonly maxStepImages = MAX_STEP_IMAGES;
+  /** The text editors' buttons and the welcome's and the thanks' headings: the survey's (sites/admin/shared/text-tools.ts). */
+  protected readonly textTools = SURVEY_TEXT_TOOLS;
+  protected readonly textHeadings = SURVEY_TEXT_HEADINGS;
   protected readonly genders = GENDERS.map((item) => item.label).join(' · ');
   protected readonly ages = AGES.map((item) => item.label).join(' · ');
 
@@ -369,7 +373,7 @@ export class SurveyEditorComponent {
           this.expanded.set(
             new Set(
               numberedQuestions(survey)
-                .filter((item) => isBlankHtml(item.question.text))
+                .filter((item) => richHtmlIsBlank(item.question.text))
                 .map((item) => item.question.id),
             ),
           );
@@ -570,7 +574,7 @@ export class SurveyEditorComponent {
    * emptied since: it is shown so that it can be taken out).
    */
   protected translatesText(step: Step): boolean {
-    return !isBlankHtml(step.text) || !isBlankHtml(this._editing.text({ kind: 'stepText', stepId: step.id }));
+    return !richHtmlIsBlank(step.text) || !richHtmlIsBlank(this._editing.text({ kind: 'stepText', stepId: step.id }));
   }
 
   /** "Text and pictures" on a step: its text and pictures are drawn, and the text takes the focus. */
@@ -609,7 +613,7 @@ export class SurveyEditorComponent {
 
   protected async removeStep(step: Step, index: number): Promise<void> {
     const count = step.questions.length;
-    const hasText = !isBlankHtml(step.text);
+    const hasText = !richHtmlIsBlank(step.text);
     const pictures = step.images.length;
     if (count || hasText || pictures) {
       const answered = step.questions.reduce((sum, question) => sum + (this.counts().get(question.id)?.answered ?? 0), 0);
@@ -666,7 +670,7 @@ export class SurveyEditorComponent {
 
   protected async removeQuestion(question: Question): Promise<void> {
     const answered = this.counts().get(question.id)?.answered ?? 0;
-    if (answered || !isBlankHtml(question.text)) {
+    if (answered || !richHtmlIsBlank(question.text)) {
       const sure = await this._confirm.ask({
         title: `Remove question ${this.numbers().get(question.id) ?? ''}?`,
         message: answered ? `${answered} ${answered === 1 ? 'person has' : 'people have'} answered it. Their answers disappear from the results with it.` : 'Its text and options go with it.',

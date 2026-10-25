@@ -151,7 +151,7 @@ describe('QuestionBlockComponent', () => {
     fixture.componentRef.setInput('lang', 'en');
     await fixture.whenStable();
     expect(Array.from(host.querySelectorAll('[lang]')).map((element) => [element.className, element.textContent?.trim(), element.getAttribute('lang')])).toEqual([
-      ['text rich', 'What do you play?', 'en'],
+      ['anotoki-rich-html text rich', 'What do you play?', 'en'],
       ['label', 'Wind', 'en'],
       ['label', 'Water', 'en'],
     ]);

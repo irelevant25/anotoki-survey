@@ -4,6 +4,7 @@ import { TranslatePipe, TranslatePluralPipe, TranslationService } from '@anotoki
 import { AlertComponent } from '@anotoki/lib/ui/alert';
 import { BadgeComponent } from '@anotoki/lib/ui/badge';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
+import { AnotokiDatePipe } from '@anotoki/lib/ui/dates';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
 import { IconComponent } from '@anotoki/lib/ui/icon';
 import { LinkCardComponent } from '@anotoki/lib/ui/link-card';
@@ -12,7 +13,6 @@ import { ApiError, ApiService, ParticipantSurvey, toApiError } from '../../../ap
 import { AuthService } from '../../../shared/auth/auth.service';
 import { VisitorKey } from '../../../shared/auth/visitor-key';
 import { errorKey, errorParams } from '../../../shared/i18n/error-text';
-import { LocalDatePipe } from '../../../shared/i18n/local-date.pipe';
 import { readDraft } from '../../../shared/survey/drafts';
 import { localizedSurvey } from '../../../shared/survey/localize';
 import { currentStatus, estimatedMinutes, questionCount } from '../../../shared/survey/survey-outline';
@@ -44,7 +44,7 @@ import { VisitorNoticeComponent } from '../visitor-notice/visitor-notice.compone
     LinkCardComponent,
     SpinnerComponent,
     VisitorNoticeComponent,
-    LocalDatePipe,
+    AnotokiDatePipe,
     TranslatePipe,
     TranslatePluralPipe,
   ],

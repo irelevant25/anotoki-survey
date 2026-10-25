@@ -1,4 +1,4 @@
-import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular/core';
+import { EnvironmentProviders, Injector, inject, makeEnvironmentProviders } from '@angular/core';
 import { type AnotokiShellConfig, provideAnotokiShell } from '@anotoki/lib/shell';
 import { TranslationService } from '@anotoki/lib/translations';
 import { type IconSet, provideAnotokiUi } from '@anotoki/lib/ui/config';
@@ -7,7 +7,6 @@ import {
   iconArrowDown,
   iconArrowRight,
   iconArrowUp,
-  iconBold,
   iconCalendar,
   iconChart,
   iconCheckSquare,
@@ -19,20 +18,16 @@ import {
   iconCornerDownRight,
   iconDatabase,
   iconDownload,
-  iconEraser,
   iconExpand,
   iconFileText,
   iconFilter,
   iconGlobe,
   iconGrip,
-  iconHighlighter,
   iconHistory,
   iconImage,
   iconImageOff,
   iconImagePlus,
-  iconItalic,
   iconLayers,
-  iconLink,
   iconListBullets,
   iconListOrdered,
   iconLock,
@@ -40,18 +35,13 @@ import {
   iconPencil,
   iconPlay,
   iconRadio,
-  iconRedo,
   iconRotateCcw,
   iconScale,
   iconSend,
   iconSliders,
   iconStopCircle,
-  iconStrike,
   iconText,
   iconTrash,
-  iconUnderline,
-  iconUndo,
-  iconUnlink,
   iconUsers,
   iconZoomIn,
 } from '@anotoki/lib/ui/icons';
@@ -68,15 +58,14 @@ import { AuthService } from './auth/auth.service';
 /**
  * The icons this site's own templates name beyond the kit's own (sun, moon,
  * menu, x, check, alert, search, ...): every other one it draws. The
- * question types, the editor's toolbar, the results and the System page
+ * question types, the results and the admin panel's System links
  * (database, history, layers) are the survey's own; `survey` is the family's
- * clipboard.
+ * clipboard. The text editor's toolbar is the family's, with its own icons.
  */
 export const SURVEY_ICONS = {
   arrowDown: iconArrowDown,
   arrowRight: iconArrowRight,
   arrowUp: iconArrowUp,
-  bold: iconBold,
   calendar: iconCalendar,
   chart: iconChart,
   checkSquare: iconCheckSquare,
@@ -87,20 +76,16 @@ export const SURVEY_ICONS = {
   cornerDownRight: iconCornerDownRight,
   database: iconDatabase,
   download: iconDownload,
-  eraser: iconEraser,
   expand: iconExpand,
   fileText: iconFileText,
   filter: iconFilter,
   globe: iconGlobe,
   grip: iconGrip,
-  highlighter: iconHighlighter,
   history: iconHistory,
   image: iconImage,
   imageOff: iconImageOff,
   imagePlus: iconImagePlus,
-  italic: iconItalic,
   layers: iconLayers,
-  link: iconLink,
   listBullets: iconListBullets,
   listOrdered: iconListOrdered,
   lock: iconLock,
@@ -108,19 +93,14 @@ export const SURVEY_ICONS = {
   pencil: iconPencil,
   play: iconPlay,
   radio: iconRadio,
-  redo: iconRedo,
   rotateCcw: iconRotateCcw,
   scale: iconScale,
   send: iconSend,
   sliders: iconSliders,
   stopCircle: iconStopCircle,
-  strike: iconStrike,
   survey: iconClipboardList,
   text: iconText,
   trash: iconTrash,
-  underline: iconUnderline,
-  undo: iconUndo,
-  unlink: iconUnlink,
   users: iconUsers,
   zoomIn: iconZoomIn,
 } satisfies IconSet;
@@ -139,9 +119,20 @@ export const THEME_KEY = 'anotoki-survey:theme';
  * on the Translations page like any other string, and reads in this site's
  * formal Slovak (migration 010; shared/translations.ts for the moments there are
  * no strings) - never the kit's informal built-in ty. And the survey's icons.
+ *
+ * The family's dates (anotoki-lib 0.11.0, @anotoki/lib/ui/dates: the pipes
+ * anotokiDate and anotokiAgo on the pages people take surveys on) write in the
+ * page's locale (forKit()'s: en-GB, sk-SK - English in the admin panel) and in
+ * the anotoki account's date order and clock where it chose them
+ * (AuthService.preferences(): null signed out, or from an IAM before its 015) -
+ * asked when a date is written, never before (a spec of a page with no dates
+ * needs no sign-in).
  */
 export function provideSiteUi(): EnvironmentProviders {
-  return provideAnotokiUi(() => ({ ...inject(TranslationService).forKit(), icons: SURVEY_ICONS }));
+  return provideAnotokiUi(() => {
+    const injector = inject(Injector);
+    return { ...inject(TranslationService).forKit(), icons: SURVEY_ICONS, dateChoices: () => injector.get(AuthService).preferences() };
+  });
 }
 
 /**

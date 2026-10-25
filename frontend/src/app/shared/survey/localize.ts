@@ -1,5 +1,5 @@
+import { richHtmlIsBlank } from '@anotoki/lib/ui/rich-html';
 import { isChoice } from './answer-rules';
-import { isBlankHtml } from './plain-text';
 import { Question, QuestionTranslation, Step, StepTranslation, Survey, SurveyImage, SurveyTranslation } from './survey.model';
 
 /**
@@ -85,10 +85,10 @@ export function translationPlaces(survey: Survey): TranslationPlace[] {
   if (survey.title.trim()) {
     places.push({ kind: 'title' });
   }
-  if (!isBlankHtml(survey.intro)) {
+  if (!richHtmlIsBlank(survey.intro)) {
     places.push({ kind: 'intro' });
   }
-  if (!isBlankHtml(survey.thanks)) {
+  if (!richHtmlIsBlank(survey.thanks)) {
     places.push({ kind: 'thanks' });
   }
   for (const step of survey.steps) {
@@ -107,7 +107,7 @@ function stepPlaces(step: Step): TranslationPlace[] {
   if (step.title.trim()) {
     places.push({ kind: 'step', stepId });
   }
-  if (!isBlankHtml(step.text)) {
+  if (!richHtmlIsBlank(step.text)) {
     places.push({ kind: 'stepText', stepId });
   }
   for (const imageId of describedPictures(step.images)) {
@@ -119,7 +119,7 @@ function stepPlaces(step: Step): TranslationPlace[] {
 function questionPlaces(question: Question): TranslationPlace[] {
   const places: TranslationPlace[] = [];
   const questionId = question.id;
-  if (!isBlankHtml(question.text)) {
+  if (!richHtmlIsBlank(question.text)) {
     places.push({ kind: 'text', questionId });
   }
   if (isChoice(question)) {
@@ -183,7 +183,7 @@ function isRich(place: TranslationPlace): boolean {
 }
 
 function isBlank(text: string, rich: boolean): boolean {
-  return rich ? isBlankHtml(text) : !text.trim();
+  return rich ? richHtmlIsBlank(text) : !text.trim();
 }
 
 /**

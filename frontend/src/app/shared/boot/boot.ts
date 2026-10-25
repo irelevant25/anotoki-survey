@@ -1,6 +1,7 @@
 import { InjectionToken, WritableSignal, inject, signal } from '@angular/core';
 import { SiteStatus } from '@anotoki/lib/migrations';
 import { ThemeService } from '@anotoki/lib/shell';
+import { SiteSettings } from '@anotoki/lib/site-settings';
 import { TranslationService } from '@anotoki/lib/translations';
 import { AuthService } from '../auth/auth.service';
 import { VisitorKey } from '../auth/visitor-key';
@@ -49,6 +50,15 @@ export const BOOTED = new InjectionToken<WritableSignal<boolean>>('the start has
  * come long before the strings have, so the version is there when the first
  * page is drawn - and a list that cannot be had keeps nothing from starting.
  *
+ * What every page is told of the site settings (anotoki-lib 0.11.0: the
+ * announcement, the pages Page access governs - shared/site-settings.ts) is
+ * asked for at the start too, beside the rest, and waited for before the start
+ * ends: the first navigation is the guard's to decide (pageAccessGuard), and a
+ * page kept from the reader must never flash before it. It never rejects - an
+ * answer that fails leaves no announcement and every page anybody's (the
+ * server keeps a hidden page's data refused itself) - and the load error
+ * card's "Try again" asks again.
+ *
  * Called in an injection context - the app initializer, and the load error
  * page's "Try again", which starts the same way. Everything it needs is
  * injected before the first `await`: inject() does not work after one.
@@ -62,6 +72,8 @@ export async function boot(): Promise<void> {
   const booted = inject(BOOTED);
   // Once a page load (Changelog.load() asks once, and again only after a failure); it never rejects.
   void inject(Changelog).load();
+  // Asked now, beside the rest; waited for before the start ends (it never rejects).
+  const settings = inject(SiteSettings).load();
 
   // Starting again (the load error page's "Try again"): the site waits for its strings again.
   booted.set(false);
@@ -72,5 +84,6 @@ export async function boot(): Promise<void> {
     adoptVisitorDrafts(person.id);
   }
   await i18n.init();
+  await settings;
   booted.set(true);
 }

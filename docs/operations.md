@@ -158,7 +158,7 @@ nor the strings typed with them), and after it reload every admin page that
 was open. A release carries `vendor/anotoki/lib/backend/migrations/`
 (the library's set) in `backend/`, never served.
 
-The version that took anotoki-lib 0.4.1 (both halves; 0.10.0 now, below) takes the rest of what every
+The version that took anotoki-lib 0.4.1 (both halves; 0.11.0 now, below) takes the rest of what every
 anotoki site shares: **signing in** is the library's (the vendored IAM SDKs
 are gone - `api/anotoki_iam.php` stays on the host after the upload, read by
 nothing: delete it over FTP; the browser keeps its session, under the same
@@ -308,6 +308,35 @@ apply on the Migrations page; then open /admin on a computer (the column) and
 on a phone (the row with Menu, and its drawer). No release from before 018
 goes on the host after it: its bar would name the admin panel's home by a
 bare key.
+And it brings anotoki-lib 0.11.0 (both halves; the owner's requests of
+2026-10-25): the **site settings** (the admin panel's System → Site
+settings: maintenance - everybody but the site's ADMIN reads the closed sign,
+and an administrator signed out signs in at `/staff` -, an announcement above
+every public page, Page access over the list of open surveys and a survey's
+page), **robots.txt and sitemap.xml** from the site's PHP, the library's
+HTML editor and rich text (TipTap gone), its dates and its search's folding,
+and the admin panel's menu in the family's one shape (each System page its own
+link; `/admin/system` goes on to Site settings). The Migrations page lists, in
+the order they run: the library's `anotoki_admin/003_site_settings.sql` (the
+site settings' two tables), `019_library_dates_and_site_settings.sql` (the
+site's two words of the dates, `time.justNow` and `time.onDate`, moved under
+the library's `anotoki.dates.*` with who saved them - an owner's rewording on
+the library's key kept -, and the Privacy page's fact of the audit log naming
+the site settings, where it is still 013's words), then the library's
+`anotoki_translations/014_editor_and_piece_words.sql` and
+`015_site_settings_words.sql`. **Before the upload**, only where the site is
+not at `https://survey.anotoki.eu`: put `config/site.local.php` beside the
+others (`<?php return ['address' => 'https://...'];`, by hand like
+Cloudflare's) - robots.txt and sitemap.xml name the site by it, never by a
+request's `Host`. **After the upload**: apply on the Migrations page; open
+/admin/site-settings (three cards, everything off); fetch `/robots.txt` and
+`/sitemap.xml` (the site's address in both - and purge Cloudflare's cache of
+them if it kept an old answer); switch maintenance on and off once, signed in
+as the ADMIN in one browser and signed out in another (the closed sign; Sign
+in at `/staff`). No release from before 019 goes on the host after it: its
+pages would ask for the two date words under keys that are gone, and it would
+know nothing of the site settings - a site closed for maintenance would open
+to everybody, a page kept from others would show.
 
 A **release** adds its entry at the top of `frontend/public/changelog.json` -
 what changed for people, in English and its whole formal-Slovak translation
@@ -572,7 +601,7 @@ SELECT name, count, window_ends FROM visitor_counters ORDER BY count DESC LIMIT 
 
 Everything is in the database, pictures and the site's reworded strings
 included. The site backs it up itself - the anotoki family's backups
-(anotoki-lib 0.10.0), on the admin panel's System → **Backups** page, for its
+(anotoki-lib 0.11.0), on the admin panel's System → **Backups** page, for its
 ADMIN: every table by COPY through PDO in one snapshot (no `pg_dump` on the
 host), each a file `storage/backups/<id>.anotoki-backup` (`ANOTOKI-BACKUP 1`,
 a JSON header, then a gzip'd tar of the manifest, the applied migrations' SQL
@@ -622,9 +651,9 @@ from the page. The web never reaches `storage/` (its `.htaccess`, and each
 folder's own); what the folder holds besides the library's files stays as it
 is. The config files
 are only the connection and the IAM's address; setup.php writes them again -
-all but `config/visitors.local.php` and `config/cloudflare.local.php`, which
-are put there by hand: keep a copy of them (the origin secret is in the
-Cloudflare zone's Transform Rule too).
+all but `config/visitors.local.php`, `config/cloudflare.local.php` and
+`config/site.local.php`, which are put there by hand: keep a copy of them (the
+origin secret is in the Cloudflare zone's Transform Rule too).
 
 ## The error log and the audit log
 

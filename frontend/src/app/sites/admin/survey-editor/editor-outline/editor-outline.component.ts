@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { IconComponent } from '@anotoki/lib/ui/icon';
-import { plainText } from '../../../../shared/survey/plain-text';
+import { richHtmlText } from '@anotoki/lib/ui/rich-html';
 import { currentStatus, stepHasContent } from '../../../../shared/survey/survey-outline';
 import { SurveyProblem, problemsHeading } from '../../../../shared/survey/survey-problems';
 import { Survey } from '../../../../shared/survey/survey.model';
@@ -56,7 +56,7 @@ export class EditorOutlineComponent {
       questions: step.questions.map((question) => ({
         question,
         number: this.numbers().get(question.id) ?? 0,
-        text: plainText(question.text),
+        text: richHtmlText(question.text),
         missing: this.questionGaps().get(question.id) ?? 0,
       })),
     })),

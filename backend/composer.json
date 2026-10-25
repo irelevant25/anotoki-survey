@@ -26,6 +26,11 @@
       "site": "survey",
       "remote": "/anotoki.eu/sub/survey",
       "url": "https://survey.anotoki.eu",
+      "routes": [
+        "api",
+        "robots.txt",
+        "sitemap.xml"
+      ],
       "csp": "default-src 'self'; script-src 'self' https://umami.anotoki.eu; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
       "noCache": [
         "theme-boot.js",

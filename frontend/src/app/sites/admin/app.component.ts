@@ -6,6 +6,7 @@ import { AdminFrameComponent, type AdminFrameBrand, type AdminFrameLink, type Ad
 import { SiteFooterComponent } from '@anotoki/lib/footer';
 import { SiteStatus } from '@anotoki/lib/migrations';
 import { ThemeToggleComponent } from '@anotoki/lib/shell';
+import { PageNoticeComponent } from '@anotoki/lib/site-settings';
 import { TranslationService } from '@anotoki/lib/translations';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
@@ -17,7 +18,6 @@ import { SignOut } from '../../shared/auth/sign-out.service';
 import { Changelog } from '../../shared/changelog/changelog.service';
 import { type SurveyIconName } from '../../shared/kit';
 import { MIGRATIONS_PATH } from '../../shared/migrations';
-import { SYSTEM_PATH, SYSTEM_PATHS } from './system/system-pages';
 
 /** A page of the admin panel in the frame's column: its words, where it is, and the addresses under it that are part of it. */
 export interface PanelPage {
@@ -31,20 +31,50 @@ export interface PanelPage {
   adminOnly?: boolean;
   /** Address beginnings that belong to it too (a survey's editor is under Surveys). */
   under: readonly string[];
-  /** A count beside it: the feedback messages nobody opened yet (System, where the Feedback page is). */
+  /** A count beside it: the feedback messages nobody opened yet (the Feedback page's). */
   badge?: 'feedback';
 }
 
-/** The admin panel's pages - the ones its top bar linked: System for an ADMIN alone, the page's on each System page too. */
-export const PANEL_PAGES: readonly PanelPage[] = [
-  { id: 'surveys', key: 'topbar.surveys', path: '/admin', icon: 'survey', under: ['/admin/surveys/'] },
-  { id: 'translations', key: 'topbar.translations', path: '/admin/translations', icon: 'fileText', under: [] },
-  { id: 'languages', key: 'topbar.languages', path: '/admin/languages', icon: 'globe', under: [] },
-  { id: 'system', label: 'System', path: SYSTEM_PATH, icon: 'sliders', under: SYSTEM_PATHS, adminOnly: true, badge: 'feedback' },
+/** A group of the frame's column: its pages under its heading - none for the site's own pages, at the top. */
+export interface PanelGroup {
+  id: string;
+  label?: string;
+  pages: readonly PanelPage[];
+}
+
+/**
+ * The admin panel's pages, in the one shape every anotoki admin panel has (the owner, 2026-10-25): the site's own at the
+ * top with no heading - Surveys -, then Localization - Translations, Languages - and System, the ADMIN's alone: Site
+ * settings, People, Feedback (with the count nobody opened yet), Error log, Audit log, Backups, Migrations, in the
+ * family's order and words. An EDITOR has the first two groups; the server refuses the rest to anybody but the ADMIN.
+ */
+export const PANEL_GROUPS: readonly PanelGroup[] = [
+  { id: 'site', pages: [{ id: 'surveys', key: 'topbar.surveys', path: '/admin', icon: 'survey', under: ['/admin/surveys/'] }] },
+  {
+    id: 'localization',
+    label: 'Localization',
+    pages: [
+      { id: 'translations', key: 'topbar.translations', path: '/admin/translations', icon: 'fileText', under: [] },
+      { id: 'languages', key: 'topbar.languages', path: '/admin/languages', icon: 'globe', under: [] },
+    ],
+  },
+  {
+    id: 'system',
+    label: 'System',
+    pages: [
+      { id: 'site-settings', label: 'Site settings', path: '/admin/site-settings', icon: 'sliders', under: [], adminOnly: true },
+      { id: 'people', label: 'People', path: '/admin/people', icon: 'users', under: [], adminOnly: true },
+      { id: 'feedback', label: 'Feedback', path: '/admin/feedback', icon: 'message', under: [], adminOnly: true, badge: 'feedback' },
+      { id: 'errors', label: 'Error log', path: '/admin/errors', icon: 'alert', under: [], adminOnly: true },
+      { id: 'audit', label: 'Audit log', path: '/admin/audit', icon: 'history', under: [], adminOnly: true },
+      { id: 'backups', label: 'Backups', path: '/admin/backups', icon: 'database', under: [], adminOnly: true },
+      { id: 'migrations', label: 'Migrations', path: MIGRATIONS_PATH, icon: 'layers', under: [], adminOnly: true },
+    ],
+  },
 ];
 
 /** While the database waits for a migration: the Migrations page alone - the one page of the site that works then (an ADMIN's). */
-export const UPDATE_PAGES: readonly PanelPage[] = [{ id: 'migrations', label: 'Migrations', path: MIGRATIONS_PATH, icon: 'layers', under: [], adminOnly: true }];
+export const UPDATE_GROUPS: readonly PanelGroup[] = [{ id: 'update', pages: [{ id: 'migrations', label: 'Migrations', path: MIGRATIONS_PATH, icon: 'layers', under: [], adminOnly: true }] }];
 
 /**
  * The admin panel's frame: the anotoki family's (<anotoki-admin-frame>,
@@ -61,17 +91,21 @@ export const UPDATE_PAGES: readonly PanelPage[] = [{ id: 'migrations', label: 'M
  * the frame's) a row with the name and Menu, everything of the column in the
  * drawer. No top bar: the bar is the public site's.
  *
- * The pages are the ones the bar linked - Surveys, Translations, Languages,
- * and System for an ADMIN, with how many feedback messages nobody opened yet
- * beside it (the family's FeedbackUnread: asked as the panel opens, and again
- * when an ADMIN signs in here - never while the site cannot run). While a
- * database update waits an ADMIN's column links Migrations alone: the one page
- * of the site that works then (SiteStatus, @anotoki/lib/migrations); applied,
- * every page again. A page is marked in its section as the bar marked it: a
- * survey's editor in Surveys, each System page in System. Feedback only while
- * the site runs: while an update waits this frame stands round the Migrations
- * page alone, for the ADMIN who applies it, and the server refuses a message
- * then (503 update_pending), so the footer offers none.
+ * The pages are in the family's one shape (PANEL_GROUPS): Surveys; then
+ * Localization - Translations, Languages; then, for an ADMIN, System - Site
+ * settings, People, Feedback with how many messages nobody opened yet beside
+ * it (the family's FeedbackUnread: asked as the panel opens, and again when an
+ * ADMIN signs in here - never while the site cannot run), Error log, Audit
+ * log, Backups, Migrations - each its own link (the System page that led to
+ * them is gone: its address goes on to the first of them). While a database
+ * update waits an ADMIN's column links Migrations alone: the one page of the
+ * site that works then (SiteStatus, @anotoki/lib/migrations); applied, every
+ * page again. A page is marked in its section: a survey's editor in Surveys.
+ * Feedback only while the site runs: while an update waits this frame stands
+ * round the Migrations page alone, for the ADMIN who applies it, and the server
+ * refuses a message then (503 update_pending), so the footer offers none. While
+ * the ADMIN has closed the site for maintenance (the site settings), they use
+ * it as it is, the line above each page saying so (<anotoki-page-notice>).
  *
  * It has three states:
  *
@@ -95,7 +129,7 @@ export const UPDATE_PAGES: readonly PanelPage[] = [{ id: 'migrations', label: 'M
  */
 @Component({
   selector: 'app-admin-root',
-  imports: [RouterOutlet, RouterLink, AdminFrameComponent, ThemeToggleComponent, ButtonComponent, EmptyStateComponent, IconComponent, SiteFooterComponent],
+  imports: [RouterOutlet, RouterLink, AdminFrameComponent, ThemeToggleComponent, ButtonComponent, EmptyStateComponent, IconComponent, PageNoticeComponent, SiteFooterComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss',
@@ -133,16 +167,22 @@ export class AppComponent {
   /** The site's one Sign out (the top bar's too): a promise, so the frame's button waits ("Saving…") while the changes still waiting are saved. */
   protected readonly signOut = (): Promise<void> => this._signOut.afterSaves();
 
-  /** The pages for the person who is here: every page an EDITOR may use, System for an ADMIN - or Migrations alone while an update waits. */
-  private readonly _pages = computed<readonly PanelPage[]>(() => {
+  /** The groups for the person who is here: every page an EDITOR may use, System for an ADMIN - or Migrations alone while an update waits. */
+  private readonly _groups = computed<readonly PanelGroup[]>(() => {
     if (this.siteStatus.state() === 'update-pending' && this.auth.isAdmin()) {
-      return UPDATE_PAGES;
+      return UPDATE_GROUPS;
     }
-    return PANEL_PAGES.filter((page) => !page.adminOnly || this.auth.isAdmin());
+    const admin = this.auth.isAdmin();
+    return PANEL_GROUPS.map((group) => ({ ...group, pages: group.pages.filter((page) => !page.adminOnly || admin) })).filter((group) => group.pages.length > 0);
   });
 
-  /** The column's pages, in one group: four at the most - a heading would hold one or two. */
-  protected readonly groups = computed<SideNavGroup[]>(() => [{ id: 'panel', links: this._pages().map((page) => this._link(page)) }]);
+  /** Every page of the column, in its order. */
+  private readonly _pages = computed<readonly PanelPage[]>(() => this._groups().flatMap((group) => group.pages));
+
+  /** The column's groups, as the side navigation draws them: a heading where the group has one. */
+  protected readonly groups = computed<SideNavGroup[]>(() =>
+    this._groups().map((group) => ({ id: group.id, ...(group.label ? { label: group.label } : {}), links: group.pages.map((page) => this._link(page)) })),
+  );
 
   /** Where the page is, after each navigation: the router's address until the first one ends. */
   private readonly _url = toSignal(
@@ -154,8 +194,8 @@ export class AppComponent {
   );
 
   /**
-   * The page the column marks, as the bar marked it: the one whose address the page is at, or under (a survey's editor in
-   * Surveys, each System page in System) - and none for an address no page of the column is ('' names no link).
+   * The page the column marks: the one whose address the page is at, or under (a survey's editor in Surveys) - and none
+   * for an address no page of the column is ('' names no link).
    */
   protected readonly current = computed(() => {
     const here = this._url().split(/[?#]/)[0];
@@ -164,7 +204,8 @@ export class AppComponent {
 
   constructor() {
     effect(() => {
-      if (this.auth.isAdmin() && this.siteStatus.state() === 'ready') {
+      // Ready - or closed for maintenance, which the ADMIN uses as it is.
+      if (this.auth.isAdmin() && (this.siteStatus.state() === 'ready' || this.siteStatus.state() === 'maintenance')) {
         // Only who is here and where the site stands are followed - never what the count reads itself.
         untracked(() => void this._unread.refresh());
       }
@@ -176,7 +217,7 @@ export class AppComponent {
     void signInOrShowWhy(this.auth, this._router);
   }
 
-  /** A page as the side navigation draws it - with System's count of new feedback, seen as a number and heard in English as what it counts. */
+  /** A page as the side navigation draws it - with Feedback's count of new messages, seen as a number and heard in English as what it counts. */
   private _link(page: PanelPage): SideNavLink {
     const count = page.badge === 'feedback' ? (this._unread.count() ?? 0) : 0;
     return {

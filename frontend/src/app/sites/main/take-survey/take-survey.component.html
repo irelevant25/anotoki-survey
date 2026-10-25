@@ -41,7 +41,7 @@
                     <h2 class="message-heading">{{ "take.closed.heading" | translate }}</h2>
                     <p class="muted">
                         @if (survey.closedAt) {
-                            {{ "take.closed.on" | translate: { date: (survey.closedAt | localDate: "date") } }}
+                            {{ "take.closed.on" | translate: { date: (survey.closedAt | anotokiDate) } }}
                         }
                         {{ "take.closed.thanks" | translate }}
                     </p>
@@ -52,9 +52,9 @@
                     <span class="message-icon message-icon-success"><anotoki-icon name="check" [size]="26" [strokeWidth]="2.4" /></span>
                     <h2 class="message-heading">{{ "take.answered.heading" | translate }}</h2>
                     @if (answeredAt(); as sentAt) {
-                        <p class="muted">{{ "take.answered.text" | translate: { when: (sentAt | localDate: "ago") } }}</p>
+                        <p class="muted">{{ "take.answered.text" | translate: { when: (sentAt | anotokiAgo: agoOptions) } }}</p>
                     }
-                    <div class="rich thanks" [attr.lang]="surveyLang()" [innerHTML]="survey.thanks"></div>
+                    <anotoki-rich-html class="rich thanks" [attr.lang]="surveyLang()" [html]="survey.thanks" />
                     @if (visiting()) {
                         <app-visitor-notice class="visitor-notice" />
                     }
@@ -64,7 +64,7 @@
                 <div class="body message">
                     <span class="message-icon message-icon-success done-mark"><anotoki-icon name="check" [size]="30" [strokeWidth]="2.6" /></span>
                     <h2 class="message-heading done-heading" tabindex="-1">{{ "take.sent.heading" | translate }}</h2>
-                    <div class="rich thanks" [attr.lang]="surveyLang()" [innerHTML]="survey.thanks"></div>
+                    <anotoki-rich-html class="rich thanks" [attr.lang]="surveyLang()" [html]="survey.thanks" />
                     @if (preview()) {
                         <p class="muted small">This was the preview: nothing was kept.</p>
                         <div class="message-actions">
@@ -83,7 +83,7 @@
             @case ("take") {
                 @if (phase() === "welcome") {
                     <div class="body">
-                        <div class="intro rich" [attr.lang]="surveyLang()" [innerHTML]="survey.intro"></div>
+                        <anotoki-rich-html class="intro rich" [attr.lang]="surveyLang()" [html]="survey.intro" />
 
                         @if (facts(); as facts) {
                             <ul class="facts">
@@ -98,7 +98,7 @@
                                 @if (facts.closesOn) {
                                     <li>
                                         <anotoki-icon name="calendar" [size]="16" />
-                                        {{ "take.openUntil" | translate: { day: (facts.closesOn | localDate: "day") } }}
+                                        {{ "take.openUntil" | translate: { day: (facts.closesOn | anotokiDate: "day") } }}
                                     </li>
                                 }
                                 @if (facts.language; as language) {
@@ -137,7 +137,7 @@
 
                         @if (draft(); as draft) {
                             <anotoki-alert tone="info" [heading]="'take.carryOn.heading' | translate">
-                                {{ "take.carryOn.text" | translate: { when: (draft.startedAt | localDate: "ago"), step: draftStep(), steps: pages().length } }}
+                                {{ "take.carryOn.text" | translate: { when: (draft.startedAt | anotokiAgo: agoOptions), step: draftStep(), steps: pages().length } }}
                                 <div alertActions>
                                     <button anotokiButton variant="primary" (click)="carryOn()">
                                         {{ "take.carryOn.button" | translate }}
@@ -168,7 +168,7 @@
                                 <!-- The step's own text and pictures: as a question's are drawn - above its questions, or alone. -->
                                 <div class="step-own">
                                     @if (current.text) {
-                                        <div class="step-text rich" [attr.lang]="current.lang" [innerHTML]="current.text"></div>
+                                        <anotoki-rich-html class="step-text rich" [attr.lang]="current.lang" [html]="current.text" />
                                     }
                                     @if (current.images.length) {
                                         <app-image-gallery [images]="current.images" [lang]="current.lang" />

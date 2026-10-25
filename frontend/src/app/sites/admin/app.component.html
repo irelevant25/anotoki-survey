@@ -5,6 +5,8 @@
          would refuse the message), About · Support · Terms · Privacy · Contact. -->
     <anotoki-admin-frame [brand]="brand()" [person]="person()" [back]="back()" [signOut]="signOut" [groups]="groups()" [current]="current()">
         <anotoki-theme-toggle adminFrameTheme />
+        <!-- Above every page, outside <main>: while the site is closed for maintenance, the line that says so (the site settings'). -->
+        <anotoki-page-notice adminFrameNotice />
         <div class="page-width">
             <router-outlet />
         </div>

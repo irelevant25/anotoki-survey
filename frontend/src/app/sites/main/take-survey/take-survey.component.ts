@@ -4,20 +4,20 @@ import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslatePluralPipe, TranslationService } from '@anotoki/lib/translations';
 import { AlertComponent } from '@anotoki/lib/ui/alert';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
+import { type AgoPipeOptions, AnotokiAgoPipe, AnotokiDatePipe } from '@anotoki/lib/ui/dates';
 import { IconComponent } from '@anotoki/lib/ui/icon';
+import { RichHtmlComponent, richHtmlIsBlank } from '@anotoki/lib/ui/rich-html';
 import { SpinnerComponent } from '@anotoki/lib/ui/spinner';
 import { ToastService } from '@anotoki/lib/ui/toast';
 import { AdminStore } from '../../../shared/admin/admin-store.service';
 import { ApiError, ApiService, ParticipantSurvey, toApiError } from '../../../api/api.service';
 import { AuthService } from '../../../shared/auth/auth.service';
 import { VisitorKey } from '../../../shared/auth/visitor-key';
-import { LocalDatePipe } from '../../../shared/i18n/local-date.pipe';
 import { AGE_ID, GENDER_ID, isAgeKey, isOfferedGender } from '../../../shared/survey/about-you';
 import { aboutYouQuestions } from '../../../shared/survey/about-you-questions';
 import { AnswerProblem, answerProblem, cleanAnswer } from '../../../shared/survey/answer-rules';
 import { Draft, adoptVisitorDraft, clearDraft, readDraft, writeDraft } from '../../../shared/survey/drafts';
 import { LocalizedSurvey, localizedSurvey } from '../../../shared/survey/localize';
-import { isBlankHtml } from '../../../shared/survey/plain-text';
 import { newId } from '../../../shared/survey/survey-factory';
 import { currentStatus, estimatedMinutes, numberedQuestions, questionCount } from '../../../shared/survey/survey-outline';
 import { AboutYou, Answer, Question, SurveyImage, SurveyResponse } from '../../../shared/survey/survey.model';
@@ -65,8 +65,9 @@ type State = 'loading' | 'failed' | 'missing' | 'not-open' | 'closed' | 'answere
  * words (backend/api/survey_rules.php).
  *
  * A step shows its own text and pictures above its questions - drawn as a
- * question's text and pictures are ([innerHTML], the server's cleaned HTML,
- * Angular's sanitizer once more; the shared gallery) - and a step of text and
+ * question's text and pictures are (the server's cleaned HTML, through the
+ * family's safe view - <anotoki-rich-html>, the same allow-list once more; the
+ * shared gallery) - and a step of text and
  * pictures alone asks nothing: Next goes on, and it counts as a step in the
  * progress and the draft like any other.
  *
@@ -118,10 +119,12 @@ type State = 'loading' | 'failed' | 'missing' | 'not-open' | 'closed' | 'answere
     IconComponent,
     ImageGalleryComponent,
     QuestionBlockComponent,
+    RichHtmlComponent,
     SpinnerComponent,
     SurveyHeroComponent,
     VisitorNoticeComponent,
-    LocalDatePipe,
+    AnotokiAgoPipe,
+    AnotokiDatePipe,
     TranslatePipe,
     TranslatePluralPipe,
   ],
@@ -130,6 +133,11 @@ type State = 'loading' | 'failed' | 'missing' | 'not-open' | 'closed' | 'answere
   styleUrl: './take-survey.component.scss',
 })
 export class TakeSurveyComponent {
+  /**
+   * How long ago the answers were sent, or the draft begun - a phrase inside a sentence: the family's
+   * 'ago' (@anotoki/lib/ui/dates) as this page always said it - and from two weeks on its date, "on 16 Oct 2026".
+   */
+  protected readonly agoOptions: AgoPipeOptions = { dateAfter: 14, phrase: true };
   /** The survey's address, at /{slug}. */
   readonly slug = input<string | undefined>(undefined);
   /** The survey's id, at /preview/{surveyId}. */
@@ -227,7 +235,7 @@ export class TakeSurveyComponent {
         key: step.id,
         title: step.title,
         // A text with no words in it - what an emptied editor leaves, in a preview - is no text.
-        text: isBlankHtml(step.text) ? '' : step.text,
+        text: richHtmlIsBlank(step.text) ? '' : step.text,
         images: step.images,
         lang,
         questions: step.questions.map((question) => ({ question, number: numbers.get(question.id) ?? null })),

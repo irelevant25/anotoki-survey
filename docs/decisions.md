@@ -1356,3 +1356,93 @@ is not theirs does. One string went with the bar's admin area: the name it gave
 the admin panel's home link (`topbar.homeAdmin`; the frame's link is named by
 its own words) - migration 018, so no release from before it goes on the host
 after it.
+
+## anotoki-lib 0.11.0: the site settings, robots and the sitemap, the family's editor, dates and menu
+
+**The owner's requests of 2026-10-25, for every anotoki site** - genshin's
+site settings, robots.txt and sitemap.xml, the library's HTML editor and rich
+text, its dates and search, and one shape of the admin panel's menu. What was
+chosen here, where the site had to choose:
+
+- **All three parts of the site settings.** Page access governs the
+  participant's pages: the list of open surveys (`/`) and a survey's own page
+  (`/{slug}`, its thank-you included, which is the same page); the editor's
+  preview (`/preview`) is staff's, as the admin panel is, so it is reserved
+  beside the library's pages. Maintenance opens `/staff` for the
+  administrators (a route of its own before `/{slug}`, and `staff` a reserved
+  survey address on both sides).
+- **What keeps answering whatever a row says, and while the site is closed**:
+  the library's own (the status, the bundles, the settings) and the site's
+  sign-in configuration (`/api/auth/config` - an administrator signs in with
+  it) and the pictures (`/api/images` - an `<img>` carries no token, so a row
+  that claimed them would refuse every picture to everybody, the
+  administrators too). **Not** the surveys' own routes (`/api/surveys`):
+  maintenance closes them as it closes everything else - "anything a
+  participant's answer needs while the survey is open" is kept where it was
+  always kept, in the browser's draft (the take page's `siteClosed`, which
+  counts maintenance), sent once the site takes it again; and Page access may
+  refuse them with the page they belong to.
+- **Page access's gate sits right inside `Identify`, group by group**
+  (surveys, the visitor's move, feedback, the editors' groups of the admin
+  panel after their roles' check), not in front of the app: it reads who the
+  request is from `Identify`, and the ADMIN-only groups need none - the ADMIN
+  is never refused. The site gate knows the ADMIN by the token alone
+  (`exempt:`, `surveyTokenPerson()`), for it runs before any route identifies
+  the request.
+- **The site's address, for robots.txt and the sitemap.** The site had no
+  configured public address (`siteAddress()` is new): a release says
+  `https://survey.anotoki.eu` and a checkout `http://localhost:4700` (by
+  `release.json`, the state rule's own mark), and an optional
+  `config/site.local.php` names another - never a request's `Host`, which
+  anybody can send. The sitemap lists the list of open surveys and each open
+  survey only while the IAM says sign-in is not required (otherwise those
+  pages send everybody to the IAM: nothing there to index), never a draft or
+  a closed survey or one past its last day, and is made afresh each time (no
+  kept copy: a closing day changes it with no write at all).
+- **The family's editor in place of TipTap** (superseding the 0.6.0 note
+  above that kept the survey's toolbar): `<anotoki-html-editor>` with the
+  survey's buttons, the highlighter everywhere, `h2` and `h3` on the welcome
+  and thank-you screens, links, and pictures pasted or dropped into a
+  question's or a step's text going through the survey's own picture handling
+  (the image list) - never into the text. TipTap is out of `package.json` and
+  both lock files.
+- **One allow-list, the library's, on both sides** (`RichHtml::clean()` in
+  `richTextClean()`, `<anotoki-rich-html>` for every stored text - no
+  `[innerHTML]` of one is left). Every tag the survey's editor wrote, and
+  every text in the seeds and the tests (`p a strong em u s mark ul ol li br
+  h2 h3`), comes out byte for byte and looks as it did: the survey's own
+  typography (`.rich.anotoki-rich-html`) stands a step above the library's.
+  What differs: the library keeps more - `div b i strike span font h4`, five
+  bounded inline styles, `<font>`'s size, face and colour - which only an API
+  call, never this editor, sends (kept, and drawn as written: a `<div>` as a
+  block, an `h4` as a heading); a link whose address holds a quote, an angle
+  bracket, a backtick, a backslash or a no-break space is its words now; and
+  control characters but tab and line feed, C1 ones (U+0085) and those that
+  turn the text's direction are dropped from the text.
+- **The library's dates, the same output where it can be.** What differs:
+  minutes and hours are counted whole ("5 minutes ago" until the sixth has
+  passed, where the site rounded); the admin panel says "1 minute ago" and "1
+  hour ago" where it said "a minute ago" and "an hour ago"; and the last half
+  hour of a day ago is "23 hours ago", not "24". Days are calendar days by the
+  reader's clock. The site's two words of the dates (`time.justNow`,
+  `time.onDate`) moved under the library's keys (migration 019, an owner's
+  rewording kept).
+- **The library's folding** for search and a survey's address (`foldText()`):
+  letters with no decomposition fold too now (`ł` to `l`, `ß` to `ss`, `æ` to
+  `ae`), where the site's folding dropped them from an address.
+- **The admin panel's menu in the family's one shape**: Surveys under no
+  heading; Localization - Translations, Languages; System - Site settings,
+  People, Feedback (its count beside it), Error log, Audit log, Backups,
+  Migrations, each its own link. The System page went, and `/admin/system`
+  goes on to Site settings, so a link kept from before lands. The role checks
+  are as they were: an EDITOR has Surveys, Translations and Languages; while
+  an update waits an ADMIN's column holds Migrations alone.
+- **The first load stays under its budget**: the sign-out (in the first load
+  for the public bar) asks the admin panel's store for unsaved changes through
+  a dynamic import, so the admin panel's store, and all it brings, no longer
+  comes with the first load: 578.30 kB with the new pieces and the store
+  eager, over the budget; 542.40 kB with it lazy (553.67 kB before 0.11.0).
+
+No release from before 019 goes on the host after it: it would ask for the
+two date words under keys that are gone, and know nothing of the site
+settings - a site closed for maintenance would open to everybody.

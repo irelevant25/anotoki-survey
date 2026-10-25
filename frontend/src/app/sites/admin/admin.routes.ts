@@ -8,15 +8,18 @@ import { AppComponent } from './app.component';
  * (translations) and the languages themselves, the anotoki family's pages
  * (@anotoki/lib/translations/admin: an entry point of their own, never in the
  * first load; their guard is the eager entry point's); and, for an ADMIN, the
- * System pages (system/): the people who signed in, what people sent through
- * the feedback form, the error log, the audit log, the backups and the
- * database's migrations - each the anotoki family's page
- * (@anotoki/lib/people/page, @anotoki/lib/admin/feedback, /errors, /audit,
+ * System pages, each a link of the frame's System group: the site settings,
+ * the people who signed in, what people sent through the feedback form, the
+ * error log, the audit log, the backups and the database's migrations - each
+ * the anotoki family's page (@anotoki/lib/admin/site-settings,
+ * @anotoki/lib/people/page, @anotoki/lib/admin/feedback, /errors, /audit,
  * /backups, @anotoki/lib/migrations/page), an entry point of its own on a lazy
- * route, configured in shared/admin/admin-tools.ts and shared/migrations.ts. Each
- * says to anybody but the site's ADMIN whose it is, and asks the server
- * nothing; the server refuses them all the same. Every page stands in the
- * panel's frame (app.component.ts: the family's <anotoki-admin-frame>).
+ * route, configured in shared/admin/admin-tools.ts, shared/site-settings.ts and
+ * shared/migrations.ts. Each says to anybody but the site's ADMIN whose it is,
+ * and asks the server nothing; the server refuses them all the same. The System
+ * page that led to them (/admin/system) is gone: its address goes on to the
+ * first of them, so a link kept from before still lands. Every page stands in
+ * the panel's frame (app.component.ts: the family's <anotoki-admin-frame>).
  */
 export const ADMIN_ROUTES: Routes = [
   {
@@ -44,8 +47,13 @@ export const ADMIN_ROUTES: Routes = [
         canDeactivate: [anotokiUnsavedChangesGuard],
         loadComponent: () => import('@anotoki/lib/translations/admin').then((m) => m.LanguagesPageComponent),
       },
-      // The ADMIN's System pages: what keeps the site running - its links, then each page.
-      { path: 'system', title: 'System', loadComponent: () => import('./system/system.component').then((m) => m.SystemComponent) },
+      // The ADMIN's System pages: what keeps the site running - each its own link of the frame's System group.
+      { path: 'system', pathMatch: 'full', redirectTo: 'site-settings' },
+      {
+        path: 'site-settings',
+        title: 'Site settings',
+        loadComponent: () => import('@anotoki/lib/admin/site-settings').then((m) => m.SiteSettingsPageComponent),
+      },
       { path: 'people', title: 'People', loadComponent: () => import('@anotoki/lib/people/page').then((m) => m.PeoplePageComponent) },
       { path: 'feedback', title: 'Feedback', loadComponent: () => import('@anotoki/lib/admin/feedback').then((m) => m.FeedbackPageComponent) },
       { path: 'errors', title: 'Error log', loadComponent: () => import('@anotoki/lib/admin/errors').then((m) => m.ErrorLogPageComponent) },

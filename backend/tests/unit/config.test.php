@@ -190,3 +190,36 @@ test('setup.php writes a settings file only its owner can read, and it is read a
         assert_same('600', decoct(fileperms("$dir/database.local.php") & 0777));
     }
 });
+
+test('the site\'s own address (robots.txt, sitemap.xml): where the code runs says it, site.local.php may name another - and one that names none usable is passed over', function (): void {
+    // The address a release is deployed to is composer.json's, which the deploy tool reads: one address, held together.
+    $deploy = json_decode((string) file_get_contents(TEST_BACKEND . '/composer.json'), true)['extra']['anotoki-deploy'];
+    assert_same(SURVEY_RELEASE_ADDRESS, $deploy['url'], 'the release\'s address is the one the deploy tool puts it at');
+    assert_same(['api', 'robots.txt', 'sitemap.xml'], $deploy['routes'], 'and the release\'s front controller is given robots.txt and sitemap.xml beside /api');
+
+    $dir = test_temp_dir('site-address');
+    write_settings($dir, good_database(), good_iam());
+    with_config_dir($dir, static function () use ($dir): void {
+        assert_same(SURVEY_DEVELOPMENT_ADDRESS, siteAddress(), 'a checkout without the file: the development address');
+        file_put_contents("$dir/site.local.php", "<?php return ['address' => 'https://survey.example.test/'];\n");
+        assert_same('https://survey.example.test', siteAddress(), 'the file\'s, without its trailing slash');
+        file_put_contents("$dir/site.local.php", "<?php return ['address' => 'http://127.0.0.1:8590'];\n");
+        assert_same('http://127.0.0.1:8590', siteAddress(), 'a port is part of an origin');
+        foreach (
+            [
+                "<?php return ['address' => 'https://survey.example.test/path'];\n" => 'a path after it',
+                "<?php return ['address' => 'javascript:alert(1)'];\n" => 'no http(s) origin',
+                "<?php return ['adress' => 'https://survey.example.test'];\n" => 'a misspelt key',
+                "<?php return 'https://survey.example.test';\n" => 'no array',
+                "\u{FEFF}<?php return ['address' => 'https://survey.example.test'];\n" => 'a byte-order mark: never compiled',
+                "<?php \$kept = 1; ?>\nprinted\n<?php return ['address' => 'https://survey.example.test'];\n" => 'it prints (text after a closing tag)',
+            ]
+            as $content => $why
+        ) {
+            file_put_contents("$dir/site.local.php", $content);
+            [$log, $address] = logged_while(static fn(): string => siteAddress());
+            assert_same(SURVEY_DEVELOPMENT_ADDRESS, $address, "$why: the address where the code runs holds");
+            assert_false(str_contains($log, 'survey.example.test'), "$why: its text is never logged");
+        }
+    });
+});

@@ -2,6 +2,7 @@ import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular
 import { Router } from '@angular/router';
 import { provideAnotokiAdmin } from '@anotoki/lib/admin';
 import { type PeopleDeleteQuestion, type PeoplePerson, type PeopleVisitors, provideAnotokiPeople } from '@anotoki/lib/people';
+import { TranslationService } from '@anotoki/lib/translations';
 import { signInOrShowWhy } from '../auth/auth.config';
 import { AuthService } from '../auth/auth.service';
 import { MIGRATIONS_PATH } from '../migrations';
@@ -12,8 +13,9 @@ export const PEOPLE_PATH = '/admin/people';
 
 /**
  * The admin tools this site takes from the anotoki family's library
- * (anotoki-lib 0.5.0; feedback since 0.6.2): the error log, the audit log,
- * feedback and the backups (@anotoki/lib/admin and its pages), and the People
+ * (anotoki-lib 0.5.0; feedback since 0.6.2; the site settings since 0.11.0):
+ * the error log, the audit log, feedback, the backups and the Site settings
+ * (@anotoki/lib/admin and its pages), and the People
  * page (@anotoki/lib/people) - each page an entry point of its own on a lazy
  * route of the admin panel (admin.routes.ts), for the site's ADMIN alone, as
  * the server's routes are: anybody else is told whose the page is, and nothing
@@ -22,9 +24,12 @@ export const PEOPLE_PATH = '/admin/people';
  *
  * - Feedback: what people sent through the form (shared/feedback.ts), the
  *   library's kinds and no places of the site; how many nobody opened yet is
- *   the family's FeedbackUnread - beside the System link in the panel's frame and on the
- *   System page's card, asked as the admin panel opens (its frame, sites/admin/app.component.ts) and as
- *   the System page does: no mail is sent for a message.
+ *   the family's FeedbackUnread - beside the Feedback link in the panel's frame,
+ *   asked as the admin panel opens (its frame, sites/admin/app.component.ts): no
+ *   mail is sent for a message.
+ * - The Site settings page (anotoki-lib 0.11.0, shared/site-settings.ts): its
+ *   messages - the maintenance page's, the announcement's - written in each
+ *   language the site offers, by the name its speakers give it.
  * - Who is ADMIN is the token's say (AuthService, the IAM's roles here).
  * - A backup is made, downloaded, deleted or restored only after a sign-in of
  *   the last ten minutes (the server reads the token's auth_time): its
@@ -48,12 +53,14 @@ export function provideSiteAdmin(): EnvironmentProviders {
       const auth = inject(AuthService);
       const router = inject(Router);
       const dates = inject(AdminDates);
+      const i18n = inject(TranslationService);
       return {
         isAdmin: () => auth.isAdmin(),
         signInAgain: () => signInOrShowWhy(auth, router, 'login'),
         migrationsRoute: MIGRATIONS_PATH,
         siteName: 'the survey site',
         formatDate: (iso: string) => dates.formatDateTime(iso),
+        languages: () => i18n.languages().map((language) => ({ code: language.code, name: language.native_name })),
       };
     }),
     provideAnotokiPeople(() => {

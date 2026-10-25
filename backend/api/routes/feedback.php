@@ -39,6 +39,7 @@ use Anotoki\Lib\Feedback\Http\FeedbackRoutes;
  * @var \Slim\App $app
  * @var \Anotoki\Lib\Auth\Http\Identify $identify   Identify that reads no visitor's key (api/index.php)
  * @var \Anotoki\Lib\People\Http\RecordPerson $recordPerson
+ * @var \Anotoki\Lib\SiteSettings\Http\PageAccessGate $pageAccess   Page access, right inside Identify
  */
 
-FeedbackRoutes::public($app, '/api/feedback', surveyFeedback(), surveyAdminContext(), surveyFeedbackSender(...))->add($recordPerson)->add($identify);
+FeedbackRoutes::public($app, '/api/feedback', surveyFeedback(), surveyAdminContext(), surveyFeedbackSender(...))->add($pageAccess)->add($recordPerson)->add($identify);

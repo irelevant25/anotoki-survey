@@ -8,22 +8,27 @@ declare(strict_types=1);
  *
  *   composer start                        development: the API (and setup.php)
  *   (php -S localhost:8500 router.php)    behind `ng serve` on :4700, which
- *                                         proxies /api and /setup.php here - and
- *                                         the built app, once there is one
+ *                                         proxies /api, /robots.txt, /sitemap.xml
+ *                                         and /setup.php here - and the built
+ *                                         app, once there is one
  *
- *   /api/...     the API (api/index.php)
- *   /setup.php   the setup page
- *   anything     the built app from ../frontend/dist/survey/browser/, when it
- *   else         has been built: a file as it is, and any other path
- *                index.html - the app has routes of its own (/admin,
- *                /{a survey}...). Never a .php file or a dot-file.
+ *   /api/...       the API (api/index.php)
+ *   /robots.txt,   the API's front controller too (anotoki-lib 0.11.0's
+ *   /sitemap.xml   RobotsRoutes), before any file of the build is looked for -
+ *                  as the release's frontend/.htaccess sends them (the deploy
+ *                  tool's `routes`, composer.json)
+ *   /setup.php     the setup page
+ *   anything       the built app from ../frontend/dist/survey/browser/, when it
+ *   else           has been built: a file as it is, and any other path
+ *                  index.html - the app has routes of its own (/admin,
+ *                  /{a survey}...). Never a .php file or a dot-file.
  *
  * SURVEY_FRONTEND_DIST points at another build (the tests use a small one).
  */
 
 $path = rawurldecode((string) parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH));
 
-if ($path === '/api' || str_starts_with($path, '/api/')) {
+if ($path === '/api' || str_starts_with($path, '/api/') || $path === '/robots.txt' || $path === '/sitemap.xml') {
     require __DIR__ . '/api/index.php';
     return true;
 }

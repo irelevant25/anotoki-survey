@@ -1,4 +1,4 @@
-import { isBlankHtml } from './plain-text';
+import { richHtmlIsBlank } from '@anotoki/lib/ui/rich-html';
 import { Question, Step, Survey, SurveyStatus } from './survey.model';
 
 /**
@@ -7,7 +7,7 @@ import { Question, Step, Survey, SurveyStatus } from './survey.model';
  * Next).
  */
 export function stepHasContent(step: Pick<Step, 'text' | 'images'>): boolean {
-  return !isBlankHtml(step.text) || step.images.length > 0;
+  return !richHtmlIsBlank(step.text) || step.images.length > 0;
 }
 
 /**

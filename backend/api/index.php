@@ -13,8 +13,11 @@ declare(strict_types=1);
  *   routes/public.php    GET /api/health, GET /api/site-status, GET /api/auth/config (the anotoki
  *                        library's AuthRoutes), GET /api/images/{id}.{ext}, GET /api/translations/{code}
  *                        (the anotoki library's TranslationsRoutes::bundle), POST /api/client-errors (a
- *                        page's error into the error log: the library's ErrorLogRoutes::client) -
- *                        nobody's, whatever a request carries
+ *                        page's error into the error log: the library's ErrorLogRoutes::client), GET
+ *                        /api/site-settings (what every page is told: SiteSettingsRoutes::public), and
+ *                        GET /robots.txt and /sitemap.xml (the library's RobotsRoutes - router.php and
+ *                        the release's front controller send them here beside /api) - nobody's,
+ *                        whatever a request carries
  *   routes/surveys.php   the surveys for the people taking them, and their answers - signed
  *                        in, or as a visitor while the IAM says sign-in is not required
  *   routes/visitor.php   POST /api/visitor/move: at sign-in, a visitor's answers into the account
@@ -23,7 +26,8 @@ declare(strict_types=1);
  *   routes/admin.php     /api/admin/...: the surveys, the results, the pictures (EDITOR, ADMIN);
  *                        the languages and the site's own strings - the library's routes, behind
  *                        the same roles (deleting a language: ADMIN); the migrations, the people,
- *                        the error log, the audit log, feedback, the backups (ADMIN) - the library's
+ *                        the error log, the audit log, feedback, the backups, the site settings
+ *                        (ADMIN) - the library's
  *
  * The middleware, outermost first: the error log's outer half (what is
  * answered with a status worth seeing) -> security headers -> the error
@@ -32,11 +36,16 @@ declare(strict_types=1);
  * not_set_up without config/database.local.php and iam.local.php - offering
  * the setup page only while the site was never installed; 503 update_pending
  * while a migration waits, but for the paths that must answer then:
- * siteOpenWhileUpdating()) -> the scrub of the IAM's deleted accounts (the
- * library's PeopleUpkeep: after the answer, at most hourly, while the site is
- * ready) -> the daily backup (after the answer, the first of a UTC day) ->
- * routing -> on each route but the public ones, who is asking (the library's
- * Identify, api/auth.php) and what they may do. After the answer, what a
+ * siteOpenWhileUpdating(); 503 maintenance while the site's ADMIN has closed
+ * it - the site settings, api/site_settings.php - to everybody but that ADMIN,
+ * known by the token alone, but for those paths and the settings' reserved
+ * ones) -> the scrub of the IAM's deleted accounts (the library's
+ * PeopleUpkeep: after the answer, at most hourly, while the site is ready) ->
+ * the daily backup (after the answer, the first of a UTC day) -> routing -> on
+ * each route but the public ones, who is asking (the library's Identify,
+ * api/auth.php) and what they may do - and, on the groups whose data a page
+ * holds, whether Page access lets them have it (the library's PageAccessGate,
+ * right inside the group's Identify: 423 page_locked). After the answer, what a
  * request left for then (afterAnswerRun(): the visitors' clean-up, the scrub,
  * the daily backup).
  */
@@ -50,6 +59,7 @@ use Anotoki\Lib\Migrations\Http\SiteGate;
 use Anotoki\Lib\Migrations\Http\SiteState;
 use Anotoki\Lib\People\Http\PeopleUpkeep;
 use Anotoki\Lib\People\Http\RecordPerson;
+use Anotoki\Lib\SiteSettings\Http\PageAccessGate;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
@@ -81,6 +91,11 @@ function buildSurveyApp(): \Slim\App
     // A person's row in users, kept from their token (api/people.php) - on the routes that read or write the
     // site's data, never on the Migrations page's, the error log's or the backups'.
     $recordPerson = new RecordPerson(surveyPeople());
+    // Page access (the site settings, api/site_settings.php): the API paths a page's row refuses with it, 423 to
+    // whoever the page is not shown to - right inside the Identify of each group whose data a page holds (the
+    // surveys', the visitor's move, feedback, the editors' admin routes), whose person it reads; never the
+    // site's ADMIN, never a reserved path.
+    $pageAccess = new PageAccessGate(surveySiteSettings(), $responses);
     // What went wrong, written down where the site's ADMIN reads it (api/admin_tools.php) - PHP's own warnings
     // and fatal errors too.
     $errorLog = surveyErrorLog($app);
@@ -95,7 +110,9 @@ function buildSurveyApp(): \Slim\App
     // Added in this order, so they run the other way round.
     $app->add(dailyBackupSoon());
     $app->add(new PeopleUpkeep(surveyPeople(), static fn(): bool => $siteState->state() === SiteState::READY, afterAnswerAdd(...)));
-    $app->add(new SiteGate($siteState, $responses, siteOpenWhileUpdating()));
+    // Closed for maintenance, the site's ADMIN passes - known by the token alone (the gate runs before any route's
+    // Identify): a forged, expired or other site's token is nobody's, and nobody is shut out of the reserved paths.
+    $app->add(new SiteGate($siteState, $responses, siteOpenWhileUpdating(), exempt: static fn(Request $request): bool => surveyTokenPerson($request)?->isAdmin() ?? false));
 
     $errorMiddleware = $app->addErrorMiddleware(false, false, false);
     $errorMiddleware->setDefaultErrorHandler(

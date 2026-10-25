@@ -36,7 +36,11 @@ describe('surveyProblems', () => {
     expect(messages({ ...survey, askAboutYou: false, steps: [...survey.steps, { ...empty, text: '<p> </p><p><br></p>' }] })).toEqual([
       'Step 2 is empty - add a question, text or a picture, or remove the step.',
     ]);
-    expect(messages({ ...survey, askAboutYou: false, steps: [...survey.steps, { ...empty, text: '<p>\u0085</p>' }] })).toEqual([]);
+    expect(messages({ ...survey, askAboutYou: false, steps: [...survey.steps, { ...empty, text: '<p>᠎</p>' }] })).toEqual([]);
+    // A C1 control in a text's HTML is dropped by the family's allow-list (the server's the same): nothing is there.
+    expect(messages({ ...survey, askAboutYou: false, steps: [...survey.steps, { ...empty, text: '<p>\u0085</p>' }] })).toEqual([
+      'Step 2 is empty - add a question, text or a picture, or remove the step.',
+    ]);
   });
 
   it('takes a step of text and pictures alone - a task to read and do - but still wants a question in the survey', () => {

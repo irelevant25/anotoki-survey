@@ -1,4 +1,5 @@
-import { escapeHtml, isBlankHtml, plainText } from './plain-text';
+import { richHtmlIsBlank, richHtmlText } from '@anotoki/lib/ui/rich-html';
+import { escapeHtml } from './plain-text';
 
 describe('escapeHtml', () => {
   it('turns the four characters HTML reads into what shows them', () => {
@@ -15,8 +16,8 @@ describe('escapeHtml', () => {
 
   it('gives HTML whose words are the words that went in', () => {
     for (const words of ['Vek < 18 & viac', 'a "quoted" <b>word</b>', 'R&D &amp; more']) {
-      expect(plainText(`<p>${escapeHtml(words)}</p>`)).toBe(words);
+      expect(richHtmlText(`<p>${escapeHtml(words)}</p>`)).toBe(words);
     }
-    expect(isBlankHtml(`<p>${escapeHtml('<p></p>')}</p>`)).toBe(false);
+    expect(richHtmlIsBlank(`<p>${escapeHtml('<p></p>')}</p>`)).toBe(false);
   });
 });

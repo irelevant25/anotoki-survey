@@ -4,8 +4,9 @@ import { Question } from './survey.model';
 
 /**
  * One of the two as a question of one choice. `text` is words, not HTML: it is
- * escaped before it is wrapped, because a question's text is drawn with
- * `[innerHTML]`. The labels stay words - an option's label is drawn as text.
+ * escaped before it is wrapped, because a question's text is drawn as HTML
+ * (the family's <anotoki-rich-html>). The labels stay words - an option's label
+ * is drawn as text.
  */
 function fixedQuestion(id: string, text: string, options: readonly { key: string; label: string }[]): Question {
   return {

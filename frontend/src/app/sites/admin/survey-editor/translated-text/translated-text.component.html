@@ -7,7 +7,7 @@
             @if (!hasOriginal()) {
                 <p class="original nothing">Nothing in {{ editing.mainName() }}</p>
             } @else if (rich()) {
-                <div class="original rich" [attr.lang]="editing.mainLanguage()" [innerHTML]="original()"></div>
+                <anotoki-rich-html class="original rich" [attr.lang]="editing.mainLanguage()" [html]="original()" />
             } @else {
                 <p class="original" [attr.lang]="editing.mainLanguage()">{{ original() }}</p>
             }
@@ -26,7 +26,15 @@
             }
             @if (rich()) {
                 <div class="slot" [attr.data-place]="key()" [attr.lang]="editing.language()">
-                    <app-rich-text-editor [value]="value()" (valueChange)="write($event)" [label]="fieldLabel()" [headings]="headings()" />
+                    <anotoki-html-editor
+                        [value]="value()"
+                        (valueChange)="write($event)"
+                        [label]="fieldLabel()"
+                        hideLabel
+                        [tools]="textTools"
+                        [headings]="headings() ? textHeadings : []"
+                        highlight
+                        [rows]="3" />
                 </div>
             } @else {
                 <div class="slot field-control">

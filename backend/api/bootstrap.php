@@ -66,3 +66,4 @@ require_once __DIR__ . '/images.php';
 require_once __DIR__ . '/translations.php';
 require_once __DIR__ . '/people.php';
 require_once __DIR__ . '/admin_tools.php';
+require_once __DIR__ . '/site_settings.php';

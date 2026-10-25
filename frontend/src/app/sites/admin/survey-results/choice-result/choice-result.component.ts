@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { IconComponent } from '@anotoki/lib/ui/icon';
+import { RichHtmlComponent } from '@anotoki/lib/ui/rich-html';
 import { AdminDates } from '../../../../shared/admin/admin-dates.service';
 import { ChoiceSummary, Tally } from '../../../../shared/survey/results';
 import { Question } from '../../../../shared/survey/survey.model';
@@ -13,7 +14,7 @@ import { QUESTION_TYPES } from '../../survey-editor/question-editor/question-edi
  */
 @Component({
   selector: 'app-choice-result',
-  imports: [ImageStripComponent, BarListComponent, IconComponent],
+  imports: [ImageStripComponent, BarListComponent, IconComponent, RichHtmlComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './choice-result.component.html',
   styleUrl: './choice-result.component.scss',

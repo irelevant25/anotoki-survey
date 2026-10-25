@@ -4,6 +4,7 @@ import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { type ChipItem, ChipListComponent } from '@anotoki/lib/ui/chips';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
 import { IconComponent } from '@anotoki/lib/ui/icon';
+import { richHtmlText } from '@anotoki/lib/ui/rich-html';
 import { SpinnerComponent } from '@anotoki/lib/ui/spinner';
 import { ConfirmService } from '@anotoki/lib/ui/dialog';
 import { DrawerComponent } from '@anotoki/lib/ui/drawer';
@@ -16,7 +17,6 @@ import { AuthService } from '../../../shared/auth/auth.service';
 import { AGE_ID, GENDER_ID, ageLabel, genderLabel } from '../../../shared/survey/about-you';
 import { isChoice } from '../../../shared/survey/answer-rules';
 import { responsesCsv } from '../../../shared/survey/csv';
-import { plainText } from '../../../shared/survey/plain-text';
 import { ResultFilter, aboutYouSummary, choiceSummary, describeFilter, durationSeconds, filterResponses, matchesFilter, medianDuration, writtenAnswers } from '../../../shared/survey/results';
 import { numberedQuestions } from '../../../shared/survey/survey-outline';
 import { SurveyResponse } from '../../../shared/survey/survey.model';
@@ -262,7 +262,7 @@ export class SurveyResultsComponent {
       return {
         filter: null as ResultFilter | null,
         title: `Answers to question ${found.number}`,
-        subtitle: `${plainText(found.question.text)} · ${rows.length} wrote something`,
+        subtitle: `${richHtmlText(found.question.text)} · ${rows.length} wrote something`,
         rows,
         back: `All ${rows.length} answers`,
       };

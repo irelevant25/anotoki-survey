@@ -16,19 +16,22 @@
                                         ├─ survey_rules.php, rich_text.php: what may be kept   images, survey_images, users
                                         ├─ people.php, admin_tools.php (anotoki/lib) ──────▶ users, anotoki_people_*,
                                         │  error log and backups: files under storage/          anotoki_audit_log
+                                        ├─ site_settings.php (anotoki/lib): the site settings, ──▶ anotoki_site_settings,
+                                        │  Page access (PageAccessGate), robots.txt, sitemap.xml   anotoki_page_access
  TranslationService ── /api/translations/{code} ──▶ translations.php ─────────────────────▶ languages, translation_keys,
    (no token: the same for everybody)                                                        translations
 ```
 
 One origin everywhere: on the hosting the web root holds the built app and
-`api/` beside it (`.htaccess` routes `/api/*` to `api/index.php`); in
-development `ng serve` on :4700 proxies `/api` and `/setup.php` to
+`api/` beside it (`.htaccess` routes `/api/*`, `/robots.txt` and
+`/sitemap.xml` to `api/index.php`); in development `ng serve` on :4700
+proxies `/api`, `/robots.txt`, `/sitemap.xml` and `/setup.php` to
 `php -S localhost:8500 router.php`. There is no CORS, on purpose.
 
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib 0.10.0, its
+client `survey`, with the anotoki family's library (anotoki-lib 0.11.0, its
 `Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
@@ -95,7 +98,7 @@ so nobody was signed out by the move):
 | --- | --- |
 | `MEMBER` | every account holds it (the IAM gives it to everyone): an ordinary person - take surveys, once each, while open. No check here asks for it; a token without it (an older one) is the same |
 | `EDITOR` | the admin panel: write and translate surveys, open and close them, preview, read every answer, export; reword the site's strings, add and hide languages |
-| `ADMIN` | all of that, and delete surveys, answers and languages; see and apply the database's migrations (the Migrations page); the System pages - the people, feedback, the error log, the audit log, the backups |
+| `ADMIN` | all of that, and delete surveys, answers and languages; see and apply the database's migrations (the Migrations page); the System pages - the site settings, the people, feedback, the error log, the audit log, the backups |
 
 The frontend hides what a role may not do (`AuthService.isStaff`, `isAdmin`);
 the backend decides (`requireStaff()`, `requireAdmin()` in
@@ -300,7 +303,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib 0.10.0, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib 0.11.0, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -345,15 +348,17 @@ answer, every survey's author and every visitor lives in `users`):
 ## The admin tools
 
 The error log, the audit log, feedback and the backups are the anotoki
-family's (anotoki-lib 0.10.0, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
+family's (anotoki-lib 0.11.0, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
 `Feedback`, `Backups` - wired in `api/admin_tools.php`, their routes in
 `routes/admin.php` (feedback's form in `routes/feedback.php`); the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/feedback`, `/backups`, configured in
 `shared/admin/admin-tools.ts`), for the site's ADMIN alone (the owner's
 decision): ADMIN from the token, both sides; an EDITOR is told whose the pages
-are, and the API refuses. The admin panel's System page (`/admin/system`, the
-top bar's System link - each way a card that is one link, the kit's
-`a[anotokiLinkCard]`) leads to them, the People page and the Migrations page.
+are, and the API refuses. Each is a link of its own in the System group of
+the admin panel's column, beside Site settings, the People page and the
+Migrations page (*The admin panel's frame*, below; the System page that led
+to them before, `/admin/system`, is gone - its address goes on to Site
+settings).
 Since anotoki-lib 0.6.0 no refusal or answer of theirs carries a failure's own
 words: a backup's, a restore's or its after-work's failure is a fixed sentence
 of the library's ("... The error log says why."), the failure itself in the
@@ -394,9 +399,9 @@ and are in every backup).
   Delete does; a status change and a delete are audited, a delete inside its
   own transaction, so a restore deletes the message again. The Feedback page
   (`/admin/feedback`) is an ADMIN's; how many messages nobody opened yet
-  stands beside the bar's System link and on the System page's card (the
-  library's `FeedbackUnread`, asked as the admin panel opens and as the System
-  page does - never while the site cannot run): no mail is sent for one. The
+  stands beside the Feedback link of the panel's column (the library's
+  `FeedbackUnread`, asked as the admin panel opens and again when an ADMIN
+  signs in there - never while the site cannot run): no mail is sent for one. The
   form's words are the library's (`anotoki.feedback.*`), in this site's
   formal Slovak where they speak to the reader (migration 014,
   `FORMAL_SLOVAK`).
@@ -469,6 +474,101 @@ and are in every backup).
   restore keeps), so the Delete done again does not name them and they come
   back as "Visitor N" - `docs/decisions.md`.
 
+## The site settings
+
+Switches the site's ADMIN throws without a deploy, kept in the library's
+tables (`anotoki_site_settings`, `anotoki_page_access`: its set
+`anotoki_admin`, 003) - the anotoki family's (anotoki-lib 0.11.0, the owner's
+request of 2026-10-25: genshin's site settings on every site). This site
+offers all three parts; the admin panel's Site settings page is the library's
+(`@anotoki/lib/admin/site-settings`, lazy), its routes
+`/api/admin/site-settings` (ADMIN alone, each change audited - [api](api.md)).
+The backend's wiring is `api/site_settings.php` (`surveySiteSettings()`), the
+frontend's `shared/site-settings.ts` (`provideSiteSettings()`).
+
+- **Getting in** - maintenance: the site closed to everybody but its ADMIN.
+  The server's half is the family's gate (`SiteGate` in `api/index.php`, the
+  status's `SiteState` told the settings in `api/migrations.php`): 503
+  `maintenance` with the administrators' own words, but to the site's ADMIN,
+  whom the gate knows by a verified token alone (`exempt:` -
+  `surveyTokenPerson()`, the library's `AccessTokens::personOf()`: the gate
+  runs before any route identifies the request, so it checks the token itself;
+  a forged, expired or another site's token is nobody's). The status says
+  `maintenance`, and the pages' half is the migrations module's: its gate
+  draws the family's closed sign (`<anotoki-maintenance-page>`, bare - no bar,
+  no footer) in the reader's language with the administrators' words, for
+  everybody `SiteStatus.blocked()` says is kept out - never the ADMIN, who sees
+  the site as it is, with a line above each page saying it is closed
+  (`<anotoki-page-notice>`, in the participant's, the legal and the admin
+  panel's frames). The way back in for an administrator signed out is
+  **`/staff`** (`STAFF_PATH`, a route of its own before a survey's `/{slug}`,
+  `staffGuard`): there the closed sign offers Sign in, and the sign-in comes
+  back to the home page; while the site runs `/staff` goes on to the admin
+  panel. `staff` is a reserved survey address, as `admin` is. The legal pages,
+  About, Support and the sign-in's way back stay open while closed.
+- **Announcement** - a bar above the public site's pages
+  (`<anotoki-announcement>` above the top bar, after the skip link, in the
+  participant's and the legal frames - not in the admin panel), `info`,
+  `warning` or `danger`, in the page's language (English where the language
+  has no words, nothing where English has none either). Its reader may hide
+  it: a mark of its kind and words, never the words, in
+  `anotoki-survey:announcement` until they change (the Privacy page names it,
+  the legal facts' storage preset `announcement`).
+- **Page access** - the participant's pages: the list of open surveys (`/`)
+  and a survey's own page (`/{slug}`, its thank-you included), each switched
+  off or kept for people signed in, for editors or for administrators. The
+  pages' half is `pageAccessGuard` (a `canMatch` on both routes,
+  `sites/main/main.routes.ts`): a page kept from its reader falls through to
+  the not-found page at the address typed - never a redirect that says it is
+  there. The server's half is the library's `PageAccessGate`, right inside
+  the `Identify` of each group whose data a page holds (`routes/surveys.php`,
+  `visitor.php`, `feedback.php`, the editors' groups of `admin.php` after their
+  roles' check): the API paths a row names answer 423 `page_locked` to
+  everybody the page is not shown to. The ADMIN is never refused one, and a
+  visitor is nobody (a row for people signed in keeps them out). Nothing in
+  the browser is a boundary.
+- **What stays everybody's** whatever a row or the switch says (reserved):
+  the library's paths (the status, the bundles, the settings' two routes)
+  and this site's - its sign-in configuration (`/api/auth/config`: an
+  administrator signs in with it) and the pictures (`/api/images`: an `<img>`
+  carries no token, so a row claiming them would refuse every picture to
+  everybody, the administrators too). The surveys' own routes are not among
+  them, on purpose: maintenance closes them like everything else, and an
+  answer being written stays in the browser's draft (the take page's
+  `siteClosed`, maintenance among it) and goes once the site takes it. The
+  pages no row governs: the library's (`/auth`, `/staff`, `/admin`, the legal
+  pages, About, Support) and the editor's preview (`/preview`); a row that
+  would cover one, as `/:x` covers `/staff`, is refused.
+- **What every page is told** (`GET /api/site-settings`: whether the site is
+  closed, the announcement, the governed pages - never their API paths) is
+  read once as the site starts (`SiteSettings.load()` in `boot()`, before the
+  first navigation, which the guard decides; nobody's request - the sign-in
+  skips it) and again after the Site settings page saves.
+
+### robots.txt and sitemap.xml
+
+The site's PHP answers both (the library's `Robots` and `RobotsRoutes`,
+anotoki-lib 0.11.0 - the owner's request of 2026-10-25: on every site;
+`surveyRobots()`, `routes/public.php`; the release's `.htaccess` and
+`router.php` send them to the front controller - the deploy tool's `routes`,
+`backend/composer.json`). `robots.txt` keeps robots out of `/admin`, `/api`,
+`/auth` - the library's - and this site's `/preview` and `/staff`, and names
+the sitemap. `sitemap.xml` lists Terms, Privacy, Contact, About and Support
+always, and - while the IAM says sign-in is not required, so those pages are
+anybody's - the list of open surveys and each survey taking answers by the
+server's own rule (`SURVEY_TAKING_ANSWERS_SQL`: open, its last day not past;
+never a draft or a closed one), without what Page access keeps from somebody
+signed out. Both by the site's own address (`siteAddress()`,
+`config/config.php`: `config/site.local.php`'s `address`, else
+`https://survey.anotoki.eu` in a release - `release.json` beside the backend
+- and `http://localhost:4700` here; never a request's `Host`, which anybody
+can send). Made afresh for each request - no kept copy (the library's
+`cacheFile`): what is public changes with a survey opened or closed, a
+closing day that passes with no write, and the IAM's switch, none of which a
+copy kept an hour would know of; one query, and the IAM's answer is kept a
+minute already. The answer itself may be kept an hour by a browser or the
+edge (`Cache-Control: public, max-age=3600`).
+
 ## The top bar
 
 The bar is the anotoki family's, the library's `<anotoki-top-bar>`
@@ -528,20 +628,27 @@ surveys" (`topbar.backToSurveys`), to `/`; Sign out - the site's one
 (`SignOut`), so the same question over what is not saved; the theme, the
 family's switch (`<anotoki-theme-toggle adminFrameTheme />` over the shell's
 `ThemeService`: the account's theme, as on every page); then the panel's
-pages, the kit's side navigation in one group - Surveys, Translations,
-Languages (`topbar.*`, the words the bar linked them with) and System for an
-ADMIN (its English word), with how many feedback messages nobody opened yet
-beside it (the family's `FeedbackUnread`, asked as the panel opens and when an
-ADMIN signs in here - never while the site cannot run; heard "System, 2 new
-feedback messages"). A page is marked as the bar marked it (the frame's
-`current`): a survey's editor in Surveys, each System page in System
-(`SYSTEM_PATHS`), nothing on an address none of them is. While a database
+pages, the kit's side navigation in the family's one shape (anotoki-lib
+0.11.0, `PANEL_GROUPS`): Surveys first, under no heading; Localization -
+Translations, Languages (`topbar.*`, the words the bar linked them with);
+then, for an ADMIN, System - Site settings, People, Feedback, Error log,
+Audit log, Backups, Migrations, each its own link (their English words), with
+how many feedback messages nobody opened yet beside Feedback (the family's
+`FeedbackUnread`, asked as the panel opens and when an ADMIN signs in here -
+never while the site cannot run; heard "Feedback, 2 new feedback
+messages"). An EDITOR has Surveys and Localization; the server refuses the
+rest to anybody but the ADMIN. The System page that led to the System pages
+before is gone: `/admin/system` goes on to Site settings, so a link kept from
+before still lands. A page is marked in its section (the frame's `current`):
+a survey's editor in Surveys, nothing on an address none of them is. While a database
 update waits an ADMIN's column holds Migrations alone - the one page that works
 then (`SiteStatus`) - and every page again once it is applied. On the right the
 page, in the measure the panel's pages always had (84rem), and the family's
 footer under it, in the frame's footer (no Feedback while an update waits: the
-server would refuse it). Nothing stands above the page: while an update waits
-the family's page stands instead, but for the ADMIN on the Migrations page.
+server would refuse it). Above the page stands only the ADMIN's line of the
+site settings (`<anotoki-page-notice>`: the site closed for maintenance, pages
+kept from others); while an update waits the family's page stands instead,
+but for the ADMIN on the Migrations page.
 
 Up to 860 px (the frame's own measure) it is a phone's frame: a row with the
 panel's name and Menu, the page in the window under it; Menu opens the side
@@ -568,8 +675,8 @@ the theme switch and the language switcher (`@anotoki/lib/shell`). Their
 class names are the library's own (`.anotoki-<piece>__<part>`,
 `anotoki-<piece>--<state>`): a spec or the browser check that reads the kit's
 markup reads those. The
-survey keeps only its own: the rich text editor, the lightbox, a survey's
-picture and the strip of pictures (`src/app/shared/ui/`, and each half's
+survey keeps only its own: the lightbox, a survey's picture and the strip of
+pictures (`src/app/shared/ui/`, and each half's
 own: `sites/main/common/`, `sites/admin/shared/`), the layouts' states, and
 the look of the raw fields a page draws itself (`src/styles/_fields.scss`,
 inside each such component's styles).
@@ -579,8 +686,9 @@ inside each such component's styles).
   this site never had colours of its own against, so it overrides none -
   Manrope, the base, the utilities and the tables. The survey adds its own
   few tokens (the highlighter, the results' bars, the night sky, a decorative
-  rule) and `.rich`, `mark` and the drag and drop - nothing a kit component
-  could meet.
+  rule) and `.rich` (the survey's typography over the library's
+  `<anotoki-rich-html>`, below), `mark` and the drag and drop - nothing a kit
+  component could meet.
 - **The words**: the kit has its own (Sign in, the menus' names, a toast's X,
   "Saving…"), built in for English and informal Slovak - and each is a key of
   the library's in the site's database too, `anotoki.<word>` (the library's
@@ -597,15 +705,31 @@ inside each such component's styles).
   an icon nobody registered draws nothing.
 - **The theme** is the kit's `ThemeService` (*The account's preferences*,
   below), told the site's storage key and the account.
-- **0.6.0's pieces** where the site drew its own: the home page's surveys and
-  the System page's ways are the kit's link cards (`a[anotokiLinkCard]`, the
-  layout inside each card the page's), the results' filters its removable
+- **0.6.0's pieces** where the site drew its own: the home page's surveys are
+  the kit's link cards (`a[anotokiLinkCard]`, the layout inside each card the
+  page's), the results' filters its removable
   chips (`<anotoki-chip-list>`: each remove button named with the question,
   cut short, and the answer; the focus to the next chip, and to the results'
   tab when the last goes). The survey's segmented progress on its night sky,
-  the editor's toolbar (TipTap) and language tabs, the pagers, the picture row
-  and the closing day's date field stay its own ([decisions](decisions.md)
-  says why).
+  the editor's language tabs, the pagers, the picture row and the closing
+  day's date field stay its own ([decisions](decisions.md) says why).
+- **0.11.0's pieces** where the site had its own: the text editor is the
+  family's `<anotoki-html-editor>` (`@anotoki/lib/ui/html-editor`, TipTap
+  gone from the site) with the survey's buttons (`SURVEY_TEXT_TOOLS`,
+  `sites/admin/shared/text-tools.ts`: the words' formats, the two lists, a
+  link, clearing, undo and redo), the highlighter everywhere, `h2` and `h3` on
+  the welcome and the thank-you screens, and - for a question's and a step's
+  own text - pictures pasted or dropped going under the text through the
+  survey's own picture handling (`images`/`pastedImages`, the image list and
+  `prepare-image.ts`), never into it; every stored text is drawn by
+  `<anotoki-rich-html>` (`@anotoki/lib/ui/rich-html`: the same allow-list as
+  the server's, cleaned again as it is drawn - no `[innerHTML]` of a stored
+  text is left), in the survey's own typography (`.rich.anotoki-rich-html` in
+  `styles.scss`, a step above the library's own rules); a date and how long
+  ago are `@anotoki/lib/ui/dates` (*The account's preferences*, below); and a
+  text is folded for search and for a survey's address by
+  `@anotoki/lib/ui/search`'s `foldText()` (`shared/survey/survey-factory.ts`,
+  the editor's settings).
 
 ## Terms, Privacy and Contact
 
@@ -750,13 +874,19 @@ the answer into `user()` at once, in every tab, and the next token carries it.
   (`anotoki-survey:theme`), where the family's `theme-boot.js` (`angular.json`
   copies it from `@anotoki/lib/assets`; `index.html` names the key) paints it
   before the app has loaded.
-- **Dates and times**: the pages people take surveys on write dates through
-  `localDate`, the admin panel through `AdminDates`
-  (`shared/admin/admin-dates.service.ts`, the English `shared/util/dates.ts` with
-  the account's choices) - both in the account's order when it has chosen one
-  (`shared/util/date-patterns.ts`), the admin panel's times on its clock too
-  ("2026-09-29 2:30 pm"; a date and a time side by side when either is
-  chosen). Nothing chosen - or nobody signed in - is each language's own way.
+- **Dates and times** are the family's (`@anotoki/lib/ui/dates`, anotoki-lib
+  0.11.0): the pages people take surveys on write dates through its
+  `anotokiDate` pipe and how long ago through `anotokiAgo`, in the page's
+  language, the account's choices given the kit once (`dateChoices` in
+  `shared/kit.ts`); the admin panel through `AdminDates`
+  (`shared/admin/admin-dates.service.ts`, the English `shared/util/dates.ts` -
+  the library's functions in `en-GB` - with the account's choices) - both in
+  the account's order when it has chosen one, the admin panel's times on its
+  clock too ("2026-09-29 2:30 pm"; a date and a time side by side when either
+  is chosen). Nothing chosen - or nobody signed in - is each language's own way.
+  How long ago counts whole minutes and hours ("5 minutes ago" until the
+  sixth has passed) and calendar days ("yesterday" is the day before, whatever
+  the hour).
   The pages people take surveys on write no time of day. The answers' CSV
   stays ISO: it is data.
 - **The language** (*The site's own words*, below): the account's outranks
@@ -840,10 +970,14 @@ the Migrations page's three routes - `/api/admin/migrations`, `/file` and
 `/apply`, those addresses exactly and nothing else under them - ADMIN from the
 token alone),
 **unavailable** (the database out of reach - the routes' own answers) or
-**ready**. `GET /api/site-status` says it, in every state.
+**ready** - and a ready site its ADMIN closed for maintenance (the site
+settings, *The site settings* above: 503 `maintenance` to all but that ADMIN,
+the status saying `maintenance`). `GET /api/site-status` says it, in every
+state.
 
 Every `config/*.local.php` - the database's and the IAM's, which `setup.php`
-writes, and the visitors' and Cloudflare's, written by hand - is read the one
+writes, and the visitors', Cloudflare's and the site's address, written by
+hand - is read the one
 careful way (`settingsFileReadCleanly()` in `config/config.php`, the IAM's
 rule; [decisions](decisions.md), 2026-10-18). One that does not start with
 `<?php` - a byte-order mark, a blank line or a space before it, or no `<?php`
@@ -859,7 +993,8 @@ and never sent, and the file is passed over, as is one PHP cannot parse, run
 or open. What passing over means is the caller's: the database's or the IAM's
 file leaves the site not set up (the setup page on this computer naming the
 file and its fault - never a 500, never its text), the visitors' file the
-defaults, Cloudflare's a secret no request carries (*Visitors*, above). Each
+defaults, Cloudflare's a secret no request carries (*Visitors*, above), the
+address's file the default address (*robots.txt and sitemap.xml*, above). Each
 fault is said in PHP's error log at most once a day (`settingsSaid()`, a
 stamp in `storage/cache`) by its kind and line, that it does not start with
 `<?php`, or the bytes the file printed - never its text, nor what PHP said of
@@ -942,7 +1077,8 @@ sentences stay English and are never shown to somebody taking a survey.
   clock, so nobody it still lets in is turned away.
 - **A blank text**: both sides take for a space exactly what the browser's
   `trim()` takes away - `TEXT_SPACE` in `api/helpers.php` writes that set out,
-  character for character, and `textTrim()` and `richTextPlain()` use it
+  character for character, and `textTrim()` uses it, as the library's
+  `RichHtml::isBlank()` does for a rich text with no words (the same set)
   (`\s` and `\p{Z}` in PHP also take U+0085 and U+180E, which the browser does
   not). So the two sides find the same labels empty, the same translations
   missing a text, the same answers given. The site's own strings and the
@@ -953,14 +1089,18 @@ sentences stay English and are never shown to somebody taking a survey.
   box holding nothing to see over no string is none (no "1 string changed",
   no "The string is saved."). A blank box over a string is still a change - it
   means "delete the row".
-- **Rich text** (question texts, a step's own text, welcome, thanks): the
-  server keeps only what
-  the editor makes - `p br strong b em i u s mark a ul ol li h2 h3`, a link's
-  address (http, https, mailto; always a new tab), a list's start - and drops
-  or unwraps the rest (`api/rich_text.php`), the same for all four. The
-  editor's own HTML comes back byte for byte. The frontend shows it with
-  `[innerHTML]` (Angular sanitizes once more; nothing bypasses it) - a step's
-  text exactly as a question's.
+- **Rich text** (question texts, a step's own text, welcome, thanks): one
+  allow-list on both sides, the anotoki family's (anotoki-lib 0.11.0): the
+  server keeps what the family's editors make - the survey's editor writes `p
+  br strong em u s mark a ul ol li h2 h3`, and `div b i strike span font h4`,
+  five bounded inline styles, `<font>`'s size, face and colour survive too, a
+  link's address only a web address with its host or a mail address (always a
+  new tab), a list's start - and drops or unwraps the rest
+  (`RichHtml::clean()` in `api/rich_text.php`), the same for all four. The
+  editor's own HTML comes back byte for byte. The frontend draws it with
+  `<anotoki-rich-html>`, which cleans it again by the same rules (nothing
+  bypasses it; no `[innerHTML]` of a stored text) - a step's text exactly as a
+  question's.
 
 ## Saving in the editor
 
@@ -1087,7 +1227,7 @@ presses Next, the step after it asks about it; [decisions](decisions.md)).
   question, its text ready to be written; "Text and pictures" in a step's row
   of things to add gives a step of questions its own text above them. Its
   text and pictures stand above its questions as a card of their own - the
-  editor's rich text field (`app-rich-text-editor`, no headings, as a
+  editor's text field (the family's `<anotoki-html-editor>`, no headings, as a
   question's) and the row of pictures (`app-image-list-editor` for a step:
   a file, a drop, a paste into the text); a step with neither shows none until
   asked. A step with nothing at all is a problem ("Step 3 is empty - …"); the
@@ -1096,8 +1236,8 @@ presses Next, the step after it asks about it; [decisions](decisions.md)).
   which go with it. On a translation's tab the step's text and its pictures'
   descriptions are pairs like a question's (`stepText`, `stepImage` places),
   counted on the tab, the outline's step and "Next missing".
-- **People** (`take-survey`): the step's title, its text (`[innerHTML]` with
-  the class `rich`, as a question's text) and its pictures (`sites/main/common/image-gallery`,
+- **People** (`take-survey`): the step's title, its text (`<anotoki-rich-html>`
+  with the class `rich`, as a question's text) and its pictures (`sites/main/common/image-gallery`,
   the question's own), then its questions if it has any; Next and Back as
   ever - a step of text alone has nothing to check. It counts as a step in the
   welcome's "N questions in M steps", the hero's progress and a draft (which
@@ -1227,7 +1367,7 @@ comes.
   clicks.
 
 **On a page.** `{{ 'home.title' | translate }}`,
-`{{ 'home.questions' | translatePlural: n }}`, `{{ iso | localDate: 'day' }}` -
+`{{ 'home.questions' | translatePlural: n }}`, `{{ iso | anotokiDate: 'day' }}` -
 impure pipes, so a switch of language re-words the page without a reload. In
 code, `i18n.t(key, params)`, `plural(key, count)`, `around(key, placeholder)`
 (a sentence cut at one placeholder, for markup inside it) - inside a
@@ -1256,7 +1396,8 @@ it.
   an address, the IAM's answer or what a person typed. A failed request is
   worded from its code (`error-text.ts`), never with the server's sentence.
 - Dates and "5 minutes ago" go through `Intl` in the language on the page
-  (`localDate`); `shared/util/dates.ts` keeps the English ones for the admin panel
+  (the library's `anotokiDate` and `anotokiAgo`, `@anotoki/lib/ui/dates`);
+  `shared/util/dates.ts` keeps the English ones for the admin panel
   (through `AdminDates`). Both take the order - and the admin panel the clock -
   the person's anotoki account has chosen, when it has (*The account's
   preferences*, above).

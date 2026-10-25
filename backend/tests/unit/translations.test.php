@@ -374,9 +374,28 @@ test('a string migration\'s gate checks exactly the keys the migration writes, a
         $taking[] = $file;
     }
     assert_same(
-        ['010_strings_through_the_library.sql', '012_sign_in_words.sql', '014_feedback_words.sql'],
+        ['010_strings_through_the_library.sql', '012_sign_in_words.sql', '014_feedback_words.sql', '019_library_dates_and_site_settings.sql'],
         $taking,
-        'the migrations that take the library\'s words over: the kit\'s, signing in\'s, then the feedback form\'s',
+        'the migrations that take the library\'s words over: the kit\'s, signing in\'s, the feedback form\'s, then the dates\'',
+    );
+});
+
+test('019 knows the library\'s own words of the dates as its 014 writes them - and moves the site\'s two there, which go', function (): void {
+    $sql = str_replace("\r\n", "\n", migration_sql('019_library_dates_and_site_settings.sql'));
+    assert_true((bool) preg_match('/CREATE TEMPORARY TABLE library_words\b.*?\(VALUES\n(.*?)\n\) AS w/s', $sql, $m), 'the library\'s words could not be read from 019');
+    preg_match_all("/\\('([^']+)', '([a-z]{2})', '((?:[^']|'')*)'\\)/", $m[1], $rows, PREG_SET_ORDER);
+    assert_same(4, count($rows), 'its rows were read: two keys, two languages');
+    foreach ($rows as [, $key, $code, $value]) {
+        assert_same(LibraryWords::all()[$key][$code] ?? null, str_replace("''", "'", $value), "$key ($code)");
+    }
+    $keys = array_values(array_unique(array_column($rows, 1)));
+    assert_same(in_order(migration_keys('019_library_dates_and_site_settings.sql')['keys']), in_order($keys), 'every key 019 writes, and no other');
+    assert_same([], array_values(array_intersect(database_keys(), ['time.justNow', 'time.onDate'])), 'the site\'s two keys are gone: nothing asks for them any more');
+    $dates = ['anotoki.dates.justNow', 'anotoki.dates.onDate'];
+    assert_same(
+        [['anotoki.dates.justNow' => 'just now', 'anotoki.dates.onDate' => 'on {date}'], ['anotoki.dates.justNow' => 'práve teraz', 'anotoki.dates.onDate' => '{date}']],
+        [strings_of('en', $dates), strings_of('sk', $dates)],
+        'the pages say what this site said - the library\'s words, word for word',
     );
 });
 
@@ -485,4 +504,37 @@ test('the scan reads the real frontend: only the files it should, and their comm
         assert_match('/\.(ts|html)$/', $file);
         assert_no_match('~\.spec\.ts$|^shared/testing/~', $file);
     }
+});
+
+/**
+ * Where the templates at $root give the family's safe view of HTML (<anotoki-rich-html [html]>, anotoki-lib 0.11.0 - in
+ * place of [innerHTML]) a string of the site's: "file: the value" each.
+ *
+ * @return list<string>
+ */
+function html_given_strings(string $root): array
+{
+    $found = [];
+    foreach (surveyKeyScanner($root)->sourceFiles() as $file) {
+        if (!str_ends_with($file, '.html')) {
+            continue;
+        }
+        preg_match_all('/\[html\]\s*=\s*"([^"]*)"/', (string) file_get_contents("$root/$file"), $values);
+        foreach ($values[1] as $value) {
+            if (preg_match('/\btranslate(Plural)?\b|\.(t|plural|around|aroundPlural)\s*\(/', $value) === 1) {
+                $found[] = "$file: $value";
+            }
+        }
+    }
+
+    return $found;
+}
+
+test('a site string is only ever text: the safe view of HTML is given a survey\'s texts, never a translated string - the rule [innerHTML] had', function (): void {
+    $root = sources([
+        'sites/main/home/home.component.html' => "<anotoki-rich-html [html]=\"'home.title' | translate\" />\n<anotoki-rich-html class=\"rich\" [html]=\"question().text\" />\n",
+        'sites/main/home/home.component.ts' => "export const x = 1;\n",
+    ]);
+    assert_same(["sites/main/home/home.component.html: 'home.title' | translate"], html_given_strings($root), 'a translated string is found; a survey\'s text is not');
+    assert_same([], html_given_strings(translationKeysFrontendRoot()), 'the real frontend gives the view the survey\'s texts alone');
 });

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { SiteFooterComponent } from '@anotoki/lib/footer';
 import { ANOTOKI_LEGAL_CONFIG } from '@anotoki/lib/legal';
+import { AnnouncementComponent, PageNoticeComponent } from '@anotoki/lib/site-settings';
 import { TranslatePipe } from '@anotoki/lib/translations';
 import { Changelog } from '../../../shared/changelog/changelog.service';
 import { surveyLegalPagesConfig } from '../../../shared/legal/legal-facts';
@@ -11,7 +12,8 @@ import { TopBarComponent } from '../common/top-bar/top-bar.component';
  * The legal pages' frame - Terms, Privacy and Contact, the anotoki family's
  * pages (@anotoki/lib/legal/pages, lazy routes in app.routes.ts), and About
  * and Support (@anotoki/lib/legal/about, /support), the same on every anotoki
- * site: the frame the survey's own pages have (the skip link, the top bar, the
+ * site: the frame the survey's own pages have (the skip link, the site
+ * settings' announcement and the administrators' notice, the top bar, the
  * column - one stylesheet, styles/_participant-frame.scss - and the anotoki
  * family's footer, <anotoki-site-footer>: the version and What's new,
  * Feedback, anybody's here, and About · Support · Terms · Privacy · Contact) -
@@ -26,7 +28,7 @@ import { TopBarComponent } from '../common/top-bar/top-bar.component';
  */
 @Component({
   selector: 'app-legal-layout',
-  imports: [RouterOutlet, SiteFooterComponent, TopBarComponent, TranslatePipe],
+  imports: [RouterOutlet, AnnouncementComponent, PageNoticeComponent, SiteFooterComponent, TopBarComponent, TranslatePipe],
   providers: [{ provide: ANOTOKI_LEGAL_CONFIG, useFactory: surveyLegalPagesConfig }],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './legal-layout.component.html',

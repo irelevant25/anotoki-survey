@@ -185,12 +185,16 @@
                         </div>
                         <div class="field">
                             <span class="field-label">Introduction</span>
-                            <app-rich-text-editor
+                            <anotoki-html-editor
                                 [value]="survey.intro"
                                 (valueChange)="patch({ intro: $event })"
                                 label="Introduction"
+                                hideLabel
                                 placeholder="Why you ask, and how long it takes…"
-                                [headings]="true" />
+                                [tools]="textTools"
+                                [headings]="textHeadings"
+                                highlight
+                                [rows]="3" />
                         </div>
                     }
                 </section>
@@ -293,13 +297,17 @@
                             <!-- The step's own text and pictures, above its questions - or alone: a step people read and leave with Next. -->
                             @if (showsText(step)) {
                                 <div class="step-own">
-                                    <app-rich-text-editor
+                                    <anotoki-html-editor
                                         [value]="step.text"
                                         (valueChange)="setStepText(step.id, $event)"
                                         [label]="'Text of step ' + (i + firstStep())"
+                                        hideLabel
                                         placeholder="What people read on this step - a task to do, say - above its questions, or alone…"
+                                        [tools]="textTools"
+                                        highlight
+                                        [rows]="3"
                                         [autofocus]="justAddedText() === step.id"
-                                        [acceptImages]="true"
+                                        images
                                         (pastedImages)="stepImages.addFiles($event)" />
                                     <div class="step-pictures">
                                         <p class="section-label">Pictures under the text</p>
@@ -410,7 +418,16 @@
                     @if (language()) {
                         <app-translated-text [rich]="true" [headings]="true" [place]="{ kind: 'thanks' }" [original]="survey.thanks" label="Thank-you text" />
                     } @else {
-                        <app-rich-text-editor [value]="survey.thanks" (valueChange)="patch({ thanks: $event })" label="Thank-you text" placeholder="Thank you for your answers…" [headings]="true" />
+                        <anotoki-html-editor
+                            [value]="survey.thanks"
+                            (valueChange)="patch({ thanks: $event })"
+                            label="Thank-you text"
+                            hideLabel
+                            placeholder="Thank you for your answers…"
+                            [tools]="textTools"
+                            [headings]="textHeadings"
+                            highlight
+                            [rows]="3" />
                     }
                 </section>
             </div>

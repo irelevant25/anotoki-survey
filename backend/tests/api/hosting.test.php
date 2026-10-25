@@ -113,7 +113,10 @@ test('the build: the release - the app in frontend/, the code in backend/, nothi
         'vendor/anotoki/lib/backend/src/Auth/AccessTokens.php', 'vendor/anotoki/lib/backend/src/Auth/Http/Identify.php',
         'vendor/anotoki/lib/backend/src/People/Scrubber.php', 'vendor/anotoki/lib/backend/migrations/people/001_people.sql',
         'vendor/anotoki/lib/backend/src/Backups/Backups.php', 'vendor/anotoki/lib/backend/src/ErrorLog/ErrorLog.php', 'vendor/anotoki/lib/backend/src/Audit/AuditLog.php',
-        'vendor/anotoki/lib/backend/migrations/admin/001_audit_log.sql'] as $file) {
+        'vendor/anotoki/lib/backend/migrations/admin/001_audit_log.sql',
+        // The site settings, robots.txt and sitemap.xml, and the texts' cleaning: the library's (anotoki-lib 0.11.0).
+        'api/site_settings.php', 'migrations/survey/019_library_dates_and_site_settings.sql', 'vendor/anotoki/lib/backend/migrations/admin/003_site_settings.sql',
+        'vendor/anotoki/lib/backend/src/SiteSettings/SiteSettings.php', 'vendor/anotoki/lib/backend/src/Robots/Robots.php', 'vendor/anotoki/lib/backend/src/RichHtml/RichHtml.php'] as $file) {
         assert_true(in_array("backend/$file", $files, true), "backend/$file is in the release");
     }
     assert_false(in_array('backend/api/anotoki_iam.php', $files, true), 'the IAM\'s PHP SDK is the library\'s now (Anotoki\Lib\Auth)');
@@ -125,7 +128,7 @@ test('the build: the release - the app in frontend/, the code in backend/, nothi
     assert_same('survey', json_decode((string) file_get_contents("$root/backend/release.json"), true)['site'], 'release.json says whose release it is');
 
     $htaccess = (string) file_get_contents("$root/frontend/.htaccess");
-    assert_true(str_contains($htaccess, 'RewriteRule ^(api)(/|$) index.php [L]'), '/api/ goes to the front controller');
+    assert_true(str_contains($htaccess, 'RewriteRule ^(api|robots\.txt|sitemap\.xml)(/|$) index.php [L]'), '/api/, robots.txt and sitemap.xml go to the front controller, before any file is looked for');
     assert_true(str_contains($htaccess, 'RewriteRule ^setup\.php$ index.php [L]'), 'and the setup page');
     assert_true(str_contains($htaccess, "RewriteCond %{REQUEST_URI} !\\.[^/]*$\n    RewriteRule ^ index.html [L]"), 'the app\'s routes get the app; an old bundle stays a 404');
     assert_true(str_contains($htaccess, 'SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1'), 'the token reaches PHP under CGI too');
@@ -217,7 +220,11 @@ test('the setup page on a real host: the token, the tests, the database - the se
     assert_same($cloudflare, file_get_contents("$root/config/cloudflare.local.php"), 'the origin secret, uploaded by hand: left as it was');
     assert_false(str_contains($done['raw'], $originSecret), 'and never shown');
     assert_match('/<h1>Installed<\/h1>/', $done['raw']);
-    assert_match('/Made the tables \(anotoki_admin\/001_audit_log\.sql, anotoki_admin\/002_feedback\.sql, 001_initial_schema\.sql, 002_/', $done['raw'], 'the library\'s admin set first, by its set; the site\'s own by their names');
+    assert_match(
+        '/Made the tables \(anotoki_admin\/001_audit_log\.sql, anotoki_admin\/002_feedback\.sql, anotoki_admin\/003_site_settings\.sql, 001_initial_schema\.sql, 002_/',
+        $done['raw'],
+        'the library\'s admin set first, by its set; the site\'s own by their names',
+    );
     assert_match('/anotoki_people\/001_people\.sql\)/', $done['raw'], 'the library\'s people last');
     assert_match('/The setup page has deleted itself/', $done['raw']);
     assert_same(['issuer' => 'https://iam.anotoki.eu', 'client_id' => 'survey', 'cache_dir' => 'storage/cache'], require "$root/config/iam.local.php");
@@ -237,6 +244,16 @@ test('the setup page on a real host: the token, the tests, the database - the se
     assert_same(401, site($site, 'GET', '/api/admin/surveys')['status']);
     assert_same(['ok' => true], site($site, 'GET', '/api/health')['body'], 'a stranger learns only that it is up');
     assert_same(['state' => 'ready', 'installed' => true], site($site, 'GET', '/api/site-status')['body']);
+
+    // robots.txt and the sitemap, from the PHP through the front controller: a release names the address it is
+    // deployed to (SURVEY_RELEASE_ADDRESS, composer.json's) - never the Host it was asked by.
+    $robots = site($site, 'GET', '/robots.txt');
+    assert_same([200, 'text/plain; charset=utf-8'], [$robots['status'], $robots['headers']['content-type'] ?? null]);
+    assert_true(str_contains($robots['raw'], "\nSitemap: https://survey.anotoki.eu/sitemap.xml\n"), $robots['raw']);
+    assert_false(str_contains($robots['raw'], SITE_HOST), 'never the Host a request named');
+    $sitemap = site($site, 'GET', '/sitemap.xml');
+    assert_same(200, $sitemap['status'], $sitemap['raw']);
+    assert_true(str_contains($sitemap['raw'], '<loc>https://survey.anotoki.eu/privacy</loc>'), $sitemap['raw']);
 
     // Its settings lost after the install (a file deleted on the host): not set up - and never the setup page
     // again, which has deleted itself; the site is "not available right now" until the file is back.

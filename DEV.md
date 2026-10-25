@@ -38,10 +38,10 @@ its README), one version for both halves:
 
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
-| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.10.0"` (on 0.x a `^0.9.0` would never take 0.10) | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`backend/testing/stand-in-iam.php`), and its migration sets (`backend/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.10.0/anotoki-lib-0.10.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.11.0"` (on 0.x a `^0.10.0` would never take 0.11) | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`backend/testing/stand-in-iam.php`), and its migration sets (`backend/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.11.0/anotoki-lib-0.11.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-Both halves are at 0.10.0 (0.6.0 brought the legal pages, the kit's new pieces
+Both halves are at 0.11.0 (0.6.0 brought the legal pages, the kit's new pieces
 and the admin pages' fixes; 0.6.1 a sentence of the Privacy page - its
 translations `010`; 0.6.2 three more - `011`, which keeps a site's own
 words - and the feedback form; 0.6.3 the family's footer, `@anotoki/lib/footer`,
@@ -53,7 +53,13 @@ for - the site's own interceptor gone - and the library's words in the
 reader's language while no bundle is in memory; 0.8.0 the About and Support
 pages and the footer's links to them - translations `013` - and the feedback
 form's kept draft and Clear; 0.10.0 the admin panel's frame, `@anotoki/lib/admin/frame` -
-the site's admin panel in it, its top bar the public site's alone); a release that changes one half only says so in its CHANGELOG. The
+the site's admin panel in it, its top bar the public site's alone; 0.11.0 the site
+settings - `@anotoki/lib/site-settings`, `@anotoki/lib/admin/site-settings`,
+`Anotoki\Lib\SiteSettings`, their tables `anotoki_admin/003` -, robots.txt and
+sitemap.xml (`Anotoki\Lib\Robots`), the HTML editor and rich text
+(`@anotoki/lib/ui/html-editor`, `/ui/rich-html`, `Anotoki\Lib\RichHtml`), the
+dates (`@anotoki/lib/ui/dates`), the search's folding (`@anotoki/lib/ui/search`)
+and their words - translations `014` and `015`); a release that changes one half only says so in its CHANGELOG. The
 kit is imported a piece at a time, each from its
 own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
 smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages
@@ -175,7 +181,11 @@ defaults hold - Cloudflare's published ranges the only proxies believed - and
 on this computer every request comes from `127.0.0.1`, one address: 30 new
 visitors an hour from it. `backend/config/cloudflare.local.php` (the origin
 secret, the same in every anotoki site; gitignored, nothing writes it) is for
-the host behind Cloudflare - a computer of yours needs none.
+the host behind Cloudflare - a computer of yours needs none. Nor does
+`backend/config/site.local.php` (`return ['address' => 'https://...'];`,
+optional, gitignored, nothing writes it): the site's own public address, which
+`/robots.txt` and `/sitemap.xml` name - without it `https://survey.anotoki.eu`
+in a release and `http://localhost:4700` here.
 
 ## Day to day
 
@@ -196,8 +206,10 @@ the host behind Cloudflare - a computer of yours needs none.
 | `/admin/surveys/{id}/responses/{id}` | one person's answers on a page of its own |
 | `/admin/translations` | the site's own words: every key, a column a language |
 | `/admin/languages` | the languages: add, rename, reorder, offer or hide, delete (ADMIN) |
-| `/admin/system` | an ADMIN's System pages: `/admin/people`, `/admin/feedback` (what people sent through the feedback form; the count of new ones beside the bar's System link), `/admin/errors`, `/admin/audit`, `/admin/backups`, `/admin/migrations` |
+| `/admin/site-settings` | an ADMIN's System pages, each its own link of the panel's column: `/admin/site-settings` (maintenance, the announcement, Page access), `/admin/people`, `/admin/feedback` (what people sent through the feedback form; the count of new ones beside its link), `/admin/errors`, `/admin/audit`, `/admin/backups`, `/admin/migrations`; `/admin/system`, the System page that led to them before, goes on to Site settings |
+| `/staff` | where an administrator signs in while the site is closed for maintenance (the closed sign with Sign in); while the site runs, the way to the admin panel |
 | `/auth/callback` | where the IAM sends the browser back after signing in |
+| `/robots.txt`, `/sitemap.xml` | the site's PHP (`composer start` serves them; in development `npm start` proxies them to it): what robots leave alone, and the pages anybody may read, by the site's address |
 | `/terms`, `/privacy`, `/contact` | the legal pages - the anotoki family's, with this site's facts - for anybody, signed in or not; Contact opens the feedback form; Terms · Privacy · Contact at the foot of every page people take surveys on |
 | `/about`, `/support` | the anotoki family's About and Support pages, the same on every anotoki site - for anybody, in the legal pages' frame; About · Support first among the footer's links |
 
@@ -371,11 +383,21 @@ admin panel in its English (each looked at up close, light in English and dark
 in Slovak), its What's new opening the survey's own list and its Feedback the
 family's form; Contact's feedback form
 sent by nobody signed in (and in the site's formal Slovak on a phone), then
-that message on the admin panel - counted beside System and on its card,
+that message on the admin panel - counted beside Feedback in the column,
 opened, marked resolved, deleted after its question, audited. It takes about
 eight minutes after the build.
 `CHROME=` names the browser (Edge where Chrome is not installed) and `PHP=`
 a PHP 8.2+ where `php` is an older one.
+
+`--flow=site-settings` runs a short check of its own instead (a minute after
+the build): the admin panel's menu in the family's one shape (an ADMIN's, an
+EDITOR's, on a phone in the drawer) and `/admin/system` going on to Site
+settings; the Site settings page, the announcement written and switched on
+through its dialog and shown above a page's bar in English and Slovak; the site
+closed for maintenance - the closed sign for a visitor, Sign in at `/staff`
+alone, the API's 503 `maintenance`, the ADMIN using the site with the line
+above each page -, opened again; and `/robots.txt` and `/sitemap.xml` from
+the site's PHP, printed, an open survey listed while visitors are welcome.
 
 ## Building and deploying
 

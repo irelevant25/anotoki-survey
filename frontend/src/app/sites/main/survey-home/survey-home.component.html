@@ -31,7 +31,7 @@
                             <span class="survey-meta">
                                 {{ "home.questions" | translatePlural: item.questions }} · {{ "home.minutes" | translatePlural: item.minutes }}
                                 @if (item.survey.closesOn) {
-                                    · {{ "home.openUntil" | translate: { day: (item.survey.closesOn | localDate: "day") } }}
+                                    · {{ "home.openUntil" | translate: { day: (item.survey.closesOn | anotokiDate: "day") } }}
                                 }
                             </span>
                             @if (item.language; as language) {

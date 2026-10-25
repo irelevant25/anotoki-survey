@@ -9,6 +9,7 @@ use Anotoki\Lib\Feedback\Http\FeedbackRoutes;
 use Anotoki\Lib\Migrations\Http\MigrationsRoutes;
 use Anotoki\Lib\Migrations\Migrator;
 use Anotoki\Lib\People\Http\PeopleRoutes;
+use Anotoki\Lib\SiteSettings\Http\SiteSettingsRoutes;
 use Anotoki\Lib\Translations\Http\TranslationsRoutes;
 use Anotoki\Lib\Translations\Translations;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -19,17 +20,21 @@ use Slim\Routing\RouteCollectorProxy;
  * The admin area: EDITOR or ADMIN for everything, ADMIN alone for what cannot
  * be undone (deleting a survey, somebody's answers, or a language), for the
  * database's migrations and for the admin tools (the people, the error log,
- * the audit log, feedback, the backups). Who is asking is the anotoki library's
- * Identify (api/auth.php: the token, never a visitor's key) in front of every
- * group; the roles are the token's alone (requireStaff(), requireAdmin(),
- * api/meddleware/auth.php) - nothing read of the database to decide them.
+ * the audit log, feedback, the backups, the site settings). Who is asking is
+ * the anotoki library's Identify (api/auth.php: the token, never a visitor's
+ * key) in front of every group; the roles are the token's alone
+ * (requireStaff(), requireAdmin(), api/meddleware/auth.php) - nothing read of
+ * the database to decide them. The editors' groups - the surveys', the words'
+ * - pass Page access after their roles' check (the library's PageAccessGate,
+ * $pageAccess: a row may keep an API path for administrators alone); the
+ * ADMIN's own groups need none, for the site's ADMIN is never refused one.
  * Every change here is written into the audit log (api/admin_tools.php): a
  * survey made, opened, closed or deleted, answers deleted, the site's words
  * saved or imported, a language added, changed or deleted, a person's answers
  * deleted, the scrub run, a feedback message's status changed or the message
  * deleted, a backup made, downloaded, deleted or restored, the error log
- * cleared, migrations applied. (A survey's every save is not: its revision
- * says that.)
+ * cleared, migrations applied, a site setting changed, a page's access added,
+ * changed or removed. (A survey's every save is not: its revision says that.)
  *
  *   GET    /api/admin/surveys                     {surveys: [summary]}
  *   POST   /api/admin/surveys                     {survey} -> 201 {survey}: a new draft (a copy is made in the browser)
@@ -107,6 +112,15 @@ use Slim\Routing\RouteCollectorProxy;
  *                         a migration waits, but the restore
  *   GET /api/admin/backups/{id}/file?ticket=   the download itself: DELIBERATELY outside every check - a
  *                         browser's navigation sends no token, and the single-use ticket is the check
+ *   /api/admin/site-settings   the site settings (SiteSettingsRoutes, api/site_settings.php): GET the page's
+ *                         whole (the three parts, each switch with who changed it last, every page's row with
+ *                         its API paths, the reserved paths), PUT {settings: {name: value}} (audited
+ *                         site_settings.changed), POST /pages {path, visibility, blocked, api_paths} (audited
+ *                         page_access.added; 409 page_exists), PUT /pages {pages: [...]} (page_access.changed),
+ *                         DELETE /pages/{id} (page_access.removed); 422 invalid_setting / invalid_page /
+ *                         invalid_api_path - a reserved path claimed either way among them; 503
+ *                         feature_unavailable while the library's 003 waits; a reserved path itself, so it
+ *                         answers while the site is closed
  *
  * Their ADMIN, the Migrations page's and the error log's and the backups' is
  * judged from the token alone, and no person's row is written on them: they
@@ -117,6 +131,7 @@ use Slim\Routing\RouteCollectorProxy;
  * @var \Anotoki\Lib\Auth\Http\Identify $identify   Identify that reads no visitor's key (api/index.php)
  * @var \Anotoki\Lib\People\Http\RecordPerson $recordPerson
  * @var \Anotoki\Lib\ErrorLog\ErrorLog $errorLog
+ * @var \Anotoki\Lib\SiteSettings\Http\PageAccessGate $pageAccess
  */
 
 /** The largest survey taken in one save: a long survey with long texts is a few hundred kB. */
@@ -183,6 +198,9 @@ $app->group('/api/admin', function (RouteCollectorProxy $group): void {
         return respondJson($response, ['image' => imageStore(currentPerson($request), requestBytes($request, IMAGE_MAX_BYTES))], 201);
     });
 })
+    // Added in this order, so they run the other way round: who is asking, their row, the editors' check, then
+    // Page access (an API path a row keeps for administrators alone is 423 to an editor).
+    ->add($pageAccess)
     ->add(requireStaff())
     ->add($recordPerson)
     ->add($identify);
@@ -195,11 +213,16 @@ $audited = static function (Request $request, string $action, ?string $type, ?st
     surveyAudited($request, $action, $type, $id, $details);
 };
 
-TranslationsRoutes::strings($app, '/api/admin', $translations, translationWriter(...), respondRefusal(...), $audited)->add(requireStaff())->add($recordPerson)->add($identify);
+TranslationsRoutes::strings($app, '/api/admin', $translations, translationWriter(...), respondRefusal(...), $audited)->add($pageAccess)->add(requireStaff())->add($recordPerson)->add($identify);
 
 // Added in this order, so they run the other way round: who is asking, their
-// row, the editors' check, then deleting for an ADMIN alone.
-TranslationsRoutes::languages($app, '/api/admin', $translations, respondRefusal(...), $audited)->add(requireFor('DELETE', requireAdmin()))->add(requireStaff())->add($recordPerson)->add($identify);
+// row, the editors' check, then Page access, then deleting for an ADMIN alone.
+TranslationsRoutes::languages($app, '/api/admin', $translations, respondRefusal(...), $audited)
+    ->add(requireFor('DELETE', requireAdmin()))
+    ->add($pageAccess)
+    ->add(requireStaff())
+    ->add($recordPerson)
+    ->add($identify);
 
 // The Migrations page's routes. Each request has a connection of its own
 // (surveyMigrator()'s rule: an Apply's lock must never sit on the pooled db()),
@@ -259,3 +282,8 @@ BackupsRoutes::admin($app, '/api/admin/backups', surveyBackups(), surveyAdminCon
 // the download's single-use ticket (60 seconds, for one backup, made after the
 // ADMIN's proof and audited) is its check.
 BackupsRoutes::file($app, '/api/admin/backups', surveyBackups(), surveyAdminContext());
+
+// The site settings (api/site_settings.php): the ADMIN's alone - this site's check, and the library's group asks the
+// token's ADMIN again itself - each change audited by the token's person. A reserved path: it answers while the site
+// is closed for maintenance (to its ADMIN, the one who passes then), and no page's row may claim it.
+SiteSettingsRoutes::admin($app, surveySiteSettings(), surveyAdminContext(), surveyAudit())->add(requireAdmin())->add($identify);

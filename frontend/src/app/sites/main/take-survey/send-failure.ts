@@ -27,10 +27,12 @@ export type SendFailure =
   /** The survey is not at this address any more: moved or deleted. */
   | 'gone'
   /**
-   * The site closed under the person - a database update began, or its
-   * settings went: the anotoki family's page has taken this one's place by
-   * now (siteStatusInterceptor heard the same answer), and says what there is
-   * to say, calmly. The page says nothing more; the answers stay in the draft.
+   * The site closed under the person - a database update began, its
+   * settings went, or its administrators closed it for maintenance (the site
+   * settings): the anotoki family's page has taken this one's place by now
+   * (siteStatusInterceptor heard the same answer) - the closed sign, for
+   * maintenance - and says what there is to say, calmly. The page says nothing
+   * more; the answers stay in the draft, and go once the site takes them.
    */
   | 'siteClosed'
   /** Anything else: no connection, the server failing. */
@@ -44,7 +46,7 @@ export type SendFailure =
  * that ran out.
  */
 export function sendFailure(error: ApiError, visitor = false): SendFailure {
-  if (error.status === 503 && (error.code === 'update_pending' || error.code === 'not_set_up')) {
+  if (error.status === 503 && (error.code === 'update_pending' || error.code === 'not_set_up' || error.code === 'maintenance')) {
     return 'siteClosed';
   }
   if (error.code === 'too_many_visitors') {

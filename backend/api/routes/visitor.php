@@ -30,6 +30,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  * @var \Slim\App $app
  * @var \Anotoki\Lib\Auth\Http\Identify $identify   Identify that reads no visitor's key (api/index.php)
  * @var \Anotoki\Lib\People\Http\RecordPerson $recordPerson
+ * @var \Anotoki\Lib\SiteSettings\Http\PageAccessGate $pageAccess   Page access, after the person's check
  */
 
 $app->post('/api/visitor/move', function (Request $request, Response $response): Response {
@@ -43,6 +44,7 @@ $app->post('/api/visitor/move', function (Request $request, Response $response):
 
     return respondJson($response, visitorMoveInto(currentPerson($request), $key));
 })
+    ->add($pageAccess)
     ->add($recordPerson)
     ->add(new RequirePerson())
     ->add($identify);

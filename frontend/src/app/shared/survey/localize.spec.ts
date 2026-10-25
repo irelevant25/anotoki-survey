@@ -149,18 +149,21 @@ describe('translationGaps', () => {
       expect(translationPlaces({ ...english(), title: space, intro: `<p>${space}</p>` }).map((place) => place.kind)).not.toContain('intro');
     }
 
-    // Next line (a C1 control) and the Mongolian vowel separator: invisible, and not spaces - to neither side.
+    // Next line (a C1 control) and the Mongolian vowel separator: invisible, and not spaces - to neither side. In a
+    // text's HTML the family's allow-list (@anotoki/lib/ui/rich-html - the server's RichHtml the same) drops a C1
+    // control as it drops every control: there the next line is nothing, and the separator a text.
     for (const odd of ['\u0085', '᠎']) {
       const name = `U+${odd.codePointAt(0)?.toString(16)}`;
+      const rich = odd === '\u0085' ? '<p>Áno</p>' : `<p>${odd}</p>`;
       const translation = slovak();
       const survey = translated({
         title: odd,
-        intro: `<p>${odd}</p>`,
-        thanks: `<p>${odd}</p>`,
+        intro: rich,
+        thanks: rich,
         steps: { s1: { title: odd, text: '', images: {} } },
         questions: {
-          q1: { text: `<p>${odd}</p>`, placeholder: '', options: { a: { label: odd }, b: { label: translation.questions['q1'].options['b'].label } }, images: { p1: { alt: odd } } },
-          q2: { text: `<p>${odd}</p>`, placeholder: odd, options: {}, images: {} },
+          q1: { text: rich, placeholder: '', options: { a: { label: odd }, b: { label: translation.questions['q1'].options['b'].label } }, images: { p1: { alt: odd } } },
+          q2: { text: rich, placeholder: odd, options: {}, images: {} },
         },
       });
       expect(translationGaps(survey, 'sk'), name).toEqual([]);

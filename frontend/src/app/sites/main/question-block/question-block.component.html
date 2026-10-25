@@ -3,7 +3,7 @@
         @if (number() !== null) {
             <span class="number" aria-hidden="true">{{ number() }}</span>
         }
-        <div class="text rich" [id]="textId" [attr.lang]="lang()" [innerHTML]="question().text"></div>
+        <anotoki-rich-html class="text rich" [id]="textId" [attr.lang]="lang()" [html]="question().text" />
     </div>
 
     @if (question().images.length) {

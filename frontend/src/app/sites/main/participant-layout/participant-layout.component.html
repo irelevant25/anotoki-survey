@@ -1,9 +1,14 @@
 <!-- Focus is moved by hand: with <base href="/">, a bare #main would resolve to /#main and leave the page. -->
 <a class="skip-link" href="#main" (click)="$event.preventDefault(); main.focus()">{{ "common.skipToSurvey" | translate }}</a>
 
+<!-- The site settings' announcement, when the site's administrators have something to say: above the bar, the site talking. -->
+<anotoki-announcement />
+
 <app-top-bar width="narrow" />
 
 <div class="page">
+    <!-- What the site's ADMIN alone is told above the page: the site closed for maintenance, the page switched off or kept for some. -->
+    <anotoki-page-notice class="page-notice" />
     <main #main id="main" class="main" tabindex="-1">
         @if (showPage()) {
             <router-outlet />

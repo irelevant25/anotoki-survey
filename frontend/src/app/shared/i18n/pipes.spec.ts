@@ -4,7 +4,7 @@ import { TranslatePipe, TranslatePluralPipe, TranslationService } from '@anotoki
 import { type AnotokiDateFormat, type AnotokiPreferences } from '@anotoki/lib/auth';
 import { AuthService } from '../auth/auth.service';
 import { provideTestTranslations } from '../testing/test-translations';
-import { LocalDatePipe } from './local-date.pipe';
+import { type AgoPipeOptions, AnotokiAgoPipe, AnotokiDatePipe } from '@anotoki/lib/ui/dates';
 
 const ENGLISH = {
   'home.openUntil': 'open until {day}',
@@ -12,8 +12,7 @@ const ENGLISH = {
   'home.steps.few': '{count} steps',
   'home.steps.other': '{count} steps',
   'home.size': '{questions} · {steps}',
-  'time.justNow': 'just now',
-  'time.onDate': 'on {date}',
+  'common.close': 'Close',
 };
 const SLOVAK = {
   'home.openUntil': 'otvorený do {day}',
@@ -21,8 +20,7 @@ const SLOVAK = {
   'home.steps.few': '{count} kroky',
   'home.steps.other': '{count} krokov',
   'home.size': '{questions} · {steps}',
-  'time.justNow': 'práve teraz',
-  'time.onDate': '{date}',
+  'common.close': 'Zavrieť',
 };
 
 const MINUTE = 60_000;
@@ -39,6 +37,19 @@ function account(dateFormat: AnotokiDateFormat | null): AnotokiPreferences {
 
 beforeEach(() => preferences.set(null));
 
+/** How the pages people take surveys on write "how long ago": a phrase inside a sentence, the date from two weeks on (take-survey's agoOptions). */
+const AGO: AgoPipeOptions = { dateAfter: 14, phrase: true };
+
+/**
+ * The family's two date pipes as the site uses them (anotoki-lib 0.11.0 - the site's own localDate pipe before
+ * them): 'day' and 'date' the date pipe's, 'ago' the ago pipe's with the pages' options.
+ */
+function siteDates(date: AnotokiDatePipe, ago: AnotokiAgoPipe) {
+  return {
+    transform: (value: string | null | undefined, style: 'day' | 'date' | 'ago' = 'date'): string => (style === 'ago' ? ago.transform(value, AGO) : date.transform(value, style)),
+  };
+}
+
 function pipes(language: 'en' | 'sk') {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
@@ -47,14 +58,15 @@ function pipes(language: 'en' | 'sk') {
       { provide: AuthService, useValue: { preferences } },
       TranslatePipe,
       TranslatePluralPipe,
-      LocalDatePipe,
+      AnotokiDatePipe,
+      AnotokiAgoPipe,
     ],
   });
   return {
     i18n: TestBed.inject(TranslationService),
     translate: TestBed.inject(TranslatePipe),
     plural: TestBed.inject(TranslatePluralPipe),
-    date: TestBed.inject(LocalDatePipe),
+    date: siteDates(TestBed.inject(AnotokiDatePipe), TestBed.inject(AnotokiAgoPipe)),
   };
 }
 
@@ -74,17 +86,17 @@ describe('the translate pipes', () => {
 
   it('answer again when the language on the page changes under the same key', async () => {
     const { i18n, translate, plural } = pipes('sk');
-    expect(translate.transform('time.justNow')).toBe('práve teraz');
+    expect(translate.transform('common.close')).toBe('Zavrieť');
     i18n.noteAddress('/admin');
-    expect(translate.transform('time.justNow')).toBe('just now');
+    expect(translate.transform('common.close')).toBe('Close');
     expect(plural.transform('home.steps', 3)).toBe('3 steps');
     i18n.noteAddress('/');
     expect(await i18n.setLanguage('en', { remember: false })).toBe(true);
-    expect(translate.transform('time.justNow')).toBe('just now');
+    expect(translate.transform('common.close')).toBe('Close');
   });
 });
 
-describe('the localDate pipe', () => {
+describe('the family’s date pipes, as the pages use them (anotokiDate, anotokiAgo)', () => {
   const NOW = new Date(2026, 8, 30, 10, 0, 0).getTime();
 
   beforeEach(() => {
@@ -121,7 +133,7 @@ describe('the localDate pipe', () => {
     expect(date.transform('soon', 'day')).toBe('soon');
   });
 
-  it('says how long ago with the thresholds of timeAgo(), in English', () => {
+  it('says how long ago with the family’s thresholds, in English', () => {
     expect(ago('en', 0)).toBe('just now');
     expect(ago('en', 59_000)).toBe('just now');
     expect(ago('en', MINUTE)).toBe('1 minute ago');
@@ -172,11 +184,11 @@ describe('the localDate pipe', () => {
       expect(read('sk', new Date(2026, 8, 29, 23, 59), mondayMorning)).toBe('včera');
     });
 
-    it('never says "today": the last half hour of the same day is 24 hours ago', () => {
+    it('never says "today" or "yesterday" of the same day: its last half hour is hours ago, rounded down', () => {
       const justAfterMidnight = new Date(2026, 8, 28, 0, 10);
       const justBeforeMidnight = new Date(2026, 8, 28, 23, 50);
-      expect(read('sk', justBeforeMidnight, justAfterMidnight)).toBe('pred 24 hodinami');
-      expect(read('en', justBeforeMidnight, justAfterMidnight)).toBe('24 hours ago');
+      expect(read('sk', justBeforeMidnight, justAfterMidnight)).toBe('pred 23 hodinami');
+      expect(read('en', justBeforeMidnight, justAfterMidnight)).toBe('23 hours ago');
     });
 
     it('stays with hours until there are 24 of them, over midnight too', () => {

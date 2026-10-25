@@ -122,10 +122,21 @@ function surveyMigrator(PDO $pdo, bool $backupFirst = false): Migrator
  * finishes on a real host - decides whether a site that is not set up offers
  * its setup page: only while it was never installed (on this computer the lock
  * is never written, so a developer always gets the link).
+ *
+ * A ready site its ADMIN closed for maintenance (the site settings' "Getting
+ * in", api/site_settings.php - anotoki-lib 0.11.0) is still ready here - its
+ * database is fine, and the scrub and the day's backup run on - but the status
+ * path says `maintenance`, with the administrators' message, and the SiteGate
+ * answers everybody but the site's ADMIN 503 maintenance.
  */
 function surveySiteState(): SiteState
 {
-    return new SiteState(static fn(): ?string => settingsProblem(), static fn(): bool => is_file(storageDir() . '/installed.lock'), static fn(): Migrator => surveyMigrator(db()));
+    return new SiteState(
+        static fn(): ?string => settingsProblem(),
+        static fn(): bool => is_file(storageDir() . '/installed.lock'),
+        static fn(): Migrator => surveyMigrator(db()),
+        settings: surveySiteSettings(),
+    );
 }
 
 /**
@@ -144,7 +155,8 @@ function surveySiteState(): SiteState
  * the error log's and the backups' the library's own lists (openPaths()): a
  * route a later release of the library adds there is added here too, rather
  * than opening all under it. (The status path, /api/site-status, always
- * answers.)
+ * answers.) The same paths answer while the site is closed for maintenance,
+ * beside the site settings' reserved ones (api/site_settings.php).
  *
  * @return list<string>
  */

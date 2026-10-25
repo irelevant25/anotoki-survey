@@ -8,7 +8,8 @@ declare(strict_types=1);
 
 $path = (string) parse_url((string) $_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $root = (string) $_SERVER['DOCUMENT_ROOT'];
-if (preg_match('~^/(api(/|$)|setup\.php$)~', $path) === 1) {
+// The backend's addresses (composer.json's extra["anotoki-deploy"] routes: api, robots.txt, sitemap.xml) and the setup page.
+if (preg_match('~^/((api|robots\.txt|sitemap\.xml)(/|$)|setup\.php$)~', $path) === 1) {
     require $root . '/index.php';
 
     return true;

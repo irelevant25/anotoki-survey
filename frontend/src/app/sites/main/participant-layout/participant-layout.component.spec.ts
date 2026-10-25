@@ -4,6 +4,7 @@ import { ChangeDetectionStrategy, Component, input, signal } from '@angular/core
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Router, RouterOutlet, provideRouter } from '@angular/router';
 import { provideAnotokiLegal } from '@anotoki/lib/legal';
+import { SiteSettings } from '@anotoki/lib/site-settings';
 import { ToastService } from '@anotoki/lib/ui/toast';
 import { VisitorMove } from '../../../api/api.service';
 import { AuthService, SignInFailure } from '../../../shared/auth/auth.service';
@@ -11,6 +12,7 @@ import { VisitorKey } from '../../../shared/auth/visitor-key';
 import { Changelog } from '../../../shared/changelog/changelog.service';
 import { provideSiteFeedback } from '../../../shared/feedback';
 import { surveyLegalConfig } from '../../../shared/legal/legal.config';
+import { ANNOUNCEMENT_STORAGE_KEY, provideSiteSettings } from '../../../shared/site-settings';
 import { provideTestTranslations } from '../../../shared/testing/test-translations';
 import { FORMAL_SLOVAK } from '../../../shared/translations';
 import { TopBarComponent } from '../common/top-bar/top-bar.component';
@@ -48,10 +50,12 @@ const SLOVAK = {
 
 describe('ParticipantLayoutComponent', () => {
   const signedIn = signal(true);
+  const roles = signal<string[]>(['MEMBER']);
   const welcome = signal(false);
   const failure = signal<SignInFailure | null>(null);
   const auth = {
     signedIn: () => signedIn(),
+    roles: () => roles(),
     // Whom the feedback form is for (shared/feedback.ts): the person signed in - no address of theirs is ever handed to it.
     person: () => (signedIn() ? { id: '101', name: 'pat' } : null),
     visitorsWelcome: () => welcome(),
@@ -73,6 +77,8 @@ describe('ParticipantLayoutComponent', () => {
 
   beforeEach(async () => {
     signedIn.set(true);
+    roles.set(['MEMBER']);
+    localStorage.removeItem(ANNOUNCEMENT_STORAGE_KEY);
     welcome.set(false);
     visitor.moved.set(null);
     visitor.lost.set(false);
@@ -101,6 +107,8 @@ describe('ParticipantLayoutComponent', () => {
         // feedback form its Feedback opens.
         provideAnotokiLegal(surveyLegalConfig),
         provideSiteFeedback(),
+        // The site settings, wired as the app wires them (shared/site-settings.ts): the roles and the sign-in the token's.
+        provideSiteSettings(),
         provideHttpClient(),
         provideHttpClientTesting(),
       ],
@@ -115,6 +123,36 @@ describe('ParticipantLayoutComponent', () => {
   it('draws the page for somebody signed in, and no card', () => {
     expect(text('.stub-page')).toBe('A survey');
     expect(host.querySelector('anotoki-empty-state')).toBeNull();
+  });
+
+  it('draws the site settings’ announcement above the bar, in the language on the page - and tells the site’s ADMIN alone, over the page, that it is closed or kept from others', async () => {
+    /** What every page is told (GET /api/site-settings, the boot's SiteSettings.load()). */
+    const told = async (body: object): Promise<void> => {
+      const asked = TestBed.inject(SiteSettings).refresh();
+      TestBed.inject(HttpTestingController).expectOne('/api/site-settings').flush(body);
+      await asked;
+      await fixture.whenStable();
+    };
+    expect(host.querySelector('[data-announcement]')).toBeNull();
+    await told({ maintenance: true, announcement: { level: 'warning', message: { en: 'Back at five.', sk: 'Späť o piatej.' } }, pages: [{ path: '/:slug', visibility: 'USER', blocked: false }] });
+    const bar = host.querySelector('anotoki-announcement [data-announcement]')!;
+    expect(text('anotoki-announcement .anotoki-announcement__message')).toBe('Späť o piatej.');
+    expect(bar.getAttribute('data-level')).toBe('warning');
+    // Above the site's bar, after the skip link: the site talking, not its navigation.
+    const order = Array.from(host.querySelectorAll('.skip-link, anotoki-announcement, app-top-bar, anotoki-page-notice, main'), (element) => element.localName);
+    expect(order).toEqual(['a', 'anotoki-announcement', 'app-top-bar', 'anotoki-page-notice', 'main']);
+    // A member reads no notice: nothing they are not shown is said to them.
+    expect(host.querySelectorAll('anotoki-page-notice [data-notice]').length).toBe(0);
+    roles.set(['MEMBER', 'ADMIN']);
+    await fixture.whenStable();
+    expect(Array.from(host.querySelectorAll('anotoki-page-notice [data-notice]'), (notice) => notice.getAttribute('data-notice'))).toEqual(['maintenance', 'limited']);
+
+    // Hidden by its reader: gone, and a mark of it kept in the browser - never its words.
+    host.querySelector<HTMLButtonElement>('anotoki-announcement [data-hide]')!.click();
+    await fixture.whenStable();
+    expect(host.querySelector('[data-announcement]')).toBeNull();
+    expect(localStorage.getItem(ANNOUNCEMENT_STORAGE_KEY)).toMatch(/^v1:[0-9a-f]{8}$/);
+    localStorage.removeItem(ANNOUNCEMENT_STORAGE_KEY);
   });
 
   it('takes the page away the moment nobody is signed in - nothing of the survey stays - with no navigation', async () => {

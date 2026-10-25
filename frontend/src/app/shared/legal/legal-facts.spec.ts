@@ -175,6 +175,7 @@ describe('the legal pages, as the survey fills them in', () => {
       ['anotoki-survey:visitor', null, 'visitorKey'],
       ['anotoki-survey:draft:…', 'local', null],
       ['anotoki-survey:localization-drafts', 'session', null],
+      ['anotoki-survey:announcement', null, 'announcement'],
     ]);
     expect(facts.processors).toEqual([{ preset: 'hosting', name: 'WebSupport s.r.o.', url: 'https://www.websupport.sk' }, { preset: 'cloudflare' }]);
     // A backend that does not say how long it keeps a visitor: the backend's own default, 30 days.
@@ -214,6 +215,7 @@ describe('the legal pages, as the survey fills them in', () => {
       'anotoki-survey:visitor',
       'anotoki-survey:draft:…',
       'anotoki-survey:localization-drafts',
+      'anotoki-survey:announcement',
     ]);
     expect(texts(host, '[data-recipient] .anotoki-legal-page__item-name')).toEqual(['WebSupport s.r.o.', 'Cloudflare, Inc.']);
     expect(host.querySelector('[data-analytics]')?.textContent).toContain('umami.anotoki.eu');

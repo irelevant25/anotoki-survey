@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { IconComponent } from '@anotoki/lib/ui/icon';
+import { RichHtmlComponent } from '@anotoki/lib/ui/rich-html';
 import { AdminDates } from '../../../../shared/admin/admin-dates.service';
 import { WrittenAnswer } from '../../../../shared/survey/results';
 import { Question } from '../../../../shared/survey/survey.model';
@@ -15,7 +16,7 @@ const SHOWN = 4;
  */
 @Component({
   selector: 'app-text-result',
-  imports: [ImageStripComponent, IconComponent],
+  imports: [ImageStripComponent, IconComponent, RichHtmlComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './text-result.component.html',
   styleUrl: './text-result.component.scss',

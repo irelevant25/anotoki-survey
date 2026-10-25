@@ -8,6 +8,8 @@ declare(strict_types=1);
 
 require __DIR__ . '/../lib.php'; // before the app loads: a throwaway database and settings
 
+use Anotoki\Lib\RichHtml\RichHtml;
+
 function question(array $fields = []): array
 {
     return $fields + [
@@ -229,6 +231,10 @@ test('control characters pasted into words are dropped, not refused - line break
 test('a space is what the browser\'s trim() takes for one - the same characters, so both sides find the same texts blank', function (): void {
     // String.prototype.trim() and \s in the browser: these and no others (shared/survey/localize.spec.ts pins the other side).
     $spaces = [0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20, 0xa0, 0x1680, 0x2028, 0x2029, 0x202f, 0x205f, 0x3000, 0xfeff, ...range(0x2000, 0x200a)];
+    // A text's HTML is read by the anotoki library's allow-list (RichHtml, and the pages' <anotoki-rich-html> by the
+    // same rules), whose spaces are these too - but for two controls it drops as it drops every other control: the
+    // vertical tab and the form feed. No text the editor writes holds one.
+    $dropped = [0x0b, 0x0c];
     $space = static fn(string $character): bool => textTrim($character) === '';
     $found = [];
     for ($point = 1; $point <= 0xffff; $point++) {
@@ -237,34 +243,45 @@ test('a space is what the browser\'s trim() takes for one - the same characters,
             if ($space($character)) {
                 $found[] = $point;
             }
-            assert_same($space($character), richTextPlain("a{$character}b") === 'a b', sprintf('U+%04X: between words it is a space exactly when around them it is', $point));
+            if (!in_array($point, $dropped, true)) {
+                assert_same($space($character), RichHtml::text("a{$character}b") === 'a b', sprintf('U+%04X: between words it is a space exactly when around them it is', $point));
+            }
         }
     }
     sort($spaces);
     assert_same($spaces, $found, 'every character trim() takes away, and no other');
+    foreach ($dropped as $point) {
+        assert_same('ab', RichHtml::text('a' . mb_chr($point) . 'b'), sprintf('U+%04X: a control the allow-list drops from a text\'s HTML', $point));
+    }
     assert_same('a', textTrim(" \u{00A0}\u{3000}\t\u{FEFF}a\u{2028}\r\n"));
     assert_same('a  b', textTrim(' a  b '), 'only around it');
 
     // The next line (U+0085) and the Mongolian vowel separator (U+180E) are spaces to \s and \p{Z} here and
-    // none to the browser. A text that holds one is a text: the page says so, and the server must not say otherwise.
+    // none to the browser. A line that holds one is a line: the page says so, and the server must not say otherwise.
+    // In a text's HTML the library drops the next line, a C1 control (anotoki-lib 0.11.0, both halves alike), and
+    // keeps the separator.
     foreach (['U+0085' => "\u{0085}", 'U+180E' => "\u{180E}"] as $name => $character) {
         assert_same($character, textTrim($character), "$name is not a space");
         assert_same(" a$character", ' ' . textTrim("a$character "));
-        assert_false(richTextIsBlank("<p>$character</p>"));
-        assert_same("a{$character}b", richTextPlain("<p>a{$character}b</p>"));
 
         $translated = whole_slovak();
         $translated['questions']['q1']['options']['a']['label'] = $character;
         $translated['questions']['q2']['placeholder'] = " $character ";
         $translated['steps']['s1']['title'] = $character;
-        $translated['intro'] = "<p>$character</p>";
+        if ($character === "\u{180E}") {
+            $translated['intro'] = "<p>$character</p>";
+        }
         $survey = checked(three_questions(['sk' => $translated]));
         assert_same([], surveyTranslationGaps($survey, 'sk'), "a translation that is $name is one: no gap");
         assert_same([], surveyProblems($survey, [], LANGUAGES));
         assert_same('Please write an answer.', answerProblem(question(['type' => 'text', 'options' => []]), answer([], '', ' ')), 'a space is no answer');
         assert_same(null, answerProblem(question(['type' => 'text', 'options' => []]), answer([], '', $character)), 'and this is one, as the page says too');
     }
-    assert_true(richTextIsBlank("<p>\u{00A0} \u{2003}</p><p><br></p>"), 'what the browser finds blank is blank');
+    assert_false(RichHtml::isBlank("<p>\u{180E}</p>"));
+    assert_same("a\u{180E}b", RichHtml::text("<p>a\u{180E}b</p>"));
+    assert_true(RichHtml::isBlank("<p>\u{0085}</p>"), 'the next line in a text\'s HTML: a C1 control, dropped');
+    assert_same('ab', RichHtml::text("<p>a\u{0085}b</p>"));
+    assert_true(RichHtml::isBlank("<p>\u{00A0} \u{2003}</p><p><br></p>"), 'what the browser finds blank is blank');
 });
 
 test('a survey from the editor: every field checked, the texts cleaned, nothing else kept', function (): void {
@@ -389,7 +406,7 @@ test('a step may be text and pictures alone - a task to read and do - but never 
     $blank['content']['askAboutYou'] = false;
     assert_same(['Step 3 is empty - add a question, text or a picture, or remove the step.'], surveyProblems($blank, []));
     assert_true(surveyStepIsEmpty(['text' => '<p> </p><p><br></p>', 'images' => [], 'questions' => []]), 'what the browser finds blank is blank');
-    assert_false(surveyStepIsEmpty(['text' => "<p>\u{0085}</p>", 'images' => [], 'questions' => []]), 'and what it does not, is not (TEXT_SPACE)');
+    assert_false(surveyStepIsEmpty(['text' => "<p>\u{180E}</p>", 'images' => [], 'questions' => []]), 'and what it does not, is not (TEXT_SPACE)');
 
     // Text and pictures alone are no survey: something must be asked.
     $nothingAsked = $survey;
@@ -407,7 +424,7 @@ test('a step\'s own text is cleaned as a question\'s is, and its pictures are ta
                         'id' => 's1',
                         'title' => 'The task',
                         'text' =>
-                            '<p onclick="x()" style="color:red">Go<script>alert(1)</script> to <a href="javascript:alert(1)">the site</a><img src="x" onerror="alert(1)"></p>' .
+                            '<p onclick="x()" style="position:fixed">Go<script>alert(1)</script> to <a href="javascript:alert(1)">the site</a><img src="x" onerror="alert(1)"></p>' .
                             '<style>p{display:none}</style><p><a href="https://genshin.anotoki.eu" onmouseover="x()">and back</a></p>',
                         'images' => [['id' => MAP, 'alt' => "The\x0B map", 'width' => 9999, 'height' => 9999, 'src' => 'https://evil.example/x.png']],
                         'extra' => 'dropped',
@@ -423,7 +440,7 @@ test('a step\'s own text is cleaned as a question\'s is, and its pictures are ta
     assert_same(
         '<p>Go to the site</p><p><a target="_blank" rel="noopener noreferrer" href="https://genshin.anotoki.eu">and back</a></p>',
         $step['text'],
-        'no script, no handler, no style, no javascript: link',
+        'no script, no handler, no style that would leave the text\'s box, no javascript: link',
     );
     assert_same([['id' => MAP, 'alt' => 'The map']], $step['images'], 'the size and the address are the file\'s to say');
     assert_same([MAP], $survey['imageIds'], 'the survey shows it, as it shows a question\'s: the clean-up keeps it');

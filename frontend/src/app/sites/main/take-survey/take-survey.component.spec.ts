@@ -863,7 +863,7 @@ describe('TakeSurveyComponent', () => {
       expect(text('.fact-language')).toBe('Jazyk: English');
       expect(host.querySelector('.fact-language [lang]')?.textContent).toBe('English');
       // Marked: the survey's name, its welcome, and the language's own name - nothing else.
-      expect(marked()).toEqual(['title: en', 'intro rich: en', 'span: en']);
+      expect(marked()).toEqual(['title: en', 'anotoki-rich-html intro rich: en', 'span: en']);
 
       await click('.start button');
       // "About you" is the site's: in Slovak, and not marked.
@@ -875,7 +875,7 @@ describe('TakeSurveyComponent', () => {
 
       expect(text('.step-heading')).toBe('The game');
       expect(labels()).toEqual(['Wind', 'Water', 'Other']);
-      expect(marked()).toEqual(['title: en', 'step-heading: en', 'text rich: en', 'label: en', 'label: en', 'label: en']);
+      expect(marked()).toEqual(['title: en', 'step-heading: en', 'anotoki-rich-html text rich: en', 'label: en', 'label: en', 'label: en']);
 
       // The problem is the site's sentence, in Slovak, around the option's label as the page shows it.
       await click('input[value="o3"]');
@@ -890,7 +890,7 @@ describe('TakeSurveyComponent', () => {
       expect(api.submit.mock.calls[0][1]).toMatchObject({ language: 'en' });
       expect(text('.done-heading')).toBe('Ďakujeme!');
       expect(text('.thanks')).toBe('Thank you for your time.');
-      expect(marked()).toEqual(['title: en', 'rich thanks: en']);
+      expect(marked()).toEqual(['title: en', 'anotoki-rich-html rich thanks: en']);
     });
 
     it('marks the thanks for somebody who has answered', async () => {
@@ -898,7 +898,7 @@ describe('TakeSurveyComponent', () => {
       api.surveyBySlug.mockResolvedValue({ survey: halfTranslatedSurvey(), answeredAt: new Date().toISOString() });
       await open();
       expect(text('.message-heading')).toBe('Tento prieskum ste už vyplnili');
-      expect(marked()).toEqual(['title: en', 'rich thanks: en']);
+      expect(marked()).toEqual(['title: en', 'anotoki-rich-html rich thanks: en']);
     });
 
     it('names a language the site does not offer by its code', async () => {
@@ -907,7 +907,7 @@ describe('TakeSurveyComponent', () => {
 
       expect(text('.fact-language')).toBe('Jazyk: cs');
       // The survey's texts are Czech; the code that names the language is not a Czech word.
-      expect(marked()).toEqual(['title: cs', 'intro rich: cs']);
+      expect(marked()).toEqual(['title: cs', 'anotoki-rich-html intro rich: cs']);
     });
 
     it('takes no language from the address of a survey people take: `?language=` is the preview’s', async () => {
@@ -965,7 +965,7 @@ describe('TakeSurveyComponent', () => {
       expect(TestBed.inject(Title).getTitle()).toBe('Preview: What do you play?');
       // English texts on a Slovak page: the welcome says so, and they are marked.
       expect(text('.fact-language')).toBe('Jazyk: English');
-      expect(marked()).toEqual(['title: en', 'intro rich: en', 'span: en']);
+      expect(marked()).toEqual(['title: en', 'anotoki-rich-html intro rich: en', 'span: en']);
       // No translation is shown, so the way back names no tab.
       expect(editorLinks()).toEqual(['/admin/surveys/s1/edit']);
       await click('.start button');
@@ -1083,7 +1083,7 @@ describe('TakeSurveyComponent', () => {
       await open('en');
       await toTheTask();
       expect(text('.step-heading')).toBe('Úloha');
-      expect(marked()).toEqual(['title: sk', 'step-heading: sk', 'step-text rich: sk']);
+      expect(marked()).toEqual(['title: sk', 'step-heading: sk', 'anotoki-rich-html step-text rich: sk']);
       expect(Array.from(host.querySelectorAll('.step-own .gallery-item')).map((button) => button.getAttribute('aria-label'))).toEqual(['Show large: Mapa Mondstadtu', 'Show large: picture 2']);
       host.querySelector<HTMLButtonElement>('.step-own .gallery-item')!.click();
       expect(TestBed.inject(LightboxService).view()).toMatchObject({ index: 0, lang: 'sk' });

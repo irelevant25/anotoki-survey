@@ -15,7 +15,8 @@ src/
   styles.scss                        the family's styles (@anotoki/lib/styles: the --anotoki-* tokens, light and
                                      dark, Manrope, the base, the utilities and the tables) and the survey's own
                                      few: the highlighter, the results' bars, the night sky, a decorative rule,
-                                     .rich, mark, the drag and drop
+                                     .rich (the survey's own typography over the library's
+                                     <anotoki-rich-html>), mark, the drag and drop
   styles/                            partials the components @use: fields (the fields the site draws itself),
                                      boot, result-card, sky, participant-frame (the participant and legal
                                      layouts' frame: the light behind, the skip link, the column, the
@@ -60,7 +61,13 @@ src/
       migrations.ts                  the anotoki family's library (@anotoki/lib/migrations - the site's
                                      status, its gate; the Migrations page is @anotoki/lib/migrations/page)
                                      wired to this site's sign-in, words and dates: provideSiteMigrations(),
-                                     MIGRATIONS_PATH
+                                     MIGRATIONS_PATH, STAFF_PATH (/staff: where an administrator signs in
+                                     while the site is closed for maintenance)
+      site-settings.ts               the family's site settings (@anotoki/lib/site-settings) wired to this
+                                     site: provideSiteSettings() - the roles and the sign-in the token's,
+                                     the announcement's hidden mark (ANNOUNCEMENT_STORAGE_KEY); what every
+                                     page is told asked as the site starts (boot.ts), Page access's guard
+                                     on the participant's pages (sites/main/main.routes.ts)
       translations.ts                the family's translations module (@anotoki/lib/translations)
                                      wired to this site: provideSiteTranslations() - the language and the
                                      strings (the library's TranslationService and its translate /
@@ -71,11 +78,14 @@ src/
       kit.ts                         the family's UI kit (@anotoki/lib/ui/<piece>, /shell) wired to this
                                      site: provideSiteKit() - the kit's words from the site's database (the
                                      library's keys, anotoki.*: TranslationService.forKit()), the icons the
-                                     site draws (SURVEY_ICONS), the account's theme (the library's
-                                     ThemeService), the languages of the bar's chooser (forShell())
+                                     site draws (SURVEY_ICONS), the account's date order and clock for
+                                     the library's dates (dateChoices: @anotoki/lib/ui/dates), the
+                                     account's theme (the library's ThemeService), the languages of the
+                                     bar's chooser (forShell())
       i18n/                          the site's own words beside the library's: answer-words (an answer's
-                                     rule in the reader's language), error-text, the localDate pipe, and
-                                     dynamic-keys.ts (the keys put together at run time, for the key scan)
+                                     rule in the reader's language), error-text, and dynamic-keys.ts (the
+                                     keys put together at run time, for the key scan); a date and how long
+                                     ago are the library's (@anotoki/lib/ui/dates: anotokiDate, anotokiAgo)
       survey/                        the model and every rule (the twin of backend/api/survey_rules.php)
       admin/                         AdminStore (the editor's saving - the top bar's Sign out and the
                                      editor's preview ask it too), AdminDates (the admin panel's dates
@@ -92,8 +102,8 @@ src/
                                      version (the newest entry's, package.json's too: the version in the footer)
                                      and What's new (open(): the dialog, shared/ui/changelog-dialog, loaded with the
                                      press - the footer's What's new opens it)
-      util/                          dates.ts (the admin panel's English dates), date-patterns.ts (the
-                                     account's four date orders and two clocks), storage
+      util/                          dates.ts (the admin panel's English dates, through the library's
+                                     @anotoki/lib/ui/dates), storage
       legal/                         the family's legal pages (@anotoki/lib/legal) wired to this site:
                                      legal.config.ts (provideAnotokiLegal() in app.config.ts - the
                                      language, the database's words of the library's keys) and
@@ -113,7 +123,9 @@ src/
       main/                          the public site: main.routes.ts; participant-layout (the frame of the
                                      survey's pages) and legal-layout (the frame of /terms, /privacy,
                                      /contact, /about and /support - anybody's, no guard - and the facts'
-                                     provider); the open surveys (survey-home), a survey to take
+                                     provider - each with the site settings' announcement above its bar,
+                                     and the ADMIN's notice above the page); /staff (staffGuard); the
+                                     open surveys (survey-home), a survey to take
                                      (take-survey, with question-block and survey-hero), the visitor
                                      notice; common/ - its own pieces: top-bar (the site's wrapper over the
                                      family's bar, <anotoki-top-bar>: its brand, its section, person and
@@ -122,22 +134,28 @@ src/
       admin/                         the admin panel: admin.routes.ts; app.component (its frame, the
                                      family's <anotoki-admin-frame>, @anotoki/lib/admin/frame: a column with
                                      the panel's name, the person, Back to the surveys, Sign out, the theme
-                                     and its pages - System with the count of feedback nobody opened yet -,
+                                     and its pages in the family's one shape - Surveys; Localization:
+                                     Translations, Languages; System: Site settings, People, Feedback with
+                                     the count of feedback nobody opened yet, Error log, Audit log,
+                                     Backups, Migrations, each its own link -,
                                      the page on the right; on a phone a row with Menu and a drawer; the
                                      cards for nobody signed in and no role here stand without it); the
                                      surveys, the editor, the results (a visitor: "Visitor N",
                                      "Not signed in"; nobody's address - the site keeps none);
                                      Translations and Languages are the family's pages
-                                     (@anotoki/lib/translations/admin, a lazy entry point); the System page
-                                     (system/, ADMIN) and the family's pages it leads to, each a lazy entry
-                                     point - People (@anotoki/lib/people/page), Feedback, the error log, the
-                                     audit log, the backups (@anotoki/lib/admin/feedback, /errors, /audit,
-                                     /backups) and Migrations (<anotoki-migrations-page>); shared/ - its
-                                     own pieces: the rich text editor, the strip of pictures, and the
-                                     pictures made small in the browser (images/)
+                                     (@anotoki/lib/translations/admin, a lazy entry point); the System
+                                     pages (ADMIN), each the family's on a lazy entry point - Site settings
+                                     (@anotoki/lib/admin/site-settings), People (@anotoki/lib/people/page),
+                                     Feedback, the error log, the audit log, the backups
+                                     (@anotoki/lib/admin/feedback, /errors, /audit, /backups) and Migrations
+                                     (<anotoki-migrations-page>); /admin/system, the System page before,
+                                     goes on to Site settings; shared/ - its own pieces: the text editor's
+                                     tools (text-tools.ts: the library's <anotoki-html-editor> as a
+                                     survey's texts have it), the strip of pictures, and the pictures made
+                                     small in the browser (images/)
 public/                              the mark, the favicon, changelog.json (the versions, newest first, in
                                      English and formal Slovak - the newest is package.json's version)
-proxy.conf.json                      /api and /setup.php to the backend on :8500
+proxy.conf.json                      /api, /robots.txt, /sitemap.xml and /setup.php to the backend on :8500
 .nvmrc                               the Node version
 ```
 
@@ -145,9 +163,10 @@ Components are three files (`.ts`, `.html`, `.scss`); colours come from the
 family's `--anotoki-*` tokens and the survey's own few in `src/styles.scss`;
 every page works at 390 px. The UI kit, the top bar, the admin panel's frame, the theme, the site's
 words, signing in, the People page, the admin tools, the feedback form, the
-error reporter, the legal pages, About and Support and the footer are the anotoki family's library
-(`@anotoki/lib`, 0.10.0 - the backend's half the same), configured in
-`app.config.ts`, `shared/kit.ts`,
+error reporter, the legal pages, About and Support, the footer, the site settings, the HTML editor
+and the rich text, the dates and the search's folding are the anotoki family's library
+(`@anotoki/lib`, 0.11.0 - the backend's half the same), configured in
+`app.config.ts`, `shared/kit.ts`, `shared/site-settings.ts`,
 `shared/translations.ts`, `shared/auth/auth.config.ts`,
 `shared/admin/admin-tools.ts`, `shared/feedback.ts` and `shared/legal/` - never copied here; each kit piece
 is imported from its own entry point (`@anotoki/lib/ui/button`, ...), never
@@ -160,7 +179,7 @@ admin panel is English, written in its templates.
 
 ```bash
 npm install
-npm start          # ng serve on http://localhost:4700, /api and /setup.php proxied to :8500
+npm start          # ng serve on http://localhost:4700, /api, /robots.txt, /sitemap.xml and /setup.php proxied to :8500
 npm test           # Vitest, once
 npm run build      # production -> dist/survey/browser/
 cd .. && bun run format:check   # Prettier on every file of both halves, at the root (bun install there first)

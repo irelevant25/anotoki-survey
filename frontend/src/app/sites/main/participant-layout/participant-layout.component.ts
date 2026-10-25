@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { SiteFooterComponent } from '@anotoki/lib/footer';
+import { AnnouncementComponent, PageNoticeComponent } from '@anotoki/lib/site-settings';
 import { TranslatePipe, TranslationService } from '@anotoki/lib/translations';
 import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
@@ -15,7 +16,9 @@ import { Changelog } from '../../../shared/changelog/changelog.service';
 import { TopBarComponent } from '../common/top-bar/top-bar.component';
 
 /**
- * The frame of what people see: the top bar and the page below it - for
+ * The frame of what people see: the site settings' announcement above the
+ * top bar (anotoki-lib 0.11.0, shared/site-settings.ts), the bar, and the page
+ * below it - the administrators' notice over it (<anotoki-page-notice>) - for
  * somebody signed in, or, while the site welcomes visitors (the IAM's
  * "Sign-in required" is off), for anybody. The editor's preview is for
  * somebody signed in whatever the switch. Under it, for anybody, the anotoki
@@ -40,7 +43,7 @@ import { TopBarComponent } from '../common/top-bar/top-bar.component';
  */
 @Component({
   selector: 'app-participant-layout',
-  imports: [RouterOutlet, ButtonComponent, EmptyStateComponent, IconComponent, SiteFooterComponent, TopBarComponent, TranslatePipe],
+  imports: [RouterOutlet, AnnouncementComponent, ButtonComponent, EmptyStateComponent, IconComponent, PageNoticeComponent, SiteFooterComponent, TopBarComponent, TranslatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './participant-layout.component.html',
   styleUrl: './participant-layout.component.scss',

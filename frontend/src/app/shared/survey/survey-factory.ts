@@ -1,3 +1,4 @@
+import { foldText } from '@anotoki/lib/ui/search';
 import { ChoiceOption, Question, QuestionTranslation, QuestionType, Step, StepTranslation, Survey, SurveyTranslation } from './survey.model';
 
 /** A new id: random, so two editors (or two tabs) never make the same one. */
@@ -199,7 +200,8 @@ export function copySurvey(survey: Survey, takenSlugs: Iterable<string>, now = n
  * Addresses the site keeps for itself. A survey lives at /{slug}, so a slug
  * must never be one of the site's own paths - the legal pages' (terms,
  * privacy, contact) and the About and Support pages' (about, support) among
- * them, which the router matches first. The server
+ * them, which the router matches first, and the administrators' way in while
+ * the site is closed for maintenance (staff). The server
  * keeps the same list, in the same order (SURVEY_RESERVED_SLUGS in
  * backend/api/survey_rules.php; tests/unit/rules.test.php holds them together).
  */
@@ -221,17 +223,20 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   'contact',
   'about',
   'support',
+  'staff',
 ]);
 
 /** The longest address: long enough for any title's gist, short enough to share. */
 export const SLUG_MAX = 60;
 
-/** "Genshin 1.0 — what's next?" → "genshin-1-0-whats-next": lower case, no accents, dashes. */
+/**
+ * "Genshin 1.0 — what's next?" → "genshin-1-0-whats-next": folded as every
+ * anotoki site folds a text (the library's foldText(): no accents or marks,
+ * lower case, "Łódź" → "lodz", "Straße" → "strasse"), then letters, digits and
+ * dashes.
+ */
 export function slugify(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/\p{M}+/gu, '')
-    .toLowerCase()
+  return foldText(text)
     .replace(/['’]/g, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')

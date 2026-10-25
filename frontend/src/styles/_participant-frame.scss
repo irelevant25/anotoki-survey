@@ -43,6 +43,11 @@
     outline: none;
   }
 
+  // The administrators' notice above the page (the site settings'): room under it only while it says something.
+  .page-notice:not(:empty) {
+    margin-bottom: 1.25rem;
+  }
+
   @media (max-width: 560px) {
     .page {
       padding: 0.9rem 0.6rem 2.5rem;

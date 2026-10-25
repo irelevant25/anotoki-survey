@@ -1,7 +1,7 @@
 import { DYNAMIC_KEYS } from '../i18n/dynamic-keys';
 import { AGES, AGE_ID, ALL_GENDERS, GENDERS, GENDER_ID, genderLabel, isOfferedGender } from './about-you';
 import { ABOUT_YOU_QUESTIONS, aboutYouQuestions, aboutYouQuestionsFor } from './about-you-questions';
-import { plainText } from './plain-text';
+import { richHtmlText } from '@anotoki/lib/ui/rich-html';
 
 const SLOVAK: Record<string, string> = {
   'aboutYou.genderQuestion': 'Aké je Vaše pohlavie?',
@@ -34,9 +34,9 @@ describe('aboutYouQuestions', () => {
       asked.push(key);
       return SLOVAK[key] ?? key;
     });
-    expect(plainText(gender.text)).toBe('Aké je Vaše pohlavie?');
+    expect(richHtmlText(gender.text)).toBe('Aké je Vaše pohlavie?');
     expect(gender.options.map((option) => option.label)).toEqual(['Muž', 'Žena', 'Nechcem uviesť']);
-    expect(plainText(age.text)).toBe('Koľko máte rokov?');
+    expect(richHtmlText(age.text)).toBe('Koľko máte rokov?');
     expect(age.options.map((option) => option.label)).toEqual(['Menej ako 18', '18–24', '25–34', '35–44', '45 a viac', 'Nechcem uviesť']);
     expect([...asked].sort()).toEqual(Object.keys(SLOVAK).sort());
   });
@@ -55,7 +55,7 @@ describe('aboutYouQuestions', () => {
     // A question's text is drawn with [innerHTML]; a string is text, whatever somebody typed into it.
     const [gender, age] = aboutYouQuestions((key) => (key === 'aboutYou.ageQuestion' ? 'Vek < 18 & viac' : key === 'aboutYou.genderQuestion' ? '<img src=x onerror="alert(1)">' : 'A & B <i>'));
     expect(age.text).toBe('<p>Vek &lt; 18 &amp; viac</p>');
-    expect(plainText(age.text)).toBe('Vek < 18 & viac');
+    expect(richHtmlText(age.text)).toBe('Vek < 18 & viac');
     expect(gender.text).toBe('<p>&lt;img src=x onerror=&quot;alert(1)&quot;&gt;</p>');
     // Labels are drawn as text ({{ }}), which escapes them itself - escaped here they would show "&amp;".
     expect(age.options[0].label).toBe('A & B <i>');

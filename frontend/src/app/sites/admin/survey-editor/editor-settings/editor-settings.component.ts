@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, output } f
 import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { IconComponent } from '@anotoki/lib/ui/icon';
 import { SwitchComponent } from '@anotoki/lib/ui/forms';
+import { foldText } from '@anotoki/lib/ui/search';
 import { AdminDates } from '../../../../shared/admin/admin-dates.service';
 import { slugify, uniqueSlug } from '../../../../shared/survey/survey-factory';
 import { translationCodes } from '../../../../shared/survey/localize';
@@ -57,16 +58,14 @@ export class EditorSettingsComponent {
   protected readonly languageLocked = computed(() => this.translatedInto() !== '' || this.choices().length < 2);
 
   /**
-   * While typing: small letters, digits and dashes, a dash for anything else -
-   * but a dash at the end stays, or the next word could never be typed after
-   * it. Leaving the field tidies the ends.
+   * While typing: small letters, digits and dashes - folded as slugify() folds
+   * (the library's foldText()) - a dash for anything else, but a dash at the
+   * end stays, or the next word could never be typed after it. Leaving the
+   * field tidies the ends.
    */
   protected onSlugInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const typed = input.value
-      .normalize('NFD')
-      .replace(/\p{M}+/gu, '')
-      .toLowerCase()
+    const typed = foldText(input.value)
       .replace(/[^a-z0-9-]+/g, '-')
       .replace(/-{2,}/g, '-');
     if (typed !== input.value) {

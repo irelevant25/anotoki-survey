@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Anotoki\Lib\RichHtml\RichHtml;
+
 /**
  * What a survey may hold, what keeps it from opening, and what counts as an
  * answer - the server's copy of the frontend's rules:
@@ -31,7 +33,8 @@ const SURVEY_ABOUT_YOU_IDS = ['about-gender', 'about-age'];
 /**
  * Addresses the site keeps for itself: a survey lives at /{slug}. RESERVED_SLUGS in survey-factory.ts. The legal
  * pages - terms, privacy, contact - and the About and Support pages - about, support - are routes of their own,
- * matched before a survey's address.
+ * matched before a survey's address; so is staff, where the site's administrators sign in while it is closed for
+ * maintenance (anotoki-lib 0.11.0's site settings).
  */
 const SURVEY_RESERVED_SLUGS = [
     'admin',
@@ -51,6 +54,7 @@ const SURVEY_RESERVED_SLUGS = [
     'contact',
     'about',
     'support',
+    'staff',
 ];
 const SURVEY_SLUG_MAX = 60;
 
@@ -475,7 +479,7 @@ function surveyTranslationGaps(array $survey, string $code): array
     $content = $survey['content'];
     $translation = $content['translations'][$code] ?? [];
     $line = static fn(mixed $value): bool => !is_string($value) || textTrim($value) === '';
-    $rich = static fn(mixed $value): bool => !is_string($value) || richTextIsBlank($value);
+    $rich = static fn(mixed $value): bool => !is_string($value) || RichHtml::isBlank($value);
 
     $gaps = [];
     if (!$line($survey['title']) && $line($translation['title'] ?? null)) {
@@ -614,7 +618,7 @@ function surveyImagesFromBody(mixed $raw, int $max, string $name, array &$imageI
  */
 function surveyStepIsEmpty(array $step): bool
 {
-    return $step['questions'] === [] && richTextIsBlank($step['text']) && $step['images'] === [];
+    return $step['questions'] === [] && RichHtml::isBlank($step['text']) && $step['images'] === [];
 }
 
 /** An address as slugify() leaves it: small letters, digits and single dashes, at most SLUG_MAX. */
@@ -680,7 +684,7 @@ function surveyProblems(array $survey, array $others, array $languages = []): ar
 
     foreach ($questions as [$n, $question]) {
         $name = "Question $n";
-        if (richTextIsBlank($question['text'])) {
+        if (RichHtml::isBlank($question['text'])) {
             $problems[] = "$name has no text.";
         }
         if ($question['type'] === 'text') {

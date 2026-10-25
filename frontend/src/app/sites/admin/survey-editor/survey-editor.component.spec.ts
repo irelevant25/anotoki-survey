@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideRouter } from '@angular/router';
 import { ConfirmService } from '@anotoki/lib/ui/dialog';
+import { HtmlEditorComponent } from '@anotoki/lib/ui/html-editor';
 import { ToastService } from '@anotoki/lib/ui/toast';
 import { type AdminLanguage } from '@anotoki/lib/translations';
 import { AdminStore } from '../../../shared/admin/admin-store.service';
@@ -11,7 +12,6 @@ import { AuthService } from '../../../shared/auth/auth.service';
 import { newOption, newQuestion, newSurvey } from '../../../shared/survey/survey-factory';
 import { Person, Survey, SurveyImage, SurveyTranslation } from '../../../shared/survey/survey.model';
 import { provideTestTranslations } from '../../../shared/testing/test-translations';
-import { RichTextEditorComponent } from '../shared/rich-text-editor/rich-text-editor.component';
 import { SurveyEditorComponent } from './survey-editor.component';
 
 const ENGLISH: AdminLanguage = { code: 'en', name: 'English', native_name: 'English', enabled: true, sort_order: 1, seeded: true, strings: 0 };
@@ -939,7 +939,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
       return { ...base, steps: [{ id: 's0', title: 'The task', text: '<p>Go to the <strong>genshin</strong> site, then come back.</p>', images: [MAP], questions: [] }, ...base.steps] };
     }
     /** The rich text fields of the page that are a step's own, by step. */
-    const stepText = (stepId: string) => fixture.debugElement.query(By.css(`[id="step-${stepId}"] .step-own app-rich-text-editor`))?.componentInstance as RichTextEditorComponent | undefined;
+    const stepText = (stepId: string) => fixture.debugElement.query(By.css(`[id="step-${stepId}"] .step-own anotoki-html-editor`))?.componentInstance as HtmlEditorComponent | undefined;
     const problems = () => texts('app-editor-outline .problem');
 
     it('adds a step of text alone: its text written in place of questions, the step no problem once it says something', async () => {
@@ -1003,7 +1003,7 @@ describe('SurveyEditorComponent: a survey and its translations', () => {
       expect(field(['stepText', 's0'])?.getAttribute('lang')).toBe('sk');
       expect(field(['stepImage', 's0', 'img2'])?.getAttribute('aria-label')).toBe('Step 1, picture 1: what it shows in Slovak (not translated yet)');
       // Nothing of the step to add, move or remove there: the picture's own buttons, the text's own field, the way to a text step.
-      for (const gone of ['.step-own > app-rich-text-editor', '.add', '.thumb-actions', '.add-text', '#add-text-step']) {
+      for (const gone of ['.step-own > anotoki-html-editor', '.add', '.thumb-actions', '.add-text', '#add-text-step']) {
         expect(host.querySelector('.builder ' + gone), gone).toBeNull();
       }
 

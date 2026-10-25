@@ -13,7 +13,9 @@ import { VisitorKey } from './visitor-key';
  *   (`bootConfig()`): the library is handed it once it came, so a start the
  *   server did not answer can start again from the load error card;
  * - the site's API is /api/..., and nobody's are the site's status, the
- *   sign-in's settings, the strings (the library's skips) and the pictures (an
+ *   sign-in's settings, the strings (the library's skips), what every page is
+ *   told of the site settings (read as the site starts, before the sign-in is:
+ *   shared/site-settings.ts) and the pictures (an
  *   <img> sends no token anyway): a request of the site's API says whom it is
  *   for as it is issued (ApiService: ISSUED_AS) - a person's goes with the
  *   token or not at all, a visitor's with the key, and the key goes only to
@@ -39,7 +41,7 @@ export function siteAuthConfig(): AnotokiAuthConfig {
     config: () => inject(AuthService).bootConfig(),
     api: {
       prefixes: ['/api/'],
-      skip: ['/api/site-status', '/api/auth/config', '/api/translations/', '/api/images/'],
+      skip: ['/api/site-status', '/api/auth/config', '/api/translations/', '/api/site-settings', '/api/images/'],
       visitorPrefixes: ['/api/surveys'],
     },
     visitors: () => inject(VisitorKey),
@@ -61,10 +63,12 @@ export function provideSiteAuth(): EnvironmentProviders {
  * sign-in in progress is kept), the screen that says why (the library's, on
  * the callback page), where nothing would have happened at all. The guards do
  * the same for a page that needs somebody signed in. `prompt: 'login'` asks
- * for the password again even with a session at the IAM (the backups' proof).
+ * for the password again even with a session at the IAM (the backups' proof);
+ * `returnTo` comes back elsewhere than this page (the closed sign's Sign in at
+ * /staff: to the home page, where an administrator sees the site as it is).
  */
-export async function signInOrShowWhy(auth: AuthService, router: Router, prompt?: 'login'): Promise<void> {
-  if (await auth.signIn(undefined, prompt)) {
+export async function signInOrShowWhy(auth: AuthService, router: Router, prompt?: 'login', returnTo?: string): Promise<void> {
+  if (await auth.signIn(returnTo, prompt)) {
     return;
   }
   if (auth.signInFailure()) {

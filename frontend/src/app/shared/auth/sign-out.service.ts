@@ -2,7 +2,6 @@ import { Injectable, Injector, inject } from '@angular/core';
 import { TranslationService } from '@anotoki/lib/translations';
 import type { LocalizationDrafts } from '@anotoki/lib/translations/admin';
 import { ConfirmService } from '@anotoki/lib/ui/dialog';
-import { AdminStore } from '../admin/admin-store.service';
 import { AuthService } from './auth.service';
 
 /**
@@ -13,7 +12,6 @@ import { AuthService } from './auth.service';
 export class SignOut {
   private readonly _auth = inject(AuthService);
   private readonly _i18n = inject(TranslationService);
-  private readonly _store = inject(AdminStore);
   private readonly _confirm = inject(ConfirmService);
   private readonly _injector = inject(Injector);
 
@@ -33,7 +31,7 @@ export class SignOut {
    * saved.
    */
   async afterSaves(beforeAsking?: () => void): Promise<void> {
-    const surveysSaved = await this._store.flushAll();
+    const surveysSaved = await this._surveysSaved();
     const drafts = await this._localizationDrafts();
     const draftsWaiting = (drafts?.count() ?? 0) > 0;
     if (!surveysSaved || draftsWaiting) {
@@ -54,6 +52,29 @@ export class SignOut {
       drafts?.clear();
     }
     this._auth.signOut();
+  }
+
+  /**
+   * The editor's changes to surveys, saved (AdminStore.flushAll()) - false when
+   * one cannot be (refused, or in conflict). The store comes with the admin
+   * panel's own code (a lazy chunk, beside the survey rules and the family's
+   * rich text it needs): the first load never carries it, so it is asked for
+   * here, and only of somebody who may have changed a survey (EDITOR, ADMIN) -
+   * the same store the editor wrote to when the admin panel was open in this page
+   * load (in memory already), a store with nothing waiting otherwise. When the
+   * chunk cannot be had (offline), no survey was changed in this page load: its
+   * code would be in memory.
+   */
+  private async _surveysSaved(): Promise<boolean> {
+    if (!this._auth.isStaff()) {
+      return true;
+    }
+    try {
+      const admin = await import('../admin/admin-store.service');
+      return await this._injector.get(admin.AdminStore).flushAll();
+    } catch {
+      return true;
+    }
   }
 
   /**

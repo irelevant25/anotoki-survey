@@ -3,8 +3,11 @@ import { TestBed } from '@angular/core/testing';
 import { Route, Router, RouterOutlet, Routes, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { personOrVisitorGuard } from '@anotoki/lib/auth';
+import { SiteStatus } from '@anotoki/lib/migrations';
+import { SiteSettings, pageAccessGuard } from '@anotoki/lib/site-settings';
 import { routes } from './app.routes';
 import { ParticipantLayoutComponent } from './sites/main/participant-layout/participant-layout.component';
+import { staffGuard } from './sites/main/main.routes';
 
 @Component({ selector: 'app-test-frame', imports: [RouterOutlet], changeDetection: ChangeDetectionStrategy.OnPush, template: '<router-outlet />' })
 class FrameStandInComponent {}
@@ -78,5 +81,78 @@ describe('the site’s routes', () => {
       expect(typeof frame.loadComponent).toBe('function');
       expect([page.path, page.title]).toEqual(['', title]);
     }
+  });
+
+  it('/staff: a route of its own, before the survey’s /{slug} would take it - the administrators’ way in while the site is closed', async () => {
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl('/staff');
+    const [route] = taken();
+    expect([route.path, route.canActivate]).toEqual(['staff', [staffGuard]]);
+  });
+
+  it('Page access governs the participant’s pages - the list and a survey’s page - and not the editor’s preview, nor the not-found page', () => {
+    const participant = routes.find((route) => route.component === ParticipantLayoutComponent)!;
+    const guarded = participant.children!.filter((route) => route.canMatch?.includes(pageAccessGuard)).map((route) => route.path);
+    expect(guarded).toEqual(['', ':slug']);
+  });
+});
+
+/**
+ * The participant's pages with the guard that matters here - Page access's, a canMatch (the site settings,
+ * anotoki-lib 0.11.0) - and a stand-in for each page: a page a row keeps from the reader is as if it were not written.
+ */
+describe('Page access on the participant’s pages (pageAccessGuard)', () => {
+  const hidden = new Set<string>();
+
+  beforeEach(() => {
+    hidden.clear();
+    const participant = routes.find((route) => route.component === ParticipantLayoutComponent)!;
+    const pages: Routes = participant.children!.map((route) => ({ path: route.path, canMatch: route.canMatch, component: PageStandInComponent, data: { route } }));
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([{ path: '', component: FrameStandInComponent, children: pages, data: { route: participant } }]),
+        // What the site settings say of each page: the library's own rule decides (mayNavigate - the ADMIN never refused), stood in here.
+        { provide: SiteSettings, useValue: { mayNavigate: (path: string) => !hidden.has(path) } },
+      ],
+    });
+  });
+
+  it('a survey kept from the reader falls through to the not-found page, at the address typed - never a redirect that says it is there', async () => {
+    const harness = await RouterTestingHarness.create('/genshin-6-1');
+    expect(taken()[1].path).toBe(':slug');
+    hidden.add('/genshin-6-1');
+    await harness.navigateByUrl('/elsewhere');
+    await harness.navigateByUrl('/genshin-6-1');
+    expect(taken()[1].path).toBe('**');
+    expect(TestBed.inject(Router).url).toBe('/genshin-6-1');
+  });
+
+  it('so does the list of open surveys, and the rest stays as it is', async () => {
+    hidden.add('/');
+    const harness = await RouterTestingHarness.create('/');
+    expect(taken()[1].path).toBe('**');
+    await harness.navigateByUrl('/another');
+    expect(taken()[1].path).toBe(':slug');
+  });
+});
+
+/** /staff: stays where it is while the site cannot run - the family's page stands there, the closed sign with its Sign in - and goes on to the admin panel otherwise. */
+describe('staffGuard: the administrators’ way in while the site is closed', () => {
+  const blocked = { value: false };
+
+  beforeEach(() => {
+    TestBed.configureTestingModule({ providers: [provideRouter([]), { provide: SiteStatus, useValue: { blocked: () => blocked.value } }] });
+  });
+
+  const guarded = () => TestBed.runInInjectionContext(() => staffGuard({} as never, {} as never));
+
+  it('lets the address stay while the site cannot run: closed for maintenance, an update waiting, not set up', () => {
+    blocked.value = true;
+    expect(guarded()).toBe(true);
+  });
+
+  it('is the admin panel’s door while the site runs - for its ADMIN while it is closed too, who sees it as it is', () => {
+    blocked.value = false;
+    expect(TestBed.inject(Router).serializeUrl(guarded() as never)).toBe('/admin');
   });
 });

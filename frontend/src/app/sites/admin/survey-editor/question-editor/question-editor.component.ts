@@ -1,14 +1,15 @@
 import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { ChangeDetectionStrategy, Component, booleanAttribute, computed, inject, input, output } from '@angular/core';
 import { uniqueId } from '@anotoki/lib/ui/dom';
+import { HtmlEditorComponent } from '@anotoki/lib/ui/html-editor';
+import { richHtmlText } from '@anotoki/lib/ui/rich-html';
 import { IconComponent } from '@anotoki/lib/ui/icon';
 import { SwitchComponent } from '@anotoki/lib/ui/forms';
 import { type SurveyIconName } from '../../../../shared/kit';
 import { MAX_QUESTION_IMAGES } from '../../shared/images/prepare-image';
 import { choiceRule, choiceRuleText, isChoice } from '../../../../shared/survey/answer-rules';
-import { plainText } from '../../../../shared/survey/plain-text';
 import { ChoiceLayout, Question, QuestionType } from '../../../../shared/survey/survey.model';
-import { RichTextEditorComponent } from '../../shared/rich-text-editor/rich-text-editor.component';
+import { SURVEY_TEXT_TOOLS } from '../../shared/text-tools';
 import { ImageListEditorComponent } from '../image-list-editor/image-list-editor.component';
 import { OptionsEditorComponent } from '../options-editor/options-editor.component';
 import { SurveyEditing } from '../survey-editing.service';
@@ -51,7 +52,7 @@ export interface StepChoice {
  */
 @Component({
   selector: 'app-question-editor',
-  imports: [CdkDragHandle, IconComponent, ImageListEditorComponent, OptionsEditorComponent, RichTextEditorComponent, SwitchComponent, TranslatedTextComponent],
+  imports: [CdkDragHandle, HtmlEditorComponent, IconComponent, ImageListEditorComponent, OptionsEditorComponent, SwitchComponent, TranslatedTextComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './question-editor.component.html',
   styleUrl: './question-editor.component.scss',
@@ -62,6 +63,8 @@ export class QuestionEditorComponent {
   readonly expanded = input(false, { transform: booleanAttribute });
   /** Focus the text as soon as it is drawn - for a question just added. */
   readonly focusText = input(false, { transform: booleanAttribute });
+  /** The text editor's buttons: the survey's (sites/admin/shared/text-tools.ts). */
+  protected readonly textTools = SURVEY_TEXT_TOOLS;
   readonly isFirst = input(false, { transform: booleanAttribute });
   readonly isLast = input(false, { transform: booleanAttribute });
   /** The steps it can move to, its own among them. */
@@ -95,7 +98,7 @@ export class QuestionEditorComponent {
 
   protected readonly type = computed(() => QUESTION_TYPES.find((item) => item.type === this.question().type) ?? QUESTION_TYPES[0]);
   protected readonly choice = computed(() => isChoice(this.question()));
-  protected readonly summary = computed(() => plainText(this.question().text));
+  protected readonly summary = computed(() => richHtmlText(this.question().text));
   /** The line people read under the question, quoted in English: the admin area is English. */
   protected readonly rule = computed(() => choiceRuleText(choiceRule(this.question())));
   protected readonly hasOther = computed(() => this.question().options.some((option) => option.other));

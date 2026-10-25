@@ -1,6 +1,6 @@
+import { richHtmlIsBlank } from '@anotoki/lib/ui/rich-html';
 import { isChoice } from './answer-rules';
 import { translatedText, translationGaps, translationOf } from './localize';
-import { isBlankHtml } from './plain-text';
 import { RESERVED_SLUGS, slugify } from './survey-factory';
 import { numberedQuestions, stepIsEmpty } from './survey-outline';
 import { Survey, SurveyStatus } from './survey.model';
@@ -74,7 +74,7 @@ export function surveyProblems(survey: Survey, others: readonly Pick<Survey, 'id
   for (const { question, number } of questions) {
     const target = { kind: 'question', questionId: question.id } as const;
     const name = `Question ${number}`;
-    if (isBlankHtml(question.text)) {
+    if (richHtmlIsBlank(question.text)) {
       problems.push({ message: `${name} has no text.`, target });
     }
     if (!isChoice(question)) {

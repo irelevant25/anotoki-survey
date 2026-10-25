@@ -688,14 +688,14 @@ test('the command line: --export and --import on the same strings, by nobody; --
     assert_same(1, $code, $out);
     assert_match('/Not clean\./', $out);
     assert_no_match('/  Clean\./', $out);
-    assert_match('/Used by the frontend, not in the database.*\n\s+aboutYou\.gender\.male\n\s+core\/i18n\/dynamic-keys\.ts\n/s', $out, 'each missing key, with where it is asked for');
+    assert_match('/Used by the frontend, not in the database.*\n\s+aboutYou\.gender\.male\n\s+shared\/i18n\/dynamic-keys\.ts\n/s', $out, 'each missing key, with where it is asked for');
     assert_no_match('/\n\s+home\.title\n/', $out, 'the database has no "home" keys, so home.title is nobody\'s key yet');
     dbExec("INSERT INTO translation_keys (name) VALUES ('home.zzzProbe')");
     dbExec("INSERT INTO translations (key_name, language_code, value) VALUES ('home.zzzProbe', 'en', 'A probe')");
     [$code, $out] = cli('--status');
     assert_same(1, $code, $out);
     assert_match(
-        '/Used by the frontend, not in the database.*\n\s+home\.title\n\s+pages\/\S+\.html:\d+\n/s',
+        '/Used by the frontend, not in the database.*\n\s+home\.title\n\s+sites\/\S+\.html:\d+\n/s',
         $out,
         'with one "home" key in the database, every home.* the pages ask for is missing - named, with the file and the line',
     );

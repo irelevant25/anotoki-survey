@@ -38,7 +38,7 @@
             @if (item.number !== null) {
                 <span class="number">{{ item.number }}</span>
             }
-            <div class="text rich" [innerHTML]="item.question.text"></div>
+            <anotoki-rich-html class="text rich" [html]="item.question.text" />
         </div>
 
         @if (item.question.images.length) {

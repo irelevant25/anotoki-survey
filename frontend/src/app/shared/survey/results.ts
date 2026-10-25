@@ -1,5 +1,5 @@
+import { richHtmlText } from '@anotoki/lib/ui/rich-html';
 import { AGES, AGE_ID, ALL_GENDERS, GENDER_ID } from './about-you';
-import { plainText } from './plain-text';
 import { numberedQuestions } from './survey-outline';
 import { Person, Question, Survey, SurveyImage, SurveyResponse } from './survey.model';
 
@@ -172,7 +172,7 @@ export function describeFilter(survey: Survey, filter: ResultFilter): { question
   if (!found || !option) {
     return null;
   }
-  return { question: `${found.number}. ${plainText(found.question.text)}`, answer: option.label };
+  return { question: `${found.number}. ${richHtmlText(found.question.text)}`, answer: option.label };
 }
 
 /** How long a person took, from pressing Start to sending, in seconds. */
