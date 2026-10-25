@@ -214,8 +214,10 @@ Nothing of the version before stays on the host; `config/` and `storage/`
 stay as they are (the lock too, for a version with no new migration).
 `bun run anotoki-deploy status` says what is there.
 
-`config/visitors.local.php` (the visitors' limits and trusted proxies) and
-`config/cloudflare.local.php` (the origin secret) are never in a release and
+`config/visitors.local.php` (the visitors' limits and trusted proxies),
+`config/cloudflare.local.php` (the origin secret) and `config/site.local.php`
+(the site's own address for robots.txt and sitemap.xml - needed only where the
+site is not at `https://survey.anotoki.eu`) are never in a release and
 nothing writes them: they are put into the site's `config/` by hand over
 SFTP, and they stay across releases. Before the
 IAM's "Sign-in required" is switched off for the survey, nothing in it is
@@ -289,19 +291,30 @@ ADMIN only to the administrators the IAM had when it ran.
   through the library's `SignInRule`; `storage/cache/` must be writable);
   `sign_in_available` - `true`; `visitor_days` - 30, or the `keep_days` of
   `config/visitors.local.php`.
-- As the owner (ADMIN): System in the admin panel's bar - People lists the
-  people who signed in; Feedback, the error log, the audit log and the
-  backups open (the Apply's backup listed); `/storage/logs/`,
+- As the owner (ADMIN): the admin panel's column - Surveys; Localization;
+  System: Site settings (three cards, everything off), People (the people
+  who signed in), Feedback, the error log, the audit log, the backups (the
+  Apply's backup listed) and Migrations, each its own link; `/admin/system`
+  goes on to Site settings; `/storage/logs/`,
   `/storage/backups/` and `/storage/anotoki-lib.key` are refused (403), not
   served.
 - Signed out, Contact's "Send feedback" and the footer's Feedback open the
   form; a message sent shows the thanks, and the admin panel counts it beside
-  System until it is opened. `https://survey.anotoki.eu/changelog.json` lists
+  Feedback until it is opened. `https://survey.anotoki.eu/changelog.json` lists
   the release's version first, the footer under every page says it ("v1.0.0")
   and its What's new opens the list, About · Support · Terms · Privacy ·
   Contact under it; the admin panel has the same footer, in English. `/about`
   and `/support` open signed out.
 - `https://survey.anotoki.eu/setup.php` does not show the installer.
+- `https://survey.anotoki.eu/robots.txt` and `/sitemap.xml` come from the
+  site's PHP (anotoki-lib 0.11.0; `Cache-Control: public, max-age=3600`):
+  `Disallow:` `/admin`, `/api`, `/auth`, `/preview`, `/staff` and
+  `Sitemap: https://survey.anotoki.eu/sitemap.xml`; the sitemap the legal
+  pages, About and Support (and, while sign-in is not required, the open
+  surveys) - every address `https://survey.anotoki.eu/...`. Purge
+  Cloudflare's cache of the two if it kept an older answer. `/staff` while
+  the site runs goes on to the admin panel. Maintenance is tried only with
+  the owner's say: it closes the live site to everybody else.
 - `/config/database.local.php`, `/storage/`, `/vendor/composer/installed.json`,
   `/api/auth.php` are refused (403), not served.
 - Sign in; open `/admin` as the owner; a survey's picture loads.

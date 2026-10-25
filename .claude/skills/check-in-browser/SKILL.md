@@ -1,6 +1,6 @@
 ---
 name: check-in-browser
-description: Check the survey site in a real browser, signed in, end to end - every page signed in first (to the IAM and back, nothing of a survey before), the family's top bar at 360, 390 and 1280 px with its phone menu; the owner writes and opens a survey with a picture, somebody takes it once, the results and the roles; the pages people take surveys on in Slovak (the top bar on a phone, a survey step by step, no key where a word should be, the admin panel English all the same); and the translating itself (the Translations and Languages pages, a survey translated in the editor, read in Slovak, in English where a text is missing, and which language each person read it in); and what goes wrong (a sign-in the IAM turns down or the browser cannot start - the anotoki family's screen that says why, in English and formal Slovak -, a save the server fails on, a session that ends over unsaved strings, a save over a translator's save, the site not set up - never installed, or installed once - or out of reach, a database behind the code: the anotoki family's page for everybody, bare - no top bar, no footer -, and the admin panel's Migrations page that applies it, reached by a Sign in from that page); and visitors - the IAM's "Sign-in required" switched off: surveys taken without signing in, in two browsers, "Visitor N" / "Not signed in" in the admin panel, the answers and the draft moved into the account at a sign-in, and a visitor sent to sign in once the switch is on again; and the ADMIN's System pages (People with the scrub of an account the IAM deleted and a person's answers deleted, Feedback, the error log, the audit log, the backups made after a new sign-in, downloaded and deleted) and an EDITOR kept out of them; and Terms, Privacy and Contact, About and Support, and the anotoki family's footer under every page and the admin panel - the version, What's new (the survey's own list), Feedback (the family's form), About · Support · Terms · Privacy · Contact; none round the family's page, no Feedback in it while an update waits - Contact's feedback form sent by nobody signed in, then counted beside System, opened, resolved and deleted on the admin panel - with headless Chrome or Edge and the anotoki library's stand-in IAM, on a throwaway database. Use after any change to the frontend, the API, sign-in, the site's strings or a survey's translations, before saying a change works, when a page renders blank or looks broken, or when the user asks to see or screenshot the site.
+description: Check the survey site in a real browser, signed in, end to end - every page signed in first (to the IAM and back, nothing of a survey before), the family's top bar at 360, 390 and 1280 px with its phone menu; the owner writes and opens a survey with a picture, somebody takes it once, the results and the roles; the pages people take surveys on in Slovak (the top bar on a phone, a survey step by step, no key where a word should be, the admin panel English all the same); and the translating itself (the Translations and Languages pages, a survey translated in the editor, read in Slovak, in English where a text is missing, and which language each person read it in); and what goes wrong (a sign-in the IAM turns down or the browser cannot start - the anotoki family's screen that says why, in English and formal Slovak -, a save the server fails on, a session that ends over unsaved strings, a save over a translator's save, the site not set up - never installed, or installed once - or out of reach, a database behind the code: the anotoki family's page for everybody, bare - no top bar, no footer -, and the admin panel's Migrations page that applies it, reached by a Sign in from that page); and visitors - the IAM's "Sign-in required" switched off: surveys taken without signing in, in two browsers, "Visitor N" / "Not signed in" in the admin panel, the answers and the draft moved into the account at a sign-in, and a visitor sent to sign in once the switch is on again; and the ADMIN's System pages (People with the scrub of an account the IAM deleted and a person's answers deleted, Feedback, the error log, the audit log, the backups made after a new sign-in, downloaded and deleted) and an EDITOR kept out of them; and Terms, Privacy and Contact, About and Support, and the anotoki family's footer under every page and the admin panel - the version, What's new (the survey's own list), Feedback (the family's form), About · Support · Terms · Privacy · Contact; none round the family's page, no Feedback in it while an update waits - Contact's feedback form sent by nobody signed in, then counted beside Feedback, opened, resolved and deleted on the admin panel; or, alone (--flow=site-settings), the site settings - maintenance with its closed sign and /staff, the announcement, the admin panel's menu in the family's one shape - and robots.txt and sitemap.xml - with headless Chrome or Edge and the anotoki library's stand-in IAM, on a throwaway database. Use after any change to the frontend, the API, sign-in, the site's strings or a survey's translations, before saying a change works, when a page renders blank or looks broken, or when the user asks to see or screenshot the site.
 ---
 
 # Check the survey site in a browser
@@ -12,7 +12,7 @@ signed in as the kinds of people the site has:
 
 | Who | IAM user | Roles | Account's language | Checked |
 | --- | --- | --- | --- | --- |
-| owner | 1 | `MEMBER`, `ADMIN` | en | writes a survey with a picture, opens it, reads the answer, may delete it; the admin panel is English for them in a Slovak tab too; rewords a string of the site, hides Slovak and offers it again; writes a second survey and translates it into Slovak in the editor; reads which language each person read it in; is told where Save is when a save of the strings fails; loses the session over two unsaved boxes and finds them again; is asked before signing out over them; adds a language (hidden) and deletes it; saves the survey over a translator's save and keeps the translator's texts; previews the main tab from a Slovak tab; saves over a version that removed a question and keeps its Slovak; meets a conflict in which "Save mine over it" is not offered; moves a survey's address; sets a past last day; with the database behind, signs in from the family's page at the Migrations page's address and lands on it, reads "A database update is waiting" anywhere else, applies - stopped by a file that fails, with its error - and applies again; finds the feedback sent from the Contact page counted beside System, opens it, marks it resolved and deletes it |
+| owner | 1 | `MEMBER`, `ADMIN` | en | writes a survey with a picture, opens it, reads the answer, may delete it; the admin panel is English for them in a Slovak tab too; rewords a string of the site, hides Slovak and offers it again; writes a second survey and translates it into Slovak in the editor; reads which language each person read it in; is told where Save is when a save of the strings fails; loses the session over two unsaved boxes and finds them again; is asked before signing out over them; adds a language (hidden) and deletes it; saves the survey over a translator's save and keeps the translator's texts; previews the main tab from a Slovak tab; saves over a version that removed a question and keeps its Slovak; meets a conflict in which "Save mine over it" is not offered; moves a survey's address; sets a past last day; with the database behind, signs in from the family's page at the Migrations page's address and lands on it, reads "A database update is waiting" anywhere else, applies - stopped by a file that fails, with its error - and applies again; finds the feedback sent from the Contact page counted beside Feedback, opens it, marks it resolved and deletes it |
 | pat | 101 | `MEMBER` | en | takes the survey once; the admin panel says it is not theirs; at the end, on a Slovak page, gets the second survey whole in English - one of its texts is not translated any more; later carries on in it, sends to the address it has just left, and sends again from the new one; with the database behind, signs in from the family's page and reads "being updated", nothing to press |
 | edith | 2 | `MEMBER`, `EDITOR` | en | sees the surveys and the answers, no Delete anywhere, no Migrations, no System pages (feedback among them); with the database behind, at the Migrations page's address, the family's "being updated" and no link |
 | nina | 102 | `MEMBER` | en | follows a link with `?lang=sk`: takes the survey in Slovak; in the second survey changes to English in the middle of a step, and keeps her answer |
@@ -27,7 +27,27 @@ From the repository's root:
 node .claude/skills/check-in-browser/scripts/run.mjs            # builds the frontend first
 node .claude/skills/check-in-browser/scripts/run.mjs --no-build # the build as it is
 node .claude/skills/check-in-browser/scripts/run.mjs --keep     # leave the screenshots and logs
+node .claude/skills/check-in-browser/scripts/run.mjs --flow=site-settings   # anotoki-lib 0.11.0's frames alone
 ```
+
+`--flow=site-settings` runs `site-settings.mjs` in place of `flow.mjs` (a
+minute after the build; one page a changed frame, the owner's pairings - light
+and English at 1280, dark and Slovak at 390): the admin panel's menu (the
+owner's, at 1280 and in the drawer at 390; an EDITOR's) and `/admin/system`
+going on to Site settings; the Site settings page, its three cards, the
+announcement switched on through its dialog (a warning, in English and Slovak)
+and drawn above a public page's bar for a member; maintenance switched on
+through its dialog - the status `maintenance`, the API's 503 to nobody, the
+owner using the site with the line above the page, a second browser reading
+the closed sign (no Sign in at `/`; Sign in at `/staff`, in Slovak; the legal
+pages open) - and off again; `/robots.txt` and `/sitemap.xml` fetched and
+printed (an open survey listed only while visitors are welcome). Screenshots:
+`01-admin-site-settings-1280-light`, `02-admin-site-settings-390-dark`,
+`03-admin-menu-390-dark`, `04-public-announcement-1280-light-en`,
+`05-public-announcement-390-dark-sk`, `06-maintenance-1280-light-en`,
+`07-maintenance-staff-390-dark-sk`. `run.mjs` gives the site its address
+(`testenv.php --address=`), so robots.txt and the sitemap name
+`http://127.0.0.1:8590`.
 
 Prints `ok` / `FAIL` per check, then how many checks it made (`CHECKS (n)`) and
 every page error, console error and console warning it saw (`PROBLEMS (0)` is
@@ -134,9 +154,9 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   (the toast after the sign-in: one survey moved, one kept the owner's
   answers); `admin-results-visitor-390-*` (the owner and the other browser's
   visitor side by side);
-- the ADMIN's System pages, each the anotoki family's: `admin-system-1280-*` /
-  `-390-*` (the way to People, Feedback, the error log, the audit log, the
-  backups and Migrations; System marked in the frame's column), `admin-people-1280-*` / `-390-*` (who
+- the ADMIN's System pages, each the anotoki family's and each its own link of
+  the frame's System group (anotoki-lib 0.11.0's one shape: the System page is
+  gone), `admin-people-1280-*` / `-390-*` (who
   signed in, how many surveys each answered and wrote, "you", the visitors'
   line - Delete pressable only where there are answers),
   `admin-people-scrubbed-1280-*` ("deleted-101", "Deleted at the IAM on …",
@@ -174,9 +194,8 @@ hundred). Look at them - a check can pass on a page that looks wrong:
   close), `admin-1280-whats-new-light` (What's new from the admin panel, in
   English);
 - that message on the admin panel: `admin-861-frame-feedback-count`,
-  `admin-390-frame-feedback-count-*` (the count beside System in the frame's
-  column, and in its drawer on a phone), `admin-system-feedback-count-1280-*`
-  (Feedback's card, "1 new"), `admin-feedback-1280-*` (the family's Feedback
+  `admin-390-frame-feedback-count-*` (the count beside Feedback in the frame's
+  column, and in its drawer on a phone), `admin-feedback-1280-*` (the family's Feedback
   page listing it: New, from "Not signed in", on /contact), `admin-feedback-open-1280`
   (opened: its words, page and language, no address, Mark as and Delete),
   `admin-feedback-390-*` (nothing left after the delete, on a phone);
@@ -520,14 +539,16 @@ deleted, so the site asks again at once):
 The ADMIN's System pages (anotoki-lib 0.4.1, each the family's; 0.5.0's pages' errors and the
 backups' makers; 0.6.2's Feedback), English:
 
-24. Edith (EDITOR) at `/admin/system`: whose the pages are, no link; at
-    `/admin/people`: "People are for administrators.", at `/admin/feedback`:
-    "Feedback is for the administrators of the survey site.", nothing asked;
-    the API refuses her the people, feedback, the error log, the audit log and
-    the backups (403). The owner: System in the frame's column opens the System page -
-    the way to People, Feedback, the error log, the audit log, the backups and
-    Migrations, System marked in the column, no count beside it (no feedback yet) -
-    at 1280 and 390 px. People: the columns (name, IAM id, first and last
+24. Edith (EDITOR) at `/admin/system`, the System page's old address: on to
+    Site settings, "Site settings are for the administrators of the survey
+    site.", nothing asked; at `/admin/people`: "People are for
+    administrators.", at `/admin/feedback`: "Feedback is for the
+    administrators of the survey site.", nothing asked; the API refuses her the
+    site settings, the people, feedback, the error log, the audit log and the
+    backups (403). The owner: the frame's column lists Site settings, People,
+    Feedback, the error log, the audit log, the backups and Migrations, each its
+    own link, no count beside Feedback (no feedback yet); People from the
+    column. People: the columns (name, IAM id, first and last
     seen, surveys answered and written), "you" on the owner's row, the
     visitors' line in the site's words, no Delete to press for Edith (nothing
     answered). The stand-in's `anonymized` names Pat's account deleted at the
@@ -594,15 +615,15 @@ Terms, Privacy and Contact (anotoki-lib 0.6.0's legal pages, this site's facts;
     English from a Slovak tab, at 1280 and 390 px, light and dark; its What's
     new the same list, in English.
 
-26. That message on the admin panel, the owner signed in again: beside System
-    in the frame's column the count nobody opened yet ("1", heard as ", 1 new
-    feedback message"), the frame fitting at 861 px, and at 390 px in its
-    drawer; the System page's Feedback card "1 new". The family's Feedback
+26. That message on the admin panel, the owner signed in again: beside
+    Feedback in the frame's column the count nobody opened yet ("1", heard as
+    ", 1 new feedback message"), the frame fitting at 861 px, and at 390 px in
+    its drawer; Feedback opened from the column. The family's Feedback
     page lists it - New, its words, "Not signed in · on /contact" (the
     library's words since 0.8.1), "1 new" above the list, the tab "Feedback ·
     Admin panel · anotoki survey", no key on the page. Opened: its words
     whole, from "Not signed in", its page and language, no reply address - and
-    read now: no count beside System. Marked Resolved: said in the page, "Last
+    read now: no count beside Feedback. Marked Resolved: said in the page, "Last
     marked … by owner". Deleted after its question: "No feedback yet"; the
     audit log has `feedback.status_changed` and `feedback.deleted`, by the
     owner. At 390 px, no sideways scroll.
@@ -628,8 +649,9 @@ The pages drawn instead of the site - storage cleared, 390 px:
 ## Changing the checks
 
 Helpers at the top of `flow.mjs`: `go(path)`, `clickText(selector, text)`,
-`focus(selector, n)` + `typeText(text)` (real input events - TipTap and Angular
-both see them), `setFiles(selector, n, files)` (a file input, through
+`focus(selector, n)` + `typeText(text)` (real input events - the family's
+`<anotoki-html-editor>` - its `[contenteditable="true"]` - and Angular both
+see them), `setFiles(selector, n, files)` (a file input, through
 `DOM.setFileInputFiles`), `signInAs(user, words)` (the stand-in told to sign
 in `user`, then out through the top bar's menu - and in again at once, for `/`
 asks first; `words` is `EN` or `SK`, the language the page is in),

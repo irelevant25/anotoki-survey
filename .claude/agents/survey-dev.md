@@ -52,7 +52,7 @@ Working conventions:
   transaction; blank means the same on both sides (`TEXT_SPACE` in PHP is the
   browser's `trim()`).
 - Signing in, the people and the admin tools are the anotoki family's library's
-  (anotoki-lib 0.10.0, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
+  (anotoki-lib 0.11.0, both halves: `Anotoki\Lib\Auth` / `@anotoki/lib/auth`, the people
   module, feedback - the form the footer's Feedback and the Contact page open, `POST /api/feedback`,
   the Feedback page -, the error log - the pages' errors too,
   `@anotoki/lib/error-report` -, the audit log, the backups) - wired in
@@ -88,14 +88,24 @@ Working conventions:
   request carries; switching it off is deleting the file); each fault is said
   once a day, never the file's text or what PHP said.
   Queries use `?` parameters; identifiers come from literals.
-- User HTML only through `richTextClean()`. Pictures are checked by their
+- User HTML only through `richTextClean()` (the library's `RichHtml::clean()`),
+  drawn only by `<anotoki-rich-html>` - never `[innerHTML]` of a stored text;
+  the editor is the family's `<anotoki-html-editor>` with the survey's buttons
+  (`sites/admin/shared/text-tools.ts`). Pictures are checked by their
   bytes; never SVG. A step's own text and pictures (016) are a question's in
   every way: cleaned and drawn the same, its pictures recorded in
   `survey_images` - never a way of their own.
+- The site settings (anotoki-lib 0.11.0, `api/site_settings.php`,
+  `shared/site-settings.ts`) close and hide on the server: maintenance is the
+  `SiteGate`'s (the ADMIN known by the token alone, `surveyTokenPerson()`),
+  Page access the library's `PageAccessGate` inside `Identify` in each group a
+  participant's page holds data of - a new such group gets it; a reserved path
+  never writes the site's data. robots.txt and sitemap.xml name the site by
+  `siteAddress()`, never a request's `Host`.
 - Components are three files (`.ts`, `.html`, `.scss`); colours from the
   family's `--anotoki-*` tokens and the survey's own in `src/styles.scss`
   (light and dark); every page works at 390 px. The UI kit, the top bar and the
-  footer, and the admin panel's frame (`<anotoki-admin-frame>`, never the bar there), are the anotoki family's (`@anotoki/lib` 0.10.0, wired in `shared/kit.ts`;
+  footer, and the admin panel's frame (`<anotoki-admin-frame>`, never the bar there; its menu the family's one shape, `PANEL_GROUPS`), are the anotoki family's (`@anotoki/lib` 0.11.0, wired in `shared/kit.ts`;
   `<anotoki-site-footer>` at the foot of each frame, the admin panel's too) - use
   them, each piece from its own entry point (`@anotoki/lib/ui/button`, ...,
   never the `@anotoki/lib/ui` barrel), never copy them; the kit's words come

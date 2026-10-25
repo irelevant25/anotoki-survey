@@ -90,8 +90,8 @@
 // link, deleted) and an EDITOR kept out of them; Terms, Privacy and Contact
 // (the family's legal pages, anybody's) and the footer's links to them -
 // Contact's feedback form sent by nobody signed in, and in formal Slovak on a
-// phone -, then that message on the admin panel: counted beside System and on
-// its card, opened, marked resolved, deleted after its question, audited;
+// phone -, then that message on the admin panel: counted beside Feedback in the
+// column, opened, marked resolved, deleted after its question, audited;
 // and the pages drawn instead of the site - not set up (the setup page offered
 // only to a site never installed), out of reach (the family's page, and the
 // site's own card when only the sign-in cannot be had) - bare, as the family's
@@ -832,9 +832,9 @@ expect('the owner is signed in', (await whoIsIn()) === 'owner');
 expect('the admin area shows the surveys (no survey yet)', (await text('app-surveys-list'))?.includes('No surveys yet'), (await text('app-surveys-list'))?.slice(0, 120));
 expect('no language chooser in the admin area', !(await js("!!document.querySelector('anotoki-language-switcher')")));
 expect(
-  "the admin panel's frame, not the top bar: the column - its name, the owner and the token's address, Back, Sign out, the theme, then its pages (System too, for an ADMIN; Surveys the page)",
+  "the admin panel's frame, not the top bar: the column - its name, the owner and the token's address, Back, Sign out, the theme, then its pages in the family's one shape (Surveys; Translations, Languages; for an ADMIN each System page its own link; Surveys the page)",
   same(await frameParts(), ['anotoki survey · admin panel', 'owner', 'owner@example.test', 'Back to the surveys', 'Sign out', 'theme: Theme', 'navigation: Admin panel']) &&
-    same(await framePages(), ['Surveys (page)', 'Translations', 'Languages', 'System']) &&
+    same(await framePages(), ['Surveys (page)', 'Translations', 'Languages', 'Site settings', 'People', 'Feedback', 'Error log', 'Audit log', 'Backups', 'Migrations']) &&
     !(await js("!!document.querySelector('app-top-bar, anotoki-top-bar')")),
   `${JSON.stringify(await frameParts())} / ${JSON.stringify(await framePages())}`,
 );
@@ -944,7 +944,7 @@ await sleep(500);
 
 await js("document.querySelector('#survey-title').select(); true");
 await typeText('Genshin 6.1 - what next?');
-await focus('app-question-editor .rte-body [contenteditable]', 0);
+await focus('app-question-editor anotoki-html-editor [contenteditable="true"]', 0);
 await typeText('Which element do you play most?');
 await focus('app-options-editor .option-input', 0);
 await typeText('Anemo');
@@ -1553,7 +1553,7 @@ const drawerAdmin = 'app-admin-root anotoki-admin-frame dialog[open]';
 expect(
   "/admin as the owner: the frame's drawer in English - the owner, Back, Sign out, the theme, then the pages",
   same(await frameParts(drawerAdmin), ['owner', 'owner@example.test', 'Back to the surveys', 'Sign out', 'theme: Theme', 'navigation: Admin panel']) &&
-    same(await framePages(drawerAdmin), ['Surveys (page)', 'Translations', 'Languages', 'System']),
+    same(await framePages(drawerAdmin), ['Surveys (page)', 'Translations', 'Languages', 'Site settings', 'People', 'Feedback', 'Error log', 'Audit log', 'Backups', 'Migrations']),
   `${JSON.stringify(await frameParts(drawerAdmin))} / ${JSON.stringify(await framePages(drawerAdmin))}`,
 );
 await expectNoKeys('/admin');
@@ -2227,7 +2227,7 @@ await js("document.querySelector('#survey-title').select(); true");
 await typeText('Tea or coffee?');
 await focus('input.step-title', 0);
 await typeText('Your cup');
-await focus('app-question-editor .rte-body [contenteditable]', 0);
+await focus('app-question-editor anotoki-html-editor [contenteditable="true"]', 0);
 await typeText('Which do you drink in the morning?');
 await focus('app-options-editor .option-input', 0);
 await typeText('Tea');
@@ -2443,7 +2443,7 @@ expect(
 );
 expect(
   'no Slovak: lang="en" on the title, the welcome and the language\'s name - and on nothing else',
-  same(await marked('app-take-survey'), ['title: en', 'intro rich: en', 'span: en']),
+  same(await marked('app-take-survey'), ['title: en', 'anotoki-rich-html intro rich: en', 'span: en']),
   JSON.stringify(await marked('app-take-survey')),
 );
 expect(
@@ -2463,7 +2463,7 @@ expect(
   'no Slovak, a step: the question and its options are English and say lang="en"',
   (await text('app-question-block .text')) === 'Which element do you play most?' &&
     same(await texts('app-question-block .label'), ['Anemo', 'Geo']) &&
-    same(await marked('app-take-survey'), ['title: en', 'text rich: en', 'label: en', 'label: en']),
+    same(await marked('app-take-survey'), ['title: en', 'anotoki-rich-html text rich: en', 'label: en', 'label: en']),
   `${await text('app-question-block .text')} ${JSON.stringify(await marked('app-take-survey'))}`,
 );
 expect(
@@ -2668,7 +2668,7 @@ expect(
   (await text('app-survey-hero h1')) === 'Tea or coffee?' &&
     (await text('app-take-survey .intro'))?.startsWith('Thank you for taking a few minutes') &&
     (await text('app-take-survey .fact-language')) === 'Jazyk: English' &&
-    same(await marked('app-take-survey'), ['title: en', 'intro rich: en', 'span: en']),
+    same(await marked('app-take-survey'), ['title: en', 'anotoki-rich-html intro rich: en', 'span: en']),
   `${await text('app-survey-hero h1')} / ${await text('app-take-survey .fact-language')} / ${JSON.stringify(await marked('app-take-survey'))}`,
 );
 await screenshots('sk-360-untranslated-welcome');
@@ -2683,7 +2683,7 @@ expect(
   (await text('app-take-survey .step-heading')) === 'Your cup' &&
     (await text('app-question-block .text')) === 'Which do you drink in the morning?' &&
     same(await texts('app-question-block .label'), ['Tea', 'Coffee', 'Neither']) &&
-    same(await marked('app-take-survey'), ['title: en', 'step-heading: en', 'text rich: en', 'label: en', 'label: en', 'label: en']),
+    same(await marked('app-take-survey'), ['title: en', 'step-heading: en', 'anotoki-rich-html text rich: en', 'label: en', 'label: en', 'label: en']),
   `${await text('app-take-survey .step-heading')} / ${JSON.stringify(await texts('app-question-block .label'))} / ${JSON.stringify(await marked('app-take-survey'))}`,
 );
 expect(
@@ -3770,8 +3770,8 @@ await viewport(1280);
 
 // ═══ The ADMIN's system pages: the people, the error log, the audit log, the backups ═══
 // The anotoki family's pages (anotoki-lib 0.4.1: @anotoki/lib/people/page, @anotoki/lib/admin/errors, /audit,
-// /backups), each on a lazy route of the admin panel; the top bar's System link the way to them (the System page,
-// lit on each). The site's ADMIN's alone: an EDITOR is told whose they are, and the API refuses. The People page
+// /backups), each on a lazy route of the admin panel, each its own link of the frame's System group (the System page
+// that led to them is gone: its address goes on to Site settings). The site's ADMIN's alone: an EDITOR is told whose they are, and the API refuses. The People page
 // lists everybody who signed in here, with how many surveys each answered and wrote, the visitors in one line, and
 // deletes a person's answers after its question; an account the IAM deleted (the stand-in's `anonymized`) is
 // scrubbed here on "Check now" - its name the IAM's placeholder, the row marked. The error log has what failed (a 404
@@ -3783,19 +3783,19 @@ await viewport(1280);
 const DOWNLOADS = join(out, '..', 'downloads');
 mkdirSync(DOWNLOADS, { recursive: true });
 await page.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: DOWNLOADS }).catch((error) => problems.push('downloads cannot be kept: ' + error.message));
-/** The System page's links, as "label href". */
-const systemLinks = () => js("[...document.querySelectorAll('app-system a.item')].map((a) => a.querySelector('.label').textContent.trim() + ' ' + a.getAttribute('href'))");
-
-// An EDITOR: no System in the bar (checked above), and at the pages' addresses only whose they are; the API refuses.
+// An EDITOR: no System in the column (checked above), and at the pages' addresses only whose they are; the API refuses.
 // The tab in English first (the visitors' stage left it Slovak): the menu is read by its English words.
 await go('/?lang=en');
 await signInAs(EDITH);
+since = requested.length;
 await go('/admin/system');
-await waitFor(page, "!!document.querySelector('app-system')", 15000);
+await waitFor(page, "location.pathname === '/admin/site-settings' && !!document.querySelector('anotoki-site-settings-page')", 15000);
+await sleep(500);
 expect(
-  'an EDITOR at /admin/system: whose the pages are, no link to any of them',
-  (await text('app-system anotoki-empty-state .anotoki-empty-state__heading')) === "These pages are for the site's administrators" && (await systemLinks()).length === 0,
-  await text('app-system'),
+  "an EDITOR at /admin/system, the System page's old address: on to Site settings, which says whose it is - nothing asked of the server",
+  (await text('anotoki-site-settings-page')) === 'Site settings are for the administrators of the survey site.' &&
+    !requested.slice(since).some((request) => request.includes('/api/admin/site-settings')),
+  await text('anotoki-site-settings-page'),
 );
 await go('/admin/people');
 await waitFor(page, "!!document.querySelector('anotoki-people-page')", 15000);
@@ -3819,41 +3819,31 @@ expect(
 );
 const editorToken = await heldToken();
 const editorAnswers = await Promise.all(
-  ['/api/admin/people', '/api/admin/feedback', '/api/admin/errors', '/api/admin/audit', '/api/admin/backups'].map(
+  ['/api/admin/site-settings', '/api/admin/people', '/api/admin/feedback', '/api/admin/errors', '/api/admin/audit', '/api/admin/backups'].map(
     async (path) => `${path} ${(await fetch(origin + path, { headers: { Authorization: `Bearer ${editorToken}` } })).status}`,
   ),
 );
 expect(
   '... and the API refuses an EDITOR every one of them',
-  same(editorAnswers, ['/api/admin/people 403', '/api/admin/feedback 403', '/api/admin/errors 403', '/api/admin/audit 403', '/api/admin/backups 403']),
+  same(editorAnswers, ['/api/admin/site-settings 403', '/api/admin/people 403', '/api/admin/feedback 403', '/api/admin/errors 403', '/api/admin/audit 403', '/api/admin/backups 403']),
   editorAnswers.join(', '),
 );
 
-// The owner: the System page, from the frame's column.
+// The owner: the System pages, each its own link of the frame's column.
 await signInAs(OWNER);
 await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list')", 15000);
-expect("the System link in the frame's column", (await clickText('app-admin-root anotoki-admin-frame header nav a', 'System')) === true);
-await waitFor(page, "location.pathname === '/admin/system' && !!document.querySelector('app-system a.item')", 15000);
 expect(
-  "the System page: the way to the people, feedback, the error log, the audit log, the backups and the migrations - System marked in the frame's column (no feedback yet: no count beside it)",
-  same(await systemLinks(), ['People /admin/people', 'Feedback /admin/feedback', 'Error log /admin/errors', 'Audit log /admin/audit', 'Backups /admin/backups', 'Migrations /admin/migrations']) &&
-    same(await framePages(), ['Surveys', 'Translations', 'Languages', 'System (page)']) &&
-    !(await js("!!document.querySelector('app-admin-root anotoki-admin-frame header nav .anotoki-side-nav__badge')")) &&
-    (await js('document.title')) === 'System · Admin panel · anotoki survey',
-  `${JSON.stringify(await systemLinks())} / ${JSON.stringify(await framePages())} / ${await js('document.title')}`,
+  "the frame's column: Site settings, the people, feedback, the error log, the audit log, the backups and the migrations - each its own link (no feedback yet: no count beside it)",
+  same(await framePages(), ['Surveys (page)', 'Translations', 'Languages', 'Site settings', 'People', 'Feedback', 'Error log', 'Audit log', 'Backups', 'Migrations']) &&
+    !(await js("!!document.querySelector('app-admin-root anotoki-admin-frame header nav .anotoki-side-nav__badge')")),
+  JSON.stringify(await framePages()),
 );
-await expectNoKeys('the System page');
-await screenshots('admin-system-1280', false);
-await viewport(390);
-await expectBar('the System page, 390 px');
-await screenshots('admin-system-390');
-await viewport(1280);
 
 // The People page: everybody who signed in, the most recently seen first, with the site's columns.
 const ANONYMIZED_AT = new Date().toISOString();
 await setIam({ anonymized: [{ sub: String(PAT.id), anonymized_at: ANONYMIZED_AT }] });
-expect('the People link', (await clickText('app-system a.item', 'People')) === true);
+expect("the People link in the frame's column", (await clickText('app-admin-root anotoki-admin-frame header nav a', 'People')) === true);
 await waitFor(page, "location.pathname === '/admin/people' && !!document.querySelector('anotoki-people-page [data-people] tbody tr')", 15000);
 await sleep(500);
 /** A person's row on the People page: the name, "you", the count of surveys answered and written, the IAM's mark. */
@@ -4448,42 +4438,37 @@ await waitFor(page, SIGNED_IN + " && !!document.querySelector('app-survey-home h
 
 // ═══ Feedback, on the admin panel ══════════════════════════════════════════
 // The message nobody sent from the Contact page: no mail goes out, so the admin panel says it - how many messages
-// nobody opened yet beside the System link of the frame's column (the family's FeedbackUnread, asked as the panel opens) and on the
-// System page's card. The Feedback page (the family's, @anotoki/lib/admin/feedback) lists it - nobody's, from
+// nobody opened yet beside the Feedback link of the frame's column (the family's FeedbackUnread, asked as the panel
+// opens). The Feedback page (the family's, @anotoki/lib/admin/feedback) lists it - nobody's, from
 // /contact; opened, it is read; marked resolved and deleted after its question, each in the audit log.
 await go('/admin');
 await waitFor(page, "!!document.querySelector('app-surveys-list')", 15000);
-await waitFor(page, '!!document.querySelector(\'app-admin-root anotoki-admin-frame header nav a[href="/admin/system"] .anotoki-side-nav__badge\')', 15000).catch(() => null);
-/** The count beside System in the frame's column (or in its drawer, `within` it), as seen and as heard. */
-const systemCount = (within = 'app-admin-root anotoki-admin-frame header') =>
+await waitFor(page, '!!document.querySelector(\'app-admin-root anotoki-admin-frame header nav a[href="/admin/feedback"] .anotoki-side-nav__badge\')', 15000).catch(() => null);
+/** The count beside Feedback in the frame's column (or in its drawer, `within` it), as seen and as heard. */
+const feedbackCount = (within = 'app-admin-root anotoki-admin-frame header') =>
   js(
-    `(() => { const link = document.querySelector(${JSON.stringify(within + ' nav a[href="/admin/system"]')}); return link ? [link.querySelector('.anotoki-side-nav__badge')?.textContent.trim() ?? null, link.querySelector('.anotoki-visually-hidden')?.textContent.trim() ?? null] : null; })()`,
+    `(() => { const link = document.querySelector(${JSON.stringify(within + ' nav a[href="/admin/feedback"]')}); return link ? [link.querySelector('.anotoki-side-nav__badge')?.textContent.trim() ?? null, link.querySelector('.anotoki-visually-hidden')?.textContent.trim() ?? null] : null; })()`,
   );
 expect(
-  'the frame\'s column: beside System, how many feedback messages nobody opened yet - "1", heard as "1 new feedback message"',
-  same(await systemCount(), ['1', ', 1 new feedback message']),
-  JSON.stringify(await systemCount()),
+  'the frame\'s column: beside Feedback, how many feedback messages nobody opened yet - "1", heard as "1 new feedback message"',
+  same(await feedbackCount(), ['1', ', 1 new feedback message']),
+  JSON.stringify(await feedbackCount()),
 );
 await viewport(861);
 await sleep(400);
-await expectBar('the admin panel with the count beside System, 861 px');
+await expectBar('the admin panel with the count beside Feedback, 861 px');
 await screenshot('admin-861-frame-feedback-count');
-// On a phone the count is in the drawer, beside System as in the column.
+// On a phone the count is in the drawer, beside Feedback as in the column.
 await viewport(390);
 await sleep(400);
-await expectBar('the admin panel with the count beside System, 390 px');
+await expectBar('the admin panel with the count beside Feedback, 390 px');
 await openDrawer();
-const drawerCount = await systemCount('app-admin-root anotoki-admin-frame dialog[open]');
-expect('390 px: in the drawer, the count beside System too', same(drawerCount, ['1', ', 1 new feedback message']), JSON.stringify(drawerCount));
+const drawerCount = await feedbackCount('app-admin-root anotoki-admin-frame dialog[open]');
+expect('390 px: in the drawer, the count beside Feedback too', same(drawerCount, ['1', ', 1 new feedback message']), JSON.stringify(drawerCount));
 await screenshots('admin-390-frame-feedback-count', false);
 await escape();
 await viewport(1280);
-await clickText('app-admin-root anotoki-admin-frame header nav a', 'System');
-await waitFor(page, "location.pathname === '/admin/system' && !!document.querySelector('app-system a.item')", 15000);
-await waitFor(page, '!!document.querySelector(\'app-system a.item[href="/admin/feedback"] anotoki-badge\')', 15000).catch(() => null);
-expect('the System page: Feedback\'s card says "1 new"', (await text('app-system a.item[href="/admin/feedback"] anotoki-badge')) === '1 new', await text('app-system a.item[href="/admin/feedback"]'));
-await screenshots('admin-system-feedback-count-1280', false);
-expect('the Feedback card', (await clickText('app-system a.item[href="/admin/feedback"]', 'Feedback')) === true);
+expect("the Feedback link in the frame's column", (await clickText('app-admin-root anotoki-admin-frame header nav a', 'Feedback')) === true);
 await waitFor(page, "location.pathname === '/admin/feedback' && !!document.querySelector('anotoki-feedback-page [data-messages] [data-message]')", 15000);
 await sleep(500);
 const feedbackItems = await texts('anotoki-feedback-page [data-messages] [data-message]');
@@ -4509,14 +4494,14 @@ const feedbackFacts = () =>
   );
 const openedFacts = await feedbackFacts();
 expect(
-  'opened: its words whole, from nobody ("Not signed in"), its page and language - no address, for none was written - and it is read now: nothing new beside System',
+  'opened: its words whole, from nobody ("Not signed in"), its page and language - no address, for none was written - and it is read now: nothing new beside Feedback',
   (await text('anotoki-feedback-page [data-viewer] [data-words]')) === FEEDBACK_SENT &&
     openedFacts.includes('From: Not signed in') &&
     openedFacts.includes('Page: /contact') &&
     openedFacts.includes('Language: en') &&
     !openedFacts.some((fact) => fact.startsWith('Answer at')) &&
-    (await systemCount())?.[0] === null,
-  `${JSON.stringify(openedFacts)} / ${JSON.stringify(await systemCount())}`,
+    (await feedbackCount())?.[0] === null,
+  `${JSON.stringify(openedFacts)} / ${JSON.stringify(await feedbackCount())}`,
 );
 await screenshot('admin-feedback-open-1280');
 await clickText('anotoki-feedback-page [data-viewer] [data-mark] button', 'Resolved');

@@ -32,15 +32,18 @@ backend/
   api/routes/              public.php (health, the site's status - the family's MigrationsRoutes::status -,
                            auth config - the family's AuthRoutes -, pictures, the strings of a language,
                            POST /api/client-errors - a page's error into the error log, the family's
-                           ErrorLogRoutes::client: nobody's, capped by the library),
+                           ErrorLogRoutes::client: nobody's, capped by the library; GET
+                           /api/site-settings - the family's SiteSettingsRoutes::public -, and
+                           /robots.txt and /sitemap.xml - its RobotsRoutes, by siteAddress()),
                            surveys.php (people - the library's RequireCaller), visitor.php (POST
                            /api/visitor/move: token and key), feedback.php (POST /api/feedback - the
                            family's FeedbackRoutes::public: anybody's, sign-in required or not, behind
                            $identify - no visitor's key read - and RecordPerson), admin.php
                            (/api/admin/..., EDITOR/ADMIN: surveys, answers, pictures, languages,
-                           strings; ADMIN: the migrations, the people, feedback, the error log, the
-                           audit log, the backups - the family's routes, behind requireAdmin(),
-                           judged from the token)
+                           strings - $pageAccess, the library's PageAccessGate, after the editors'
+                           check; ADMIN: the migrations, the site settings, the people, feedback,
+                           the error log, the audit log, the backups - the family's routes, behind
+                           requireAdmin(), judged from the token)
   api/meddleware/          security.php, auth.php (requireStaff / requireAdmin - the library's
                            RequireRole in this site's words, the token's roles alone, nothing asked
                            of the database -, requireFor - one method of a group -,
@@ -51,7 +54,7 @@ backend/
                            and only hands the key in; nothing of a survey
                            without a token while sign-in is required, but its pictures (an
                            <img> sends none; UUID addresses)
-  api/auth.php             signing in through the family's library (anotoki-lib 0.10.0, Anotoki\Lib\Auth -
+  api/auth.php             signing in through the family's library (anotoki-lib 0.11.0, Anotoki\Lib\Auth -
                            the IAM's SDK is gone): surveyIam() (IamClient), surveySignInRule() /
                            authLoginRequired() (the IAM's "Sign-in required", relayed by
                            /api/auth/config with visitor_days), surveyIdentify() (only Bearer claims to
@@ -110,9 +113,18 @@ backend/
                            uses is not deleted, under the language row's lock), respondRefusal() (this
                            site's error body), translationWriter() (the token's person),
                            languagesForSurveys() / languagesOffered() (what survey_rules.php reads)
-  api/rich_text.php        richTextClean(): the editor's HTML and nothing else
+  api/rich_text.php        richTextClean(): the family's allow-list (RichHtml::clean(), anotoki-lib 0.11.0 -
+                           the same rules as the pages' <anotoki-rich-html>) within the site's limit,
+                           UTF-8 only, no words (RichHtml::isBlank()) is ''
+  api/site_settings.php    the site settings (surveySiteSettings(): the library's SiteSettings, all
+                           three parts - maintenance, the announcement, Page access; the API paths no
+                           row may claim: the library's, /api/auth/config, /api/images - never
+                           /api/surveys; the pages: the library's and /preview), robots.txt and
+                           sitemap.xml (surveyRobots(): disallow /preview and /staff beside the
+                           library's; sitemapSurveys(): the list and each survey taking answers while
+                           sign-in is not required) - no kept copy of the sitemap
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.10.0's PHP half - never edited here; DEV.md: how it is updated):
+                           anotoki-lib 0.11.0's PHP half - never edited here; DEV.md: how it is updated):
                            surveyMigrationSet(), surveyMigrationSets() (the library's `anotoki_admin`,
                            the site's `survey`, then the library's `anotoki_translations` and
                            `anotoki_people` - recorded as <set>/NNN.sql), surveyMigrator($pdo,
@@ -120,7 +132,7 @@ backend/
                            migration.php, the Apply, the backups and the tests' template all go
                            through it; a backup first for the Apply and migration.php),
                            surveySiteState() (not_set_up / update_pending / unavailable / ready, and
-                           installed.lock), siteOpenWhileUpdating() (what answers while an update
+                           installed.lock; told the site settings, so the status says maintenance), siteOpenWhileUpdating() (what answers while an update
                            waits - the sign-in's settings, the strings, the Migrations page's routes,
                            the error log's and the backups': the library's openPath(s)())
   config/config.php        database.local.php + iam.local.php; visitors.local.php (optional, by hand:
@@ -140,7 +152,10 @@ backend/
                            or a folder in its place, FAILS CLOSED: a secret no request carries,
                            originSecretNobodyCarries(),
                            the site running all the same; switching the secret off is deleting the
-                           file); settingsSaid() logs a fault once a day by its
+                           file); site.local.php (optional, by hand: siteAddress() - the site's own
+                           public address for robots.txt and sitemap.xml, never a request's Host;
+                           SURVEY_RELEASE_ADDRESS in a release, SURVEY_DEVELOPMENT_ADDRESS in a
+                           checkout without it); settingsSaid() logs a fault once a day by its
                            kind, its start or its bytes, never its contents;
                            SURVEY_TEST_CONFIG for the tests
   migrations/survey/       the schema - and the site's strings (002 the tables and the two languages,
@@ -163,7 +178,10 @@ backend/
                            nothing else of a survey changed, its revision and updated_at neither -
                            and question.showLarge*'s descriptions naming a step's pictures; 017
                            aboutYou.gender.non-binary deleted - the gender question offers Male,
-                           Female and Prefer not to say -, no answer changed)
+                           Female and Prefer not to say -, no answer changed; 018 topbar.homeAdmin
+                           deleted - the admin panel in the family's frame; 019 the dates' two words,
+                           time.justNow and time.onDate, moved under the library's anotoki.dates.*,
+                           and legal.auditLog.what naming the site settings)
   setup.php                the installer (this computer: nonce, re-runnable; a host: token, lock, self-delete)
   router.php               php -S behaving like the hosting's Apache (+ the built app)
   translations.php         command line only, never uploaded - the library's TranslationsCommand:
@@ -202,9 +220,16 @@ frontend/src/app/
                            / language - effectiveLanguage, English in the admin panel / the words -
                            siteStatusWords(i18n): the library's anotoki.siteStatus.* from the
                            database / AdminDates' dates / reload the strings when up to date),
-                           MIGRATIONS_PATH; siteStatusInterceptor in app.config.ts; SiteStatus
-                           (state, blocked, check, checkForReload, markReady) is the library's
-  shared/auth/             signing in through the family's library (anotoki-lib 0.10.0, @anotoki/lib/auth -
+                           MIGRATIONS_PATH, STAFF_PATH (/staff: the closed sign's Sign in);
+                           siteStatusInterceptor in app.config.ts; SiteStatus (state, blocked - false
+                           for the ADMIN in maintenance -, check, checkForReload, markReady) is the
+                           library's
+  shared/site-settings.ts  the family's site settings (@anotoki/lib/site-settings, anotoki-lib 0.11.0)
+                           wired to this site: provideSiteSettings() - the token's roles and sign-in,
+                           ANNOUNCEMENT_STORAGE_KEY (the hidden announcement's mark, never its words);
+                           SiteSettings.load() in boot(), before the first navigation
+                           (pageAccessGuard decides it)
+  shared/auth/             signing in through the family's library (anotoki-lib 0.11.0, @anotoki/lib/auth -
                            the vendored SDK is gone): auth.config.ts (provideSiteAuth() - the boot
                            configuration AuthService read, the site's API (/api/, its status, auth
                            config, strings and pictures skipped), the visitors (VisitorKey, the key
@@ -263,8 +288,8 @@ frontend/src/app/
                            (language, effectiveLanguage, t / plural / around / has, setLanguage,
                            init, reload, noteAddress, forKit, forShell) and the translate /
                            translatePlural pipes are the library's
-  shared/i18n/             the site's own beside it: the localDate pipe (the account's date order),
-                           error-text.ts (a failed request's key), answer-words.ts (a rule or a
+  shared/i18n/             the site's own beside it (a date and how long ago are the library's
+                           anotokiDate / anotokiAgo, @anotoki/lib/ui/dates): error-text.ts (a failed request's key), answer-words.ts (a rule or a
                            problem in the reader's language), dynamic-keys.ts (keys put together at
                            run time - the backend's scan reads it)
   shared/legal/            the family's legal pages wired to this site (anotoki-lib 0.6.0's @anotoki/lib/legal):
@@ -277,16 +302,18 @@ frontend/src/app/
                            the code's own names, the hosting company and Cloudflare; the anotoki
                            account's pages from AnotokiAuth.issuer() / accountUrl() - never a string;
                            SURVEY_LEGAL_UPDATED; surveyLegalPagesConfig(), the frame's provider)
-  shared/kit.ts            the family's UI kit (anotoki-lib 0.10.0, each piece from its own entry point)
+  shared/kit.ts            the family's UI kit (anotoki-lib 0.11.0, each piece from its own entry point)
                            wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
                            the language on the page and the kit's words from the database - the
-                           library's keys, anotoki.* - and SURVEY_ICONS) + provideSiteShell() (the
+                           library's keys, anotoki.* - SURVEY_ICONS, and dateChoices: the account's
+                           date order and clock for the library's dates) + provideSiteShell() (the
                            library's ThemeService: the account's theme signed in, saved from the
                            bar's switch, the device's signed out, THEME_KEY for the kit's
                            theme-boot.js; the chooser: forShell(), a choice of the language already
                            on the page changing nothing)
-  shared/util/             dates.ts (the admin panel's English dates, with the account's choices when
-                           passed), date-patterns.ts (the four date orders, the two clocks), storage.ts
+  shared/util/             dates.ts (the admin panel's English dates - the library's
+                           @anotoki/lib/ui/dates in en-GB - with the account's choices when passed),
+                           storage.ts
   shared/title.strategy.ts   the tab's title in the language on the page (the site's name alone while
                            there are no strings); tells the service where the page is - which is also
                            when a page without its strings asks for them again
@@ -332,7 +359,9 @@ frontend/src/app/
                            clause; under the cards too. The site's own footer (layouts/site-footer)
                            is gone - a part the family's lacks goes to the library
   sites/main/              main.routes.ts (the public site's routes, spread into app.routes.ts after
-                           /admin); participant-layout ("You are not signed in" where the page would
+                           /admin; /staff - staffGuard - before :slug; pageAccessGuard, a canMatch, on
+                           '' and ':slug'); participant-layout (the site settings' announcement above
+                           the bar, the ADMIN's line above the page; "You are not signed in" where the page would
                            be - a session that ended in place; for a visitor only on the preview; the
                            toasts of the move and of a lost visit). A sign-in that
                            came back without one, or could not start, is the library's screen on
@@ -355,10 +384,13 @@ frontend/src/app/
   sites/admin/             admin.routes.ts; app.component - the frame: the family's <anotoki-admin-frame>
                            (@anotoki/lib/admin/frame, anotoki-lib 0.10.0), a column with the panel's
                            name, the person, Back to the surveys, Sign out (SignOut), the theme and its
-                           pages - PANEL_PAGES (System for an ADMIN, marked on each System page, with
-                           the count of feedback nobody opened yet - the library's FeedbackUnread,
-                           asked as the panel opens), UPDATE_PAGES (Migrations alone while an update
-                           waits); docs/architecture.md "The admin panel's frame"; without it
+                           pages - PANEL_GROUPS (the family's one shape, anotoki-lib 0.11.0: Surveys
+                           under no heading; Localization - Translations, Languages; System for an
+                           ADMIN - Site settings, People, Feedback with the count nobody opened yet
+                           (the library's FeedbackUnread, asked as the panel opens), Error log, Audit
+                           log, Backups, Migrations, each its own link), UPDATE_GROUPS (Migrations
+                           alone while an update waits); the ADMIN's line of the site settings above
+                           the page (<anotoki-page-notice adminFrameNotice />); docs/architecture.md "The admin panel's frame"; without it
                            (English; "You are signed out" for a session that ended in place, the
                            no-access card for somebody signed in without a role); surveys-list,
                            survey-editor (+ parts, SurveyEditing, the translation mode:
@@ -368,14 +400,16 @@ frontend/src/app/
                            person's name alone, no address), survey-header; /admin/translations and
                            /admin/languages are the family's pages (@anotoki/lib/translations/admin,
                            a lazy entry point, canDeactivate anotokiUnsavedChangesGuard -
-                           admin.routes.ts); system/ (ADMIN: the way to the System pages,
-                           SYSTEM_PAGES in system-pages.ts, Feedback's card with its "N new") and the
-                           family's pages it leads to, each a lazy entry point: /admin/people
+                           admin.routes.ts); the System pages (ADMIN), each the family's on a lazy
+                           entry point: /admin/site-settings (@anotoki/lib/admin/site-settings - and
+                           /admin/system, the System page before, goes on to it), /admin/people
                            (@anotoki/lib/people/page), /admin/feedback, /admin/errors, /admin/audit,
                            /admin/backups (@anotoki/lib/admin/*), /admin/migrations
                            (<anotoki-migrations-page>: Pending in the order the files run, Applied
                            with each file's SQL, Missing, Apply pending); shared/ - its own pieces:
-                           rich-text-editor (TipTap), image-strip, images/ (below)
+                           text-tools.ts (SURVEY_TEXT_TOOLS, SURVEY_TEXT_HEADINGS: the family's
+                           <anotoki-html-editor> as a survey's texts have it - TipTap gone),
+                           image-strip, images/ (below)
   sites/admin/shared/images/   prepareImage (browser-side), ImageUploader
 frontend/public/           changelog.json: the releases, the newest first - its first entry's version
                            is package.json's (the one version; changelog.service.spec.ts holds them)
@@ -427,9 +461,9 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   (the library's `Person`): MEMBER - every account's - is an ordinary person and
   nothing asks for it; `ROLES_STAFF` = ADMIN, EDITOR for `/api/admin`;
   ADMIN alone for the three deletes (a survey, somebody's answers, a
-  language), the migrations and the System pages - the people, feedback, the
-  error log, the audit log, the backups (the owner's decision: an EDITOR reads
-  none of them). The frontend hides; the server refuses. **No address is kept**: a
+  language), the migrations and the System pages - the site settings, the
+  people, feedback, the error log, the audit log, the backups (the owner's
+  decision: an EDITOR reads none of them). The frontend hides; the server refuses. **No address is kept**: a
   person is the IAM's id and name (`users`, recorded from the token by the
   library's `RecordPerson`); a new column with a person's data needs a place
   in the scrub of the IAM's deleted accounts (`api/people.php`). Nor a
@@ -511,7 +545,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   a new admin route that changes something writes its entry, by the token's
   person, inside the change's transaction where there is one.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib 0.10.0,
+  applies it - the anotoki family's way, the library's** (anotoki-lib 0.11.0,
   both halves; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
@@ -539,6 +573,23 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   update waits has the site's pages, the admin frame round them). The library is never edited here: a change it
   needs is a new release (its repository, `irelevant25/anotoki-lib`), taken in
   by DEV.md's steps.
+- **The site settings close and hide on the server, never only in the
+  browser** (anotoki-lib 0.11.0; `api/site_settings.php`, `docs/decisions.md`):
+  maintenance is the `SiteGate`'s 503 `maintenance` to everybody but the
+  site's ADMIN, known by a verified token alone (`exempt:`
+  `surveyTokenPerson()`); Page access is the library's `PageAccessGate` right
+  inside `Identify` in each group whose data a participant's page holds - a
+  new such group gets it, after its roles' check -, 423 `page_locked`, never
+  to the ADMIN. A path that must answer whatever a row says, and while the
+  site is closed, is reserved in `surveySiteSettings()` - who the reader is,
+  how they sign in (`/api/auth/config`), the pictures (`/api/images`) - never
+  one that writes the site's data (`/api/surveys` is not: an answer waits in
+  the browser's draft). A new public page that no row may govern goes into
+  `SITE_SETTINGS_RESERVED_PAGES`; a new address an administrator needs while
+  the site is closed is `/staff`'s way, never a hole in the gate. robots.txt
+  and sitemap.xml name the site by `siteAddress()`, never a request's `Host`;
+  the sitemap never lists a draft, a closed survey, or anything while sign-in
+  is required.
 - **Both sides say the same**: `answer-rules.ts` ↔ `answerProblem()` /
   `answerClean()`; `survey-problems.ts` ↔ `surveyProblems()` (same sentences,
   same order, the translations' too); `localize.ts` ↔ `surveyTranslationGaps()`
@@ -550,7 +601,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   rewritten in a kept one, which the admin panel labels from `ALL_GENDERS`
   (results, filters, a person's survey, the CSV); `MAX_UPLOAD_BYTES` ↔
   `IMAGE_MAX_BYTES`; and **what a space is**: the browser's `trim()` / `\s` ↔
-  `TEXT_SPACE` in `api/helpers.php` (`textTrim()`, `richTextPlain()`),
+  `TEXT_SPACE` in `api/helpers.php` (`textTrim()`; the library's
+  `RichHtml::isBlank()` takes the same set for a rich text),
   character for character - never `\s` or `\p{Z}` in PHP for a survey's text
   or an answer, they take U+0085 and U+180E as well. (A language code, a
   `{placeholder}` and a site string with nothing in it to see are the
@@ -587,8 +639,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   are): every survey leaving PHP has both on every step, and nothing past it
   needs a default. The text is a
   question's text in every way - `richTextClean()` on the way in, drawn
-  through the same `[innerHTML]` in `.rich` (`take-survey`), never another
-  way - and the pictures are `sites/main/common/image-gallery`, a question's too. A step with
+  through the same `<anotoki-rich-html>` with `.rich` (`take-survey`), never
+  another way - and the pictures are `sites/main/common/image-gallery`, a question's too. A step with
   text or a picture needs no question (`stepHasContent()`); with none of the
   three it is a problem, "Step N is empty - add a question, text or a picture,
   or remove the step." (`stepIsEmpty()` and `surveyStepIsEmpty()`). In the
@@ -656,6 +708,11 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   database cannot be read (the family's page shows when the database holding
   the keys is what is not ready); the database has the same words (010), and a
   test holds the two together.
+- **A stored text is drawn by `<anotoki-rich-html>`** (`@anotoki/lib/ui/rich-html`,
+  the server's allow-list again as it is drawn), never `[innerHTML]` - a
+  question's, a step's, the welcome and the thanks, in the survey and the
+  admin panel alike; its look is the survey's own (`.rich.anotoki-rich-html` in
+  `styles.scss`, a step above the library's rules).
 - **A site string is only ever text**: never into `[innerHTML]` (the scan fails
   an `innerHTML` whose value - on one line or several - has `translate` in it
   or calls `.t(` / `.plural(` / `.around(`); on its way into something drawn
@@ -670,9 +727,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   pieces both areas share (UI kit - the admin panel's frame's words too -, toasts, the family's footer) read
   through `effectiveLanguage`, which is `en` under `/admin` - the kit's own
   words too (`shared/kit.ts`), and the family's page at an admin address.
-- **The UI kit is the family's** (anotoki-lib 0.10.0 - its 0.6.0 pieces taken
-  where the site drew its own: the link cards of the home page and the System
-  page, the results' removable filter chips; what stays the site's and why,
+- **The UI kit is the family's** (anotoki-lib 0.11.0 - its 0.6.0 pieces taken
+  where the site drew its own: the link cards of the home page, the results'
+  removable filter chips; 0.11.0's: the HTML editor in place of TipTap, the
+  rich text, the dates, the search's folding; what stays the site's and why,
   `docs/decisions.md`): a new piece of a page
   is the kit's (`anotoki-*`, `anotokiButton`) unless the kit has none,
   imported from its own entry point (`@anotoki/lib/ui/button`, ...) - never
@@ -694,7 +752,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   `preferences()` is not null, shows the choice at once, saves one at a time
   with the latest choice last, and lets no earlier save's answer turn the page
   back. A new place that writes a date or a time for somebody signed in takes
-  the account's order (and clock): `localDate` where people take surveys,
+  the account's order (and clock): the library's `anotokiDate` / `anotokiAgo`
+  where people take surveys,
   `AdminDates` in the admin panel - never `shared/util/dates.ts`'s functions bare
   in a page. Data stays ISO (the CSV, a file's name, an `<input type="date">`).
 - **A language code from an address** is checked with `languageCodeOk()` before
@@ -768,9 +827,11 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   and the admin tools read it from there. The error log, outermost, names who
   met a failure from the token itself (`surveyTokenPerson()`), since it sees
   the request before any group's `Identify` did.
-- **DOMDocument reads Latin-1** unless told: `richTextClean()` prefixes
-  `<?xml encoding="UTF-8">` and walks from its own wrapper; its serializer
-  writes text the way `innerHTML` does, so the editor's own HTML round-trips.
+- **Rich text is the library's allow-list alone** (`RichHtml::clean()`, its
+  own parser - read as a browser reads HTML; DOMDocument is gone from it):
+  never a cleaning of the site's own beside it. What stays the site's is the
+  limit (`RICH_TEXT_MAX_BYTES`), UTF-8 and "no words is no text"
+  (`RichHtml::isBlank()`). The editor's own HTML round-trips byte for byte.
 - **The closing day**: the page by the reader's clock (`currentStatus()`), the
   server until noon UTC the day after (`SURVEY_TAKING_ANSWERS_SQL`,
   `surveyTakesAnswers()`) - keep both.
@@ -796,7 +857,10 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   `textClean()`), never refused: a pasted soft line break must not make an
   answer or a survey impossible to save. They are the C0 controls only:
   U+0085 and U+180E pass, and neither side takes them for a space
-  (`TEXT_SPACE`) - a text that is only one of them is a text.
+  (`TEXT_SPACE`) - a text that is only one of them is a text. Rich text
+  aside: the library's allow-list drops the C1 controls (U+0085) and the
+  marks that turn a text's direction from it, so a rich text that is only one
+  of them is no text, on both sides.
 - **`preg_replace()` answers null when it gives up**, and `(string) null` is
   `''`: a text with more than a million spaces inside it was "empty", and an
   empty translation means "delete the row". `textTrim()` hands such a text
@@ -1179,7 +1243,8 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   wrong reason - read the library's templates
   (`frontend/node_modules/@anotoki/lib/fesm2022`) before writing a selector.
 - **A spec's stand-in for AuthService must answer `preferences()`**: the
-  theme (the top bar, `boot()`), the `localDate` pipe and every admin page's
+  theme (the top bar, `boot()`), the library's dates (`dateChoices` in
+  `shared/kit.ts`) and every admin page's
   dates (`AdminDates`) read it while drawing, and a fake without it throws in
   an effect or a template. `preferences: () => null` is the site as before.
   The real AuthService needs the library's sign-in configured (it injects
@@ -1376,7 +1441,12 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
          what the site keeps or for how long, its `legal.*` fact;
    - [ ] the two sides of every rule still agree, sentences included;
    - [ ] new input is checked for type, length and count on the server;
-   - [ ] HTML from users only through `richTextClean()`;
+   - [ ] HTML from users only through `richTextClean()` (the library's
+         `RichHtml::clean()`), drawn only by `<anotoki-rich-html>`;
+   - [ ] what the site settings close or hide is refused by the server too
+         (the gate, `PageAccessGate`), never to the ADMIN; nothing reserved
+         that writes the site's data; robots and the sitemap by
+         `siteAddress()`, never a `Host`;
    - [ ] queries parameterised; no identifier from input;
    - [ ] no secret, token or machine path in anything git publishes;
    - [ ] components in three files; colours from tokens; works at 390 px;
@@ -1398,7 +1468,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
    - [ ] a failure is said where the person who caused it is looking, and a
          refusal says what they can do;
    - [ ] the theme, a date or a time, the language: the anotoki account's while
-         somebody is signed in (`preferences`, `AdminDates`, `localDate`), saved
+         somebody is signed in (`preferences`, `AdminDates`, `anotokiDate`), saved
          to it only while it sends preferences, one save at a time;
    - [ ] the family's library is used, never copied or edited: the kit a piece
          at a time from its own entry point, the site's words through

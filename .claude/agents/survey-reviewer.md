@@ -97,11 +97,13 @@ Security and correctness first:
 - **Input**: every new field is checked on the server for type, length and
   count (`surveyFromBody()` and friends, `answerFromBody()`); unknown keys are
   dropped, not stored.
-- **HTML and pictures**: user HTML only through `richTextClean()`; a new
-  element or attribute there needs a reason and a test of what it must not
-  allow. Pictures checked by their bytes; SVG never; served with their CSP.
+- **HTML and pictures**: user HTML only through `richTextClean()` - the
+  library's `RichHtml::clean()`, no cleaning of the site's own beside it -
+  and drawn only by `<anotoki-rich-html>`: an `[innerHTML]` of a stored text is
+  a finding; a change of what is kept goes to the library, with a test of
+  what it must not allow. Pictures checked by their bytes; SVG never; served with their CSP.
   A step's own text (016) drawn any other way than a question's text - not
-  `[innerHTML]` of the cleaned text, a sanitizer bypassed, a pipe of its own -
+  `<anotoki-rich-html>`, a sanitizer bypassed, a pipe of its own -
   or a step's pictures left out of `survey_images` (the clean-up would delete
   them under the survey) is a finding.
 - **Queries**: `?` parameters only; table and column names from literals;
@@ -132,8 +134,18 @@ Security and correctness first:
   saved with `savePreferences()` only while `preferences()` is not null, one
   save at a time with the latest choice last, and an earlier save's answer
   never turns the page back; an IAM that sends none leaves the site exactly as
-  before. A new date or time on a page goes through `localDate` or
-  `AdminDates`; data (the CSV, a file's name) stays ISO.
+  before. A new date or time on a page goes through the library's
+  `anotokiDate` / `anotokiAgo` or `AdminDates`; data (the CSV, a file's name)
+  stays ISO.
+- **The site settings** (anotoki-lib 0.11.0): what maintenance closes or Page
+  access hides is refused by the server too - the `SiteGate` (the ADMIN known
+  by a verified token alone), the `PageAccessGate` inside `Identify` in every
+  group a participant's page holds data of - and never to the site's ADMIN; a
+  reserved path (answering whatever a row says, and while the site is closed)
+  that writes the site's data is a finding, as is a public page no row should
+  govern left out of `SITE_SETTINGS_RESERVED_PAGES`, or robots.txt / the
+  sitemap reading a request's `Host`, or a draft or closed survey in the
+  sitemap.
 - **A survey's translations**: a save sends `language` and `translations`, and
   the server gives neither a default on the way in; a language the site does
   not have is refused, not dropped; a translation is built by walking the
@@ -211,7 +223,7 @@ Then the house style:
 - Angular: three files per component, OnPush, signals, `inject()`, inputs for
   route/query parameters, colours from tokens (light and dark), 390 px; no
   logic duplicated from `shared/` into a component. The UI kit is the family's
-  (`@anotoki/lib` 0.10.0): a copy of a kit piece in `src/app/shared/ui/` (or a
+  (`@anotoki/lib` 0.11.0): a copy of a kit piece in `src/app/shared/ui/` (or a
   half's own, `sites/main/common/`, `sites/admin/shared/`), a global
   style a kit component would meet, an import from the `@anotoki/lib/ui`
   barrel instead of the piece's own entry point (the first load), or a

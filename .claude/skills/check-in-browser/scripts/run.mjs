@@ -1,6 +1,9 @@
 // The whole browser check in one go, from the repository's root:
 //
-//   node .claude/skills/check-in-browser/scripts/run.mjs [--no-build] [--keep]
+//   node .claude/skills/check-in-browser/scripts/run.mjs [--no-build] [--keep] [--flow=site-settings]
+//
+// --flow names the check to run: flow.mjs (the default, the whole site) or site-settings.mjs (the site
+// settings, robots.txt and sitemap.xml and the admin panel's menu - anotoki-lib 0.11.0's frames).
 //
 // It builds the frontend (unless --no-build), makes a throwaway database
 // (survey_test_browser, from survey_test_template - `php tests/run.php` keeps
@@ -35,6 +38,13 @@ const backend = join(repo, 'backend');
 const frontend = join(repo, 'frontend');
 const args = new Set(process.argv.slice(2));
 const windows = process.platform === 'win32';
+/** The check to run: one of these scripts beside this one, never a path from the command line. */
+const FLOWS = ['flow', 'site-settings'];
+const FLOW = (process.argv.slice(2).find((arg) => arg.startsWith('--flow=')) ?? '--flow=flow').slice('--flow='.length);
+if (!FLOWS.includes(FLOW)) {
+  console.error(`--flow is one of ${FLOWS.join(', ')}.`);
+  process.exit(1);
+}
 
 /** A port: the environment's SURVEY_CHECK_<name>_PORT, or the usual one. */
 function portOf(name, usual) {
@@ -140,7 +150,8 @@ try {
   run(php, ['-r', 'require "vendor/autoload.php"; \\Anotoki\\Lib\\Auth\\Testing\\TestIam::create($argv[1], $argv[2], "survey", "browser-check");', '--', iamDir, `http://127.0.0.1:${IAM}`], {
     cwd: backend,
   });
-  run(php, ['tests/tools/testenv.php', join(work, 'config'), `--db=${DATABASE}`, `--issuer=http://127.0.0.1:${IAM}`], { cwd: backend });
+  // --address: the site's own public address (config/site.local.php) - robots.txt and sitemap.xml name it.
+  run(php, ['tests/tools/testenv.php', join(work, 'config'), `--db=${DATABASE}`, `--issuer=http://127.0.0.1:${IAM}`, `--address=http://127.0.0.1:${SITE}`], { cwd: backend });
 
   // Free ports only: a server that cannot have its port fails quietly, and the check would then drive whatever
   // answers there - another site's check, on a computer that runs several (they share 8590-8599).
@@ -182,7 +193,7 @@ try {
   const shots = join(work, 'shots');
   console.log(`Screenshots: ${shots}\n`);
   // The flow changes the check's own database once (a database behind the code): it is told how to reach it.
-  const flow = spawn(process.execPath, [join(here, 'flow.mjs'), String(CHROME_PORT), `http://127.0.0.1:${SITE}`, `http://127.0.0.1:${IAM}`, picture, shots], {
+  const flow = spawn(process.execPath, [join(here, `${FLOW}.mjs`), String(CHROME_PORT), `http://127.0.0.1:${SITE}`, `http://127.0.0.1:${IAM}`, picture, shots], {
     stdio: 'inherit',
     env: { ...process.env, SURVEY_CHECK_PHP: php, SURVEY_CHECK_BACKEND: backend, SURVEY_CHECK_CONFIG: join(work, 'config') },
   });
