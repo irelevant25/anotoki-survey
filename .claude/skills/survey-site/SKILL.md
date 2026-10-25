@@ -54,7 +54,7 @@ backend/
                            and only hands the key in; nothing of a survey
                            without a token while sign-in is required, but its pictures (an
                            <img> sends none; UUID addresses)
-  api/auth.php             signing in through the family's library (anotoki-lib 0.11.0, Anotoki\Lib\Auth -
+  api/auth.php             signing in through the family's library (anotoki-lib 0.11.1, Anotoki\Lib\Auth -
                            the IAM's SDK is gone): surveyIam() (IamClient), surveySignInRule() /
                            authLoginRequired() (the IAM's "Sign-in required", relayed by
                            /api/auth/config with visitor_days), surveyIdentify() (only Bearer claims to
@@ -124,7 +124,7 @@ backend/
                            library's; sitemapSurveys(): the list and each survey taking answers while
                            sign-in is not required) - no kept copy of the sitemap
   api/migrations.php       the database's migrations through the family's library (vendor/anotoki/lib,
-                           anotoki-lib 0.11.0's PHP half - never edited here; DEV.md: how it is updated):
+                           anotoki-lib 0.11.1's PHP half - never edited here; DEV.md: how it is updated):
                            surveyMigrationSet(), surveyMigrationSets() (the library's `anotoki_admin`,
                            the site's `survey`, then the library's `anotoki_translations` and
                            `anotoki_people` - recorded as <set>/NNN.sql), surveyMigrator($pdo,
@@ -229,7 +229,7 @@ frontend/src/app/
                            ANNOUNCEMENT_STORAGE_KEY (the hidden announcement's mark, never its words);
                            SiteSettings.load() in boot(), before the first navigation
                            (pageAccessGuard decides it)
-  shared/auth/             signing in through the family's library (anotoki-lib 0.11.0, @anotoki/lib/auth -
+  shared/auth/             signing in through the family's library (anotoki-lib 0.11.1, @anotoki/lib/auth -
                            the vendored SDK is gone): auth.config.ts (provideSiteAuth() - the boot
                            configuration AuthService read, the site's API (/api/, its status, auth
                            config, strings and pictures skipped), the visitors (VisitorKey, the key
@@ -302,7 +302,7 @@ frontend/src/app/
                            the code's own names, the hosting company and Cloudflare; the anotoki
                            account's pages from AnotokiAuth.issuer() / accountUrl() - never a string;
                            SURVEY_LEGAL_UPDATED; surveyLegalPagesConfig(), the frame's provider)
-  shared/kit.ts            the family's UI kit (anotoki-lib 0.11.0, each piece from its own entry point)
+  shared/kit.ts            the family's UI kit (anotoki-lib 0.11.1, each piece from its own entry point)
                            wired to this site: provideSiteKit() = provideSiteUi() (TranslationService.forKit():
                            the language on the page and the kit's words from the database - the
                            library's keys, anotoki.* - SURVEY_ICONS, and dateChoices: the account's
@@ -545,7 +545,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   a new admin route that changes something writes its entry, by the token's
   person, inside the change's transaction where there is one.
 - **A database behind the code closes the site, but not to the ADMIN who
-  applies it - the anotoki family's way, the library's** (anotoki-lib 0.11.0,
+  applies it - the anotoki family's way, the library's** (anotoki-lib 0.11.1,
   both halves; the owner's decision of 2026-10-07): the
   `SiteGate` answers 503
   `update_pending` to everything but exactly `siteOpenWhileUpdating()` (and
@@ -727,7 +727,7 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   pieces both areas share (UI kit - the admin panel's frame's words too -, toasts, the family's footer) read
   through `effectiveLanguage`, which is `en` under `/admin` - the kit's own
   words too (`shared/kit.ts`), and the family's page at an admin address.
-- **The UI kit is the family's** (anotoki-lib 0.11.0 - its 0.6.0 pieces taken
+- **The UI kit is the family's** (anotoki-lib 0.11.1 - its 0.6.0 pieces taken
   where the site drew its own: the link cards of the home page, the results'
   removable filter chips; 0.11.0's: the HTML editor in place of TipTap, the
   rich text, the dates, the search's folding; what stays the site's and why,
