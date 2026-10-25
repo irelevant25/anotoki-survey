@@ -14,7 +14,13 @@
         <!-- Before anything is drawn: the theme shown last (the anotoki family's script, @anotoki/lib/assets - copied by angular.json). -->
         <script src="theme-boot.js" data-storage-key="anotoki-survey:theme"></script>
         <!-- The family's visitor counter (Umami). async: the app never waits for it. No query string or fragment: the sign-in's code arrives in the query. -->
-        <script async src="https://umami.anotoki.eu/script.js" data-website-id="0e207e45-50bc-48ab-b6c3-8db08aac1be6" data-exclude-search="true" data-exclude-hash="true"></script>
+        <script
+            async
+            src="https://umami.anotoki.eu/script.js"
+            data-website-id="0e207e45-50bc-48ab-b6c3-8db08aac1be6"
+            data-domains="survey.anotoki.eu"
+            data-exclude-search="true"
+            data-exclude-hash="true"></script>
     </head>
     <body>
         <app-root></app-root>
