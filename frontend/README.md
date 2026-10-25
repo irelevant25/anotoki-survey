@@ -165,7 +165,7 @@ every page works at 390 px. The UI kit, the top bar, the admin panel's frame, th
 words, signing in, the People page, the admin tools, the feedback form, the
 error reporter, the legal pages, About and Support, the footer, the site settings, the HTML editor
 and the rich text, the dates and the search's folding are the anotoki family's library
-(`@anotoki/lib`, 0.11.0 - the backend's half the same), configured in
+(`@anotoki/lib`, 0.11.1 - the backend's half the same), configured in
 `app.config.ts`, `shared/kit.ts`, `shared/site-settings.ts`,
 `shared/translations.ts`, `shared/auth/auth.config.ts`,
 `shared/admin/admin-tools.ts`, `shared/feedback.ts` and `shared/legal/` - never copied here; each kit piece

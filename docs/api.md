@@ -557,7 +557,7 @@ while the settings are missing (there is no database to update then:
 
 ### The System: the site settings, the people, feedback, the error log, the audit log, the backups
 
-The anotoki family's routes (anotoki-lib 0.11.0: `SiteSettingsRoutes`, `PeopleRoutes`,
+The anotoki family's routes (anotoki-lib 0.11.1: `SiteSettingsRoutes`, `PeopleRoutes`,
 `FeedbackRoutes`, `ErrorLogRoutes`, `AuditRoutes`, `BackupsRoutes` - wired in
 `routes/admin.php`, `api/site_settings.php`, `api/people.php` and `api/admin_tools.php`), behind this site's
 `requireAdmin()` and guarding themselves as well (the library asks the token's

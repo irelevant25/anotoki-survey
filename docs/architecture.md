@@ -31,7 +31,7 @@ proxies `/api`, `/robots.txt`, `/sitemap.xml` and `/setup.php` to
 ## Signing in, and the roles
 
 The site has no login of its own. People sign in through the anotoki IAM, as
-client `survey`, with the anotoki family's library (anotoki-lib 0.11.0, its
+client `survey`, with the anotoki family's library (anotoki-lib 0.11.1, its
 `Auth` module on both halves - the IAM's SDKs, which the site vendored until
 then, are gone; the library holds what they did, under the same storage keys,
 so nobody was signed out by the move):
@@ -303,7 +303,7 @@ its `<router-outlet>`.
 ## People
 
 The people who signed in are the site's `users` table, kept and read by the
-anotoki family's people module (anotoki-lib 0.11.0, `Anotoki\Lib\People` over a
+anotoki family's people module (anotoki-lib 0.11.1, `Anotoki\Lib\People` over a
 mapping of the table - `api/people.php`; never a table of the library's: every
 answer, every survey's author and every visitor lives in `users`):
 
@@ -348,7 +348,7 @@ answer, every survey's author and every visitor lives in `users`):
 ## The admin tools
 
 The error log, the audit log, feedback and the backups are the anotoki
-family's (anotoki-lib 0.11.0, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
+family's (anotoki-lib 0.11.1, both halves: `Anotoki\Lib\ErrorLog`, `Audit`,
 `Feedback`, `Backups` - wired in `api/admin_tools.php`, their routes in
 `routes/admin.php` (feedback's form in `routes/feedback.php`); the pages
 `@anotoki/lib/admin/errors`, `/audit`, `/feedback`, `/backups`, configured in
@@ -413,7 +413,8 @@ and are in every backup).
   header, a cookie, a query string or a token; the database's words redacted.
   Outermost in the stack, so what the gate answers is seen too: a failure is
   written (the database out of reach), a state the site is in on purpose is
-  not (`update_pending`, `not_set_up`, a tool's `feature_unavailable`: the
+  not (`update_pending`, `not_set_up`, a tool's `feature_unavailable`, and
+  since anotoki-lib 0.11.1 `maintenance` and `page_locked`: the
   library's `expected`, its default since anotoki-lib 0.5.0 - the family's
   rule, which the site keeps whole); an exception thrown for another comes
   with the chain of what caused it. Files: it works while the database is out of reach
@@ -513,7 +514,11 @@ frontend's `shared/site-settings.ts` (`provideSiteSettings()`).
   has no words, nothing where English has none either). Its reader may hide
   it: a mark of its kind and words, never the words, in
   `anotoki-survey:announcement` until they change (the Privacy page names it,
-  the legal facts' storage preset `announcement`).
+  the legal facts' storage preset `announcement`). The bar's code is not in
+  the first load (anotoki-lib 0.11.1): the element fetches it
+  (`@anotoki/lib/site-settings/bar`) only while there is an announcement to
+  show, and holds nothing otherwise - the ADMIN's line above the page
+  (`/notice`) the same way.
 - **Page access** - the participant's pages: the list of open surveys (`/`)
   and a survey's own page (`/{slug}`, its thank-you included), each switched
   off or kept for people signed in, for editors or for administrators. The

@@ -39,9 +39,9 @@ its README), one version for both halves:
 | Half | Where it is declared | Installed into |
 | --- | --- | --- |
 | PHP, `anotoki/lib` | `backend/composer.json`: the GitHub repository (`"type": "vcs"`) and `"anotoki/lib": "^0.11.0"` (on 0.x a `^0.10.0` would never take 0.11) | `backend/vendor/anotoki/lib` (committed, like the rest of `vendor/`): its code, its stand-in IAM for the tests (`backend/testing/stand-in-iam.php`), and its migration sets (`backend/migrations/`) - `anotoki_admin` (before the site's own), `anotoki_translations` and `anotoki_people` (after them) |
-| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.11.0/anotoki-lib-0.11.0.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
+| Angular, `@anotoki/lib` | `frontend/package.json`: the release's tarball, `https://github.com/irelevant25/anotoki-lib/releases/download/v0.11.1/anotoki-lib-0.11.1.tgz` | `frontend/node_modules` (`bun.lock` and `package-lock.json` both name it) |
 
-Both halves are at 0.11.0 (0.6.0 brought the legal pages, the kit's new pieces
+Both halves are at 0.11.1 (0.6.0 brought the legal pages, the kit's new pieces
 and the admin pages' fixes; 0.6.1 a sentence of the Privacy page - its
 translations `010`; 0.6.2 three more - `011`, which keeps a site's own
 words - and the feedback form; 0.6.3 the family's footer, `@anotoki/lib/footer`,
@@ -59,7 +59,10 @@ settings - `@anotoki/lib/site-settings`, `@anotoki/lib/admin/site-settings`,
 sitemap.xml (`Anotoki\Lib\Robots`), the HTML editor and rich text
 (`@anotoki/lib/ui/html-editor`, `/ui/rich-html`, `Anotoki\Lib\RichHtml`), the
 dates (`@anotoki/lib/ui/dates`), the search's folding (`@anotoki/lib/ui/search`)
-and their words - translations `014` and `015`); a release that changes one half only says so in its CHANGELOG. The
+and their words - translations `014` and `015`; 0.11.1 the announcement bar and
+the administrators' notice out of the first load - `@anotoki/lib/site-settings/bar`,
+`/notice`, fetched only when there is something to draw -, and the error log
+leaving `maintenance` out, a state like `update_pending`); a release that changes one half only says so in its CHANGELOG. The
 kit is imported a piece at a time, each from its
 own entry point (`@anotoki/lib/ui/button`, `@anotoki/lib/ui/icon`, ...: the
 smaller first load), never from the `@anotoki/lib/ui` barrel; the admin pages

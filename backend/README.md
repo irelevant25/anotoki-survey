@@ -118,7 +118,7 @@ tests/                 run.php, lib.php; unit/, api/; tools/ (testdb.php, testen
 tools/                 translation_keys.php (the frontend's keys: the library's KeyScanner, set up for
                        this site). The release is anotoki-deploy's (anotoki-lib's deploy tool, set up
                        in composer.json's extra["anotoki-deploy"]; ../DEV.md, Building and deploying)
-vendor/                Slim and its pieces, and anotoki/lib 0.11.0 (the family's library, from GitHub -
+vendor/                Slim and its pieces, and anotoki/lib 0.11.1 (the family's library, from GitHub -
                        ../DEV.md says how it is updated; its migration sets in backend/migrations/,
                        its stand-in IAM for the tests in backend/testing/) - committed: the hosting
                        cannot run Composer
