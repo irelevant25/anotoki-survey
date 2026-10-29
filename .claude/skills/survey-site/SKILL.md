@@ -647,9 +647,15 @@ frontend/src/              styles.scss: the family's styles (@anotoki/lib/styles
   editor the text is behind "Text and pictures" on a step (open whenever it
   has some, `.step-own`) and "Add a text step" (`#add-text-step`) makes one
   with it open; the outline says "Text only - no questions". The results
-  (`survey-results`) leave a step with no question out and keep the others'
-  numbers; a person's survey (`response-view`) shows it as a line ("Text
-  only - nothing to answer"). The CSV has no column for it.
+  (`survey-results`) show every step in its place - its own text
+  (`.step-own .step-text`, `<anotoki-rich-html>`) and pictures
+  (`app-image-strip`) above its questions' results, a step of text alone with
+  "Text only - nothing to answer" beside its title (the owner's request of
+  2026-10-29: which task the questions after it are about); only a step with
+  nothing at all is left out, every step keeping its number. A person's
+  survey (`response-view`) shows a step of text alone as a line ("Text only -
+  nothing to answer"), its text not repeated for every person. The CSV has no
+  column for it.
 - **A survey's translations**: `language` and `translations` are required in
   every save - no default on the way in (a page from before would wipe them),
   defaults only when a stored row is read (`surveyContent()`). The maps are

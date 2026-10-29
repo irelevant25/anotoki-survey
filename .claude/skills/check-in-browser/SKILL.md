@@ -123,6 +123,11 @@ hundred). Look at them - a check can pass on a page that looks wrong:
 - `editor-past-last-day-1280`, `editor-past-last-day-390-*`: an open survey
   whose last day is over, a text untranslated - "Closed", nothing said of its
   readers, "1 to fix before it reopens";
+- `admin-results-text-step-1280-*`, `admin-results-text-step-390-*`: the
+  results of a usability test - a step of text alone in its place, its text
+  and picture in their panel, "Text only - nothing to answer" at the end of
+  its heading (under the title on a phone), the questions after it under it,
+  and a task with its question showing its text above the question's card;
 - `admin-migrations-editor`: the Migrations page's address opened by an EDITOR
   - the family's page says "Migrations are for administrators.";
 - the database behind - the anotoki family's page, bare (no top bar, no
@@ -453,7 +458,15 @@ cleared, `/?lang=en`), the owner in the admin panel:
     only (through the API): the header says Closed, no notice or tag says what
     its readers see, the list of problems says "1 to fix before it
     reopens", and the Slovak tab's banner says what holds for it now - at
-    1280 and 390 px.
+    1280 and 390 px. Then a usability test, made, opened and answered through
+    the API ("Two tasks": a task of text and a picture alone - the first
+    survey's picture -, a step asking about it, a task with its question):
+    its results show every step in its place (the owner's request of
+    2026-10-29) - the task's text and picture above the questions after it,
+    the picture the server's and opening large, "Text only - nothing to
+    answer" at the end of the heading's line at 1280 px and under the title,
+    as far in as it, at 390 -, the second task's text above its question's
+    card; a person's survey in the drawer keeps the task as a line.
 
 A database behind the code - the one stage that changes the database itself
 (`sql()`, on `survey_test_browser` through the settings run.mjs wrote:
@@ -481,9 +494,10 @@ A database behind the code - the one stage that changes the database itself
     family's page no page is made: for a visitor with "Sign-in required"
     switched off for a moment (whom the list of surveys would take), for Pat
     signed in, and for the owner's "A database update is waiting" below, the
-    site's API was asked nothing but the status, the sign-in's settings and
-    the strings (the owner, the Migrations page's list too: `askedBehind()`),
-    and no toast came. The owner, signed
+    site's API was asked nothing but the status, the sign-in's settings, the
+    strings and the site settings (asked as the site starts, and answering
+    while it cannot run - anotoki-lib 0.11.0; the owner, the Migrations
+    page's list too: `askedBehind()`), and no toast came. The owner, signed
     out at `/admin/migrations`, signs in from it: back there, on the family's
     Migrations page - the six files pending in one list in the order they
     run (the site's by their names, the library's with their set, anotoki-lib
@@ -500,7 +514,8 @@ A database behind the code - the one stage that changes the database itself
     exists", with the statement) in its box - at 1280 and 390. 004's row put
     back; Apply again: "Up to date - Applied: 011_people.sql,
     012_sign_in_words.sql, anotoki_translations/003_…, anotoki_translations/004_…,
-    anotoki_people/001_….", nothing pending, the column's four pages back, the
+    anotoki_people/001_….", nothing pending, every page of the column back
+    (Surveys, the two of Localization, the seven of System), the
     strings read again - the owner's rewording under the library's key now
     (012 moved it), and a sign-in turned down afterwards says it on the
     family's screen - no key on the page; at 1280 and 390; Surveys opens the

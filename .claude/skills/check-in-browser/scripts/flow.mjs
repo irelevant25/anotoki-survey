@@ -3097,6 +3097,125 @@ await sleep(500);
 await expectBar('the editor, an open survey past its last day, 390 px');
 await screenshots('editor-past-last-day-390');
 
+// ── A step of text alone in the results: in its place, its text and pictures, the questions after it under it ──
+// A usability test's way (the owner's request of 2026-10-29): a step says the task, the steps after it ask about
+// it. Left out of the results, nobody could tell which task a question was about: every step stands in its place now -
+// its own text and pictures above its questions' results, a step of text alone saying it asked nothing.
+const mapPicture = (await (await asOwner('GET', `/api/admin/surveys/${surveyId}`)).json()).survey?.steps?.[0]?.questions?.[0]?.images?.[0];
+const yesOrNo = (id, words) => ({
+  id,
+  type: 'single',
+  text: `<p>${words}</p>`,
+  images: [],
+  required: true,
+  options: [
+    { id: 'yes', label: 'Yes', other: false, images: [] },
+    { id: 'no', label: 'No', other: false, images: [] },
+  ],
+  layout: 'list',
+  minChoices: null,
+  maxChoices: null,
+  multiline: true,
+  maxLength: null,
+  placeholder: '',
+});
+const tasksMade = await (
+  await asOwner('POST', '/api/admin/surveys', {
+    survey: {
+      slug: 'two-tasks',
+      title: 'Two tasks',
+      status: 'draft',
+      intro: '<p>Two things to try on the site.</p>',
+      thanks: '<p>Thank you!</p>',
+      askAboutYou: false,
+      closesOn: null,
+      language: 'en',
+      translations: {},
+      steps: [
+        {
+          id: 'task-1',
+          title: 'Task 1: the map',
+          text: '<p>Find the <strong>map</strong> of Mondstadt, then come back here.</p>',
+          images: mapPicture ? [{ id: mapPicture.id, alt: 'The map' }] : [],
+          questions: [],
+        },
+        { id: 'task-1-asked', title: 'How it went', text: '', images: [], questions: [yesOrNo('found', 'Did you find it?')] },
+        { id: 'task-2', title: 'Task 2: the shop', text: '<p>Now find the shop, and say how it went.</p>', images: [], questions: [yesOrNo('easy', 'Was it easy?')] },
+      ],
+    },
+  })
+).json();
+const tasksId = tasksMade.survey?.id;
+const tasksOpened = tasksId ? (await asOwner('POST', `/api/admin/surveys/${tasksId}/status`, { status: 'open' })).ok : false;
+const tasksAnswered = await asOwner('POST', '/api/surveys/two-tasks/responses', {
+  aboutYou: null,
+  answers: { found: { optionIds: ['yes'], other: '', text: '' }, easy: { optionIds: ['no'], other: '', text: '' } },
+  language: 'en',
+  startedAt: new Date().toISOString(),
+});
+expect(
+  'a usability test, through the API: a task of text and a picture alone, the step asking about it, a task with its question - opened, answered',
+  !!mapPicture && !!tasksId && tasksOpened && tasksAnswered.status === 201,
+  `${mapPicture?.id} / ${tasksId} / ${tasksOpened} / ${tasksAnswered.status} / ${JSON.stringify(tasksMade).slice(0, 160)}`,
+);
+/** Each step of the results' summary: its heading's words, its own text, its pictures' buttons' names, how many questions' cards. */
+const resultSteps = () =>
+  js(
+    "[...document.querySelectorAll('#results-panel-summary .step')].map((step) => ({ title: step.querySelector('.step-title').textContent.replace(/\\s+/g, ' ').trim(), text: step.querySelector('.step-own .step-text')?.textContent.trim() ?? null, pictures: [...step.querySelectorAll('.step-own app-image-strip button')].map((button) => button.getAttribute('aria-label')), questions: step.querySelectorAll('app-choice-result, app-text-result').length }))",
+  );
+/** Where "Text only" stands against its step's number: beside it on one line, or on a line under it, as far in as the title. */
+const textOnlyPlace = () =>
+  js(
+    "(() => { const title = document.querySelector('#results-panel-summary .step-title'); const tag = title?.querySelector('.text-only')?.getBoundingClientRect(); const pill = title?.querySelector('.step-number')?.getBoundingClientRect(); if (!tag || !pill) return null; const words = document.createRange(); words.setStart(title.querySelector('.step-number').nextSibling, 0); words.setEnd(title.querySelector('.step-number').nextSibling, title.querySelector('.step-number').nextSibling.length); const name = words.getBoundingClientRect(); return { beside: Math.abs((tag.top + tag.bottom) / 2 - (pill.top + pill.bottom) / 2) < 3, under: tag.top >= pill.bottom - 1, withTitle: Math.abs(tag.left - name.left) < 2, atEnd: Math.abs(tag.right - title.getBoundingClientRect().right) < 2 }; })()",
+  );
+await viewport(1280);
+await go(`/admin/surveys/${tasksId}/results`);
+await waitFor(page, "document.querySelectorAll('#results-panel-summary .step').length === 3 && !!document.querySelector('#results-panel-summary .step-own app-image-strip img')", 15000).catch(
+  () => null,
+);
+await sleep(500);
+expect(
+  'the results: every step in its place - the task alone with its text and its picture, "Text only - nothing to answer", the questions after it under it',
+  same(await resultSteps(), [
+    { title: 'Step 1 Task 1: the map Text only - nothing to answer', text: 'Find the map of Mondstadt, then come back here.', pictures: ['Show large: Step 1, The map'], questions: 0 },
+    { title: 'Step 2 How it went', text: null, pictures: [], questions: 1 },
+    { title: 'Step 3 Task 2: the shop', text: 'Now find the shop, and say how it went.', pictures: [], questions: 1 },
+  ]),
+  JSON.stringify(await resultSteps()),
+);
+expect(
+  "... the task's picture is the server's, and opens large",
+  (await js(
+    "(() => { const img = document.querySelector('#results-panel-summary .step-own app-image-strip img'); return !!img && img.complete && img.naturalWidth > 0 && img.src.includes('/api/images/'); })()",
+  )) &&
+    (await js("document.querySelector('#results-panel-summary .step-own app-image-strip button').click(), true")) &&
+    !!(await waitFor(page, "!!document.querySelector('dialog.lightbox')?.open", 5000).catch(() => false)),
+);
+await escape();
+await sleep(300);
+const besideAt1280 = await textOnlyPlace();
+expect('... "Text only" on the heading\'s line, at its end, at 1280 px', !!besideAt1280?.beside && !!besideAt1280?.atEnd, JSON.stringify(besideAt1280));
+await expectNoKeys('the results of a usability test');
+await screenshots('admin-results-text-step-1280');
+await viewport(390);
+await sleep(500);
+const underAt390 = await textOnlyPlace();
+expect('... and under the title at 390 px, as far in as it', !!underAt390?.under && !!underAt390?.withTitle, JSON.stringify(underAt390));
+await expectBar('the results of a usability test, 390 px');
+await screenshots('admin-results-text-step-390');
+// A person's survey keeps the task as a line: its text is the summary's, read once there.
+await clickText('#results-panel-summary app-choice-result button', 'Yes');
+await waitFor(page, "!!document.querySelector('anotoki-drawer app-people-list button')", 15000).catch(() => null);
+await js("document.querySelector('anotoki-drawer app-people-list button').click(); true");
+await waitFor(page, "!!document.querySelector('anotoki-drawer app-response-view .step-title')", 15000).catch(() => null);
+await sleep(400);
+expect(
+  "... and a person's survey, in the drawer, keeps the task as a line between the steps they answered",
+  same(await texts('anotoki-drawer app-response-view .step-title'), ['Step 1 Task 1: the map Text only - nothing to answer', 'Step 2 How it went', 'Step 3 Task 2: the shop']),
+  JSON.stringify(await texts('anotoki-drawer app-response-view .step-title')),
+);
+await viewport(1280);
+
 // ═══ A database behind the code: the family's page, and the Migrations page ═══
 // A release that brings migrations nobody has applied yet - this one's (anotoki-lib 0.4.1): the database's record
 // says the site's 011 and 012 have not run, nor the anotoki library's files of it (anotoki_translations' 003 and 004,
@@ -3168,7 +3287,8 @@ const quiet = async () =>
   (await js("document.querySelectorAll('anotoki-toast-host .anotoki-toast-host__toast').length")) === 0;
 /**
  * What the site's API was asked since `from` (the page's own requests) beyond what the family's page and the sign-in
- * need while the site cannot run - where it stands, the sign-in's settings, the strings - and the routes in `open`
+ * need while the site cannot run - where it stands, the sign-in's settings, the strings, and the site settings (asked
+ * as the site starts, `boot()`, and answering while it cannot run: anotoki-lib 0.11.0) - and the routes in `open`
  * (the Migrations page's, for the site's ADMIN on it): anything else came from a page made behind the family's page,
  * which must never be made (the router outlet is the gate's template, made only while the gate shows the pages).
  * The site's own origin only: the stand-in IAM's `/api/oidc/...` and the visitor counter's `/api/send` (Umami, on
@@ -3178,7 +3298,10 @@ const askedBehind = (from, open = []) =>
   requested
     .slice(from)
     .filter((request, at) => requestedOrigins[from + at] === origin && /^[A-Z]+ \/api\//.test(request))
-    .filter((request) => request !== 'GET /api/site-status' && request !== 'GET /api/auth/config' && !request.startsWith('GET /api/translations/') && !open.includes(request));
+    .filter(
+      (request) =>
+        request !== 'GET /api/site-status' && request !== 'GET /api/auth/config' && request !== 'GET /api/site-settings' && !request.startsWith('GET /api/translations/') && !open.includes(request),
+    );
 /**
  * Nobody signed in, opening `path` while the update waits: how many times the page went to the IAM's sign-in
  * meanwhile - none. Counted from the page's own requests (the stand-in's log also has the check's own questions).
@@ -3228,7 +3351,7 @@ await go('/?lang=sk');
 await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000);
 await sleep(900);
 expect(
-  "a visitor while the update waits, sign-in not required: the same page - and nothing of the open surveys behind it: the API asked only where the site stands, the sign-in's settings and the strings, and no toast",
+  "a visitor while the update waits, sign-in not required: the same page - and nothing of the open surveys behind it: the API asked only where the site stands, the sign-in's settings, the strings and the site settings, and no toast",
   welcomeOff && (await statusHeading()) === 'Stránku práve aktualizujeme' && askedBehind(welcomeFrom).length === 0 && (await quiet()),
   `${await statusHeading()} / asked: ${askedBehind(welcomeFrom).join(', ')}`,
 );
@@ -3254,7 +3377,7 @@ await waitFor(page, "!!document.querySelector('anotoki-site-status h1')", 15000)
 await sleep(500);
 expect('... and in English', (await statusHeading()) === 'The site is being updated' && (await statusActions()) === '' && (await quiet()), await statusHeading());
 expect(
-  "... and signed in, nothing of the page behind it either - the list of surveys is not made: the API asked only the status, the sign-in's settings and the strings",
+  "... and signed in, nothing of the page behind it either - the list of surveys is not made: the API asked only the status, the sign-in's settings, the strings and the site settings",
   askedBehind(patFrom).length === 0,
   askedBehind(patFrom).join(', '),
 );
@@ -3338,7 +3461,7 @@ await waitFor(page, "!!document.querySelector('anotoki-site-status a')", 15000);
 await sleep(500);
 await screenshot('en-1280-behind-admin');
 expect(
-  'the ADMIN: nothing of a page behind "A database update is waiting" - the API asked only the Migrations page\'s list, where the site stands, the sign-in\'s settings and the strings - and no toast',
+  'the ADMIN: nothing of a page behind "A database update is waiting" - the API asked only the Migrations page\'s list, where the site stands, the sign-in\'s settings, the strings and the site settings - and no toast',
   askedBehind(ownerFrom, ['GET /api/admin/migrations']).length === 0 && (await js("document.querySelectorAll('anotoki-toast-host .anotoki-toast-host__toast').length")) === 0,
   askedBehind(ownerFrom, ['GET /api/admin/migrations']).join(', '),
 );
@@ -3385,14 +3508,14 @@ await viewport(1280);
 // What was in the way is dealt with (here: 004's work is there, so its row goes back): the next Apply goes through.
 sql(`INSERT INTO migrations (filename) VALUES ('${FILE_004}') ON CONFLICT DO NOTHING`);
 await applyPending('Up to date');
-await waitFor(page, "document.querySelectorAll('app-admin-root anotoki-admin-frame header nav a.anotoki-side-nav__link').length === 4", 15000);
+await waitFor(page, "document.querySelectorAll('app-admin-root anotoki-admin-frame header nav a.anotoki-side-nav__link').length === 10", 15000);
 await sleep(500);
 expect(
   "a good Apply: \"Up to date\", what was applied - the site's files, then the library's - nothing pending, and the site runs where it stands, every page in the frame's column",
   (await text('anotoki-migrations-page [data-result] .anotoki-alert__heading')) === 'Up to date' &&
     (await text('anotoki-migrations-page [data-result] .anotoki-migrations-page__result-text')) === `Applied: ${FILE_011}, ${FILE_012}, ${LIBRARY_FILES.join(', ')}.` &&
     (await text('anotoki-migrations-page [data-pending]')).includes('Nothing pending') &&
-    (await columnPages()) === 'Surveys Translations Languages System',
+    (await columnPages()) === 'Surveys Translations Languages Site settings People Feedback Error log Audit log Backups Migrations',
   `${await text('anotoki-migrations-page [data-result]')} / ${await columnPages()}`,
 );
 expect('... and the footer offers Feedback again: the site runs', same(await footerRow('app-admin-root'), FOOTER_ROW.en), JSON.stringify(await footerRow('app-admin-root')));

@@ -378,8 +378,11 @@ file, the agents, `README.md` ("Current state"), `DEV.md`, and
   the pictures too (at most 10, recorded in `survey_images`; one only that
   step showed goes with it). A step with no text, no picture and no question
   is "empty" (`stepIsEmpty()` and `surveyStepIsEmpty()`, the same sentence);
-  a survey still needs a question. The results leave such a step out; a
-  person's survey shows it as a line. A step kept without the two (saved by a
+  a survey still needs a question. The results show every step in its place,
+  its own text and pictures above its questions' results - a step of text
+  alone with "Text only - nothing to answer" (the owner's request of
+  2026-10-29: which task the questions after it are about); a person's survey
+  shows such a step as a line. A step kept without the two (saved by a
   release from before 016) is read as having neither (`surveyContent()`).
   Once 016 is applied no release from before it goes on the host again -
   `rollback` included, whatever the surveys hold: its editor would save a
