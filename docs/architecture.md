@@ -1247,11 +1247,18 @@ presses Next, the step after it asks about it; [decisions](decisions.md)).
   ever - a step of text alone has nothing to check. It counts as a step in the
   welcome's "N questions in M steps", the hero's progress and a draft (which
   keeps the step it got to, so carrying on lands there and goes on).
-- **The results**: a step of text alone has no answers - the summary leaves it
-  out (the others keep the numbers people saw them under) and the CSV, being
-  by question, has nothing of it; a person's whole survey shows it as a line,
+- **The results**: the summary shows every step in its place, as people met
+  it - its number and title, then its own text (`<anotoki-rich-html>`) and
+  pictures (`app-image-strip`, each opening large) in a quieter panel than the
+  results' cards, then its questions' results; a step of text alone says
+  "Text only - nothing to answer" beside its title. So the questions after a
+  task read under it (the owner's request of 2026-10-29). Only a step with
+  nothing at all - which no open survey has - is left out, and every step
+  keeps the number people saw it under. The CSV, being by question, has
+  nothing of a step of text alone; a person's whole survey shows it as a line,
   its number and title and "Text only - nothing to answer", between the steps
-  they answered.
+  they answered - its text is the summary's, read once, not again for every
+  person.
 
 ## The site's own words
 

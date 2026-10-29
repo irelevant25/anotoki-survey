@@ -107,7 +107,21 @@
                                 <h2 class="step-title">
                                     <span class="step-number">Step {{ section.number }}</span>
                                     {{ section.step.title }}
+                                    @if (!section.items.length) {
+                                        <span class="text-only">Text only - nothing to answer</span>
+                                    }
                                 </h2>
+                                @if (section.text || section.step.images.length) {
+                                    <!-- The step's own text and pictures, as people read them: the task its questions - or the next step's - are about. -->
+                                    <div class="step-own">
+                                        @if (section.text) {
+                                            <anotoki-rich-html class="step-text rich" [html]="section.text" />
+                                        }
+                                        @if (section.step.images.length) {
+                                            <app-image-strip [images]="section.step.images" [label]="'Step ' + section.number" />
+                                        }
+                                    </div>
+                                }
                                 @for (item of section.items; track item.question.id) {
                                     @if (item.choice; as summary) {
                                         <app-choice-result

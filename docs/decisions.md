@@ -972,10 +972,17 @@ it. What was chosen:
   (`surveyContent()`), so nothing that reads a survey fails on it; no such
   release goes on the host once 016 is applied, whatever the surveys hold
   ([operations](operations.md)).
-- **The results**: a step of text alone has no answers, so the summary leaves
-  it out (the other steps keep the numbers people saw them under) and the CSV
-  has nothing of it; a person's whole survey keeps its place as one line - its
-  number, its title, "Text only - nothing to answer".
+- **The results**: a step of text alone has no answers, so the CSV has
+  nothing of it, and a person's whole survey keeps its place as one line - its
+  number, its title, "Text only - nothing to answer". The summary left it out
+  at first; **since the owner's request of 2026-10-29 it shows it in its
+  place** - its number and title, "Text only - nothing to answer", its text
+  and pictures - and a step of questions shows its own text above their
+  results: with the task gone from the page, nobody could tell which task the
+  questions after it were about. Only a step with nothing at all (no open
+  survey has one) is left out, and every step keeps the number people saw it
+  under. A person's survey stays a line: the text is the same for everybody,
+  read once on the summary, not again for each person stepped through.
 - **No new words**: what people meet is the survey's own text, and the
   buttons that open a step's picture large say what a question's say
   (`question.showLarge`, `question.showLargeNumbered` - their descriptions say

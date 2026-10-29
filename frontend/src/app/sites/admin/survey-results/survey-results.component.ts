@@ -4,7 +4,7 @@ import { ButtonComponent } from '@anotoki/lib/ui/button';
 import { type ChipItem, ChipListComponent } from '@anotoki/lib/ui/chips';
 import { EmptyStateComponent } from '@anotoki/lib/ui/empty-state';
 import { IconComponent } from '@anotoki/lib/ui/icon';
-import { richHtmlText } from '@anotoki/lib/ui/rich-html';
+import { RichHtmlComponent, richHtmlIsBlank, richHtmlText } from '@anotoki/lib/ui/rich-html';
 import { SpinnerComponent } from '@anotoki/lib/ui/spinner';
 import { ConfirmService } from '@anotoki/lib/ui/dialog';
 import { DrawerComponent } from '@anotoki/lib/ui/drawer';
@@ -18,10 +18,11 @@ import { AGE_ID, GENDER_ID, ageLabel, genderLabel } from '../../../shared/survey
 import { isChoice } from '../../../shared/survey/answer-rules';
 import { responsesCsv } from '../../../shared/survey/csv';
 import { ResultFilter, aboutYouSummary, choiceSummary, describeFilter, durationSeconds, filterResponses, matchesFilter, medianDuration, writtenAnswers } from '../../../shared/survey/results';
-import { numberedQuestions } from '../../../shared/survey/survey-outline';
+import { numberedQuestions, stepIsEmpty } from '../../../shared/survey/survey-outline';
 import { SurveyResponse } from '../../../shared/survey/survey.model';
 import { formatDuration, todayIsoDay } from '../../../shared/util/dates';
 import { ResponseViewComponent } from '../response-view/response-view.component';
+import { ImageStripComponent } from '../shared/image-strip/image-strip.component';
 import { SurveyHeaderComponent } from '../survey-header/survey-header.component';
 import { BarListComponent } from './bar-list/bar-list.component';
 import { ChoiceResultComponent } from './choice-result/choice-result.component';
@@ -80,8 +81,10 @@ const NONE: ReadonlySet<string> = new Set();
     DrawerComponent,
     EmptyStateComponent,
     IconComponent,
+    ImageStripComponent,
     PeopleListComponent,
     ResponseViewComponent,
+    RichHtmlComponent,
     SpinnerComponent,
     SurveyHeaderComponent,
     TabsComponent,
@@ -191,15 +194,18 @@ export class SurveyResultsComponent {
     const responses = this.responses();
     const numbers = new Map(numberedQuestions(survey).map((item) => [item.question.id, item.number]));
     const first = survey.askAboutYou ? 2 : 1;
-    // A step of text and pictures alone asked nothing, so it has no results: it is left out - the others keep the
+    // Every step in its place, as people met it: its own text and pictures - the task the questions after it are
+    // about - then its questions' results. A step of text and pictures alone asked nothing and says so; a step with
+    // nothing at all (only ever in a survey being edited) has nothing to show and is left out - the others keep the
     // numbers people saw them under.
     return survey.steps.flatMap((step, index) =>
-      step.questions.length === 0
+      stepIsEmpty(step)
         ? []
         : [
             {
               step,
               number: index + first,
+              text: richHtmlIsBlank(step.text) ? '' : step.text,
               items: step.questions.map((question) => ({
                 question,
                 number: numbers.get(question.id) ?? 0,

@@ -4,7 +4,7 @@ import { Router, provideRouter } from '@angular/router';
 import { AdminStore } from '../../../shared/admin/admin-store.service';
 import { AuthService } from '../../../shared/auth/auth.service';
 import { newStep, newSurvey } from '../../../shared/survey/survey-factory';
-import { SurveyResponse } from '../../../shared/survey/survey.model';
+import { Step, SurveyImage, SurveyResponse } from '../../../shared/survey/survey.model';
 import { answersOf } from '../../../shared/testing/answers-of';
 import { SurveyResultsComponent } from './survey-results.component';
 
@@ -145,11 +145,12 @@ describe('SurveyResultsComponent: the filters, the kit’s removable chips', () 
   });
 });
 
-describe('SurveyResultsComponent: a step of text alone', () => {
-  it('has no results, so the summary leaves it out - and the steps that asked keep the numbers people saw them under', async () => {
-    const base = { ...newSurvey([]), id: 's1', askAboutYou: true };
-    const task = { ...newStep('Try the genshin site'), text: '<p>Go there, then come back.</p>' };
-    const survey = { ...base, steps: [task, { ...base.steps[0], title: 'How it went' }] };
+describe('SurveyResultsComponent: a step of text alone, and a step’s own text', () => {
+  const MAP: SurveyImage = { id: 'p1', alt: 'The map', width: 40, height: 30, src: '/api/images/p1.png' };
+
+  /** The summary of `steps` - after "About them" - with Zuzka's answers. */
+  async function summaryOf(steps: Step[]): Promise<HTMLElement> {
+    const survey = { ...newSurvey([]), id: 's1', askAboutYou: true, steps };
     const responses = [answersOf('r1', 'Zuzka', false)];
     const store = {
       survey: () => survey,
@@ -170,12 +171,57 @@ describe('SurveyResultsComponent: a step of text alone', () => {
     const fixture = TestBed.createComponent(SurveyResultsComponent);
     fixture.componentRef.setInput('surveyId', 's1');
     await fixture.whenStable();
-    const host = fixture.nativeElement as HTMLElement;
+    return fixture.nativeElement as HTMLElement;
+  }
 
-    const steps = [...host.querySelectorAll('#results-panel-summary .step-title')].map((title) => title.textContent?.replace(/\s+/g, ' ').trim());
-    expect(steps).toEqual(['Step 1 About them', 'Step 3 How it went']);
-    expect(host.querySelectorAll('app-choice-result')).toHaveLength(1);
-    expect(host.textContent).not.toContain('Try the genshin site');
+  const stepTitles = (host: HTMLElement) => [...host.querySelectorAll('#results-panel-summary .step-title')].map((title) => title.textContent?.replace(/\s+/g, ' ').trim());
+  /** Each step of the summary: its own text, the names of its pictures' buttons, and how many questions' cards it has. */
+  const stepsShown = (host: HTMLElement) =>
+    [...host.querySelectorAll('#results-panel-summary .step')].map((step) => ({
+      text: step.querySelector('.step-own .step-text')?.textContent?.trim() ?? null,
+      pictures: [...step.querySelectorAll('.step-own app-image-strip button')].map((button) => button.getAttribute('aria-label')),
+      questions: step.querySelectorAll('app-choice-result, app-text-result').length,
+    }));
+
+  it('stands in its place - its number, its title, that it asked nothing, its text and pictures - so the questions after a task read under it', async () => {
+    const question = newSurvey([]).steps[0];
+    const task = { ...newStep('Try the genshin site'), text: '<p>Go there, find the <strong>map</strong>, then come back.</p>', images: [MAP] };
+    const host = await summaryOf([task, { ...question, title: 'How it went' }]);
+
+    expect(stepTitles(host)).toEqual(['Step 1 About them', 'Step 2 Try the genshin site Text only - nothing to answer', 'Step 3 How it went']);
+    expect(stepsShown(host)).toEqual([
+      { text: null, pictures: [], questions: 0 },
+      { text: 'Go there, find the map, then come back.', pictures: ['Show large: Step 2, The map'], questions: 0 },
+      { text: null, pictures: [], questions: 1 },
+    ]);
+    // The survey's own text, drawn as people read it - its markup through the family's rich text.
+    expect(host.querySelector('.step-own .step-text strong')?.textContent).toBe('map');
+  });
+
+  it('a step of questions shows its own text above their results, and says nothing of "text only"', async () => {
+    const question = newSurvey([]).steps[0];
+    const host = await summaryOf([{ ...question, title: 'The second task', text: '<p>Now find the shop.</p>' }]);
+
+    expect(stepTitles(host)).toEqual(['Step 1 About them', 'Step 2 The second task']);
+    const step = host.querySelectorAll('#results-panel-summary .step')[1];
+    expect([...step.children].map((child) => child.className.split(' ')[0] || child.tagName.toLowerCase())).toEqual(['step-title', 'step-own', 'app-choice-result']);
+    expect(step.querySelector('.step-text')?.textContent?.trim()).toBe('Now find the shop.');
+  });
+
+  it('a text with no words in it is no text: a step of questions with one shows none', async () => {
+    const question = newSurvey([]).steps[0];
+    const host = await summaryOf([{ ...question, text: '<p> </p>' }]);
+
+    expect(host.querySelectorAll('.step-own')).toHaveLength(0);
+  });
+
+  it('leaves out a step with nothing at all - only ever in a survey being edited - and the others keep the numbers people saw them under', async () => {
+    const question = newSurvey([]).steps[0];
+    const task = { ...newStep('Try the genshin site'), text: '<p>Go there.</p>' };
+    const host = await summaryOf([newStep('Nothing yet'), task, { ...question, title: 'How it went' }]);
+
+    expect(stepTitles(host)).toEqual(['Step 1 About them', 'Step 3 Try the genshin site Text only - nothing to answer', 'Step 4 How it went']);
+    expect(host.textContent).not.toContain('Nothing yet');
   });
 });
 

@@ -137,8 +137,9 @@ hosting:
 of text and pictures alone** - a step's own rich text and pictures above its
 questions, or with none: a task people read and do, and leave with Next (for
 usability tests); written and translated in the editor ("Add a text step",
-"Text and pictures"), counted as a step, left out of the per-question results
-and kept as a line in a person's survey ([docs/architecture.md](docs/architecture.md#a-steps-own-text-and-a-step-of-text-alone)).
+"Text and pictures"), counted as a step, shown in its place in the results -
+its text and pictures, the questions after it under it (the owner's request of
+2026-10-29) - and kept as a line in a person's survey ([docs/architecture.md](docs/architecture.md#a-steps-own-text-and-a-step-of-text-alone)).
 On the hosting it brings `016_step_text_and_pictures.sql`, applied on the
 Migrations page ([docs/operations.md](docs/operations.md)). And the gender
 question offers Male, Female and Prefer not to say (the owner's decision of

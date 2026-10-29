@@ -5,8 +5,8 @@ import { SurveyImageComponent } from '../../../../shared/ui/survey-image/survey-
 
 /**
  * A question's pictures as a row of small thumbnails - on the results and in
- * a person's filled survey, where the question is read, not answered. Each
- * opens large.
+ * a person's filled survey, where the question is read, not answered - and a
+ * step's own, on the results. Each opens large.
  */
 @Component({
   selector: 'app-image-strip',
@@ -17,7 +17,7 @@ import { SurveyImageComponent } from '../../../../shared/ui/survey-image/survey-
 })
 export class ImageStripComponent {
   readonly images = input.required<SurveyImage[]>();
-  /** "Question 3": for the buttons' names. */
+  /** "Question 3", "Step 2": for the buttons' names. */
   readonly label = input('Question');
 
   protected readonly lightbox = inject(LightboxService);

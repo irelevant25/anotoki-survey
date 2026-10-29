@@ -123,7 +123,7 @@ describe('ResponseViewComponent: a step of text alone', () => {
 
     const titles = Array.from(host.querySelectorAll('.step-title')).map((title) => title.textContent?.replace(/\s+/g, ' ').trim());
     expect(titles).toEqual(['Step 1 Try the genshin site Text only - nothing to answer', 'Step 2 The game']);
-    // Its text is the survey's to read in the editor: the person's survey lists what they answered.
+    // Its text is the summary's, read there once: the person's survey lists what they answered.
     expect(host.textContent).not.toContain('Go there');
     expect(host.querySelectorAll('.item')).toHaveLength(1);
   });
